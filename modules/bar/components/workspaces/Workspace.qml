@@ -15,6 +15,7 @@ ColumnLayout {
     required property int activeWsId
     required property var occupied
     required property int groupOffset
+    required property var desktopWinMap
 
     readonly property bool isWorkspace: true // Flag for finding workspace children
     // Unanimated prop for others to use as reference
@@ -95,6 +96,10 @@ ColumnLayout {
                     values: {
                         const ws = root.ws;
                         const windows = Hypr.toplevels.values.filter(c => c.workspace?.id === ws);
+                        for (const c of Hypr.toplevels.values) {
+                            if (c.workspace?.name === "desktop" && desktopWinMap[c.address] == ws)
+                                windows.push(c);
+                        }
                         const maxIcons = root.Config.bar.workspaces.maxWindowIcons;
                         return maxIcons > 0 ? windows.slice(0, maxIcons) : windows;
                     }

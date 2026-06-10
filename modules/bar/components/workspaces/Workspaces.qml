@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import Caelestia.Config
 import qs.components
 import qs.services
@@ -21,14 +22,33 @@ StyledClippingRect {
         const occ = {};
         for (const ws of Hypr.workspaces.values)
             occ[ws.id] = ws.lastIpcObject.windows > 0;
+        for (const addr in root.desktopWinMap)
+            occ[parseInt(desktopWinMap[addr])] = true;
         return occ;
     }
     readonly property int groupOffset: Math.floor((activeWsId - 1) / Config.bar.workspaces.shown) * Config.bar.workspaces.shown
 
     property real blur: onSpecial ? 1 : 0
+    property var desktopWinMap: ({})
+
+    FileView {
+        id: mapReader
+        path: "/tmp/caelestia-desktop-mapping.json"
+        onLoaded: {
+            try { root.desktopWinMap = JSON.parse(text()); }
+            catch (e) { root.desktopWinMap = {}; }
+        }
+    }
+
+    Timer {
+        interval: 1000
+        running: true
+        repeat: true
+        onTriggered: mapReader.reload()
+    }
 
     implicitWidth: Tokens.sizes.bar.innerWidth
-    implicitHeight: layout.implicitHeight + Tokens.padding.small
+    implicitHeight: layout.implicitHeight + Tokens.padding.small + showDesktopButton.implicitHeight + Tokens.spacing.extraSmall
 
     color: Colours.tPalette.m3surfaceContainer
     radius: Tokens.rounding.full
@@ -75,6 +95,7 @@ StyledClippingRect {
                     activeWsId: root.activeWsId
                     occupied: root.occupied
                     groupOffset: root.groupOffset
+                    desktopWinMap: root.desktopWinMap
                 }
             }
         }
@@ -100,6 +121,37 @@ StyledClippingRect {
                     Hypr.dispatch(`workspace ${ws}`);
                 else
                     Hypr.dispatch("togglespecialworkspace special");
+            }
+        }
+
+        Item {
+            id: showDesktopButton
+
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: layout.bottom
+            anchors.topMargin: Tokens.spacing.extraSmall
+
+            implicitWidth: Tokens.sizes.bar.innerWidth / 2
+            implicitHeight: Tokens.padding.medium + Tokens.font.size.small + Tokens.padding.medium
+
+            StateLayer {
+                anchors.fill: parent
+                radius: Tokens.rounding.full
+                hoverEnabled: true
+                onClicked: showDesktopProc.running = true
+            }
+
+            Process {
+                id: showDesktopProc
+                command: ["/home/hakan/.local/bin/hypr-show-desktop"]
+                onExited: _code => { mapReader.reload(); }
+            }
+
+            MaterialIcon {
+                anchors.centerIn: parent
+                text: "desktop_windows"
+                font.pointSize: Tokens.font.size.small
+                color: Colours.palette.m3onSurfaceVariant
             }
         }
 
