@@ -131,8 +131,8 @@ StyledClippingRect {
             anchors.top: layout.bottom
             anchors.topMargin: Tokens.spacing.extraSmall
 
-            implicitWidth: Tokens.sizes.bar.innerWidth / 2
-            implicitHeight: Tokens.padding.medium + Tokens.font.size.small + Tokens.padding.medium
+            implicitWidth: 32
+            implicitHeight: 32
 
             StateLayer {
                 anchors.fill: parent
