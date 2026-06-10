@@ -48,7 +48,7 @@ StyledClippingRect {
     }
 
     implicitWidth: Tokens.sizes.bar.innerWidth
-    implicitHeight: layout.implicitHeight + Tokens.padding.small + showDesktopButton.implicitHeight + Tokens.spacing.extraSmall
+    implicitHeight: layout.implicitHeight + showDesktopButton.implicitHeight + Math.floor(Tokens.spacing.extraSmall / 2)
 
     color: Colours.tPalette.m3surfaceContainer
     radius: Tokens.rounding.full
@@ -83,7 +83,8 @@ StyledClippingRect {
         ColumnLayout {
             id: layout
 
-            anchors.centerIn: parent
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
             spacing: Math.floor(Tokens.spacing.extraSmall)
 
             Repeater {
@@ -129,10 +130,10 @@ StyledClippingRect {
 
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: layout.bottom
-            anchors.topMargin: Tokens.spacing.extraSmall
+            anchors.topMargin: 0
 
-            implicitWidth: 32
-            implicitHeight: 32
+            implicitWidth: 24
+            implicitHeight: 24
 
             StateLayer {
                 anchors.fill: parent
@@ -149,8 +150,8 @@ StyledClippingRect {
 
             MaterialIcon {
                 anchors.centerIn: parent
-                text: "desktop_windows"
-                font.pointSize: Tokens.font.size.small
+                text: "computer"
+                grade: 0
                 color: Colours.palette.m3onSurfaceVariant
             }
         }
