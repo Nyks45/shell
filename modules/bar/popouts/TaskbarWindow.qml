@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Hyprland
@@ -100,7 +101,7 @@ Item {
 
         scale: hover.containsMouse || closeBtn.hovered ? 1.03 : 1
         opacity: 0
-        Component.onCompleted: opacity = 1
+        Component.onCompleted: opacity = Qt.binding(() => card.minimized && !hover.containsMouse ? 0.75 : 1)
 
         Behavior on scale {
             Anim {}
@@ -162,23 +163,30 @@ Item {
                     constraintSize.height: card.previewW / card.aspect
                 }
 
-                ColumnLayout {
+                // Minimized: the app's icon in grey on the tile, with a small
+                // minimize mark in the corner.
+                IconImage {
                     anchors.centerIn: parent
                     visible: card.minimized
-                    spacing: 0
-
-                    MaterialIcon {
-                        Layout.alignment: Qt.AlignHCenter
-                        text: Icons.getAppCategoryIcon(card.modelData.lastIpcObject.class, "terminal")
-                        color: Colours.palette.m3onSurfaceVariant
-                        fontStyle: Tokens.font.icon.medium
+                    implicitSize: Math.min(card.previewW, card.previewH) * 0.42
+                    asynchronous: true
+                    source: Icons.getAppIcon(card.modelData.lastIpcObject.class ?? "", "image-missing")
+                    opacity: 0.7
+                    layer.enabled: true
+                    layer.effect: MultiEffect {
+                        saturation: -1
                     }
+                }
 
-                    StyledText {
-                        Layout.alignment: Qt.AlignHCenter
-                        text: qsTr("Minimized")
-                        color: Colours.palette.m3onSurfaceVariant
-                    }
+                MaterialIcon {
+                    anchors.left: parent.left
+                    anchors.bottom: parent.bottom
+                    anchors.margins: Tokens.padding.small
+                    visible: card.minimized
+                    text: "minimize"
+                    color: Colours.palette.m3onSurfaceVariant
+                    fontStyle: Tokens.font.icon.small
+                    opacity: 0.8
                 }
             }
         }
