@@ -37,6 +37,13 @@ Item {
         }
 
         Popout {
+            name: "taskbar"
+            sourceComponent: TaskbarWindow {
+                popouts: root.popouts
+            }
+        }
+
+        Popout {
             id: networkPopout
 
             name: "network"

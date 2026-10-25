@@ -25,6 +25,7 @@ class BarPopouts : public settings::ObjectNode {
     CONFIG_NODE(BarPopouts, settings::ObjectNode)
 
     CONFIG_PROPERTY(bool, activeWindow, true)
+    CONFIG_PROPERTY(bool, taskbar, true)
     CONFIG_PROPERTY(bool, tray, true)
     CONFIG_PROPERTY(bool, statusIcons, true)
 };
@@ -130,7 +131,7 @@ class BarConfig : public settings::ObjectNode {
             LIST_ENTRY(logo, true),
             LIST_ENTRY(workspaces, true),
             LIST_ENTRY(spacer, true),
-            LIST_ENTRY(activeWindow, true),
+            LIST_ENTRY(taskbar, true),
             LIST_ENTRY(spacer, true),
             LIST_ENTRY(tray, true),
             LIST_ENTRY(clock, true),

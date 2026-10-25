@@ -139,7 +139,7 @@ Singleton {
                 Hyprland.refreshMonitors();
             } else if (n.includes("workspace")) {
                 Hyprland.refreshWorkspaces();
-            } else if (n.includes("window") || n.includes("group") || ["pin", "fullscreen", "changefloatingmode", "minimize"].includes(n)) {
+            } else if (n.includes("window") || n.includes("group") || ["pin", "fullscreen", "changefloatingmode", "minimize", "minimized"].includes(n)) {
                 Hyprland.refreshToplevels();
             }
         }
