@@ -321,7 +321,7 @@ StyledRect {
             anchors.centerIn: parent
             implicitSize: Math.round(parent.implicitWidth * 0.62)
             asynchronous: true
-            source: item.modelData.entry?.icon ? Quickshell.iconPath(item.modelData.entry.icon, "image-missing") : Icons.getAppIcon(item.modelData.cls, "image-missing")
+            source: item.modelData.entry?.icon ? Quickshell.iconPath(item.modelData.entry.icon, "application-x-executable") : Icons.getAppIcon(item.modelData.cls, "application-x-executable")
             opacity: item.minimized ? 0.4 : item.count === 0 ? 0.5 : item.active ? 1 : 0.8
             scale: item.minimized ? 0.82 : 1
 

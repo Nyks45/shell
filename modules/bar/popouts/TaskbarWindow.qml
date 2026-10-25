@@ -48,7 +48,7 @@ Item {
             IconImage {
                 implicitSize: Tokens.font.body.small.pointSize * 1.8
                 asynchronous: true
-                source: root.app?.entry?.icon ? Quickshell.iconPath(root.app.entry.icon, "image-missing") : Icons.getAppIcon(root.app?.cls ?? "", "image-missing")
+                source: root.app?.entry?.icon ? Quickshell.iconPath(root.app.entry.icon, "application-x-executable") : Icons.getAppIcon(root.app?.cls ?? "", "application-x-executable")
             }
 
             StyledText {
@@ -170,7 +170,7 @@ Item {
                     visible: card.minimized
                     implicitSize: Math.min(card.previewW, card.previewH) * 0.42
                     asynchronous: true
-                    source: Icons.getAppIcon(card.modelData.lastIpcObject.class ?? "", "image-missing")
+                    source: Icons.getAppIcon(card.modelData.lastIpcObject.class ?? "", "application-x-executable")
                     opacity: 0.7
                     layer.enabled: true
                     layer.effect: MultiEffect {
