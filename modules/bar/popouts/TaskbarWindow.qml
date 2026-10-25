@@ -79,15 +79,16 @@ Item {
         required property HyprlandToplevel modelData
         readonly property bool minimized: TaskbarApps.isMinimized(modelData)
         readonly property bool focused: modelData === Hyprland.activeToplevel && !minimized
-        // The preview takes the window's shape, within 150 x 96 (no empty frame).
+        // The preview takes the window's shape within 150 x 96, but at least 84
+        // wide: tall windows show their top part (cropped) instead of a sliver.
         readonly property real aspect: {
             const size = modelData.lastIpcObject.size ?? [16, 10];
             return Math.max(0.2, size[0] / Math.max(1, size[1]));
         }
-        readonly property real previewW: Math.round(Math.min(150, 96 * aspect))
-        readonly property real previewH: Math.round(Math.min(96, 150 / aspect))
+        readonly property real previewW: Math.round(Math.max(84, Math.min(150, 96 * aspect)))
+        readonly property real previewH: Math.round(Math.min(96, previewW / aspect))
 
-        implicitWidth: Math.max(previewW, 72) + Tokens.padding.small * 2
+        implicitWidth: previewW + Tokens.padding.small * 2
         implicitHeight: frame.implicitHeight + title.implicitHeight + Tokens.spacing.small + Tokens.padding.small * 2
 
         scale: hover.containsMouse || closeBtn.hovered ? 1.03 : 1
@@ -139,15 +140,19 @@ Item {
             color: Colours.tPalette.m3surfaceContainerHighest
 
             Item {
-                // Live while shown; a minimized (hidden) window has nothing to
-                // capture: its icon instead.
+                implicitWidth: card.previewW
+                implicitHeight: card.previewH
+
+                // Live while shown, scaled to the width and cropped at the bottom;
+                // a minimized (hidden) window has nothing to capture: its icon.
                 ScreencopyView {
-                    anchors.centerIn: parent
+                    anchors.top: parent.top
+                    anchors.horizontalCenter: parent.horizontalCenter
                     visible: !card.minimized
                     captureSource: card.minimized ? null : card.modelData.wayland
                     live: visible
-                    constraintSize.width: frame.implicitWidth
-                    constraintSize.height: frame.implicitHeight
+                    constraintSize.width: card.previewW
+                    constraintSize.height: card.previewW / card.aspect
                 }
 
                 ColumnLayout {
@@ -194,10 +199,12 @@ Item {
 
             readonly property bool hovered: closeLayer.containsMouse
 
-            anchors.top: frame.top
-            anchors.right: frame.right
-            anchors.margins: Tokens.padding.extraSmall
-            implicitWidth: closeIcon.implicitHeight + Tokens.padding.extraSmall * 2
+            // On the card's corner, half outside it: never over the preview.
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.topMargin: -implicitHeight / 3
+            anchors.rightMargin: -implicitWidth / 3
+            implicitWidth: closeIcon.implicitHeight + 4
             implicitHeight: implicitWidth
             radius: Tokens.rounding.full
             color: hovered ? Colours.palette.m3errorContainer : Colours.tPalette.m3surfaceContainerHighest
