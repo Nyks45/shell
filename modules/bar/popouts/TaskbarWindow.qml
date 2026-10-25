@@ -145,7 +145,9 @@ Item {
             implicitWidth: card.previewW
             implicitHeight: card.previewH
             radius: Tokens.rounding.medium
-            color: Colours.tPalette.m3surfaceContainerHighest
+            // Solid: translucent windows (terminals) would vanish into the
+            // popout otherwise; on screen they show over something too.
+            color: Colours.palette.m3surfaceContainerLowest
 
             Item {
                 implicitWidth: card.previewW

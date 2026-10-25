@@ -22,7 +22,7 @@ Item {
     readonly property int padding: Math.max(Tokens.padding.small, Config.border.thickness)
     readonly property int contentWidth: Tokens.sizes.bar.innerWidth + padding * 2
     // Desktop mode (hyprflow) keeps the bar, with its taskbar, always shown.
-    readonly property bool persistent: Config.bar.persistent || Hypr.desktopMode
+    readonly property bool persistent: Config.bar.persistent
     readonly property int exclusiveZone: !disabled && (persistent || screenState.bar) ? contentWidth : Config.border.thickness
     readonly property bool shouldBeVisible: !fullscreen && !disabled && (persistent || screenState.bar || isHovered)
     property bool isHovered

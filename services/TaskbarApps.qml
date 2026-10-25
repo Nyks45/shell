@@ -20,6 +20,13 @@ Singleton {
     // (the menu sits outside their normal input region; a click elsewhere
     // closes it).
     property bool menuOpen
+    // When each app (key) first showed up, so the order stays put as windows
+    // are raised, focused or closed (Hyprland's own list reorders).
+    // (Mutated in place, never reassigned: appsFor() runs inside bindings.)
+    readonly property var firstSeen: ({
+            next: 0,
+            keys: {}
+        })
 
     function isPinned(id: string): bool {
         return pinned.includes(id);
@@ -37,8 +44,9 @@ Singleton {
         pinsFile.setText(JSON.stringify(pinned));
     }
 
-    // A workspace's apps: running ones in the order their first window opened,
-    // then (if `withPinned`) pinned apps that aren't running there.
+    // A workspace's apps, in a stable order like Windows': pinned apps first
+    // (in pin order, running or not, if `withPinned`), then the others in the
+    // order they were first opened.
     function appsFor(wsId: int, withPinned: bool): var {
         const groups = new Map();
         for (const t of Hypr.toplevelsForWs(wsId, GlobalConfig.bar.workspaces.ignoredTags)) {
@@ -70,7 +78,28 @@ Singleton {
                     toplevels: []
                 });
         }
-        return [...groups.values()];
+        const seen = firstSeen.keys;
+        // Apps with no windows anywhere any more start over at the end.
+        const running = new Set(Hypr.toplevels.values.map(t => {
+            const c = t.lastIpcObject.class ?? "";
+            return DesktopEntries.heuristicLookup(c)?.id ?? c;
+        }));
+        for (const key of Object.keys(seen))
+            if (!running.has(key))
+                delete seen[key];
+        for (const key of groups.keys())
+            if (seen[key] === undefined)
+                seen[key] = ++firstSeen.next;
+        const pinIndex = key => {
+            const i = pinned.indexOf(key);
+            return i < 0 ? Infinity : i;
+        };
+        return [...groups.values()].sort((a, b) => {
+            const pa = pinIndex(a.key), pb = pinIndex(b.key);
+            if (pa !== pb)
+                return pa < pb ? -1 : 1;
+            return (seen[a.key] ?? 0) - (seen[b.key] ?? 0);
+        });
     }
 
     // Minimized by hyprflow: tagged and actually hidden (a tag left on a shown

@@ -93,8 +93,35 @@ CustomMouseArea {
         }
     }
 
+    // A window being dragged (hyprflow): the screen edges are for snapping it,
+    // so nothing hidden there opens meanwhile, and what was open from hovering
+    // closes.
+    Connections {
+        function onWindowDraggingChanged(): void {
+            if (!Hypr.windowDragging)
+                return;
+            if (!root.dashboardShortcutActive)
+                root.screenState.dashboard = false;
+            if (!root.osdShortcutActive) {
+                root.screenState.osd = false;
+                root.panels.osd.hovered = false;
+            }
+            if (!root.utilitiesShortcutActive)
+                root.screenState.utilities = false;
+            if (Config.sidebar.showOnHover && !root.sidebarShortcutActive)
+                root.screenState.sidebar = false;
+            if (Config.launcher.showOnHover)
+                root.screenState.launcher = false;
+            if (Config.bar.showOnHover)
+                root.bar.isHovered = false;
+            root.popouts.hasCurrent = false;
+        }
+
+        target: Hypr
+    }
+
     onPositionChanged: event => {
-        if (popouts.isDetached)
+        if (popouts.isDetached || Hypr.windowDragging)
             return;
 
         const x = event.x;

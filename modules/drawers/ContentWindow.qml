@@ -35,10 +35,27 @@ StyledWindow {
         return hasFullscreenOnNormalWs;
     }
 
+    // A maximized window shown (Hyprland's, or hyprflow's desktop mode one,
+    // where only the app is told it's maximized; not minimized ones): square
+    // corners, so the border's curves don't cut into the window's corners.
+    readonly property bool hasMaximized: {
+        const name = monitor?.lastIpcObject.specialWorkspace?.name;
+        const ws = name ? Hypr.workspaces.values.find(w => w.name === name) : monitor?.activeWorkspace;
+        return ws?.toplevels.values.some(t => {
+            const ipc = t.lastIpcObject;
+            return !ipc.hidden && (ipc.fullscreen === 1 || (ipc.fullscreen === 0 && ipc.fullscreenClient === 1 && ipc.floating));
+        }) ?? false;
+    }
+    property real maxTransitionProg: hasMaximized ? 1 : 0
+
+    Behavior on maxTransitionProg {
+        Anim {}
+    }
+
     property real fsTransitionProg: hasFullscreen ? 1 : 0
     readonly property real sdfBorderOffset: 2 * fsTransitionProg // SDFs joins are not exact, so offset by 2px to ensure nothing shows
     readonly property real borderThickness: contentItem.Config.border.thickness * (1 - fsTransitionProg)
-    readonly property real borderRounding: contentItem.Config.border.rounding * (1 - fsTransitionProg)
+    readonly property real borderRounding: contentItem.Config.border.rounding * (1 - Math.max(fsTransitionProg, maxTransitionProg))
     readonly property real shadowOpacity: 0.7 * (1 - fsTransitionProg)
     readonly property real borderLayoutThickness: hasFullscreen ? 0 : contentItem.Config.border.thickness
 
