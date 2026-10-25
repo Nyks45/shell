@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Caelestia.Config
 import qs.modules.bar as Bar
+import qs.services
 
 Region {
     id: root
@@ -70,6 +71,17 @@ Region {
     R {
         panel: root.panels.popoutsWrapper
         width: panel.width * (1 - root.panels.popoutsWrapper.offsetScale)
+    }
+
+    // The taskbar's right-click menu: everything takes input while it's open.
+    // (Closed, it's parked off the window: an empty region would count as all
+    // of it.)
+    Region {
+        x: TaskbarApps.menuOpen ? root.x : -10
+        y: TaskbarApps.menuOpen ? root.y : -10
+        width: TaskbarApps.menuOpen ? root.width : 1
+        height: TaskbarApps.menuOpen ? root.height : 1
+        intersection: Intersection.Subtract
     }
 
     component R: Region {

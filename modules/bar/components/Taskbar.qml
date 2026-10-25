@@ -200,6 +200,9 @@ StyledRect {
             menu.expanded = true;
         }
 
+        onExpandedChanged: TaskbarApps.menuOpen = expanded
+        Component.onDestruction: TaskbarApps.menuOpen = false
+
         attachTo: root
         attachSideX: Menu.Right
         attachSideY: Menu.Top
@@ -306,6 +309,9 @@ StyledRect {
                 } else if (event.button === Qt.MiddleButton) {
                     TaskbarApps.launch(item.modelData);
                 } else {
+                    // Like Windows: the previews go away once you pick from the
+                    // taskbar (until the pointer comes back to an icon).
+                    root.bar.popouts.hasCurrent = false;
                     TaskbarApps.click(item.modelData);
                 }
             }

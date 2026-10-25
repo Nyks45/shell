@@ -16,6 +16,10 @@ Singleton {
 
     // Pinned apps (desktop entry ids), kept in the state dir.
     property list<string> pinned: []
+    // A taskbar right-click menu is open: the drawers take all input meanwhile
+    // (the menu sits outside their normal input region; a click elsewhere
+    // closes it).
+    property bool menuOpen
 
     function isPinned(id: string): bool {
         return pinned.includes(id);
