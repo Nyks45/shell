@@ -25,6 +25,13 @@ Item {
     }
     readonly property string appName: app?.entry?.name ?? app?.cls ?? ""
 
+    // The app went away (its last window closed, not pinned): close, rather
+    // than show an empty popout.
+    onAppChanged: {
+        if (!app && popouts.currentName === "taskbar")
+            popouts.hasCurrent = false;
+    }
+
     implicitWidth: column.implicitWidth
     implicitHeight: column.implicitHeight
 
@@ -51,7 +58,7 @@ Item {
 
         // A pinned app with no window here: open it.
         TextButton {
-            visible: (root.app?.toplevels.length ?? 0) === 0
+            visible: !!root.app && root.app.toplevels.length === 0 && !!root.app.entry
             text: qsTr("Open %1").arg(root.appName)
             onClicked: {
                 TaskbarApps.launch(root.app);
