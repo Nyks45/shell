@@ -41,6 +41,22 @@ StyledRect {
         Hypr.extras.message(`eval hl.plugin.hyprflow.${fn}("address:0x${t.address}")`);
     }
 
+    // Tell hyprflow where each window's icon is, so minimizing pours the window
+    // right into it (its genie animation). Relative to the bar itself, so it's
+    // right even while an auto-hiding bar is slid away.
+    function reportIcons(): void {
+        const msgs = [];
+        for (let i = 0; i < items.count; i++) {
+            const item = items.itemAt(i) as TaskbarItem;
+            if (!item?.modelData)
+                continue;
+            const p = item.mapToItem(bar, 0, 0);
+            msgs.push(`eval hl.plugin.hyprflow.taskbar_icon("address:0x${item.modelData.address}", ${screen.x + p.x}, ${screen.y + p.y}, ${item.width}, ${item.height})`);
+        }
+        if (msgs.length > 0)
+            Hypr.extras.batchMessage(msgs);
+    }
+
     function click(t: HyprlandToplevel): void {
         if (t === Hyprland.activeToplevel && !isMinimized(t))
             hyprflow("minimize", t);
@@ -100,6 +116,18 @@ StyledRect {
         Anim {}
     }
 
+    // After the icons settle (they animate in and move).
+    Timer {
+        id: reportTimer
+
+        interval: 400
+        onTriggered: root.reportIcons()
+    }
+
+    onToplevelsChanged: reportTimer.restart()
+    onYChanged: reportTimer.restart()
+    Component.onCompleted: reportTimer.restart()
+
     component TaskbarItem: Item {
         id: item
 
@@ -131,7 +159,7 @@ StyledRect {
             // handling doesn't see it: open the title popout from here.
             onContainsMouseChanged: {
                 const popouts = root.bar.popouts;
-                if (containsMouse && root.Config.bar.popouts.taskbar) {
+                if (containsMouse && root.Config.bar.popouts.taskbar && !Hypr.windowDragging) {
                     popouts.currentName = "taskbar";
                     popouts.taskbarToplevel = item.modelData;
                     popouts.currentCenter = Qt.binding(() => item.mapToItem(root.bar, 0, item.implicitHeight / 2).y);

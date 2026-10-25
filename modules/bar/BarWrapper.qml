@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Caelestia.Config
 import qs.components
+import qs.services
 import qs.utils
 import qs.modules.bar.popouts as BarPopouts
 
@@ -20,8 +21,10 @@ Item {
     readonly property int clampedWidth: Math.max(Config.border.minThickness, implicitWidth)
     readonly property int padding: Math.max(Tokens.padding.small, Config.border.thickness)
     readonly property int contentWidth: Tokens.sizes.bar.innerWidth + padding * 2
-    readonly property int exclusiveZone: !disabled && (Config.bar.persistent || screenState.bar) ? contentWidth : Config.border.thickness
-    readonly property bool shouldBeVisible: !fullscreen && !disabled && (Config.bar.persistent || screenState.bar || isHovered)
+    // Desktop mode (hyprflow) keeps the bar, with its taskbar, always shown.
+    readonly property bool persistent: Config.bar.persistent || Hypr.desktopMode
+    readonly property int exclusiveZone: !disabled && (persistent || screenState.bar) ? contentWidth : Config.border.thickness
+    readonly property bool shouldBeVisible: !fullscreen && !disabled && (persistent || screenState.bar || isHovered)
     property bool isHovered
 
     function closeTray(): void {

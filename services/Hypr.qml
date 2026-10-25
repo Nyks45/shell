@@ -38,6 +38,15 @@ Singleton {
 
     property string lastSpecialWorkspace: ""
 
+    // hyprflow plugin: desktop mode (Windows-like floating desktop), from its
+    // state file, and whether a window is being dragged ("hyprflowdrag" events).
+    readonly property bool desktopMode: desktopModeFile.loaded && desktopModeFile.text().trim() === "1"
+    property bool windowDragging
+
+    function toggleDesktopMode(): void {
+        extras.message(`eval hl.plugin.hyprflow.desktop_mode("toggle")`);
+    }
+
     signal configReloaded
 
     function dispatch(request: string): void {
@@ -120,11 +129,25 @@ Singleton {
     onUsingLuaChanged: reloadDynamicConfs()
     Component.onCompleted: reloadDynamicConfs()
 
+    FileView {
+        id: desktopModeFile
+
+        path: `${Quickshell.env("XDG_STATE_HOME") || `${Quickshell.env("HOME")}/.local/state`}/hyprflow/desktop-mode`
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+    }
+
     Connections {
         function onRawEvent(event: HyprlandEvent): void {
             const n = event.name;
             if (n.endsWith("v2"))
                 return;
+
+            if (n === "hyprflowdrag") {
+                root.windowDragging = event.data === "1";
+                return;
+            }
 
             if (n === "configreloaded") {
                 root.configReloaded();

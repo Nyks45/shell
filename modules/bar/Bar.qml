@@ -169,6 +169,14 @@ ColumnLayout {
                 }
             }
             DelegateChoice {
+                roleValue: "desktopMode"
+                delegate: EntryWrapper {
+                    DesktopMode {
+                        objectName: "taskbarDesktopMode"
+                    }
+                }
+            }
+            DelegateChoice {
                 roleValue: "tray"
                 delegate: EntryWrapper {
                     Tray {

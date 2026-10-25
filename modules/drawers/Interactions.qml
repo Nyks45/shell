@@ -4,6 +4,7 @@ import Quickshell
 import Caelestia.Config
 import qs.components
 import qs.components.controls
+import qs.services
 import qs.modules.bar as Bar
 import qs.modules.bar.popouts as BarPopouts
 
@@ -241,13 +242,23 @@ CustomMouseArea {
             utilitiesShortcutActive = false;
         }
 
-        // Show popouts on hover
-        if (x < bar.implicitWidth) {
+        // Show popouts on hover (not while a window is dragged over the bar)
+        if (x < bar.implicitWidth && !Hypr.windowDragging) {
             bar.checkPopout(y);
         } else if ((!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1) && !inLeftPanel(panels.popoutsWrapper, x, y)) {
             popouts.hasCurrent = false;
             bar.closeTray();
         }
+    }
+
+    // A window dragged over the bar: no hover popouts (and close an open one).
+    Connections {
+        function onWindowDraggingChanged(): void {
+            if (Hypr.windowDragging)
+                root.popouts.hasCurrent = false;
+        }
+
+        target: Hypr
     }
 
     // Monitor individual visibility changes
