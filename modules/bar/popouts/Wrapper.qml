@@ -27,7 +27,8 @@ Item {
 
     property alias currentName: popoutState.currentName
     property alias hasCurrent: popoutState.hasCurrent
-    property alias taskbarToplevel: popoutState.taskbarToplevel
+    property alias taskbarWs: popoutState.taskbarWs
+    property alias taskbarKey: popoutState.taskbarKey
     property real currentCenter
 
     property string detachedMode

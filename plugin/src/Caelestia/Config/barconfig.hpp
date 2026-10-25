@@ -129,7 +129,7 @@ class BarConfig : public settings::ObjectNode {
     CONFIG_LIST(EntryList, entries,
         DEFAULT_ARG({
             LIST_ENTRY(logo, true),
-            LIST_ENTRY(workspaces, true),
+            LIST_ENTRY(workspaces, false), // the taskbar (in the middle) replaces them
             LIST_ENTRY(spacer, true),
             LIST_ENTRY(taskbar, true),
             LIST_ENTRY(spacer, true),
