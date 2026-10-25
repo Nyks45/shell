@@ -69,8 +69,11 @@ Singleton {
         return [...groups.values()];
     }
 
+    // Minimized by hyprflow: tagged and actually hidden (a tag left on a shown
+    // window, e.g. after hyprflow was unloaded, doesn't count).
     function isMinimized(t: HyprlandToplevel): bool {
-        return t?.lastIpcObject.tags?.includes("minimized") ?? false;
+        const ipc = t?.lastIpcObject;
+        return (ipc?.tags?.includes("minimized") ?? false) && (ipc?.hidden ?? false);
     }
 
     function isActive(app: var): bool {
@@ -81,8 +84,12 @@ Singleton {
         return app.toplevels.length > 0 && app.toplevels.every(t => isMinimized(t));
     }
 
+    // hl.plugin.hyprflow.<fn>(window); without hyprflow, activating/restoring
+    // falls back to a plain focus (so the taskbar always works).
     function hyprflow(fn: string, t: HyprlandToplevel): void {
-        Hypr.extras.message(`eval hl.plugin.hyprflow.${fn}("address:0x${t.address}")`);
+        const sel = `address:0x${t.address}`;
+        const fallback = fn === "activate" || fn === "restore" ? `hl.dispatch(hl.dsp.focus({ window = "${sel}" }))` : "";
+        Hypr.extras.message(`eval local hf = hl.plugin and hl.plugin.hyprflow; if hf and hf.${fn} then hf.${fn}("${sel}") else ${fallback} end`);
     }
 
     function close(t: HyprlandToplevel): void {
