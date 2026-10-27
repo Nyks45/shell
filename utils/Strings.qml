@@ -33,4 +33,17 @@ Singleton {
         }
         return false;
     }
+
+    // Every match of a global regex (String.matchAll, which Qt's JS lacks)
+    function allMatches(text: string, re: var): var {
+        const out = [];
+        const g = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
+        let m;
+        while ((m = g.exec(text)) !== null) {
+            out.push(m);
+            if (m[0] === "")
+                g.lastIndex++;
+        }
+        return out;
+    }
 }

@@ -40,6 +40,7 @@ set(ENABLE_MODULES "extras;plugin;shell" CACHE STRING "Modules to build/install"
 set(INSTALL_LIBDIR "${CMAKE_INSTALL_LIBDIR}/caelestia" CACHE STRING "Library install dir")
 set(INSTALL_QMLDIR "${CMAKE_INSTALL_LIBDIR}/qt6/qml" CACHE STRING "QML install dir")
 set(INSTALL_QSCONFDIR "${CMAKE_INSTALL_SYSCONFDIR}/xdg/quickshell/caelestia" CACHE STRING "Quickshell config install dir")
+set(INSTALL_APPDIR "${CMAKE_INSTALL_DATADIR}/applications" CACHE STRING "Desktop entry install dir")
 
 add_compile_definitions(
     QT_NO_CAST_FROM_ASCII
@@ -73,6 +74,9 @@ if("shell" IN_LIST ENABLE_MODULES)
     endforeach()
 
     install(PROGRAMS assets/wrap_term_launch.sh DESTINATION "${INSTALL_QSCONFDIR}/assets")
+
+    # The settings app (Nexus) in app launchers
+    install(FILES assets/caelestia-settings.desktop DESTINATION "${INSTALL_APPDIR}")
 
     file(READ shell.qml SHELL_QML)
     string(REPLACE "settings.watchFiles: true" "settings.watchFiles: false" SHELL_QML "${SHELL_QML}")

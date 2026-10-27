@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import Quickshell.Widgets
 import Caelestia
 import Caelestia.Config
@@ -15,6 +16,20 @@ import qs.modules.nexus.common
 
 PageBase {
     id: root
+
+    // The system defaults (xdg-settings / xdg-mime), as desktop entry ids
+    property string browserId
+    property string editorId
+    readonly property list<string> textTypes: ["text/plain", "text/markdown", "text/x-csrc", "text/x-chdr", "text/x-c++src", "text/x-c++hdr", "text/x-python", "text/x-shellscript", "application/x-shellscript", "application/json", "application/xml", "application/toml", "text/x-lua", "application/x-yaml", "text/x-log"]
+
+    // A desktop entry's command for the config (no %u-style placeholders)
+    function commandOf(app: DesktopEntry): string {
+        return app.command.filter(a => !/^%[a-zA-Z]$/.test(a)).join(" ");
+    }
+
+    function nameOf(id: string): string {
+        return DesktopEntries.byId(id.replace(/\.desktop$/, ""))?.name ?? id.replace(/\.desktop$/, "");
+    }
 
     title: Tr.tr("Apps")
 
@@ -53,11 +68,35 @@ PageBase {
         }
 
         DefaultRow {
-            last: true
             icon: "folder"
             label: Tr.trCtx("File manager", "default app category")
             status: GlobalConfig.general.apps.explorer.join(" ")
             onSelected: app => GlobalConfig.general.apps.explorer = app.command
+        }
+
+        DefaultRow {
+            icon: "language"
+            label: Tr.trCtx("Web browser", "default app category")
+            category: "WebBrowser"
+            status: root.browserId ? root.nameOf(root.browserId) : Tr.tr("Not set")
+            onSelected: app => {
+                root.browserId = `${app.id}.desktop`;
+                HyprSettings.setVar("browser", root.commandOf(app));
+                Quickshell.execDetached(["xdg-settings", "set", "default-web-browser", `${app.id}.desktop`]);
+            }
+        }
+
+        DefaultRow {
+            last: true
+            icon: "edit_note"
+            label: Tr.trCtx("Text editor", "default app category")
+            category: "TextEditor"
+            status: root.editorId ? root.nameOf(root.editorId) : Tr.tr("Not set")
+            onSelected: app => {
+                root.editorId = `${app.id}.desktop`;
+                HyprSettings.setVar("editor", root.commandOf(app));
+                Quickshell.execDetached(["xdg-mime", "default", `${app.id}.desktop`, ...root.textTypes]);
+            }
         }
 
         // Library
@@ -73,10 +112,26 @@ PageBase {
             subtext: Tr.tr("Browse installed apps, set favourites and hidden")
             onClicked: root.nState.openSubPage(1)
         }
+
+        // Non-visual helpers (the page takes one item: they live in its column)
+        Process {
+            running: true
+            command: ["sh", "-c", "xdg-settings get default-web-browser; xdg-mime query default text/plain"]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    const [browser, editor] = text.split("\n");
+                    root.browserId = browser?.trim() ?? "";
+                    root.editorId = editor?.trim() ?? "";
+                }
+            }
+        }
     }
 
     component DefaultRow: PopupRow {
         id: row
+
+        // Only apps of this kind (a desktop file category), when there are any
+        property string category
 
         readonly property int popupHeight: root.flickable.height - y + root.flickable.contentY - Tokens.padding.large - Tokens.padding.extraExtraLarge
 
@@ -101,10 +156,13 @@ PageBase {
                 id: list
 
                 implicitWidth: Tokens.sizes.nexus.popupWidth
-                implicitHeight: CUtils.clamp(row.popupHeight, Tokens.sizes.nexus.minPopupHeight, Tokens.sizes.nexus.maxPopupHeight)
+                // As tall as its items (a short list doesn't get an empty tail), up to the usual height
+                implicitHeight: Math.min(contentHeight + topMargin + bottomMargin, CUtils.clamp(row.popupHeight, Tokens.sizes.nexus.minPopupHeight, Tokens.sizes.nexus.maxPopupHeight))
 
                 model: {
-                    const apps = [...DesktopEntries.applications.values];
+                    const all = [...DesktopEntries.applications.values];
+                    const ofKind = row.category ? all.filter(a => a.categories.includes(row.category)) : [];
+                    const apps = ofKind.length > 0 ? ofKind : all;
                     const favourited = new Set(apps.filter(a => Strings.testRegexList(GlobalConfig.launcher.favouriteApps, a.id)));
                     return apps.sort((a, b) => (favourited.has(b) - favourited.has(a)) || a.name.localeCompare(b.name));
                 }

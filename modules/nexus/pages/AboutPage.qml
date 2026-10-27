@@ -12,8 +12,8 @@ import qs.modules.nexus.common
 PageBase {
     id: root
 
-    // Plugin support is not wired up yet; always 0 for now
-    readonly property int pluginCount: 0
+    // Hyprland plugins loaded right now (the Plugins page manages them)
+    property int pluginCount
 
     property string quickshellVersion
     property string cliVersion
@@ -154,6 +154,15 @@ PageBase {
             last: true
             label: Tr.tr("Loaded plugins")
             value: root.pluginCount.toString()
+        }
+
+        // Non-visual helpers (the page takes one item: they live in its column)
+        Process {
+            running: true
+            command: ["hyprctl", "plugin", "list"]
+            stdout: StdioCollector {
+                onStreamFinished: root.pluginCount = (text.match(/^Plugin /gm) ?? []).length
+            }
         }
     }
 }

@@ -40,7 +40,32 @@ QtObject {
             }
         },
 
+        Component {
+            // Windows
+            StackPage {
+                Component {
+                    WindowsPage {}
+                }
+            }
+        },
+        Component {
+            // Desktop mode
+            StackPage {
+                Component {
+                    DesktopModePage {}
+                }
+            }
+        },
+
         // Connectivity
+        Component {
+            // Display
+            StackPage {
+                Component {
+                    DisplayPage {}
+                }
+            }
+        },
         Component {
             // Network
             StackPage {
@@ -95,10 +120,60 @@ QtObject {
 
         // System
         Component {
-            PlaceholderComp {}
+            // Power & sleep
+            StackPage {
+                Component {
+                    PowerPage {}
+                }
+            }
         },
         Component {
-            PlaceholderComp {}
+            // Keyboard & mouse
+            StackPage {
+                Component {
+                    InputPage {}
+                }
+            }
+        },
+        Component {
+            // Date & time
+            StackPage {
+                Component {
+                    DateTimePage {}
+                }
+            }
+        },
+        Component {
+            // Startup apps
+            StackPage {
+                Component {
+                    StartupPage {}
+                }
+            }
+        },
+        Component {
+            // Keyboard shortcuts
+            StackPage {
+                Component {
+                    ShortcutsPage {}
+                }
+            }
+        },
+        Component {
+            // Updates
+            StackPage {
+                Component {
+                    UpdatesPage {}
+                }
+            }
+        },
+        Component {
+            // Plugins
+            StackPage {
+                Component {
+                    PluginsPage {}
+                }
+            }
         },
 
         // Shell
@@ -139,6 +214,17 @@ QtObject {
                 }
                 Component {
                     BarClock {}
+                }
+
+                // Other panels (after the taskbar ones: their indices stay)
+                Component {
+                    LockPanel {}
+                }
+                Component {
+                    OsdPanel {}
+                }
+                Component {
+                    SessionPanel {}
                 }
             }
         },

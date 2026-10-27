@@ -14,15 +14,26 @@ QtObject {
             description: Tr.tr("Wallpaper, fonts, colours"),
             category: "appearance"
         },
+        {
+            label: Tr.tr("Windows"),
+            icon: "select_window",
+            description: Tr.tr("Gaps, corners, blur, shadows, animations"),
+            category: "appearance"
+        },
+        {
+            label: Tr.tr("Desktop mode"),
+            icon: "web_asset",
+            description: Tr.tr("Title bars, hot corners"),
+            category: "appearance"
+        },
 
         // Connectivity
-        // TODO
-        // {
-        //     label: Tr.tr("Display"),
-        //     icon: "monitor",
-        //     description: Tr.tr("Output configuration"),
-        //     category: "connectivity"
-        // },
+        {
+            label: Tr.tr("Display"),
+            icon: "monitor",
+            description: Tr.tr("Resolution, refresh rate, scale, night light"),
+            category: "connectivity"
+        },
         {
             label: Tr.tr("Network"),
             icon: "wifi",
@@ -45,6 +56,36 @@ QtObject {
 
         // System
         {
+            label: Tr.tr("Power & sleep"),
+            icon: "bedtime",
+            description: Tr.tr("Screen lock, screen off, sleep, power mode"),
+            category: "system"
+        },
+        {
+            label: Tr.tr("Keyboard & mouse"),
+            icon: "keyboard",
+            description: Tr.tr("Layouts, pointer speed, scrolling, cursor"),
+            category: "system"
+        },
+        {
+            label: Tr.tr("Date & time"),
+            icon: "schedule",
+            description: Tr.tr("Time zone, automatic time"),
+            category: "system"
+        },
+        {
+            label: Tr.tr("Startup apps"),
+            icon: "rocket_launch",
+            description: Tr.tr("Apps that start at login"),
+            category: "system"
+        },
+        {
+            label: Tr.tr("Keyboard shortcuts"),
+            icon: "keyboard_command_key",
+            description: Tr.tr("All the shortcuts, searchable"),
+            category: "system"
+        },
+        {
             label: Tr.tr("Updates"),
             icon: "update",
             description: Tr.tr("System updates"),
@@ -53,7 +94,7 @@ QtObject {
         {
             label: Tr.tr("Plugins"),
             icon: "extension",
-            description: Tr.tr("Manage plugins"),
+            description: Tr.tr("Hyprland plugins"),
             category: "system"
         },
 
