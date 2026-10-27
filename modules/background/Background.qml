@@ -19,6 +19,8 @@ Variants {
         screen: modelData
         name: "background"
         WlrLayershell.exclusionMode: ExclusionMode.Ignore
+        // Clicking the desktop gives it the keyboard (Delete, Enter on icons)
+        WlrLayershell.keyboardFocus: contentItem.Config.background.desktopIcons ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
         WlrLayershell.layer: contentItem.Config.background.wallpaperEnabled ? WlrLayer.Background : WlrLayer.Bottom
         color: contentItem.Config.background.wallpaperEnabled ? "black" : "transparent"
         surfaceFormat.opaque: false
@@ -55,6 +57,18 @@ Variants {
                 screen: win.modelData
                 wallpaper: wallpaper
             }
+        }
+
+        // What's in the desktop folder, clear of the bar and the screen frame
+        Loader {
+            anchors.fill: parent
+            anchors.margins: Tokens.padding.large + Config.border.thickness
+            anchors.leftMargin: Tokens.sizes.bar.innerWidth + Tokens.padding.extraLarge + Config.border.thickness
+
+            asynchronous: true
+            active: Config.background.desktopIcons
+
+            sourceComponent: DesktopIcons {}
         }
 
         Loader {

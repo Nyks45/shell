@@ -51,6 +51,11 @@ StyledWindow {
         if (monitor?.lastIpcObject.specialWorkspace?.name || monitor?.activeWorkspace?.toplevels.values.length > 0)
             return 0;
 
+        // Desktop icons on the empty desktop: the wider drag area would cover
+        // (and take the clicks of) the ones near the edges
+        if (contentItem.Config.background.desktopIcons)
+            return 0;
+
         const thresholds = [];
         for (const panel of ["dashboard", "launcher", "session", "sidebar"])
             if (contentItem.Config[panel].enabled)

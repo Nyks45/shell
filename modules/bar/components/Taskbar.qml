@@ -190,6 +190,7 @@ StyledRect {
             if (app.entry) {
                 list.push(newWindowItem);
                 list.push(app.pinned ? unpinItem : pinItem);
+                list.push(addToDesktopItem);
             }
             if (app.toplevels.length > 0) {
                 list.push(TaskbarApps.allMinimized(app) ? restoreItem : minimizeItem);
@@ -225,6 +226,13 @@ StyledRect {
         text: qsTr("Pin to taskbar")
         icon: "keep"
         onClicked: TaskbarApps.pin(menu.app.key)
+    }
+    MenuItem {
+        id: addToDesktopItem
+
+        text: qsTr("Add to desktop")
+        icon: "add_to_home_screen"
+        onClicked: DesktopFiles.addApp(menu.app.entry)
     }
     MenuItem {
         id: unpinItem

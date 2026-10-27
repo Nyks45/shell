@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Widgets
 import Caelestia.Config
 import qs.components
+import qs.components.controls
 import qs.services
 import qs.utils
 import qs.modules.launcher.services
@@ -20,10 +21,53 @@ Item {
 
     StateLayer {
         radius: Tokens.rounding.large
-        onClicked: {
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onClicked: event => {
+            if (event.button === Qt.RightButton) {
+                appMenu.items = [addToDesktopItem, TaskbarApps.pinned.includes(root.modelData.id) ? unpinItem : pinItem];
+                appMenu.expanded = true;
+                return;
+            }
             Apps.launch(root.modelData);
             root.screenState.launcher = false;
         }
+    }
+
+    // Right-click menu
+    Menu {
+        id: appMenu
+
+        attachTo: root
+        attachSideX: Menu.Right
+        attachSideY: Menu.Top
+        thisSideX: Menu.Right
+        thisSideY: Menu.Top
+        marginX: -Tokens.padding.medium
+        active: null
+    }
+
+    MenuItem {
+        id: addToDesktopItem
+
+        text: qsTr("Add to desktop")
+        icon: "add_to_home_screen"
+        onClicked: DesktopFiles.addApp(root.modelData)
+    }
+
+    MenuItem {
+        id: pinItem
+
+        text: qsTr("Pin to taskbar")
+        icon: "keep"
+        onClicked: TaskbarApps.pin(root.modelData.id)
+    }
+
+    MenuItem {
+        id: unpinItem
+
+        text: qsTr("Unpin from taskbar")
+        icon: "keep_off"
+        onClicked: TaskbarApps.unpin(root.modelData.id)
     }
 
     Item {

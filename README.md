@@ -477,6 +477,7 @@ For example, to automatically hide the bar on the monitor named `DP-1`:
     "background": {
         "enabled": true,
         "wallpaperEnabled": true,
+        "desktopIcons": true,
         "desktopClock": {
             "enabled": false,
             "scale": 1.0,
