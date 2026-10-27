@@ -59,11 +59,12 @@ Variants {
             }
         }
 
-        // What's in the desktop folder, clear of the bar and the screen frame
+        // What's in the desktop folder, near the screen's corner like Windows'
+        // (clear of the bar only when it's always shown)
         Loader {
             anchors.fill: parent
-            anchors.margins: Tokens.padding.large + Config.border.thickness
-            anchors.leftMargin: Tokens.sizes.bar.innerWidth + Tokens.padding.extraLarge + Config.border.thickness
+            anchors.margins: Tokens.padding.small + Config.border.thickness
+            anchors.leftMargin: (Config.bar.persistent ? Tokens.sizes.bar.innerWidth + Tokens.padding.large : Tokens.padding.small) + Config.border.thickness
 
             asynchronous: true
             active: Config.background.desktopIcons

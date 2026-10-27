@@ -87,11 +87,25 @@ Item {
         DesktopFiles.setPosition(name, col, row);
     }
 
-    // A file's icon: its type's (text-plain), else its kind's (text-x-generic)
-    function iconFor(entry: FileSystemEntry): string {
+    // Kinds every icon theme draws (text, pictures, PDFs, archives...): the
+    // rest get the icon of the app that opens them, like on Windows (themes
+    // rarely have one for e.g. application/x-remmina, and Qt then quietly
+    // falls back to a generic one)
+    function themeDraws(mime: string): bool {
+        return /^(text|image|video|audio|font|inode)\//.test(mime) || /^application\/(pdf|zip|gzip|x-(compressed-)?tar|x-7z-compressed|vnd\.rar|x-rar|json|xml|x-iso9660-image|x-executable|x-shellscript|vnd\.oasis|vnd\.openxmlformats|msword|vnd\.ms-)/.test(mime);
+    }
+
+    // A file's icon: the opening app's for types themes don't draw (`handler`,
+    // once known), else its type's (text-plain), else its kind's
+    function iconFor(entry: var, handler: string): string {
         if (entry.isDir)
             return Quickshell.iconPath("folder");
         const mime = entry.mimeType || "application/octet-stream";
+        if (handler && !themeDraws(mime))
+            return Quickshell.iconPath(handler, "application-x-executable");
+        const own = Quickshell.iconPath(mime.replace("/", "-"), true);
+        if (own)
+            return own;
         const major = mime.split("/")[0];
         const generic = {
             image: "image-x-generic",
@@ -99,7 +113,7 @@ Item {
             audio: "audio-x-generic",
             text: "text-x-generic"
         }[major] ?? "application-x-generic";
-        return Quickshell.iconPath(mime.replace("/", "-"), true) || Quickshell.iconPath(generic, true) || Quickshell.iconPath("text-x-generic");
+        return Quickshell.iconPath(generic, true) || Quickshell.iconPath("text-x-generic");
     }
 
     // The selected file (not the Trash), or null
@@ -274,6 +288,8 @@ Item {
         // From the desktop file, for apps
         property string appName
         property string appIcon
+        // Icon of the app that opens this file, for types without their own
+        property string handlerIcon
 
         x: cell.col * root.cellW
         y: cell.row * root.cellH
@@ -344,7 +360,7 @@ Item {
                     if (icon.isTrash)
                         return Quickshell.iconPath(root.trashFull ? "user-trash-full" : "user-trash", "user-trash");
                     if (!icon.isApp)
-                        return root.iconFor(icon.modelData);
+                        return root.iconFor(icon.modelData, icon.handlerIcon);
                     if (icon.appIcon.startsWith("/"))
                         return `file://${icon.appIcon}`;
                     return Quickshell.iconPath(icon.appIcon, "application-x-executable");
@@ -421,6 +437,17 @@ Item {
                 icon.dragging = false;
                 icon.x = Qt.binding(() => icon.cell.col * root.cellW);
                 icon.y = Qt.binding(() => icon.cell.row * root.cellH);
+            }
+        }
+
+        // The app that opens it (for a type the icon theme has no icon for)
+        Process {
+            running: !icon.isApp && !icon.isTrash && !icon.modelData.isDir && !icon.modelData.isImage && !!icon.modelData.mimeType && !root.themeDraws(icon.modelData.mimeType)
+            // Its Icon= line (the handler can be a hidden entry, e.g. Remmina's
+            // file opener, which the app list leaves out)
+            command: ["sh", "-c", "f=$(xdg-mime query default \"$1\"); [ -n \"$f\" ] || exit; for d in \"${XDG_DATA_HOME:-$HOME/.local/share}/applications\" /usr/local/share/applications /usr/share/applications; do [ -f \"$d/$f\" ] && { sed -n 's/^Icon=//p' \"$d/$f\" | head -1; exit; }; done", "sh", icon.modelData.mimeType ?? ""]
+            stdout: StdioCollector {
+                onStreamFinished: icon.handlerIcon = text.trim()
             }
         }
 
