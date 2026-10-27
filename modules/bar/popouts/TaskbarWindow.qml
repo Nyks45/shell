@@ -33,6 +33,33 @@ Item {
             popouts.hasCurrent = false;
     }
 
+    // A window closed from here: the popout shrinks, and the pointer may now
+    // rest outside it (nothing else closes it until the pointer moves). Once
+    // the cards have settled, close unless it's on one of them.
+    property bool closedFromHere
+    readonly property int cardCount: app?.toplevels.length ?? 0
+    onCardCountChanged: {
+        if (closedFromHere)
+            settleCheck.restart();
+    }
+
+    Timer {
+        id: settleCheck
+
+        interval: 250
+        onTriggered: {
+            root.closedFromHere = false;
+            let onCard = false;
+            for (let i = 0; i < cards.count; i++) {
+                const c = cards.itemAt(i) as Preview;
+                if (c?.pointerOn)
+                    onCard = true;
+            }
+            if (!onCard && root.popouts.currentName === "taskbar")
+                root.popouts.hasCurrent = false;
+        }
+    }
+
     implicitWidth: column.implicitWidth
     implicitHeight: column.implicitHeight
 
@@ -72,6 +99,8 @@ Item {
             visible: (root.app?.toplevels.length ?? 0) > 0
 
             Repeater {
+                id: cards
+
                 model: ScriptModel {
                     values: root.app?.toplevels ?? []
                 }
@@ -87,6 +116,7 @@ Item {
         required property HyprlandToplevel modelData
         readonly property bool minimized: TaskbarApps.isMinimized(modelData)
         readonly property bool focused: modelData === Hyprland.activeToplevel && !minimized
+        readonly property bool pointerOn: hover.containsMouse || closeBtn.hovered
         // The preview takes the window's shape within 150 x 96, but at least 84
         // wide: tall windows show their top part (cropped) instead of a sliver.
         readonly property real aspect: {
@@ -233,7 +263,10 @@ Item {
 
                 radius: Tokens.rounding.full
                 color: Colours.palette.m3onErrorContainer
-                onClicked: TaskbarApps.close(card.modelData)
+                onClicked: {
+                    root.closedFromHere = true;
+                    TaskbarApps.close(card.modelData);
+                }
             }
 
             MaterialIcon {
