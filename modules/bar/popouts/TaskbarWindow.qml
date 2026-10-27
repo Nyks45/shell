@@ -24,7 +24,7 @@ Item {
         CUtils.dependency(Hypr.toplevels.values);
         return TaskbarApps.appsFor(popouts.taskbarWs, true).find(a => a.key === popouts.taskbarKey) ?? null;
     }
-    readonly property string appName: app?.entry?.name ?? app?.cls ?? ""
+    readonly property string appName: app?.entry?.name || app?.cls || (app?.toplevels[0]?.title ?? "")
 
     // The app went away (its last window closed, not pinned): close, rather
     // than show an empty popout.

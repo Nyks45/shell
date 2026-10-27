@@ -47,12 +47,22 @@ Singleton {
     // A workspace's apps, in a stable order like Windows': pinned apps first
     // (in pin order, running or not, if `withPinned`), then the others in the
     // order they were first opened.
+    // An app's key: its desktop entry, else its class. A window with no class
+    // (some X11 programs) is an app of its own.
+    function keyFor(t: HyprlandToplevel): string {
+        const cls = t.lastIpcObject.class ?? "";
+        return cls ? DesktopEntries.heuristicLookup(cls)?.id ?? cls : `window:${t.address}`;
+    }
+
     function appsFor(wsId: int, withPinned: bool): var {
         const groups = new Map();
-        for (const t of Hypr.toplevelsForWs(wsId, GlobalConfig.bar.workspaces.ignoredTags)) {
+        // Hypr.toplevelsForWs() leaves out windows with no class: kept here.
+        const ignored = GlobalConfig.bar.workspaces.ignoredTags;
+        const shown = Hypr.toplevels.values.filter(t => t.workspace?.id === wsId && t.lastIpcObject.mapped && !(t.lastIpcObject.tags?.some(tag => ignored.includes(tag.replace(/\*$/, ""))) ?? false));
+        for (const t of shown) {
             const cls = t.lastIpcObject.class ?? "";
-            const entry = DesktopEntries.heuristicLookup(cls);
-            const key = entry?.id ?? cls;
+            const entry = cls ? DesktopEntries.heuristicLookup(cls) : null;
+            const key = keyFor(t);
             if (!groups.has(key))
                 groups.set(key, {
                     key: key,
@@ -80,10 +90,7 @@ Singleton {
         }
         const seen = firstSeen.keys;
         // Apps with no windows anywhere any more start over at the end.
-        const running = new Set(Hypr.toplevels.values.map(t => {
-            const c = t.lastIpcObject.class ?? "";
-            return DesktopEntries.heuristicLookup(c)?.id ?? c;
-        }));
+        const running = new Set(Hypr.toplevels.values.map(t => keyFor(t)));
         for (const key of Object.keys(seen))
             if (!running.has(key))
                 delete seen[key];
@@ -130,7 +137,7 @@ Singleton {
     }
 
     function launch(app: var): void {
-        const entry = app?.entry ?? DesktopEntries.heuristicLookup(app?.cls ?? "");
+        const entry = app?.entry ?? (app?.cls ? DesktopEntries.heuristicLookup(app.cls) : null);
         if (!entry)
             return;
         if (entry.runInTerminal)
