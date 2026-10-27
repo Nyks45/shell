@@ -24,6 +24,10 @@ Item {
     readonly property real iconSize: 48
     readonly property int rows: Math.max(1, Math.floor(height / cellH))
     readonly property int cols: Math.max(1, Math.floor(width / cellW))
+    // Columns and rows spread over the whole area: the last ones touch the
+    // right and bottom edges, the leftover space goes between them
+    readonly property real stepX: cols > 1 ? (width - cellW) / (cols - 1) : cellW
+    readonly property real stepY: rows > 1 ? (height - cellH) / (rows - 1) : cellH
 
     property string selected
 
@@ -292,8 +296,8 @@ Item {
         // Icon of the app that opens this file, for types without their own
         property string handlerIcon
 
-        x: cell.col * root.cellW
-        y: cell.row * root.cellH
+        x: cell.col * root.stepX
+        y: cell.row * root.stepY
         z: dragging ? 2 : 1
         width: root.cellW
         height: root.cellH
@@ -432,12 +436,12 @@ Item {
                     return;
                 }
                 // Dropped: onto the cell under its middle
-                const col = Math.max(0, Math.min(root.cols - 1, Math.round(icon.x / root.cellW)));
-                const row = Math.max(0, Math.min(root.rows - 1, Math.round(icon.y / root.cellH)));
+                const col = Math.max(0, Math.min(root.cols - 1, Math.round(icon.x / root.stepX)));
+                const row = Math.max(0, Math.min(root.rows - 1, Math.round(icon.y / root.stepY)));
                 root.moveTo(icon.modelData.name, col, row);
                 icon.dragging = false;
-                icon.x = Qt.binding(() => icon.cell.col * root.cellW);
-                icon.y = Qt.binding(() => icon.cell.row * root.cellH);
+                icon.x = Qt.binding(() => icon.cell.col * root.stepX);
+                icon.y = Qt.binding(() => icon.cell.row * root.stepY);
             }
         }
 
