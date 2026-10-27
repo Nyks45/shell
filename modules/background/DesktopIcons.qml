@@ -18,9 +18,10 @@ import qs.modules.nexus
 Item {
     id: root
 
-    readonly property real cellW: 112
-    readonly property real cellH: 108
-    readonly property real iconSize: 52
+    // About Windows' grid at 100%: narrow cells, long names wrap
+    readonly property real cellW: 88
+    readonly property real cellH: 104
+    readonly property real iconSize: 48
     readonly property int rows: Math.max(1, Math.floor(height / cellH))
     readonly property int cols: Math.max(1, Math.floor(width / cellW))
 
@@ -310,7 +311,7 @@ Item {
 
         StyledRect {
             anchors.fill: parent
-            anchors.margins: Tokens.padding.small
+            anchors.margins: 2
             radius: Tokens.rounding.medium
             color: Qt.alpha(Colours.palette.m3primary, icon.isSelected ? 0.32 : mouse.containsMouse ? 0.14 : 0)
 
@@ -374,7 +375,7 @@ Item {
             anchors.top: picture.bottom
             anchors.topMargin: Tokens.spacing.small
             anchors.horizontalCenter: parent.horizontalCenter
-            width: parent.width - Tokens.padding.small * 2
+            width: parent.width - 6
             horizontalAlignment: Text.AlignHCenter
             text: icon.isTrash ? qsTr("Trash") : icon.isApp ? (icon.appName || icon.modelData.baseName) : icon.modelData.name
             color: "white"
