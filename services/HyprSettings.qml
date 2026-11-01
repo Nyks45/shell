@@ -26,6 +26,8 @@ Singleton {
     property var saved: ({})
     property bool loaded
 
+    // Bumped when the generated Lua changes in a way old files need rewriting for
+    readonly property int generator: 2
     readonly property string jsonPath: `${Paths.config}/hypr-settings.json`
     readonly property string luaPath: `${Paths.config}/hypr-settings.lua`
     // Where the Startup apps page keeps them (the XDG autostart folder)
@@ -367,6 +369,11 @@ function S.apply()
         hl.monitor(m)
     end
 
+    -- The live wallpapers' compatibility test runs the renderer in a window
+    -- (titled "wallpaperengine", no class; real wallpapers never use one): hidden
+    hl.window_rule({ match = { title = "^wallpaperengine$", class = "^$" }, float = true, size = "1 1", move = "0 0",
+                     opacity = "0 override", no_initial_focus = true, no_focus = true, no_anim = true })
+
     -- Fullscreen windows keep the screen awake (games, videos)
     if ${s.fullscreenInhibit ? "true" : "false"} then
         hl.window_rule({ match = { class = ".*" }, idle_inhibit = "fullscreen" })
@@ -383,6 +390,15 @@ function S.apply()
     for _, b in ipairs(${luaValue((s.customBinds ?? []).filter(b => b.key && b.command), "    ")}) do
         if unbind then pcall(unbind, b.key) end
         bind(b.key, hl.dsp.exec_cmd(b.command))
+    end
+
+    -- The screenshot key (Print) goes through the shell like the area picker:
+    -- copied, saved and announced as set in Settings > Screenshots
+    if ${s.screenshotKey === false ? "false" : "true"} then
+        local vars = package.loaded["variables"]
+        local key = type(vars) == "table" and vars.kbScreenshot or "Print"
+        if unbind then pcall(unbind, key) end
+        bind(key, hl.dsp.global("caelestia:screenshotScreen"))
     end
 
     -- The power button opens the power menu (logind is set to ignore it)
@@ -454,8 +470,23 @@ return S
                     root.saved = data;
             } catch (e) {}
             root.loaded = true;
+            // Written by an older version of this file's generator: write the
+            // Lua again (new hooks, the plugin guard, Print through the shell)
+            if ((root.saved.generator ?? 0) < root.generator)
+                root.update({
+                    generator: root.generator
+                });
         }
-        onLoadFailed: root.loaded = true
+        // None yet (a new setup): write one, for the hooks and rules every
+        // setup needs (Print through the shell, the renderer test windows...)
+        onLoadFailed: err => {
+            root.loaded = true;
+            // (later: a write from inside the failed load is dropped)
+            if (err === FileViewError.FileNotFound)
+                Qt.callLater(() => root.update({
+                        generator: root.generator
+                    }));
+        }
     }
 
     FileView {

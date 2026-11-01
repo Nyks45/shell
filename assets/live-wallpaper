@@ -1,0 +1,293 @@
+#!/usr/bin/env bash
+# Live wallpapers from Wallpaper Engine (Steam) via linux-wallpaperengine.
+#
+#   live-wallpaper start         start the wallpaper last applied (used at login)
+#   live-wallpaper stop          stop it
+#   live-wallpaper pause|resume  pause / resume drawing
+#   live-wallpaper pick          choose one with fuzzel (Workshop + built-in wallpapers)
+#   live-wallpaper set ID|PATH   switch to a Workshop ID, a built-in name or a folder
+#
+# Caelestia's settings app (Wallpaper & style > Live wallpapers) is the main way to
+# choose: it writes ~/.config/caelestia/live-wallpaper.json (what's on each screen,
+# playback options, per-wallpaper properties) and runs `live-wallpaper start`.
+# Without that file it falls back to what the Linux Wallpaper Engine GUI applied
+# last (its active-wallpapers.json). `pick`/`set` choose without either
+# (LIVE_WALLPAPER_FPS default 60, LIVE_WALLPAPER_SOUND=1).
+#
+# Part of the Caelestia fork (assets/live-wallpaper); ~/.local/bin/live-wallpaper
+# links here.
+set -euo pipefail
+
+STEAM="${STEAM_DIR:-$HOME/.local/share/Steam}"
+WE="$STEAM/steamapps/common/wallpaper_engine"
+WORKSHOP="$STEAM/steamapps/workshop/content/431960"
+DEFAULTS="$WE/projects/defaultprojects"
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper"
+CURRENT="$STATE/current"
+PIDFILE="$STATE/pid"
+GUI_STATE="$HOME/.config/Linux Wallpaper Engine/active-wallpapers.json"
+SETTINGS="${XDG_CONFIG_HOME:-$HOME/.config}/caelestia/live-wallpaper.json"
+
+mkdir -p "$STATE"
+
+die() { notify-send -a "Live wallpaper" "Live wallpaper" "$1" 2>/dev/null || true; echo "live-wallpaper: $1" >&2; exit 1; }
+
+# Wallpaper folder for a Workshop ID, built-in name or path.
+resolve() {
+    local arg="$1"
+    if [[ -d "$arg" ]]; then realpath "$arg"
+    elif [[ -d "$WORKSHOP/$arg" ]]; then echo "$WORKSHOP/$arg"
+    elif [[ -d "$DEFAULTS/$arg" ]]; then echo "$DEFAULTS/$arg"
+    else return 1; fi
+}
+
+# Ours (by its pid file); without one, every renderer (exact process name, which
+# the kernel cuts to 15 characters; never a command-line match), unless
+# LIVE_WALLPAPER_OWN_ONLY is set (a test session must not touch the real one).
+own_pid() {
+    local pid
+    pid="$(cat "$PIDFILE" 2>/dev/null)" || return 1
+    [[ -n "$pid" ]] && [[ "$(cat /proc/"$pid"/comm 2>/dev/null)" == linux-wallpaper ]] && echo "$pid"
+}
+
+stop() {
+    local pid
+    if pid="$(own_pid)"; then
+        kill "$pid" 2>/dev/null || true
+        for _ in $(seq 20); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+    elif [[ -z "${LIVE_WALLPAPER_OWN_ONLY:-}" ]]; then
+        pkill -x linux-wallpaper 2>/dev/null || true
+        for _ in $(seq 20); do pgrep -x linux-wallpaper > /dev/null || break; sleep 0.1; done
+    fi
+    rm -f "$PIDFILE"
+}
+
+# Pause/resume drawing (SIGSTOP/SIGCONT)
+signal() {
+    local pid
+    if pid="$(own_pid)"; then kill "-$1" "$pid" 2>/dev/null || true
+    elif [[ -z "${LIVE_WALLPAPER_OWN_ONLY:-}" ]]; then pkill "-$1" -x linux-wallpaper 2>/dev/null || true; fi
+}
+
+# Renderer arguments for what the GUI applied last, one per line; nothing if it
+# has no single wallpaper active (none yet, or a playlist).
+gui_args() {
+    [[ -f "$GUI_STATE" ]] || return 0
+    python3 - "$GUI_STATE" <<'EOF'
+import json, sys
+try:
+    active = json.load(open(sys.argv[1], encoding="utf-8")).get("activeWallpapers") or {}
+except Exception:
+    sys.exit(0)
+args = []
+for screen, w in active.items():
+    if not w.get("backgroundId"):
+        continue
+    args += ["--screen-root", w.get("screen") or screen, "--bg", w["backgroundId"], "--scaling", w.get("scaling") or "fill"]
+if not args:
+    sys.exit(0)
+first = next(iter(active.values()))
+args += ["--fps", str(first.get("fps") or 60)]
+if first.get("silent"):
+    args.append("--silent")
+else:
+    args += ["--volume", str(first.get("volume", 15))]
+for key, flag in (("noAutomute", "--noautomute"), ("noAudioProcessing", "--no-audio-processing"), ("disableMouse", "--disable-mouse"),
+                  ("disableParallax", "--disable-parallax"), ("disableParticles", "--disable-particles"), ("noFullscreenPause", "--no-fullscreen-pause")):
+    if first.get(key):
+        args.append(flag)
+print("\n".join(args))
+EOF
+}
+
+# Renderer arguments from the settings app's choices, one per line (first line: the
+# wallpaper folder, for the frame and colours); nothing if none is set.
+config_args() {
+    [[ -f "$SETTINGS" ]] || return 0
+    python3 - "$SETTINGS" <<'EOF'
+import json, subprocess, sys
+try:
+    c = json.load(open(sys.argv[1], encoding="utf-8"))
+except Exception:
+    sys.exit(0)
+screens = {k: v for k, v in (c.get("screens") or {}).items() if v}
+if not screens:
+    sys.exit(0)
+if "*" in screens:
+    try:
+        mons = [m["name"] for m in json.loads(subprocess.run(["hyprctl", "monitors", "-j"], capture_output=True, text=True).stdout)]
+    except Exception:
+        mons = []
+    screens = {m: screens["*"] for m in mons} or screens
+overrides = c.get("overrides") or {}
+walls = [v for v in screens.values() if not v.startswith("playlist:")]
+# The first line: a wallpaper folder (for the saved frame and the colours), or "-"
+args = [walls[0] if walls else "-"]
+# Process-wide options: the first shown wallpaper's own values win
+o0 = overrides.get(walls[0]) if walls else {}
+o0 = o0 or {}
+def opt(key, default=None):
+    return o0[key] if key in o0 else c.get(key, default)
+def output_opts(path):
+    o = overrides.get(path) or {}
+    out = []
+    scaling = o.get("scaling") or c.get("scaling") or "fill"
+    if scaling != "default":
+        out += ["--scaling", scaling]
+    clamp = c.get("clamp") or ""
+    if clamp:
+        out += ["--clamp", clamp]
+    return out
+# One wallpaper stretched across all monitors, or one per monitor
+if c.get("span") and len(screens) > 1 and len(set(screens.values())) == 1 and walls:
+    path = walls[0]
+    args += ["--screen-span", ",".join(screens), "--bg", path] + output_opts(path)
+else:
+    for screen, path in screens.items():
+        if path.startswith("playlist:"):
+            # Wallpaper Engine's config.json playlist: the renderer rotates it
+            args += ["--screen-root", screen, "--playlist", path[len("playlist:"):]]
+        else:
+            args += ["--screen-root", screen, "--bg", path] + output_opts(path)
+args += ["--fps", str(c.get("fps") or 60)]
+if c.get("silent", True):
+    args.append("--silent")
+else:
+    args += ["--volume", str(opt("volume", 50))]
+for key, flag in (("noAutomute", "--noautomute"), ("disableMouse", "--disable-mouse"), ("disableParallax", "--disable-parallax"), ("disableParticles", "--disable-particles")):
+    if opt(key):
+        args.append(flag)
+if opt("audioProcessing") is False:
+    args.append("--no-audio-processing")
+if c.get("pauseOnFullscreen") is False:
+    args.append("--no-fullscreen-pause")
+elif c.get("pauseOnlyActive"):
+    args.append("--fullscreen-pause-only-active")
+for app in c.get("pauseIgnore") or []:
+    args += ["--fullscreen-pause-ignore-appid", app]
+# Each shown wallpaper's own property values (they apply to the whole renderer)
+seen = set()
+for path in walls:
+    for name, value in ((overrides.get(path) or {}).get("properties") or {}).items():
+        if name in seen:
+            continue
+        seen.add(name)
+        if isinstance(value, bool):
+            value = "1" if value else "0"
+        args += ["--set-property", f"{name}={value}"]
+print("\n".join(str(a) for a in args))
+EOF
+}
+
+start() {
+    # The assets folder: the settings app's choice, else Steam's Wallpaper Engine
+    local assets
+    assets="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("assetsDir") or "")' "$SETTINGS" 2>/dev/null || true)"
+    [[ -d "$assets" ]] || assets="$WE/assets"
+    [[ -d "$assets" ]] || die "Wallpaper Engine isn't installed in Steam (no $WE/assets)"
+    local args=(--assets-dir "$assets" --layer background) dir="" gui=() cfg=()
+    mapfile -t cfg < <(config_args)
+    [[ -f "$SETTINGS" ]] || mapfile -t gui < <(gui_args)
+
+    if (( ${#cfg[@]} )); then
+        # The settings app's choices (first line: the wallpaper folder)
+        dir="${cfg[0]}"
+        [[ "$dir" == "-" ]] && dir=""
+        args+=("${cfg[@]:1}")
+    elif [[ -f "$SETTINGS" ]]; then
+        # Turned off in the settings app: nothing to start
+        stop
+        return 0
+    elif (( ${#gui[@]} )); then
+        # What the GUI applied last, with its settings.
+        args+=("${gui[@]}")
+        dir="$(python3 -c 'import json,sys; a=json.load(open(sys.argv[1]))["activeWallpapers"]; print(next(iter(a.values()))["backgroundId"])' "$GUI_STATE")"
+    else
+        [[ -f "$CURRENT" ]] || return 0
+        dir="$(cat "$CURRENT")"
+        [[ -d "$dir" ]] || die "Wallpaper folder is gone: $dir"
+        args+=(--scaling fill --fps "${LIVE_WALLPAPER_FPS:-60}")
+        [[ "${LIVE_WALLPAPER_SOUND:-0}" == 1 ]] || args+=(--silent)
+        # Every monitor (built-in fullscreen pause keeps games unaffected).
+        local mon
+        while read -r mon; do args+=(--screen-root "$mon" --bg "$dir"); done < <(hyprctl monitors -j | python3 -c 'import json,sys; [print(m["name"]) for m in json.load(sys.stdin)]')
+    fi
+    stop
+
+    # The renderer also saves one full-size frame once it has drawn a few (named per
+    # wallpaper: the shell caches images by path).
+    local frame="$STATE/frame-$(basename "$dir").png"
+    rm -f "$STATE"/frame-*.png
+    args+=(--screenshot "$frame")
+
+    # Not a process-group leader in the background, so setsid execs in place:
+    # $! is the renderer itself.
+    setsid linux-wallpaperengine "${args[@]}" > "$STATE/log" 2>&1 < /dev/null &
+    echo $! > "$PIDFILE"
+    disown
+
+    # Caelestia's (hidden) wallpaper follows the live one: lock screen (which must not
+    # capture the screen, see shell.json lock.useWallpaper), and colours when the
+    # dynamic scheme is used. The preview at once, the full-size frame once saved.
+    command -v caelestia > /dev/null || return 0
+    local preview
+    [[ -d "$dir" ]] || return 0
+    preview="$(find "$dir" -maxdepth 1 -iname 'preview.*' \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' \) | head -1)"
+    # Animated previews: their first frame, as a still image.
+    if [[ "${preview,,}" == *.gif ]]; then
+        magick "${preview}[0]" "$STATE/preview.png" 2> /dev/null && preview="$STATE/preview.png" || preview=""
+    fi
+    [[ -n "$preview" ]] && caelestia wallpaper -f "$preview" > /dev/null 2>&1 || true
+    (
+        for _ in $(seq 60); do
+            sleep 0.5
+            [[ -s "$frame" ]] || continue
+            sleep 0.5 # let it finish writing
+            caelestia wallpaper -f "$frame" > /dev/null 2>&1
+            break
+        done
+    ) > /dev/null 2>&1 < /dev/null &
+    disown
+}
+
+set_wallpaper() {
+    local dir
+    dir="$(resolve "$1")" || die "No wallpaper '$1' (Workshop ID, built-in name or folder)"
+    [[ -f "$dir/project.json" ]] || die "Not a Wallpaper Engine wallpaper: $dir"
+    echo "$dir" > "$CURRENT"
+    start
+}
+
+pick() {
+    # "Title  ·  type" lines; the folder after a tab, hidden from the menu.
+    local list choice
+    list="$(python3 - "$WORKSHOP" "$DEFAULTS" <<'EOF'
+import json, os, sys
+for root in sys.argv[1:]:
+    if not os.path.isdir(root):
+        continue
+    for name in sorted(os.listdir(root)):
+        d = os.path.join(root, name)
+        try:
+            p = json.load(open(os.path.join(d, "project.json"), encoding="utf-8"))
+        except Exception:
+            continue
+        kind = (p.get("type") or "?").lower()
+        src = "workshop" if "workshop" in root else "built-in"
+        print(f"{p.get('title') or name}  ·  {kind}, {src}\t{d}")
+EOF
+)"
+    [[ -n "$list" ]] || die "No wallpapers yet: subscribe to some in Steam's Wallpaper Engine Workshop"
+    choice="$(cut -f1 <<< "$list" | fuzzel --dmenu --prompt "Wallpaper  " --width 60)" || exit 0
+    set_wallpaper "$(grep -F -m1 "$choice"$'\t' <<< "$list" | cut -f2)"
+}
+
+case "${1:-}" in
+    pick) pick ;;
+    set) [[ -n "${2:-}" ]] || die "usage: live-wallpaper set ID|NAME|PATH"; set_wallpaper "$2" ;;
+    start) start ;;
+    stop) stop ;;
+    pause) signal STOP ;;
+    resume) signal CONT ;;
+    *) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+esac

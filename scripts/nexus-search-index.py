@@ -31,9 +31,11 @@ ROW_TYPES = {
 # Sub-pages that only make sense with something picked first
 NEEDS_SELECTION = {
     "EthernetDetailPage", "NetworkDetailPage", "AddVpnPage", "BtDeviceInfo", "AppInfo", "WallpaperCategory",
+    "LiveWallpaperInfo",
 }
 # Extra words people search for, by label
 SYNONYMS = {
+    "Live wallpapers": "animated moving video wallpaper engine background",
     "Dark theme": "dark mode light mode night",
     "Natural scrolling": "reverse scroll direction",
     "Pointer speed": "mouse sensitivity dpi",
@@ -53,6 +55,9 @@ SYNONYMS = {
     "Time zone": "timezone clock",
     "Clock format": "12 24 hour am pm",
     "Do not disturb": "dnd silence mute notifications",
+    "Frame rate": "fps live wallpaper",
+    "Copy to the clipboard": "screenshot clipboard",
+    "Test which wallpapers work": "compatibility live wallpaper engine",
 }
 
 TR = re.compile(r'Tr\.(tr|trCtx)\("((?:[^"\\]|\\.)*)"(?:\s*,\s*"((?:[^"\\]|\\.)*)")?')
@@ -167,6 +172,14 @@ def parse_page(path: Path):
             if stack:
                 el = stack.pop()
                 section = finish(el, entries, section)
+    # The page's own title: a root property (4 spaces in), whatever the brace
+    # counting above made of function bodies before it. A conditional one
+    # ("Edit playlist" : "Playlists") is the page's resting title: the last.
+    if title is None:
+        tm = re.search(r"^    title:\s*(.*)$", path.read_text(), re.M)
+        if tm:
+            exprs = TR.findall(tm.group(1))
+            title = tr_of(tm.group(1)) if len(exprs) < 2 else tr_of(tm.group(1)[tm.group(1).rindex("Tr.tr"):])
     return title, entries, subs
 
 
@@ -178,7 +191,7 @@ def finish(el, entries, section):
     if kind in ROW_TYPES or kind.endswith("Row"):
         lab = props.get("label") or props.get("text")
         # Status lines ("No plugins", "Checking for updates…") aren't settings
-        if lab and not re.match(r"^No |^Search$|.* need |.*(…|\.\.\.)$", lab[0]):
+        if lab and not re.match(r"^No |^Needs |^Search$|.* need |.* is missing$|.*(…|\.\.\.)$", lab[0]):
             sub = props.get("subtext")
             entry = {
                 "label": lab[0],
@@ -220,6 +233,12 @@ def main() -> int:
             if si not in paths or name in NEEDS_SELECTION or (si > 0 and name in roots):
                 continue
             trail = [parsed[s][1][0] for s in paths[si] if parsed[s][1]]
+            # The sub-page itself, by its title (one only a button opens, like
+            # Wallpaper & style's Live, is otherwise not findable)
+            if si > 0 and title and not any(e.get("opens") == si and e["label"] == title[0]
+                                            for ps in paths[si][:-1] + [0] for e in parsed[ps][2]):
+                out.append({"label": title[0], "ctx": title[1], "sub": "", "section": "", "page": pi,
+                            "path": paths[si], "trail": trail[:-1], "keywords": SYNONYMS.get(title[0], "")})
             for e in entries:
                 e = dict(e)
                 if "opens" in e and (e["opens"] not in parsed or parsed[e["opens"]][0] in NEEDS_SELECTION):

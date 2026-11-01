@@ -47,6 +47,23 @@ Scope {
         }
     }
 
+    // The whole screen, through the same handling as the picker's (Print)
+    IpcHandler {
+        function screen(): void {
+            Screenshots.captureScreen();
+        }
+
+        target: "screenshot"
+    }
+
+    // qmllint disable unresolved-type
+    CustomShortcut {
+        // qmllint enable unresolved-type
+        name: "screenshotScreen"
+        description: "Screenshot of the whole screen"
+        onPressed: Screenshots.captureScreen()
+    }
+
     IpcHandler {
         function open(): void {
             root.freeze = false;

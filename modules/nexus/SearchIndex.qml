@@ -188,6 +188,30 @@ QtObject {
             "keywords": "frosted glass transparency"
         },
         {
+            "label": "Wallpapers",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 0,
+            "path": [
+                1
+            ],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Colours",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 0,
+            "path": [
+                3
+            ],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Theme",
             "ctx": "",
             "sub": "Light or dark surfaces, for the shell and apps",
@@ -196,7 +220,9 @@ QtObject {
             "path": [
                 3
             ],
-            "trail": [],
+            "trail": [
+                "Colours"
+            ],
             "keywords": ""
         },
         {
@@ -208,7 +234,9 @@ QtObject {
             "path": [
                 3
             ],
-            "trail": [],
+            "trail": [
+                "Colours"
+            ],
             "keywords": ""
         },
         {
@@ -220,7 +248,367 @@ QtObject {
             "path": [
                 3
             ],
+            "trail": [
+                "Colours"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Live wallpapers",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 0,
+            "path": [
+                4
+            ],
             "trail": [],
+            "keywords": "animated moving video wallpaper engine background"
+        },
+        {
+            "label": "Playlists",
+            "ctx": "",
+            "sub": "Wallpapers that take turns",
+            "section": "More",
+            "opens": 6,
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Steam Workshop",
+            "ctx": "",
+            "sub": "Find new wallpapers: trending, popular, newest",
+            "section": "More",
+            "opens": 7,
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Sort by",
+            "ctx": "",
+            "sub": "",
+            "section": "Looking for wallpapers…",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Tag",
+            "ctx": "",
+            "sub": "",
+            "section": "Looking for wallpapers…",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Works with Linux",
+            "ctx": "",
+            "sub": "",
+            "section": "Looking for wallpapers…",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Show mature wallpapers",
+            "ctx": "",
+            "sub": "Ones rated Questionable or Mature on the Workshop",
+            "section": "Looking for wallpapers…",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Frame rate",
+            "ctx": "",
+            "sub": "Higher is smoother and uses more power",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": "fps live wallpaper"
+        },
+        {
+            "label": "Pause behind fullscreen apps",
+            "ctx": "",
+            "sub": "Games and videos get the GPU to themselves",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Only on that monitor",
+            "ctx": "",
+            "sub": "Other monitors keep playing",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Sound",
+            "ctx": "",
+            "sub": "For wallpapers that have it",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Volume",
+            "ctx": "",
+            "sub": "",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Quiet while other apps play sound",
+            "ctx": "",
+            "sub": "",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "React to music",
+            "ctx": "",
+            "sub": "Audio visualisers in wallpapers follow what's playing",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Fit",
+            "ctx": "",
+            "sub": "",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Stretch one wallpaper across monitors",
+            "ctx": "",
+            "sub": "Instead of the same one on each",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "React to the mouse",
+            "ctx": "",
+            "sub": "",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Parallax",
+            "ctx": "",
+            "sub": "Layers shift as the mouse moves",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Particles",
+            "ctx": "",
+            "sub": "Off saves GPU on busy wallpapers",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Wallpaper Engine folder",
+            "ctx": "",
+            "sub": "Set by you; empty to find it by itself",
+            "section": "Folders",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Update to the newest version",
+            "ctx": "",
+            "sub": "Rebuilds it from upstream; opens a terminal",
+            "section": "Renderer",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "New playlist",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 0,
+            "path": [
+                4,
+                6
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Playlists"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Name",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 0,
+            "path": [
+                4,
+                6
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Playlists"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Change every",
+            "ctx": "",
+            "sub": "Minutes",
+            "section": "",
+            "page": 0,
+            "path": [
+                4,
+                6
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Playlists"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Order",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 0,
+            "path": [
+                4,
+                6
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Playlists"
+            ],
             "keywords": ""
         },
         {
@@ -308,16 +696,6 @@ QtObject {
             "ctx": "",
             "sub": "In points",
             "section": "Apps",
-            "page": 1,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Needs the hyprflow plugin",
-            "ctx": "",
-            "sub": "Window title bars come from hyprflow, which isn't loaded.",
-            "section": "Window title bars",
             "page": 1,
             "path": [],
             "trail": [],
@@ -587,16 +965,6 @@ QtObject {
             "label": "Desktop mode",
             "ctx": "",
             "sub": "Windows float and overlap, with title bars, snapping and a taskbar, like Windows",
-            "section": "Desktop mode",
-            "page": 4,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Needs the hyprflow plugin",
-            "ctx": "",
-            "sub": "Desktop mode, title bars, snapping, minimizing and hot corners come from hyprflow, a Hyprland plugin. It isn't loaded right now.",
             "section": "Desktop mode",
             "page": 4,
             "path": [],
@@ -1134,7 +1502,9 @@ QtObject {
             "path": [
                 2
             ],
-            "trail": [],
+            "trail": [
+                "Add network"
+            ],
             "keywords": ""
         },
         {
@@ -1145,6 +1515,20 @@ QtObject {
             "page": 6,
             "path": [
                 2
+            ],
+            "trail": [
+                "Add network"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "All networks",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 6,
+            "path": [
+                5
             ],
             "trail": [],
             "keywords": ""
@@ -1652,16 +2036,6 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Needs the hyprscroller plugin",
-            "ctx": "",
-            "sub": "The scrolling layout (columns side by side) comes from hyprscroller, which isn't loaded.",
-            "section": "Scrolling layout",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
             "label": "New column width",
             "ctx": "",
             "sub": "",
@@ -2162,11 +2536,141 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Copy to the clipboard",
+            "ctx": "",
+            "sub": "Ready to paste anywhere",
+            "section": "After a screenshot",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": "screenshot clipboard"
+        },
+        {
+            "label": "Save to a folder",
+            "ctx": "",
+            "sub": "",
+            "section": "After a screenshot",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Folder",
+            "ctx": "",
+            "sub": "",
+            "section": "After a screenshot",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Notification",
+            "ctx": "",
+            "sub": "With Edit, Open and Show in folder",
+            "section": "After a screenshot",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Open in the editor right away",
+            "ctx": "",
+            "sub": "Off: only from the notification's Edit",
+            "section": "After a screenshot",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Editor",
+            "ctx": "",
+            "sub": "None installed (swappy or satty, for example)",
+            "section": "After a screenshot",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Shutter sound",
+            "ctx": "",
+            "sub": "",
+            "section": "After a screenshot",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Print key: the whole screen, as above",
+            "ctx": "",
+            "sub": "Off: the caelestia command's own screenshot",
+            "section": "Keys",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Screenshot shortcuts",
+            "ctx": "",
+            "sub": "Super+Shift+S: an area (the screen frozen); change them in Keyboard shortcuts",
+            "section": "Keys",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Quality",
+            "ctx": "",
+            "sub": "",
+            "section": "Screen recording",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Video format",
+            "ctx": "",
+            "sub": "H.264 plays everywhere; HEVC and AV1 are smaller",
+            "section": "Screen recording",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Show the pointer",
+            "ctx": "",
+            "sub": "",
+            "section": "Screen recording",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Recordings folder",
+            "ctx": "",
+            "sub": "",
+            "section": "Screen recording",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Start these apps at login",
             "ctx": "",
             "sub": "Apps that start themselves (e.g. Steam's \"Run at startup\") show up here too",
             "section": "Start at login",
-            "page": 18,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2176,7 +2680,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Add",
-            "page": 18,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2186,7 +2690,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "System updates",
-            "page": 20,
+            "page": 21,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2196,7 +2700,7 @@ QtObject {
             "ctx": "",
             "sub": "Opens a terminal: it asks for your password and shows the progress",
             "section": "System updates",
-            "page": 20,
+            "page": 21,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2206,7 +2710,7 @@ QtObject {
             "ctx": "",
             "sub": "Rebuild them for the running Hyprland (after a Hyprland update); opens a terminal",
             "section": "Manage",
-            "page": 21,
+            "page": 22,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2216,7 +2720,7 @@ QtObject {
             "ctx": "",
             "sub": "From a git repository; opens a terminal",
             "section": "Manage",
-            "page": 21,
+            "page": 22,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2226,7 +2730,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Text",
-            "page": 22,
+            "page": 23,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2236,7 +2740,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Text",
-            "page": 22,
+            "page": 23,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2246,7 +2750,7 @@ QtObject {
             "ctx": "",
             "sub": "GTK apps draw with stronger borders and colours",
             "section": "Text",
-            "page": 22,
+            "page": 23,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2256,7 +2760,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Seeing the screen",
-            "page": 22,
+            "page": 23,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2266,7 +2770,7 @@ QtObject {
             "ctx": "",
             "sub": "Changes the colours of the whole screen",
             "section": "Seeing the screen",
-            "page": 22,
+            "page": 23,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2276,7 +2780,7 @@ QtObject {
             "ctx": "",
             "sub": "Cursor size, on Keyboard & mouse",
             "section": "Seeing the screen",
-            "page": 22,
+            "page": 23,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2286,7 +2790,7 @@ QtObject {
             "ctx": "",
             "sub": "Off: windows, panels and apps change at once, without movement",
             "section": "Motion",
-            "page": 22,
+            "page": 23,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2296,7 +2800,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Motion",
-            "page": 22,
+            "page": 23,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2306,7 +2810,7 @@ QtObject {
             "ctx": "",
             "sub": "How soon and how fast a held key repeats",
             "section": "Keyboard",
-            "page": 22,
+            "page": 23,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2316,7 +2820,7 @@ QtObject {
             "ctx": "",
             "sub": "Finish in the terminal (it asks for your password)",
             "section": "Security",
-            "page": 23,
+            "page": 24,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2326,7 +2830,7 @@ QtObject {
             "ctx": "",
             "sub": "When the screen locks by itself, on Power & sleep",
             "section": "Security",
-            "page": 23,
+            "page": 24,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2336,7 +2840,7 @@ QtObject {
             "ctx": "",
             "sub": "Apps list them under Recent",
             "section": "History",
-            "page": 23,
+            "page": 24,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2346,7 +2850,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "History",
-            "page": 23,
+            "page": 24,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2356,7 +2860,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "History",
-            "page": 23,
+            "page": 24,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2366,7 +2870,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "History",
-            "page": 23,
+            "page": 24,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2376,7 +2880,7 @@ QtObject {
             "ctx": "",
             "sub": "Turns off animations, blur, shadows, gaps and rounding, and allows tearing, until it's turned off",
             "section": "Game mode",
-            "page": 24,
+            "page": 25,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2386,7 +2890,7 @@ QtObject {
             "ctx": "",
             "sub": "Lower input lag for games that ask for it; per app under Workspaces & focus > App rules",
             "section": "Performance",
-            "page": 24,
+            "page": 25,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2396,7 +2900,7 @@ QtObject {
             "ctx": "",
             "sub": "No screen lock or sleep while a game or video is fullscreen",
             "section": "Performance",
-            "page": 24,
+            "page": 25,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2406,7 +2910,7 @@ QtObject {
             "ctx": "",
             "sub": "Needs the hyprscroller plugin (the scrolling layout)",
             "section": "Performance",
-            "page": 24,
+            "page": 25,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2416,7 +2920,7 @@ QtObject {
             "ctx": "",
             "sub": "FreeSync / G-Sync, on Display",
             "section": "Performance",
-            "page": 24,
+            "page": 25,
             "path": [],
             "trail": [],
             "keywords": "vrr freesync gsync adaptive sync"
@@ -2426,7 +2930,7 @@ QtObject {
             "ctx": "",
             "sub": "On Notifications",
             "section": "Performance",
-            "page": 24,
+            "page": 25,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2437,7 +2941,7 @@ QtObject {
             "sub": "Enabled",
             "section": "",
             "opens": 1,
-            "page": 25,
+            "page": 26,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2448,7 +2952,7 @@ QtObject {
             "sub": "Always visible",
             "section": "",
             "opens": 2,
-            "page": 25,
+            "page": 26,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2459,7 +2963,7 @@ QtObject {
             "sub": "Enabled",
             "section": "",
             "opens": 3,
-            "page": 25,
+            "page": 26,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2470,7 +2974,7 @@ QtObject {
             "sub": "Enabled",
             "section": "",
             "opens": 4,
-            "page": 25,
+            "page": 26,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2481,7 +2985,7 @@ QtObject {
             "sub": "Enabled",
             "section": "",
             "opens": 5,
-            "page": 25,
+            "page": 26,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2492,7 +2996,7 @@ QtObject {
             "sub": "Wallpaper background",
             "section": "",
             "opens": 11,
-            "page": 25,
+            "page": 26,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2503,7 +3007,7 @@ QtObject {
             "sub": "Enabled",
             "section": "",
             "opens": 12,
-            "page": 25,
+            "page": 26,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2514,7 +3018,7 @@ QtObject {
             "sub": "Enabled",
             "section": "",
             "opens": 13,
-            "page": 25,
+            "page": 26,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -2524,7 +3028,7 @@ QtObject {
             "ctx": "toggle label",
             "sub": "",
             "section": "General",
-            "page": 25,
+            "page": 26,
             "path": [
                 1
             ],
@@ -2538,7 +3042,7 @@ QtObject {
             "ctx": "",
             "sub": "Reveal when the cursor reaches the screen edge",
             "section": "General",
-            "page": 25,
+            "page": 26,
             "path": [
                 1
             ],
@@ -2552,7 +3056,7 @@ QtObject {
             "ctx": "",
             "sub": "Display seconds for the clock in the main panel",
             "section": "General",
-            "page": 25,
+            "page": 26,
             "path": [
                 1
             ],
@@ -2566,7 +3070,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Tabs",
-            "page": 25,
+            "page": 26,
             "path": [
                 1
             ],
@@ -2580,7 +3084,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Tabs",
-            "page": 25,
+            "page": 26,
             "path": [
                 1
             ],
@@ -2594,7 +3098,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Tabs",
-            "page": 25,
+            "page": 26,
             "path": [
                 1
             ],
@@ -2608,7 +3112,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Tabs",
-            "page": 25,
+            "page": 26,
             "path": [
                 1
             ],
@@ -2622,7 +3126,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Performance widgets",
-            "page": 25,
+            "page": 26,
             "path": [
                 1
             ],
@@ -2636,7 +3140,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Performance widgets",
-            "page": 25,
+            "page": 26,
             "path": [
                 1
             ],
@@ -2650,7 +3154,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Performance widgets",
-            "page": 25,
+            "page": 26,
             "path": [
                 1
             ],
@@ -2664,7 +3168,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Performance widgets",
-            "page": 25,
+            "page": 26,
             "path": [
                 1
             ],
@@ -2678,7 +3182,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Performance widgets",
-            "page": 25,
+            "page": 26,
             "path": [
                 1
             ],
@@ -2692,7 +3196,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Performance widgets",
-            "page": 25,
+            "page": 26,
             "path": [
                 1
             ],
@@ -2706,7 +3210,7 @@ QtObject {
             "ctx": "",
             "sub": "Pixels dragged before the dashboard opens",
             "section": "Behaviour",
-            "page": 25,
+            "page": 26,
             "path": [
                 1
             ],
@@ -2720,7 +3224,7 @@ QtObject {
             "ctx": "",
             "sub": "Keep the bar visible at all times",
             "section": "Behaviour",
-            "page": 25,
+            "page": 26,
             "path": [
                 2
             ],
@@ -2734,7 +3238,7 @@ QtObject {
             "ctx": "",
             "sub": "Reveal the bar when the cursor reaches the screen edge",
             "section": "Behaviour",
-            "page": 25,
+            "page": 26,
             "path": [
                 2
             ],
@@ -2748,7 +3252,7 @@ QtObject {
             "ctx": "",
             "sub": "Hovering an app on the taskbar shows its windows",
             "section": "Behaviour",
-            "page": 25,
+            "page": 26,
             "path": [
                 2
             ],
@@ -2762,7 +3266,7 @@ QtObject {
             "ctx": "",
             "sub": "Panels and the bar can open over a fullscreen window",
             "section": "Behaviour",
-            "page": 25,
+            "page": 26,
             "path": [
                 2
             ],
@@ -2776,7 +3280,7 @@ QtObject {
             "ctx": "",
             "sub": "Pixels dragged before the bar reveals",
             "section": "Behaviour",
-            "page": 25,
+            "page": 26,
             "path": [
                 2
             ],
@@ -2791,7 +3295,7 @@ QtObject {
             "sub": "Indicators, window icons",
             "section": "Components",
             "opens": 6,
-            "page": 25,
+            "page": 26,
             "path": [
                 2
             ],
@@ -2806,7 +3310,7 @@ QtObject {
             "sub": "Title display, popout",
             "section": "Components",
             "opens": 7,
-            "page": 25,
+            "page": 26,
             "path": [
                 2
             ],
@@ -2821,7 +3325,7 @@ QtObject {
             "sub": "System tray icons",
             "section": "Components",
             "opens": 8,
-            "page": 25,
+            "page": 26,
             "path": [
                 2
             ],
@@ -2836,7 +3340,7 @@ QtObject {
             "sub": "Visible indicators",
             "section": "Components",
             "opens": 9,
-            "page": 25,
+            "page": 26,
             "path": [
                 2
             ],
@@ -2851,7 +3355,7 @@ QtObject {
             "sub": "Date, icon, background",
             "section": "Components",
             "opens": 10,
-            "page": 25,
+            "page": 26,
             "path": [
                 2
             ],
@@ -2865,7 +3369,7 @@ QtObject {
             "ctx": "",
             "sub": "Scroll over the workspace indicator to switch workspaces",
             "section": "Scroll actions",
-            "page": 25,
+            "page": 26,
             "path": [
                 2
             ],
@@ -2879,7 +3383,7 @@ QtObject {
             "ctx": "",
             "sub": "Scroll on the top half of the bar to adjust volume",
             "section": "Scroll actions",
-            "page": 25,
+            "page": 26,
             "path": [
                 2
             ],
@@ -2893,7 +3397,7 @@ QtObject {
             "ctx": "",
             "sub": "Scroll on the bottom half of the bar to adjust brightness",
             "section": "Scroll actions",
-            "page": 25,
+            "page": 26,
             "path": [
                 2
             ],
@@ -2907,7 +3411,7 @@ QtObject {
             "ctx": "toggle label",
             "sub": "",
             "section": "General",
-            "page": 25,
+            "page": 26,
             "path": [
                 3
             ],
@@ -2921,7 +3425,7 @@ QtObject {
             "ctx": "",
             "sub": "Reveal when the cursor reaches the screen edge",
             "section": "General",
-            "page": 25,
+            "page": 26,
             "path": [
                 3
             ],
@@ -2935,7 +3439,7 @@ QtObject {
             "ctx": "",
             "sub": "Prefix used to run actions in the launcher",
             "section": "General",
-            "page": 25,
+            "page": 26,
             "path": [
                 3
             ],
@@ -2949,7 +3453,7 @@ QtObject {
             "ctx": "",
             "sub": "Starts the launcher's special searches",
             "section": "General",
-            "page": 25,
+            "page": 26,
             "path": [
                 3
             ],
@@ -2963,7 +3467,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Display",
-            "page": 25,
+            "page": 26,
             "path": [
                 3
             ],
@@ -2977,7 +3481,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Display",
-            "page": 25,
+            "page": 26,
             "path": [
                 3
             ],
@@ -2991,7 +3495,7 @@ QtObject {
             "ctx": "",
             "sub": "Pixels dragged before the launcher opens",
             "section": "Display",
-            "page": 25,
+            "page": 26,
             "path": [
                 3
             ],
@@ -3005,7 +3509,7 @@ QtObject {
             "ctx": "",
             "sub": "Navigate results with Ctrl+hjkl",
             "section": "Behaviour",
-            "page": 25,
+            "page": 26,
             "path": [
                 3
             ],
@@ -3019,7 +3523,7 @@ QtObject {
             "ctx": "",
             "sub": "Allow actions that shut down or log out",
             "section": "Behaviour",
-            "page": 25,
+            "page": 26,
             "path": [
                 3
             ],
@@ -3033,7 +3537,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Fuzzy search",
-            "page": 25,
+            "page": 26,
             "path": [
                 3
             ],
@@ -3047,7 +3551,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Fuzzy search",
-            "page": 25,
+            "page": 26,
             "path": [
                 3
             ],
@@ -3061,7 +3565,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Fuzzy search",
-            "page": 25,
+            "page": 26,
             "path": [
                 3
             ],
@@ -3075,7 +3579,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Fuzzy search",
-            "page": 25,
+            "page": 26,
             "path": [
                 3
             ],
@@ -3089,7 +3593,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Fuzzy search",
-            "page": 25,
+            "page": 26,
             "path": [
                 3
             ],
@@ -3103,7 +3607,7 @@ QtObject {
             "ctx": "toggle label",
             "sub": "",
             "section": "General",
-            "page": 25,
+            "page": 26,
             "path": [
                 4
             ],
@@ -3117,7 +3621,7 @@ QtObject {
             "ctx": "",
             "sub": "Reveal when the cursor reaches the screen edge",
             "section": "General",
-            "page": 25,
+            "page": 26,
             "path": [
                 4
             ],
@@ -3131,7 +3635,7 @@ QtObject {
             "ctx": "",
             "sub": "Pixels dragged before the sidebar opens",
             "section": "General",
-            "page": 25,
+            "page": 26,
             "path": [
                 4
             ],
@@ -3145,11 +3649,13 @@ QtObject {
             "ctx": "toggle label",
             "sub": "Show the utilities panel",
             "section": "General",
-            "page": 25,
+            "page": 26,
             "path": [
                 5
             ],
-            "trail": [],
+            "trail": [
+                "Utilities"
+            ],
             "keywords": ""
         },
         {
@@ -3157,11 +3663,13 @@ QtObject {
             "ctx": "",
             "sub": "Show the idle inhibitor card",
             "section": "Cards",
-            "page": 25,
+            "page": 26,
             "path": [
                 5
             ],
-            "trail": [],
+            "trail": [
+                "Utilities"
+            ],
             "keywords": ""
         },
         {
@@ -3169,11 +3677,13 @@ QtObject {
             "ctx": "",
             "sub": "Show the screen recorder card",
             "section": "Cards",
-            "page": 25,
+            "page": 26,
             "path": [
                 5
             ],
-            "trail": [],
+            "trail": [
+                "Utilities"
+            ],
             "keywords": ""
         },
         {
@@ -3181,11 +3691,13 @@ QtObject {
             "ctx": "",
             "sub": "Show the quick toggles card",
             "section": "Cards",
-            "page": 25,
+            "page": 26,
             "path": [
                 5
             ],
-            "trail": [],
+            "trail": [
+                "Utilities"
+            ],
             "keywords": ""
         },
         {
@@ -3193,11 +3705,13 @@ QtObject {
             "ctx": "",
             "sub": "Toggle wireless networking",
             "section": "Quick toggles",
-            "page": 25,
+            "page": 26,
             "path": [
                 5
             ],
-            "trail": [],
+            "trail": [
+                "Utilities"
+            ],
             "keywords": ""
         },
         {
@@ -3205,11 +3719,13 @@ QtObject {
             "ctx": "",
             "sub": "Toggle the Bluetooth adapter",
             "section": "Quick toggles",
-            "page": 25,
+            "page": 26,
             "path": [
                 5
             ],
-            "trail": [],
+            "trail": [
+                "Utilities"
+            ],
             "keywords": ""
         },
         {
@@ -3217,11 +3733,13 @@ QtObject {
             "ctx": "",
             "sub": "Mute or unmute the default source",
             "section": "Quick toggles",
-            "page": 25,
+            "page": 26,
             "path": [
                 5
             ],
-            "trail": [],
+            "trail": [
+                "Utilities"
+            ],
             "keywords": ""
         },
         {
@@ -3229,11 +3747,13 @@ QtObject {
             "ctx": "",
             "sub": "Open the settings window",
             "section": "Quick toggles",
-            "page": 25,
+            "page": 26,
             "path": [
                 5
             ],
-            "trail": [],
+            "trail": [
+                "Utilities"
+            ],
             "keywords": ""
         },
         {
@@ -3241,11 +3761,13 @@ QtObject {
             "ctx": "",
             "sub": "Toggle game mode",
             "section": "Quick toggles",
-            "page": 25,
+            "page": 26,
             "path": [
                 5
             ],
-            "trail": [],
+            "trail": [
+                "Utilities"
+            ],
             "keywords": ""
         },
         {
@@ -3253,11 +3775,13 @@ QtObject {
             "ctx": "",
             "sub": "Silence notifications",
             "section": "Quick toggles",
-            "page": 25,
+            "page": 26,
             "path": [
                 5
             ],
-            "trail": [],
+            "trail": [
+                "Utilities"
+            ],
             "keywords": "dnd silence mute notifications"
         },
         {
@@ -3265,11 +3789,13 @@ QtObject {
             "ctx": "",
             "sub": "Connect or disconnect the VPN",
             "section": "Quick toggles",
-            "page": 25,
+            "page": 26,
             "path": [
                 5
             ],
-            "trail": [],
+            "trail": [
+                "Utilities"
+            ],
             "keywords": ""
         },
         {
@@ -3277,7 +3803,7 @@ QtObject {
             "ctx": "bar workspaces",
             "sub": "Number of workspaces displayed",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 6
@@ -3293,7 +3819,7 @@ QtObject {
             "ctx": "bar workspaces",
             "sub": "",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 6
@@ -3309,7 +3835,7 @@ QtObject {
             "ctx": "bar workspaces",
             "sub": "",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 6
@@ -3325,7 +3851,7 @@ QtObject {
             "ctx": "bar workspaces",
             "sub": "",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 6
@@ -3341,7 +3867,7 @@ QtObject {
             "ctx": "bar workspaces",
             "sub": "Show workspaces that are inactive and empty",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 6
@@ -3357,7 +3883,7 @@ QtObject {
             "ctx": "bar workspaces",
             "sub": "Hide workspaces not on the current monitor",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 6
@@ -3373,7 +3899,7 @@ QtObject {
             "ctx": "bar workspaces",
             "sub": "Show icons of open windows on each workspace",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 6
@@ -3389,7 +3915,7 @@ QtObject {
             "ctx": "bar workspaces",
             "sub": "",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 6
@@ -3405,7 +3931,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 6
@@ -3421,7 +3947,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 6
@@ -3437,7 +3963,7 @@ QtObject {
             "ctx": "bar workspaces",
             "sub": "",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 6
@@ -3453,7 +3979,7 @@ QtObject {
             "ctx": "taskbar active window layout",
             "sub": "",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 7
@@ -3469,7 +3995,7 @@ QtObject {
             "ctx": "taskbar active window: swap the title and class order",
             "sub": "",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 7
@@ -3485,7 +4011,7 @@ QtObject {
             "ctx": "",
             "sub": "Only show the active window title while hovering",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 7
@@ -3501,7 +4027,7 @@ QtObject {
             "ctx": "",
             "sub": "Show a window details popout when hovering",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 7
@@ -3517,7 +4043,7 @@ QtObject {
             "ctx": "taskbar tray: draw a background behind the tray",
             "sub": "",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 8
@@ -3533,7 +4059,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 8
@@ -3549,7 +4075,7 @@ QtObject {
             "ctx": "taskbar tray layout",
             "sub": "",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 8
@@ -3565,7 +4091,7 @@ QtObject {
             "ctx": "",
             "sub": "Show the tray menu popout when hovering",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 8
@@ -3581,13 +4107,14 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Visible icons",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 9
             ],
             "trail": [
-                "Taskbar"
+                "Taskbar",
+                "Status icons"
             ],
             "keywords": ""
         },
@@ -3596,13 +4123,14 @@ QtObject {
             "ctx": "",
             "sub": "Show a details popout when hovering the status icons",
             "section": "Behaviour",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 9
             ],
             "trail": [
-                "Taskbar"
+                "Taskbar",
+                "Status icons"
             ],
             "keywords": ""
         },
@@ -3611,7 +4139,7 @@ QtObject {
             "ctx": "taskbar clock: draw a background behind the clock",
             "sub": "",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 10
@@ -3627,7 +4155,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 10
@@ -3643,7 +4171,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 10
@@ -3659,7 +4187,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "",
-            "page": 25,
+            "page": 26,
             "path": [
                 2,
                 10
@@ -3675,7 +4203,7 @@ QtObject {
             "ctx": "",
             "sub": "Otherwise a plain colour",
             "section": "Look",
-            "page": 25,
+            "page": 26,
             "path": [
                 11
             ],
@@ -3689,7 +4217,7 @@ QtObject {
             "ctx": "",
             "sub": "In the wallpaper's colours",
             "section": "Look",
-            "page": 25,
+            "page": 26,
             "path": [
                 11
             ],
@@ -3703,7 +4231,7 @@ QtObject {
             "ctx": "",
             "sub": "Nothing from them shows while locked",
             "section": "Look",
-            "page": 25,
+            "page": 26,
             "path": [
                 11
             ],
@@ -3717,7 +4245,7 @@ QtObject {
             "ctx": "",
             "sub": "Shut down, restart and sleep from the lock screen",
             "section": "Look",
-            "page": 25,
+            "page": 26,
             "path": [
                 11
             ],
@@ -3731,7 +4259,7 @@ QtObject {
             "ctx": "",
             "sub": "Fingerprint unlock needs fprintd and a fingerprint reader; face unlock needs Howdy and an infrared camera.",
             "section": "Unlocking",
-            "page": 25,
+            "page": 26,
             "path": [
                 11
             ],
@@ -3745,7 +4273,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Unlocking",
-            "page": 25,
+            "page": 26,
             "path": [
                 11
             ],
@@ -3759,7 +4287,7 @@ QtObject {
             "ctx": "",
             "sub": "Then it asks for the password",
             "section": "Unlocking",
-            "page": 25,
+            "page": 26,
             "path": [
                 11
             ],
@@ -3773,7 +4301,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Unlocking",
-            "page": 25,
+            "page": 26,
             "path": [
                 11
             ],
@@ -3787,7 +4315,7 @@ QtObject {
             "ctx": "",
             "sub": "Face unlock starts as soon as the screen comes on",
             "section": "Unlocking",
-            "page": 25,
+            "page": 26,
             "path": [
                 11
             ],
@@ -3801,7 +4329,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Unlocking",
-            "page": 25,
+            "page": 26,
             "path": [
                 11
             ],
@@ -3815,7 +4343,7 @@ QtObject {
             "ctx": "toggle label",
             "sub": "A slider at the screen edge when the volume or brightness changes",
             "section": "General",
-            "page": 25,
+            "page": 26,
             "path": [
                 12
             ],
@@ -3829,7 +4357,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "General",
-            "page": 25,
+            "page": 26,
             "path": [
                 12
             ],
@@ -3843,7 +4371,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "General",
-            "page": 25,
+            "page": 26,
             "path": [
                 12
             ],
@@ -3857,7 +4385,7 @@ QtObject {
             "ctx": "",
             "sub": "Milliseconds",
             "section": "General",
-            "page": 25,
+            "page": 26,
             "path": [
                 12
             ],
@@ -3871,7 +4399,7 @@ QtObject {
             "ctx": "toggle label",
             "sub": "Log out, shut down, sleep and restart, from the screen's right edge",
             "section": "General",
-            "page": 25,
+            "page": 26,
             "path": [
                 13
             ],
@@ -3885,7 +4413,7 @@ QtObject {
             "ctx": "",
             "sub": "Move between the buttons with J and K",
             "section": "General",
-            "page": 25,
+            "page": 26,
             "path": [
                 13
             ],
@@ -3899,7 +4427,7 @@ QtObject {
             "ctx": "",
             "sub": "Pixels dragged before the menu opens",
             "section": "General",
-            "page": 25,
+            "page": 26,
             "path": [
                 13
             ],
@@ -3913,7 +4441,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Default applications",
-            "page": 26,
+            "page": 27,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -3923,7 +4451,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Default applications",
-            "page": 26,
+            "page": 27,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -3933,7 +4461,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Default applications",
-            "page": 26,
+            "page": 27,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -3943,7 +4471,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Default applications",
-            "page": 26,
+            "page": 27,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -3953,7 +4481,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Default applications",
-            "page": 26,
+            "page": 27,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -3963,7 +4491,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Default applications",
-            "page": 26,
+            "page": 27,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -3973,7 +4501,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Open files with",
-            "page": 26,
+            "page": 27,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -3983,7 +4511,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Open files with",
-            "page": 26,
+            "page": 27,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -3993,7 +4521,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Open files with",
-            "page": 26,
+            "page": 27,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4003,7 +4531,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Open files with",
-            "page": 26,
+            "page": 27,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4013,7 +4541,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Open files with",
-            "page": 26,
+            "page": 27,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4023,7 +4551,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Open files with",
-            "page": 26,
+            "page": 27,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4034,7 +4562,7 @@ QtObject {
             "sub": "Browse installed apps, set favourites and hidden",
             "section": "Library",
             "opens": 1,
-            "page": 26,
+            "page": 27,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4045,7 +4573,7 @@ QtObject {
             "sub": "Notifications, toasts, timeouts",
             "section": "Notifications",
             "opens": 1,
-            "page": 27,
+            "page": 28,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4055,7 +4583,7 @@ QtObject {
             "ctx": "",
             "sub": "How often the media position updates (ms)",
             "section": "Polling",
-            "page": 27,
+            "page": 28,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4065,7 +4593,7 @@ QtObject {
             "ctx": "",
             "sub": "CPU, memory and GPU update interval (seconds)",
             "section": "Polling",
-            "page": 27,
+            "page": 28,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4075,7 +4603,7 @@ QtObject {
             "ctx": "",
             "sub": "How often available networks are rescanned (seconds)",
             "section": "Polling",
-            "page": 27,
+            "page": 28,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4085,7 +4613,7 @@ QtObject {
             "ctx": "",
             "sub": "Source used to fetch synced lyrics",
             "section": "Media & lyrics",
-            "page": 27,
+            "page": 28,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4095,7 +4623,7 @@ QtObject {
             "ctx": "",
             "sub": "Preferred media player when several are open",
             "section": "Media & lyrics",
-            "page": 27,
+            "page": 28,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4105,7 +4633,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Input increments",
-            "page": 27,
+            "page": 28,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4115,7 +4643,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Input increments",
-            "page": 27,
+            "page": 28,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4125,7 +4653,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Input increments",
-            "page": 27,
+            "page": 28,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4135,7 +4663,7 @@ QtObject {
             "ctx": "",
             "sub": "Number of bars in the audio visualisers",
             "section": "Service tuning",
-            "page": 27,
+            "page": 28,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4145,7 +4673,7 @@ QtObject {
             "ctx": "",
             "sub": "Derive theme mode and variant from the wallpaper",
             "section": "Service tuning",
-            "page": 27,
+            "page": 28,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4155,7 +4683,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Service tuning",
-            "page": 27,
+            "page": 28,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4165,7 +4693,7 @@ QtObject {
             "ctx": "",
             "sub": "The language used in the shell UI",
             "section": "Language",
-            "page": 28,
+            "page": 29,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4175,7 +4703,7 @@ QtObject {
             "ctx": "",
             "sub": "A city, or coordinates (lat,lon); empty to guess it from your connection",
             "section": "Weather",
-            "page": 28,
+            "page": 29,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4185,7 +4713,7 @@ QtObject {
             "ctx": "",
             "sub": "Units for weather temperatures",
             "section": "Units",
-            "page": 28,
+            "page": 29,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4195,7 +4723,7 @@ QtObject {
             "ctx": "",
             "sub": "Units for CPU and GPU temperatures",
             "section": "Units",
-            "page": 28,
+            "page": 29,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4205,7 +4733,7 @@ QtObject {
             "ctx": "",
             "sub": "Units for data sizes and network speeds",
             "section": "Units",
-            "page": 28,
+            "page": 29,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4215,7 +4743,7 @@ QtObject {
             "ctx": "",
             "sub": "How times are shown across the shell",
             "section": "Time & date",
-            "page": 28,
+            "page": 29,
             "path": [],
             "trail": [],
             "keywords": "12 24 hour am pm"
@@ -4225,7 +4753,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "System",
-            "page": 29,
+            "page": 30,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4235,7 +4763,7 @@ QtObject {
             "ctx": "system model name",
             "sub": "",
             "section": "System",
-            "page": 29,
+            "page": 30,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4245,7 +4773,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "System",
-            "page": 29,
+            "page": 30,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4255,7 +4783,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "System",
-            "page": 29,
+            "page": 30,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4265,7 +4793,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "System",
-            "page": 29,
+            "page": 30,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4275,7 +4803,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hardware",
-            "page": 29,
+            "page": 30,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4285,7 +4813,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hardware",
-            "page": 29,
+            "page": 30,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4295,7 +4823,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hardware",
-            "page": 29,
+            "page": 30,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4305,7 +4833,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hardware",
-            "page": 29,
+            "page": 30,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4315,7 +4843,7 @@ QtObject {
             "ctx": "the caelestia shell itself, not a unix shell",
             "sub": "",
             "section": "Software",
-            "page": 29,
+            "page": 30,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4325,7 +4853,7 @@ QtObject {
             "ctx": "the caelestia command line tool",
             "sub": "",
             "section": "Software",
-            "page": 29,
+            "page": 30,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4335,7 +4863,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Plugins",
-            "page": 29,
+            "page": 30,
             "path": [],
             "trail": [],
             "keywords": ""

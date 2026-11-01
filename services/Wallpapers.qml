@@ -29,11 +29,14 @@ Searcher {
         return category;
     }
 
+    // Picking a normal wallpaper turns a live one off (and shows Caelestia's again)
     function setRandom(): void {
+        LiveWallpaper.useStatic();
         Quickshell.execDetached(["caelestia", "wallpaper", "-r", ...smartArg]);
     }
 
     function setWallpaper(path: string): void {
+        LiveWallpaper.useStatic();
         actualCurrent = path;
         Quickshell.execDetached(["caelestia", "wallpaper", "-f", path, ...smartArg]);
     }

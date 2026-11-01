@@ -15,7 +15,7 @@ QtObject {
             label: Tr.tr("Wallpaper & style"),
             icon: "palette",
             description: Tr.tr("Wallpaper, colours, dark theme"),
-            keywords: "background theme colour scheme light dark mode transparency desktop icons",
+            keywords: "background theme colour scheme light dark mode transparency desktop icons live wallpaper engine animated video workshop playlist",
             category: "appearance"
         },
         {
@@ -153,6 +153,14 @@ QtObject {
             icon: "history",
             description: Tr.tr("System snapshots"),
             keywords: "snapshot snapper btrfs restore backup",
+            category: "system"
+        },
+        {
+            id: "screenshots",
+            label: Tr.tr("Screenshots & recording"),
+            icon: "screenshot_monitor",
+            description: Tr.tr("Clipboard, saving, editor, recording quality"),
+            keywords: "screenshot print capture snip clipboard swappy satty editor recording video record",
             category: "system"
         },
         {

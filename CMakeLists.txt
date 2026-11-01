@@ -73,7 +73,7 @@ if("shell" IN_LIST ENABLE_MODULES)
         install(DIRECTORY ${dir} DESTINATION "${INSTALL_QSCONFDIR}")
     endforeach()
 
-    install(PROGRAMS assets/wrap_term_launch.sh DESTINATION "${INSTALL_QSCONFDIR}/assets")
+    install(PROGRAMS assets/wrap_term_launch.sh assets/live-wallpaper DESTINATION "${INSTALL_QSCONFDIR}/assets")
 
     # The settings app (Nexus) in app launchers
     install(FILES assets/caelestia-settings.desktop DESTINATION "${INSTALL_APPDIR}")

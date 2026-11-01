@@ -25,6 +25,9 @@ ShellRoot {
         Players;
         Brightness;
         Weather.reload();
+        // Writes hypr-settings.lua when there is none yet or its generator is
+        // newer (Print through the shell, hidden renderer test windows...)
+        HyprSettings;
 
         if (GlobalConfig.utilities.vpn.enabled)
             VPN;
@@ -52,6 +55,7 @@ ShellRoot {
     Shortcuts {}
     BatteryMonitor {}
     GameMode {}
+    LiveWallpaperKeys {}
     IdleInhibit {}
     IdleMonitors {
         lock: lock

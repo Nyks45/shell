@@ -15,6 +15,10 @@ import qs.modules.nexus.common
 PageBase {
     id: root
 
+    // A live wallpaper is playing (Caelestia's own is hidden under it)
+    readonly property bool live: !Config.background.wallpaperEnabled && !!LiveWallpaper.current
+    readonly property bool livePlaylist: LiveWallpaper.current.startsWith("playlist:")
+
     title: Tr.tr("Wallpaper & style")
 
     ColumnLayout {
@@ -42,7 +46,7 @@ PageBase {
 
             Loader {
                 anchors.centerIn: parent
-                opacity: Config.background.wallpaperEnabled ? 0 : 1
+                opacity: Config.background.wallpaperEnabled || root.live ? 0 : 1
                 active: opacity > 0
 
                 sourceComponent: ColumnLayout {
@@ -80,6 +84,69 @@ PageBase {
                     }
                 }
             }
+
+            // The live wallpaper: its preview, or the playlist's name
+            Loader {
+                anchors.fill: parent
+                opacity: root.live ? 1 : 0
+                active: opacity > 0
+
+                Behavior on opacity {
+                    Anim {
+                        type: Anim.SlowEffects
+                    }
+                }
+
+                sourceComponent: Item {
+                    AnimatedImage {
+                        anchors.fill: parent
+                        visible: !root.livePlaylist
+                        source: LiveWallpaper.currentInfo?.preview ? `file://${LiveWallpaper.currentInfo.preview}` : ""
+                        fillMode: Image.PreserveAspectCrop
+                        asynchronous: true
+                        playing: root.visible
+                    }
+
+                    ColumnLayout {
+                        anchors.centerIn: parent
+                        visible: root.livePlaylist
+                        spacing: Tokens.spacing.extraSmall
+
+                        MaterialIcon {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: "playlist_play"
+                            color: Colours.palette.m3onSurfaceVariant
+                            fontStyle: Tokens.font.icon.extraLarge
+                        }
+
+                        StyledText {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: LiveWallpaper.current.replace(/^playlist:/, "")
+                            color: Colours.palette.m3onSurfaceVariant
+                            font: Tokens.font.body.large
+                        }
+                    }
+
+                    StyledRect {
+                        anchors.left: parent.left
+                        anchors.bottom: parent.bottom
+                        anchors.margins: Tokens.padding.small
+                        implicitWidth: liveBadge.implicitWidth + Tokens.padding.medium * 2
+                        implicitHeight: liveBadge.implicitHeight + Tokens.padding.extraSmall * 2
+                        radius: Tokens.rounding.full
+                        color: Colours.palette.m3primary
+
+                        StyledText {
+                            id: liveBadge
+
+                            anchors.centerIn: parent
+                            text: LiveWallpaper.paused ? Tr.tr("Live · paused") : Tr.tr("Live")
+                            color: Colours.palette.m3onPrimary
+                            font: Tokens.font.label.medium
+                        }
+                    }
+                }
+            }
         }
 
         ButtonRow {
@@ -95,8 +162,20 @@ PageBase {
                 type: IconTextButton.Tonal
                 horizontalPadding: Tokens.padding.extraLarge
                 verticalPadding: Tokens.padding.medium
-                disabled: !Config.background.wallpaperEnabled
+                disabled: !Config.background.wallpaperEnabled && !root.live
                 onClicked: root.nState.openSubPage(1) // Wallpaper page
+            }
+
+            IconTextButton {
+                icon: "animated_images"
+                text: Tr.tr("Live")
+                font: Tokens.font.body.large
+                isRound: true
+                shapeMorph: true
+                type: IconTextButton.Tonal
+                horizontalPadding: Tokens.padding.extraLarge
+                verticalPadding: Tokens.padding.medium
+                onClicked: root.nState.openSubPage(4) // Live wallpapers
             }
 
             IconTextButton {
@@ -115,8 +194,13 @@ PageBase {
         ToggleRow {
             first: true
             text: Tr.tr("Display wallpaper")
-            checked: Config.background.wallpaperEnabled
-            onToggled: GlobalConfig.background.wallpaperEnabled = checked
+            checked: Config.background.wallpaperEnabled || root.live
+            onToggled: {
+                // Off means no wallpaper at all, a live one included
+                if (!checked && root.live)
+                    LiveWallpaper.stop();
+                GlobalConfig.background.wallpaperEnabled = checked;
+            }
         }
 
         ToggleRow {

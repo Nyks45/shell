@@ -37,6 +37,19 @@ QtObject {
                 Component {
                     ColourSelect {}
                 }
+                // Live wallpapers: the list (4), one wallpaper (5), playlists (6), the Workshop (7)
+                Component {
+                    LiveWallpaperSelect {}
+                }
+                Component {
+                    LiveWallpaperInfo {}
+                }
+                Component {
+                    LivePlaylists {}
+                }
+                Component {
+                    LiveWorkshop {}
+                }
             }
         },
         Component {
@@ -203,6 +216,14 @@ QtObject {
             StackPage {
                 Component {
                     BackupsPage {}
+                }
+            }
+        },
+        Component {
+            // Screenshots & recording
+            StackPage {
+                Component {
+                    ScreenshotsPage {}
                 }
             }
         },
