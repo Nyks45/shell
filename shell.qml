@@ -28,6 +28,9 @@ ShellRoot {
         // Writes hypr-settings.lua when there is none yet or its generator is
         // newer (Print through the shell, hidden renderer test windows...)
         HyprSettings;
+        // Reads the live wallpaper library and settings (importing the old
+        // GUI's on first run): the login script uses that settings file
+        LiveWallpaper;
 
         if (GlobalConfig.utilities.vpn.enabled)
             VPN;
