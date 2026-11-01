@@ -141,6 +141,18 @@ Scope {
             WindowFactory.create();
         }
 
+        // At a page: `caelestia shell nexus openPage wallpaper live`
+        function openPage(page: string, sub: string): void {
+            const subs = {
+                live: [4],
+                playlists: [4, 6],
+                workshop: [4, 7],
+                wallpapers: [1],
+                colours: [3]
+            };
+            WindowFactory.createAt(page, subs[sub] ?? []);
+        }
+
         target: "nexus"
     }
 

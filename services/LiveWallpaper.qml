@@ -189,6 +189,7 @@ Singleton {
 
     // A random pick that turns out broken is replaced by another (a few times)
     property bool randomPick
+    property string lastScan
     property int randomTries
 
     function togglePause(): void {
@@ -352,10 +353,15 @@ Singleton {
         onRunningChanged: root.scanning = running
         stdout: StdioCollector {
             onStreamFinished: {
-                try {
-                    root.wallpapers = JSON.parse(text);
-                } catch (e) {
-                    root.wallpapers = [];
+                // Unchanged (the usual rescan): keep the list, so pages showing
+                // it don't rebuild every card
+                if (text !== root.lastScan) {
+                    root.lastScan = text;
+                    try {
+                        root.wallpapers = JSON.parse(text);
+                    } catch (e) {
+                        root.wallpapers = [];
+                    }
                 }
                 if (root.pendingRandom && root.wallpapers.length) {
                     root.pendingRandom = false;

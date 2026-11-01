@@ -15,6 +15,17 @@ Singleton {
         nexusComp.createObject(parent ?? dummy, props);
     }
 
+    // Opened at a page (PageRegistry id) and sub-page path, e.g. ("wallpaper", [4])
+    function createAt(pageId: string, path: var): void {
+        const page = PageRegistry.pages.findIndex(p => p.id === pageId);
+        create(null, page < 0 ? {} : {
+            startEntry: {
+                page,
+                path: path ?? []
+            }
+        });
+    }
+
     QtObject {
         id: dummy
     }
@@ -24,6 +35,8 @@ Singleton {
 
         FloatingWindow {
             id: win
+
+            property var startEntry: null
 
             color: Colours.tPalette.m3surface
             surfaceFormat.opaque: false
@@ -51,6 +64,8 @@ Singleton {
                 nState.screen: win.screen
                 nState.isWindow: true
                 onClose: win.destroy()
+                Component.onCompleted: if (win.startEntry)
+                    nState.goTo(win.startEntry)
             }
 
             Behavior on color {

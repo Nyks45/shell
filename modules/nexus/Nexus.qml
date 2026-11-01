@@ -31,6 +31,17 @@ Item {
         onTapped: root.focus = true
     }
 
+    // The mouse's back button: up one sub-page (or out of the search)
+    TapHandler {
+        acceptedButtons: Qt.BackButton
+        onTapped: {
+            if (root.nState.subPageIdxStack.length > 0)
+                root.nState.closeSubPage();
+            else if (root.nState.searchOpen)
+                root.nState.searchOpen = false;
+        }
+    }
+
     BlobGroup {
         id: blobGroup
 

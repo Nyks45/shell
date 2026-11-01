@@ -35,9 +35,11 @@ PageBase {
 
     readonly property var shown: {
         const q = query.trim().toLowerCase();
-        const hist = LiveWallpaper.config.history ?? {};
+        // Only what the filter and sort in use read (a binding depends on what it
+        // touched): changing a playback setting mustn't rebuild every card
+        const hist = sortBy === "recent" ? (LiveWallpaper.config.history ?? {}) : {};
         const list = LiveWallpaper.wallpapers.filter(w => {
-            const grade = LiveWallpaper.compat(w.path)?.grade ?? "";
+            const grade = compatFilter ? (LiveWallpaper.compat(w.path)?.grade ?? "") : "";
             return (!typeFilter || w.type === typeFilter) && (!tagFilter || w.tags.includes(tagFilter)) && (showMature || w.rating === "g" || w.rating === "") && (!q || `${w.title} ${w.tags.join(" ")}`.toLowerCase().includes(q)) && (!compatFilter || (compatFilter === "working" ? grade === "perfect" || grade === "minor" : compatFilter === "untested" ? !grade : compatFilter === "hidebroken" ? grade !== "broken" : true));
         });
         const by = {
@@ -584,13 +586,27 @@ PageBase {
         radius: Tokens.rounding.medium
         color: Colours.tPalette.m3surfaceContainerHigh
 
-        AnimatedImage {
+        // A still (a GIF's first frame, decoded in the background): an
+        // AnimatedImage decodes every frame up front, ~100 of them took seconds
+        Image {
             anchors.fill: parent
             source: prev.source ? `file://${prev.source}` : ""
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
-            playing: prev.playing && prev.source.toLowerCase().endsWith(".gif")
             sourceSize.width: 360
+        }
+
+        Loader {
+            anchors.fill: parent
+            active: prev.playing && prev.source.toLowerCase().endsWith(".gif")
+            asynchronous: true
+
+            sourceComponent: AnimatedImage {
+                source: `file://${prev.source}`
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                playing: true
+            }
         }
 
         MaterialIcon {
