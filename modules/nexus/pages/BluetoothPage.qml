@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell.Services.UPower
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Bluetooth
@@ -217,6 +218,52 @@ PageBase {
 
             Behavior on opacity {
                 Anim {}
+            }
+        }
+
+        // Batteries of wireless devices (mice, keyboards, headsets...), from
+        // UPower: the ones on their own USB receiver too, not only Bluetooth
+        SectionHeader {
+            visible: batteryList.count > 0
+            text: Tr.tr("Device batteries")
+        }
+
+        Repeater {
+            id: batteryList
+
+            model: UPower.devices.values.filter(d => d.isPresent && !d.isLaptopBattery && d.type !== UPowerDeviceType.LinePower && d.type !== UPowerDeviceType.Ups && d.nativePath !== "")
+
+            InfoRow {
+                required property UPowerDevice modelData
+                required property int index
+
+                readonly property bool charging: [UPowerDeviceState.Charging, UPowerDeviceState.FullyCharged, UPowerDeviceState.PendingCharge].includes(modelData.state)
+
+                first: index === 0
+                last: index === batteryList.count - 1
+                icon: {
+                    switch (modelData.type) {
+                    case UPowerDeviceType.Mouse:
+                        return "mouse";
+                    case UPowerDeviceType.Keyboard:
+                        return "keyboard";
+                    case UPowerDeviceType.Headset:
+                    case UPowerDeviceType.Headphones:
+                        return "headphones";
+                    case UPowerDeviceType.GamingInput:
+                        return "sports_esports";
+                    case UPowerDeviceType.Phone:
+                        return "smartphone";
+                    case UPowerDeviceType.Tablet:
+                        return "tablet";
+                    default:
+                        return "battery_full";
+                    }
+                }
+                label: modelData.model || Tr.tr("Wireless device")
+                subtext: charging ? Tr.tr("Charging") : ""
+                value: `${Math.round(modelData.percentage * 100)}%`
+                iconColour: modelData.percentage <= 0.15 && !charging ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
             }
         }
     }

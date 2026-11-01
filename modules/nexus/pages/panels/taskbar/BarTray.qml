@@ -1,6 +1,8 @@
 pragma ComponentBehavior: Bound
 
+import QtQuick
 import QtQuick.Layouts
+import Quickshell.Services.SystemTray
 import Caelestia.Config
 import Caelestia.I18n
 import qs.modules.nexus.common
@@ -43,6 +45,45 @@ PageBase {
             subtext: Tr.tr("Show the tray menu popout when hovering")
             checked: Config.bar.popouts.tray
             onToggled: GlobalConfig.bar.popouts.tray = checked
+        }
+
+        // Which tray icons show (the ones there now, and any hidden before)
+        SectionHeader {
+            visible: trayList.count > 0
+            text: Tr.tr("Icons")
+        }
+
+        Repeater {
+            id: trayList
+
+            model: {
+                const items = SystemTray.items.values.filter(i => i.status !== Status.Passive || GlobalConfig.bar.tray.hiddenIcons.includes(i.id)).map(i => ({
+                            id: i.id,
+                            title: i.tooltipTitle || i.title || i.id
+                        }));
+                for (const id of GlobalConfig.bar.tray.hiddenIcons)
+                    if (!items.some(i => i.id === id))
+                        items.push({
+                            id,
+                            title: id
+                        });
+                return items;
+            }
+
+            ToggleRow {
+                required property var modelData
+                required property int index
+
+                first: index === 0
+                last: index === trayList.count - 1
+                text: modelData.title
+                subtext: modelData.title !== modelData.id ? modelData.id : ""
+                checked: !GlobalConfig.bar.tray.hiddenIcons.includes(modelData.id)
+                onToggled: {
+                    const hidden = GlobalConfig.bar.tray.hiddenIcons.filter(i => i !== modelData.id);
+                    GlobalConfig.bar.tray.hiddenIcons = checked ? hidden : [...hidden, modelData.id];
+                }
+            }
         }
     }
 }

@@ -38,6 +38,9 @@ Singleton {
         return true;
     }
 
+    // The per-app rules ready before the first notification
+    Component.onCompleted: NotifRules.ensureLoaded()
+
     onListChanged: {
         if (loaded)
             saveTimer.restart();
@@ -89,12 +92,20 @@ Singleton {
         persistenceSupported: true
 
         onNotification: notif => {
+            // Per-app settings: "off" drops it, "quiet" keeps it out of popups
+            NotifRules.saw(notif.appName, notif.appIcon);
+            const mode = NotifRules.mode(notif.appName);
+            if (mode === "off")
+                return; // untracked: Quickshell discards it
+
             notif.tracked = true;
 
             const comp = notifComp.createObject(root, {
-                popup: root.shouldShowPopup(),
+                popup: mode !== "quiet" && root.shouldShowPopup(),
                 notification: notif
             });
+            if (comp.popup && NotifRules.sound && notif.urgency !== NotificationUrgency.Low)
+                NotifRules.play("");
             root.list = [comp, ...root.list];
         }
     }

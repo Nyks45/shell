@@ -146,7 +146,13 @@ Item {
                 anchors.fill: parent
                 nState.screen: root.screen
                 nState.animatingContainer: nexus.opacity < 1
-                nState.currentPageIdx: ["appearance", "network", "bluetooth", "audio"].indexOf(root.queuedMode)
+                // The popout's page, by id (indices move as pages are added)
+                nState.currentPageIdx: Math.max(0, PageRegistry.pages.findIndex(p => p.id === ({
+                            appearance: "wallpaper",
+                            network: "network",
+                            bluetooth: "bluetooth",
+                            audio: "audio"
+                        })[root.queuedMode]))
                 onClose: root.close()
             }
         }

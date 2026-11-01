@@ -14,7 +14,7 @@ Flickable {
                 root.doneFakeFlick = true;
                 root.flick(1, 1);
                 root.flick(-1, -1);
-                Qt.callLater(() => root.cancelFlick());
+                Qt.callLater(() => root?.cancelFlick()); // the page may be gone by then
             }
         }
 

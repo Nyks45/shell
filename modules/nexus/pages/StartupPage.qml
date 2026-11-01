@@ -42,6 +42,18 @@ PageBase {
         changeProc.exec(["sh", "-c", "mkdir -p \"$1\" && printf '%s' \"$2\" > \"$3\"", "sh", dir, text, file]);
     }
 
+    // Commands added here (not apps): custom-<n>.desktop files
+    readonly property var customEntries: entries.filter(e => e.file.split("/").pop().startsWith("custom-"))
+
+    function addCommand(cmd: string): void {
+        const name = cmd.split(/\s+/)[0].split("/").pop();
+        let n = 1;
+        while (entries.some(e => e.file.endsWith(`/custom-${n}.desktop`)))
+            n++;
+        const text = `[Desktop Entry]\nType=Application\nName=${name}\nComment=Added in Settings\nExec=${cmd}\nIcon=utilities-terminal\n`;
+        changeProc.exec(["sh", "-c", "mkdir -p \"$1\" && printf '%s' \"$2\" > \"$3\"", "sh", dir, text, `${dir}/custom-${n}.desktop`]);
+    }
+
     title: Tr.tr("Startup apps")
 
     Component.onCompleted: refresh()
@@ -94,6 +106,26 @@ PageBase {
             status: ""
         }
 
+        SectionHeader {
+            text: Tr.tr("Commands")
+        }
+
+        StringListEditor {
+            values: root.customEntries.map(e => e.exec)
+            placeholderText: Tr.tr("A command to run at login, e.g. syncthing --no-browser")
+            emptyText: Tr.tr("Anything that isn't an app: a script, a tool with options")
+            onEdited: v => {
+                const before = root.customEntries;
+                // Removed: delete their files; added: write one
+                for (const e of before)
+                    if (!v.includes(e.exec))
+                        changeProc.exec(["rm", "-f", e.file]);
+                for (const cmd of v)
+                    if (!before.some(e => e.exec === cmd))
+                        root.addCommand(cmd);
+            }
+        }
+
         // Non-visual helpers (the page takes one item: they live in its column)
         Process {
             id: listProc
@@ -108,6 +140,7 @@ PageBase {
                         const get = k => main.match(new RegExp(`^${k}=(.*)$`, "m"))?.[1]?.trim() ?? "";
                         out.push({
                             file,
+                            exec: get("Exec"),
                             name: get("Name") || file.split("/").pop().replace(/\.desktop$/, ""),
                             icon: get("Icon"),
                             enabled: get("Hidden") !== "true" && get("X-GNOME-Autostart-enabled") !== "false"

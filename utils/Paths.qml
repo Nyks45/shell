@@ -12,6 +12,10 @@ Singleton {
     readonly property string pictures: Quickshell.env("XDG_PICTURES_DIR") || `${home}/Pictures`
     readonly property string videos: Quickshell.env("XDG_VIDEOS_DIR") || `${home}/Videos`
     readonly property string desktop: Quickshell.env("XDG_DESKTOP_DIR") || `${home}/Desktop`
+    // The profile picture (CAELESTIA_FACE overrides it, e.g. in a test session)
+    readonly property string face: Quickshell.env("CAELESTIA_FACE") || `${home}/.face`
+    // What images show: reloadFace() blanks it for a moment so they read the new file
+    property string faceSource: face
 
     readonly property string data: `${Quickshell.env("XDG_DATA_HOME") || `${home}/.local/share`}/caelestia`
     readonly property string state: `${Quickshell.env("XDG_STATE_HOME") || `${home}/.local/state`}/caelestia`
@@ -35,5 +39,10 @@ Singleton {
 
     function shortenHome(path: string): string {
         return path.replace(home, "~");
+    }
+
+    function reloadFace(): void {
+        faceSource = "";
+        Qt.callLater(() => faceSource = face);
     }
 }

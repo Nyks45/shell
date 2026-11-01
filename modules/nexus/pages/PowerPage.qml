@@ -8,12 +8,29 @@ import Caelestia.Config
 import Caelestia.I18n
 import qs.components.controls
 import qs.utils
+import qs.services
 import qs.modules.nexus.common
 
 // Like Windows' Power & sleep: when the screen locks, turns off and the PC
 // sleeps (general.idle.timeouts), and the power mode (power-profiles-daemon).
 PageBase {
     id: root
+
+    // logind's HandlePowerKey, and what this page shows for it
+    property string logindPowerKey
+    property bool powerKeyPending
+    readonly property string powerKey: HyprSettings.saved.powerKey === "menu" && logindPowerKey === "ignore" ? "menu" : logindPowerKey
+
+    function setPowerKey(value: string): void {
+        HyprSettings.setPowerKey(value === "menu" ? "menu" : "");
+        const want = value === "menu" ? "ignore" : value;
+        if (want === logindPowerKey)
+            return;
+        powerKeyPending = true;
+        Term.run(`sudo mkdir -p /etc/systemd/logind.conf.d && printf '[Login]\\nHandlePowerKey=${want}\\n' | sudo tee /etc/systemd/logind.conf.d/10-power-key.conf >/dev/null && sudo systemctl kill -s HUP systemd-logind && echo "Done: the power button is set."`);
+        powerKeyRecheck.left = 10;
+        powerKeyRecheck.restart();
+    }
 
     // A command list for the sleep action. (A JS array would arrive as a
     // generic list, which the option's string-or-string-list type drops.)
@@ -182,6 +199,71 @@ PageBase {
                     text: root.profileLabel(modelData)
                     value: modelData
                 }
+            }
+        }
+
+        // The power button: logind handles it (shut down, sleep, nothing);
+        // "the power menu" has logind ignore it and Hyprland open the menu
+        SectionHeader {
+            text: Tr.tr("Power button")
+        }
+
+        SelectRow {
+            first: true
+            last: true
+            label: Tr.tr("When the power button is pressed")
+            subtext: root.powerKeyPending ? Tr.tr("Finish in the terminal (it asks for your password)") : ""
+            menuOnTop: true
+            menuItems: [
+                MenuItem {
+                    text: Tr.tr("Show the power menu")
+                    icon: "power_settings_new"
+                    value: "menu"
+                },
+                MenuItem {
+                    text: Tr.tr("Shut down")
+                    icon: "power_off"
+                    value: "poweroff"
+                },
+                MenuItem {
+                    text: Tr.tr("Sleep")
+                    icon: "bedtime"
+                    value: "suspend"
+                },
+                MenuItem {
+                    text: Tr.tr("Do nothing")
+                    icon: "block"
+                    value: "ignore"
+                }
+            ]
+            active: menuItems.find(i => i.value === root.powerKey) ?? null
+            onSelected: item => root.setPowerKey(item.value)
+        }
+
+        Process {
+            id: powerKeyProc
+
+            running: true
+            command: ["busctl", "get-property", "org.freedesktop.login1", "/org/freedesktop/login1", "org.freedesktop.login1.Manager", "HandlePowerKey"]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    root.logindPowerKey = (text.match(/"(.*)"/) ?? [])[1] ?? "";
+                    root.powerKeyPending = false;
+                }
+            }
+        }
+
+        Timer {
+            id: powerKeyRecheck
+
+            property int left
+
+            interval: 3000
+            repeat: true
+            onTriggered: {
+                powerKeyProc.running = true;
+                if (--left <= 0)
+                    stop();
             }
         }
 

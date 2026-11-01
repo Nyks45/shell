@@ -1,8 +1,13 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import Caelestia.Config
 import Caelestia.I18n
+import qs.components
 import qs.components.controls
+import qs.services
 import qs.modules.nexus.common
 
 PageBase {
@@ -84,6 +89,23 @@ PageBase {
             to: 60000
             stepSize: 500
             onMoved: v => GlobalConfig.notifs.defaultExpireTimeout = Math.round(v)
+        }
+
+        StepperRow {
+            label: Tr.tr("Timeout over fullscreen apps")
+            subtext: Tr.tr("Shorter, so popups don't sit over a game or video (ms)")
+            value: GlobalConfig.notifs.fullscreenExpireTimeout
+            from: 500
+            to: 30000
+            stepSize: 500
+            onMoved: v => GlobalConfig.notifs.fullscreenExpireTimeout = Math.round(v)
+        }
+
+        ToggleRow {
+            text: Tr.tr("Click to open")
+            subtext: Tr.tr("Clicking a notification does its main action, e.g. opens the message")
+            checked: GlobalConfig.notifs.actionOnClick
+            onToggled: GlobalConfig.notifs.actionOnClick = checked
         }
 
         StepperRow {
@@ -177,6 +199,12 @@ PageBase {
         }
 
         ToggleRow {
+            text: Tr.tr("Keyboard layout limit reached")
+            checked: GlobalConfig.utilities.toasts.kbLimit
+            onToggled: GlobalConfig.utilities.toasts.kbLimit = checked
+        }
+
+        ToggleRow {
             text: Tr.tr("VPN changes")
             checked: GlobalConfig.utilities.toasts.vpnChanged
             onToggled: GlobalConfig.utilities.toasts.vpnChanged = checked
@@ -187,6 +215,74 @@ PageBase {
             text: Tr.tr("Now playing")
             checked: GlobalConfig.utilities.toasts.nowPlaying
             onToggled: GlobalConfig.utilities.toasts.nowPlaying = checked
+        }
+
+        // Per app (NotifRules): every app that has sent a notification
+        SectionHeader {
+            text: Tr.tr("Apps")
+        }
+
+        StyledText {
+            Layout.fillWidth: true
+            Layout.leftMargin: Tokens.padding.small
+            Layout.bottomMargin: Tokens.spacing.small
+            text: appList.count === 0 ? Tr.tr("Apps show up here once they've sent a notification.") : Tr.tr("Quiet: kept in the notification list, without a popup. Off: not shown at all.")
+            color: Colours.palette.m3outline
+            font: Tokens.font.label.small
+            wrapMode: Text.WordWrap
+        }
+
+        Repeater {
+            id: appList
+
+            model: {
+                const apps = Object.assign({}, NotifRules.seen);
+                for (const n of Notifs.list)
+                    if (n.appName && !(n.appName in apps))
+                        apps[n.appName] = n.appIcon ?? "";
+                return Object.entries(apps).sort((a, b) => a[0].localeCompare(b[0]));
+            }
+
+            SelectRow {
+                id: appRow
+
+                required property var modelData
+                required property int index
+                readonly property string app: modelData[0]
+
+                first: index === 0
+                last: index === appList.count - 1
+                label: app
+                subtext: {
+                    const m = NotifRules.mode(app);
+                    return m === "off" ? Tr.tr("Off") : m === "quiet" ? Tr.tr("Quiet") : "";
+                }
+                // The last rows are near the bottom of the page: open upwards
+                menuOnTop: index >= appList.count - 2
+                menuItems: [
+                    MenuItem {
+                        text: Tr.tr("Show")
+                        icon: "notifications"
+                        value: "all"
+                    },
+                    MenuItem {
+                        text: Tr.tr("Quiet")
+                        icon: "notifications_paused"
+                        value: "quiet"
+                    },
+                    MenuItem {
+                        text: Tr.trCtx("Off", "notifications from one app")
+                        icon: "notifications_off"
+                        value: "off"
+                    }
+                ]
+                active: menuItems.find(i => i.value === NotifRules.mode(app)) ?? null
+                onSelected: item => {
+                    NotifRules.setMode(app, item.value);
+                    // The menu takes the row's binding over: put it back
+                    active = Qt.binding(() => menuItems.find(i => i.value === NotifRules.mode(appRow.app)) ?? null);
+                }
+            }
         }
     }
 }

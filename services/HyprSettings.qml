@@ -38,7 +38,15 @@ Singleton {
         // Keyboard & mouse
         "input:kb_layout", "input:kb_options", "input:repeat_rate", "input:repeat_delay", "input:numlock_by_default", "input:sensitivity", "input:accel_profile", "input:natural_scroll", "input:scroll_factor", "input:left_handed", "input:touchpad:natural_scroll", "input:touchpad:disable_while_typing", "input:touchpad:tap-to-click", "cursor:inactive_timeout",
         // Desktop mode
-        "plugin:hyprflow:bar_enabled", "plugin:hyprflow:bar_autohide", "plugin:hyprflow:bar_height", "plugin:hyprflow:bar_text_align", "plugin:hyprflow:bar_buttons_align", "plugin:hyprflow:bar_button_icons_on_hover", "plugin:hyprflow:bar_icon", "plugin:hyprflow:bar_double_click", "plugin:hyprflow:bar_middle_click", "plugin:hyprflow:hot_corners"]
+        "plugin:hyprflow:bar_enabled", "plugin:hyprflow:bar_autohide", "plugin:hyprflow:bar_height", "plugin:hyprflow:bar_text_align", "plugin:hyprflow:bar_buttons_align", "plugin:hyprflow:bar_button_icons_on_hover", "plugin:hyprflow:bar_icon", "plugin:hyprflow:bar_double_click", "plugin:hyprflow:bar_middle_click", "plugin:hyprflow:hot_corners", "plugin:hyprflow:bar_font", "plugin:hyprflow:bar_text_size", "plugin:hyprflow:keep_alive", "plugin:hyprflow:snap_enabled", "plugin:hyprflow:snap_assist", "plugin:hyprflow:snap_layouts", "plugin:hyprflow:snap_groups", "plugin:hyprflow:minimize_animation", "plugin:hyprflow:bar_buttons", "plugin:hyprflow:bar_menu", "plugin:hyprflow:bar_color_from_window", "plugin:hyprflow:bar_blur", "plugin:hyprflow:bar_csd", "plugin:hyprflow:bar_autohide_position", "plugin:hyprflow:bar_autohide_delay_ms", "plugin:hyprflow:bar_button_size", "plugin:hyprflow:bar_icon_size", "plugin:hyprflow:bar_text_weight",
+        // Workspaces & focus
+        "input:follow_mouse", "input:float_switch_override_focus", "binds:workspace_back_and_forth", "binds:allow_workspace_cycles", "misc:focus_on_activate", "cursor:no_warps", "misc:new_window_takes_over_fullscreen", "misc:initial_workspace_tracking",
+        // Scrolling layout (hyprscroller)
+        "plugin:hyprscrolling:column_width", "plugin:hyprscrolling:new_window_placement", "plugin:hyprscrolling:stack_after_columns", "plugin:hyprscrolling:focus_fit_method", "plugin:hyprscrolling:center_active_column", "plugin:hyprscrolling:follow_hover", "plugin:hyprscrolling:hover_delay_ms", "plugin:hyprscrolling:peek_width", "plugin:hyprscrolling:stretch_to_fill", "plugin:hyprscrolling:fullscreen_on_one_column", "plugin:hyprscrolling:column_scroll", "plugin:hyprscrolling:focus_wrap", "plugin:hyprscrolling:explicit_column_widths", "plugin:hyprscrolling:column_widths", "plugin:hyprscrolling:overview_zoom", "plugin:hyprscrolling:overview_titles", "plugin:hyprscrolling:fullscreen_screen_sized",
+        // Gaming, accessibility
+        "general:allow_tearing", "misc:vrr", "cursor:zoom_factor", "misc:animate_manual_resizes", "decoration:screen_shader",
+        // Privacy
+        "ecosystem:enforce_permissions"]
 
     function value(name: string, fallback: var): var {
         return values[name] ?? fallback;
@@ -62,6 +70,74 @@ Singleton {
         vars[name] = val;
         update({
             vars
+        });
+    }
+
+    // An option for one mode only: "desktop" (hyprflow's desktop mode) or
+    // "tiling" (the scrolling layout); applied after the always-on ones
+    function setModeOption(mode: string, name: string, val: var): void {
+        const key = mode === "desktop" ? "desktopConfig" : "tilingConfig";
+        const config = Object.assign({}, saved[key] ?? {});
+        if (val === null || val === undefined)
+            delete config[name];
+        else
+            config[name] = val;
+        update({
+            [key]: config
+        });
+    }
+
+    function modeValue(mode: string, name: string, fallback: var): var {
+        return saved[mode === "desktop" ? "desktopConfig" : "tilingConfig"]?.[name] ?? fallback;
+    }
+
+    // Back to what the config files say for a variable
+    function unsetVar(name: string): void {
+        const vars = Object.assign({}, saved.vars ?? {});
+        delete vars[name];
+        update({
+            vars
+        });
+    }
+
+    // Shortcuts set in the config with hl.bind, moved to other keys ("" turns
+    // one off): the hook S.early() installs catches the config's binds
+    function setBindRemap(from: string, to: var): void {
+        const remap = Object.assign({}, saved.remap ?? {});
+        if (to === null || to === undefined)
+            delete remap[from];
+        else
+            remap[from] = to;
+        update({
+            remap
+        });
+    }
+
+    // [{ key, command }]: shortcuts of the user's own that run a command
+    function setCustomBinds(list: var): void {
+        update({
+            customBinds: list
+        });
+    }
+
+    // "menu": the power button opens the shell's power menu (logind ignores it)
+    function setPowerKey(value: string): void {
+        update({
+            powerKey: value
+        });
+    }
+
+    // Fullscreen apps (games, videos) keep the screen awake
+    function setFullscreenInhibit(on: bool): void {
+        update({
+            fullscreenInhibit: on
+        });
+    }
+
+    // [{ class, float, center, opacity, workspace, size, idleInhibit, immediate, pin }]
+    function setWindowRules(list: var): void {
+        update({
+            windowRules: list
         });
     }
 
@@ -177,26 +253,141 @@ Singleton {
             if (m.hdr) {
                 rule.cm = "hdr";
                 rule.bitdepth = 10;
+                if (m.sdrbrightness && m.sdrbrightness !== 1)
+                    rule.sdrbrightness = m.sdrbrightness;
             }
+            if (m.disabled)
+                rule.disabled = true;
+            if (m.mirror)
+                rule.mirror = m.mirror;
+            if (m.icc)
+                rule.icc = m.icc;
             return rule;
         });
         const night = s.nightLight ?? {};
 
+        const rules = (s.windowRules ?? []).filter(r => r.class).map(r => {
+            const rule = {
+                match: {
+                    class: r.class
+                }
+            };
+            if (r.float)
+                rule.float = true;
+            if (r.center)
+                rule.center = true;
+            if (r.pin)
+                rule.pin = true;
+            if (r.opacity && r.opacity < 1)
+                rule.opacity = `${r.opacity} override`;
+            if (r.workspace)
+                rule.workspace = String(r.workspace);
+            if (r.size)
+                rule.size = r.size;
+            if (r.idleInhibit)
+                rule.idle_inhibit = r.idleInhibit;
+            if (r.immediate)
+                rule.immediate = true;
+            return rule;
+        });
+
         return `-- Written by Caelestia's settings app from hypr-settings.json: changes here are overwritten.
--- hypr-vars.lua merges S.vars; hypr-user.lua calls S.apply() last.
+-- hypr-vars.lua merges S.vars and calls S.early(); hypr-user.lua calls S.apply() last.
 local S = {}
 
 S.vars = ${luaValue(s.vars ?? {}, "")}
 
+-- Shortcuts moved to other keys ("" = turned off), by the keys the config binds
+S.remap = ${luaValue(s.remap ?? {}, "")}
+
+-- "SUPER + SHIFT + d" -> "SHIFT+SUPER+D": modifiers in one order, upper case
+local function norm(keys)
+    local parts = {}
+    for p in tostring(keys):gmatch("[^+]+") do
+        parts[#parts + 1] = p:gsub("^%s+", ""):gsub("%s+$", ""):upper()
+    end
+    local key = table.remove(parts)
+    table.sort(parts)
+    parts[#parts + 1] = key
+    return table.concat(parts, "+")
+end
+
+-- Early in the config, before its binds: hl.bind/unbind go through S.remap.
+-- Installed once per Lua state; the map is a global, so a reload updates it.
+function S.early()
+    local map = {}
+    for from, to in pairs(S.remap) do map[norm(from)] = to end
+    _G.__caelestia_remap = map
+    if _G.__caelestia_bind or not (hl and hl.bind) then return end
+    local bind, unbind = hl.bind, hl.unbind
+    _G.__caelestia_bind = bind
+    hl.bind = function(keys, ...)
+        local to = _G.__caelestia_remap[norm(keys)]
+        if to == "" then return end
+        return bind(to or keys, ...)
+    end
+    if unbind then
+        _G.__caelestia_unbind = unbind
+        hl.unbind = function(keys, ...)
+            local to = _G.__caelestia_remap[norm(keys)]
+            if to == "" then return end
+            return unbind(to or keys, ...)
+        end
+    end
+end
+
 -- hyprflow options (hyprflow.lua merges them into its style)
 S.hyprflow = ${luaValue(s.hyprflow ?? {}, "")}
 
+-- Plugin options only for plugins that are loaded (at the first parse at login
+-- hyprpm hasn't loaded them yet; Hyprland re-reads the config after it does),
+-- or Hyprland reports unknown options as config errors
+local function known(config)
+    for plugin, opts in pairs(config.plugin or {}) do
+        for k in pairs(opts) do
+            if hl.get_config("plugin:" .. plugin .. ":" .. k) == nil then opts[k] = nil end
+        end
+        if next(opts) == nil then config.plugin[plugin] = nil end
+    end
+    if config.plugin and next(config.plugin) == nil then config.plugin = nil end
+    return config
+end
+
 function S.apply()
-    local config = ${luaValue(nest(s.config), "    ")}
+    local config = known(${luaValue(nest(s.config), "    ")})
     if next(config) then hl.config(config) end
+
+    -- Per mode: desktop mode (hyprflow) or the scrolling layout
+    local hf = hl.plugin and hl.plugin.hyprflow
+    local desktop = hf and hf.desktop_mode and hf.desktop_mode()
+    local modeConfig = known(desktop and ${luaValue(nest(s.desktopConfig), "    ")} or ${luaValue(nest(s.tilingConfig), "    ")})
+    if next(modeConfig) then hl.config(modeConfig) end
 
     for _, m in ipairs(${luaValue(monitors, "    ")}) do
         hl.monitor(m)
+    end
+
+    -- Fullscreen windows keep the screen awake (games, videos)
+    if ${s.fullscreenInhibit ? "true" : "false"} then
+        hl.window_rule({ match = { class = ".*" }, idle_inhibit = "fullscreen" })
+    end
+
+    -- Window rules for apps
+    for _, r in ipairs(${luaValue(rules, "    ")}) do
+        hl.window_rule(r)
+    end
+
+    -- The user's own shortcuts (past the remap hook: their keys are theirs)
+    local bind = _G.__caelestia_bind or hl.bind
+    local unbind = _G.__caelestia_unbind or hl.unbind
+    for _, b in ipairs(${luaValue((s.customBinds ?? []).filter(b => b.key && b.command), "    ")}) do
+        if unbind then pcall(unbind, b.key) end
+        bind(b.key, hl.dsp.exec_cmd(b.command))
+    end
+
+    -- The power button opens the power menu (logind is set to ignore it)
+    if ${s.powerKey === "menu" ? "true" : "false"} then
+        bind("XF86PowerOff", hl.dsp.exec_cmd("caelestia shell drawers toggle session"))
     end
 
     -- Night light (hyprsunset, scheduled in ~/.config/hypr/hyprsunset.conf)

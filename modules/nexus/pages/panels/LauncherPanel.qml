@@ -41,7 +41,6 @@ PageBase {
         TextFieldRow {
             id: prefixRow
 
-            last: true
             label: Tr.tr("Action prefix")
             subtext: Tr.tr("Prefix used to run actions in the launcher")
             errorText: Tr.tr("Prefix must not be alphanumeric")
@@ -57,6 +56,44 @@ PageBase {
                 GlobalConfig.launcher.actionPrefix = value || ">";
                 if (GlobalConfig.launcher.actionPrefix === ">")
                     clear();
+            }
+        }
+
+        TextFieldRow {
+            last: true
+            label: Tr.tr("Special prefix")
+            subtext: Tr.tr("Starts the launcher's special searches")
+            value: GlobalConfig.launcher.specialPrefix
+            placeholderText: "@"
+            maximumLength: 1
+            smallField: true
+            validate: /^[^a-zA-Z0-9\s]$/
+            onEditingFinished: value => {
+                if (field.valid && value)
+                    GlobalConfig.launcher.specialPrefix = value;
+            }
+        }
+
+        // The launcher's actions (after the action prefix): on or off
+        SectionHeader {
+            text: Tr.tr("Actions")
+        }
+
+        Repeater {
+            id: actionList
+
+            model: GlobalConfig.launcher.actions.values
+
+            ToggleRow {
+                required property var modelData
+                required property int index
+
+                first: index === 0
+                last: index === actionList.count - 1
+                text: modelData.name
+                subtext: modelData.description
+                checked: modelData.enabled
+                onToggled: GlobalConfig.launcher.actions.at(index).enabled = checked
             }
         }
 

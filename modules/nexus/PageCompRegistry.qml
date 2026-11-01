@@ -39,7 +39,22 @@ QtObject {
                 }
             }
         },
-
+        Component {
+            // Fonts
+            StackPage {
+                Component {
+                    FontsPage {}
+                }
+            }
+        },
+        Component {
+            // App appearance
+            StackPage {
+                Component {
+                    AppAppearancePage {}
+                }
+            }
+        },
         Component {
             // Windows
             StackPage {
@@ -117,8 +132,24 @@ QtObject {
                 }
             }
         },
+        Component {
+            // Printers
+            StackPage {
+                Component {
+                    PrintersPage {}
+                }
+            }
+        },
 
         // System
+        Component {
+            // Account
+            StackPage {
+                Component {
+                    AccountPage {}
+                }
+            }
+        },
         Component {
             // Power & sleep
             StackPage {
@@ -136,10 +167,42 @@ QtObject {
             }
         },
         Component {
+            // Workspaces & focus
+            StackPage {
+                Component {
+                    MultitaskingPage {}
+                }
+            }
+        },
+        Component {
+            // Notifications
+            StackPage {
+                Component {
+                    NotificationsPage { isSubPage: false }
+                }
+            }
+        },
+        Component {
             // Date & time
             StackPage {
                 Component {
                     DateTimePage {}
+                }
+            }
+        },
+        Component {
+            // Storage
+            StackPage {
+                Component {
+                    StoragePage {}
+                }
+            }
+        },
+        Component {
+            // Backups
+            StackPage {
+                Component {
+                    BackupsPage {}
                 }
             }
         },
@@ -172,6 +235,32 @@ QtObject {
             StackPage {
                 Component {
                     PluginsPage {}
+                }
+            }
+        },
+
+        // Accessibility & privacy
+        Component {
+            // Accessibility
+            StackPage {
+                Component {
+                    AccessibilityPage {}
+                }
+            }
+        },
+        Component {
+            // Privacy & security
+            StackPage {
+                Component {
+                    PrivacyPage {}
+                }
+            }
+        },
+        Component {
+            // Gaming
+            StackPage {
+                Component {
+                    GamingPage {}
                 }
             }
         },

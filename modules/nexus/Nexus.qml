@@ -50,14 +50,18 @@ Item {
         borderBottom: Tokens.padding.medium
     }
 
+    // The drawer's pop-out button. A window has none: its title bar (hyprflow)
+    // closes it, and Super+Q does without one.
     BlobRect {
         id: windowBtnRect
 
+        visible: !root.nState.isWindow
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.margins: root.nState.isWindow ? 0 : Tokens.padding.extraSmall
 
-        group: blobGroup
+        // Out of the group too, so the background doesn't keep its bump
+        group: root.nState.isWindow ? null : blobGroup
         opacity: root.blobColour.a
         radius: Tokens.rounding.medium
 
@@ -68,15 +72,15 @@ Item {
     IconButton {
         id: windowBtn
 
+        visible: !root.nState.isWindow
         anchors.centerIn: windowBtnRect
-        icon: nState.isWindow ? "close" : "pip"
+        icon: "pip"
         type: IconButton.Text
         label.fill: 0
-        inactiveOnColour: hovered ? nState.isWindow ? Colours.palette.m3error : Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
+        inactiveOnColour: hovered ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
         stateLayer.opacity: 0
         onClicked: {
-            if (!nState.isWindow)
-                WindowFactory.create();
+            WindowFactory.create();
             root.close();
         }
 

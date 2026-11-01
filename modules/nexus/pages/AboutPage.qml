@@ -17,6 +17,8 @@ PageBase {
 
     property string quickshellVersion
     property string cliVersion
+    // Hardware: processor, graphics, memory, storage (lines from hwProc)
+    property var hw: ({})
 
     title: Tr.tr("About")
 
@@ -44,6 +46,37 @@ PageBase {
                 onStreamFinished: {
                     const m = text.match(/caelestia-cli\S*\s+(\d+(?:\.\d+)*)/);
                     root.cliVersion = m ? m[1] : "";
+                }
+            }
+        }
+
+        Process {
+            id: hwProc
+
+            running: true
+            command: ["sh", "-c", `
+echo "cpu=$(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2- | sed 's/^ *//')"
+echo "cores=$(nproc)"
+lspci 2>/dev/null | grep -Ei 'vga|3d controller|display controller' | sed -E 's/^[0-9a-f:.]+ [^:]+: //' | while read -r g; do echo "gpu=$g"; done
+echo "mem=$(awk '/MemTotal/ {print $2}' /proc/meminfo)"
+df -B1 --output=size,used / | tail -1 | awk '{print "disk=" $1 " " $2}'
+`]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    const hw = {
+                        gpus: []
+                    };
+                    for (const line of text.split("\n")) {
+                        const i = line.indexOf("=");
+                        if (i < 0)
+                            continue;
+                        const k = line.slice(0, i), v = line.slice(i + 1).trim();
+                        if (k === "gpu")
+                            hw.gpus.push(v.replace(/\s*\(rev [0-9a-f]+\)$/, "").replace(/^(NVIDIA|Advanced Micro Devices, Inc\.|Intel) Corporation /, "$1 "));
+                        else
+                            hw[k] = v;
+                    }
+                    root.hw = hw;
                 }
             }
         }
@@ -115,6 +148,46 @@ PageBase {
             // TRANSLATORS: BIOS or UEFI firmware version
             label: Tr.tr("Firmware")
             value: SysInfo.firmware
+        }
+
+        // Hardware
+        SectionHeader {
+            text: Tr.tr("Hardware")
+        }
+
+        InfoRow {
+            first: true
+            label: Tr.tr("Processor")
+            value: root.hw.cpu ? Tr.tr("%1 (%2 threads)").arg(root.hw.cpu).arg(root.hw.cores) : ""
+        }
+
+        Repeater {
+            model: root.hw.gpus ?? []
+
+            InfoRow {
+                required property string modelData
+                required property int index
+
+                label: index === 0 ? Tr.tr("Graphics") : ""
+                value: modelData
+            }
+        }
+
+        InfoRow {
+            label: Tr.tr("Memory")
+            value: root.hw.mem ? `${(parseInt(root.hw.mem) / 1048576).toFixed(1)} GiB` : ""
+        }
+
+        InfoRow {
+            last: true
+            label: Tr.tr("Storage")
+            value: {
+                const [size, used] = (root.hw.disk ?? "").split(" ").map(Number);
+                if (!size)
+                    return "";
+                const gb = b => b >= 1e12 ? `${(b / 1e12).toFixed(2)} TB` : `${Math.round(b / 1e9)} GB`;
+                return Tr.tr("%1 used of %2 (system drive)").arg(gb(used)).arg(gb(size));
+            }
         }
 
         // Software

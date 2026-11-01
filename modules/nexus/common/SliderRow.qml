@@ -16,6 +16,9 @@ ConnectedRect {
     property alias valueLabel: valueLabel.text
     property real value
 
+    // Just used: the wheel adjusts it for a few seconds
+    property bool engaged
+
     signal moved(value: real)
 
     Layout.fillWidth: true
@@ -60,17 +63,24 @@ ConnectedRect {
                 }
             }
 
-            CustomMouseArea {
-                function onWheel(event: WheelEvent): void {
-                    const step = GlobalConfig.services.audioIncrement;
-                    if (event.angleDelta.y > 0)
-                        root.moved(Math.min(1, root.value + step));
-                    else if (event.angleDelta.y < 0)
-                        root.moved(Math.max(0, root.value - step));
-                }
-
+            // The wheel moves the slider only right after it was used: otherwise
+            // scrolling the page over it would change the setting
+            Item {
                 Layout.fillWidth: true
                 implicitHeight: Tokens.padding.medium * 2
+
+                WheelHandler {
+                    enabled: root.engaged
+                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                    onWheel: event => {
+                        const step = GlobalConfig.services.audioIncrement;
+                        if (event.angleDelta.y > 0)
+                            root.moved(Math.min(1, root.value + step));
+                        else if (event.angleDelta.y < 0)
+                            root.moved(Math.max(0, root.value - step));
+                        disengage.restart();
+                    }
+                }
 
                 StyledSlider {
                     anchors.left: parent.left
@@ -81,7 +91,18 @@ ConnectedRect {
                     radius: Tokens.rounding.small
                     value: root.value
                     enabled: root.enabled
-                    onInteraction: v => root.moved(v)
+                    onInteraction: v => {
+                        root.engaged = true;
+                        disengage.restart();
+                        root.moved(v);
+                    }
+                }
+
+                Timer {
+                    id: disengage
+
+                    interval: 3000
+                    onTriggered: root.engaged = false
                 }
             }
         }

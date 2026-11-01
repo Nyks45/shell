@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick.Layouts
 import Caelestia.Config
 import Caelestia.I18n
+import qs.components.controls
 import qs.modules.nexus.common
 
 PageBase {
@@ -72,6 +73,47 @@ PageBase {
             text: Tr.trCtx("Windows on special workspaces", "bar workspaces")
             checked: Config.bar.workspaces.showWindowsOnSpecialWorkspaces
             onToggled: GlobalConfig.bar.workspaces.showWindowsOnSpecialWorkspaces = checked
+        }
+
+        SelectRow {
+            label: Tr.tr("Workspace style")
+            menuItems: [
+                MenuItem {
+                    text: Tr.tr("Shapes")
+                    value: BarWorkspaceDisplay.Shapes
+                },
+                MenuItem {
+                    text: Tr.tr("Numbers or names")
+                    value: BarWorkspaceDisplay.Text
+                },
+                MenuItem {
+                    text: Tr.tr("Icons")
+                    value: BarWorkspaceDisplay.Icons
+                }
+            ]
+            active: menuItems.find(i => i.value === Config.bar.workspaces.displayType) ?? null
+            onSelected: item => GlobalConfig.bar.workspaces.displayType = item.value
+        }
+
+        SelectRow {
+            visible: Config.bar.workspaces.displayType === BarWorkspaceDisplay.Text
+            label: Tr.tr("Names in")
+            menuItems: [
+                MenuItem {
+                    text: Tr.tr("As they are")
+                    value: BarWorkspaceCapitalisation.Preserve
+                },
+                MenuItem {
+                    text: Tr.tr("CAPITALS")
+                    value: BarWorkspaceCapitalisation.Upper
+                },
+                MenuItem {
+                    text: Tr.tr("lower case")
+                    value: BarWorkspaceCapitalisation.Lower
+                }
+            ]
+            active: menuItems.find(i => i.value === Config.bar.workspaces.capitalisation) ?? null
+            onSelected: item => GlobalConfig.bar.workspaces.capitalisation = item.value
         }
 
         StepperRow {

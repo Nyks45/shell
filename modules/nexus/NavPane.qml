@@ -34,10 +34,20 @@ ColumnLayout {
             CAnim {}
         }
 
+        // Enter opens the first result, Escape clears the search
+        onAccepted: results.openFirst()
+        Keys.onEscapePressed: text = ""
+
         Binding {
             target: root.nState
             property: "searchOpen"
-            value: searchField.text.length > 0
+            value: searchField.text.trim().length > 0
+        }
+
+        Binding {
+            target: root.nState
+            property: "searchText"
+            value: searchField.text
         }
     }
 
@@ -46,6 +56,16 @@ ColumnLayout {
         Layout.fillHeight: true
         Layout.topMargin: -topMargin
         Layout.bottomMargin: -bottomMargin
+        visible: !root.nState.searchOpen
+        nState: root.nState
+    }
+
+    SearchResults {
+        id: results
+
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        visible: root.nState.searchOpen
         nState: root.nState
     }
 }

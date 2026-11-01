@@ -6,6 +6,8 @@ import qs.services
 
 StyledText {
     property bool first
+    // For the search's highlight (it tells rows apart by their section)
+    readonly property bool isSectionHeader: true
 
     Layout.fillWidth: true
     Layout.topMargin: first ? 0 : Tokens.spacing.largeIncreased - ((parent as ColumnLayout).spacing ?? 0)

@@ -38,6 +38,20 @@ PageBase {
             onToggled: GlobalConfig.bar.showOnHover = checked
         }
 
+        ToggleRow {
+            text: Tr.tr("Window previews")
+            subtext: Tr.tr("Hovering an app on the taskbar shows its windows")
+            checked: Config.bar.popouts.taskbar
+            onToggled: GlobalConfig.bar.popouts.taskbar = checked
+        }
+
+        ToggleRow {
+            text: Tr.tr("Over fullscreen apps")
+            subtext: Tr.tr("Panels and the bar can open over a fullscreen window")
+            checked: Config.general.showOverFullscreen
+            onToggled: GlobalConfig.general.showOverFullscreen = checked
+        }
+
         StepperRow {
             last: true
             label: Tr.tr("Drag threshold")

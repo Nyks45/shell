@@ -9,6 +9,7 @@ import Caelestia.Config
 import Caelestia.I18n
 import qs.components
 import qs.components.controls
+import qs.components.filedialog
 import qs.services
 import qs.modules.nexus.common
 
@@ -58,6 +59,9 @@ PageBase {
 
     readonly property var night: HyprSettings.saved.nightLight ?? {}
     property bool sunsetInstalled
+    // A laptop-style backlight (brightnessctl); external monitors go over DDC
+    property bool hasBacklight
+    property bool hasDdcutil: true
     readonly property string sunsetConf: `${Quickshell.env("XDG_CONFIG_HOME") || `${Quickshell.env("HOME")}/.config`}/hypr/hyprsunset.conf`
 
     // This monitor's settings now, as hypr-settings keeps them
@@ -70,7 +74,11 @@ PageBase {
             scale: m.scale,
             vrr: HyprSettings.saved.monitors?.[m.name]?.vrr ?? (m.vrr ? 1 : 0),
             transform: m.transform,
-            hdr: m.colorManagementPreset === "hdr"
+            hdr: m.colorManagementPreset === "hdr",
+            disabled: !!m.disabled,
+            mirror: m.mirrorOf && m.mirrorOf !== "none" ? m.mirrorOf : "",
+            icc: HyprSettings.saved.monitors?.[m.name]?.icc ?? "",
+            sdrbrightness: m.sdrBrightness ?? 1
         };
     }
 
@@ -78,6 +86,7 @@ PageBase {
         if (!monitor)
             return;
         const name = monitor.name;
+        // Moving a monitor in the arrangement picks it first
         if (!undo)
             undo = {
                 name,
@@ -221,7 +230,7 @@ PageBase {
                 MenuItem {
                     required property var modelData
 
-                    text: `${modelData.name} (${modelData.model || modelData.make})`
+                    text: modelData.model || modelData.make ? `${modelData.name} (${modelData.model || modelData.make})` : modelData.name
                     value: modelData.name
                 }
             }
@@ -233,6 +242,78 @@ PageBase {
             label: root.monitor?.model || root.monitor?.name || Tr.tr("No monitor")
             subtext: root.monitor ? [root.monitor.make, root.monitor.name].filter(s => s && s !== root.monitor.model).join(" · ") : ""
             icon: "monitor"
+        }
+
+        // Brightness: the screen's backlight, or over DDC/CI for external
+        // monitors (ddcutil; slow, so the service sends at most two a second)
+        SliderRow {
+            readonly property var bm: root.monitor ? Brightness.getMonitor(root.monitor.name) : null
+
+            visible: !!bm && (bm.isDdc || bm.isAppleDisplay || root.hasBacklight)
+            icon: "brightness_6"
+            label: Tr.tr("Brightness")
+            valueLabel: `${Math.round((bm?.brightness ?? 0) * 100)}%`
+            value: bm?.brightness ?? 0
+            onMoved: v => bm?.setBrightness(v)
+        }
+
+        // Several monitors: where they are to each other, on/off, mirroring
+        ArrangementView {
+            visible: root.monitors.length > 1
+        }
+
+        ToggleRow {
+            visible: root.monitors.length > 1
+            text: Tr.tr("Use this monitor")
+            subtext: root.monitors.filter(m => !m.disabled).length <= 1 && !root.monitor?.disabled ? Tr.tr("The last monitor in use can't be turned off") : ""
+            disabled: root.monitors.filter(m => !m.disabled).length <= 1 && !root.monitor?.disabled
+            checked: !root.monitor?.disabled
+            onToggled: root.change({
+                disabled: !checked
+            })
+        }
+
+        SelectRow {
+            visible: root.monitors.length > 1
+            label: Tr.tr("Mirror")
+            subtext: Tr.tr("Show the same picture as another monitor")
+            menuItems: [noMirror, ...mirrorItems.instances]
+            active: root.monitor?.mirrorOf && root.monitor.mirrorOf !== "none" ? mirrorItems.instances.find(i => i.value === root.monitor.mirrorOf) ?? null : noMirror
+            onSelected: item => root.change({
+                mirror: item.value
+            })
+
+            MenuItem {
+                id: noMirror
+
+                text: Tr.tr("Don't mirror")
+                value: ""
+            }
+
+            Variants {
+                id: mirrorItems
+
+                model: root.monitors.filter(m => m.name !== root.monitor?.name)
+
+                MenuItem {
+                    required property var modelData
+
+                    text: modelData.model || modelData.make ? `${modelData.name} (${modelData.model || modelData.make})` : modelData.name
+                    value: modelData.name
+                }
+            }
+        }
+
+        // No way to set this screen's brightness: say why
+        RequirementRow {
+            readonly property var bm: root.monitor ? Brightness.getMonitor(root.monitor.name) : null
+
+            visible: !!root.monitor && !root.hasBacklight && !(bm?.isDdc || bm?.isAppleDisplay)
+            icon: "brightness_6"
+            text: root.hasDdcutil ? Tr.tr("Brightness: this monitor doesn't answer over DDC/CI") : Tr.tr("Brightness of external monitors needs ddcutil")
+            subtext: root.hasDdcutil ? Tr.tr("Turn DDC/CI on in the monitor's own menu, then open this page again. Some monitors and docks don't support it.") : Tr.tr("It sets the brightness over the display cable (DDC/CI). Installing it asks for your password.")
+            actionText: root.hasDdcutil ? "" : Tr.tr("Install")
+            onAction: Term.run("sudo pacman -S --needed ddcutil && sudo usermod -aG i2c $USER && echo 'Done. Log out and in for the i2c group.'")
         }
 
         SelectRow {
@@ -376,12 +457,53 @@ PageBase {
         ToggleRow {
             id: hdrRow
 
-            last: true
             text: Tr.tr("HDR")
             subtext: Tr.tr("Brighter highlights and wider colours on HDR screens (experimental)")
             checked: root.monitor?.colorManagementPreset === "hdr"
             onToggled: root.change({
                 hdr: checked
+            })
+        }
+
+        SliderRow {
+            visible: root.monitor?.colorManagementPreset === "hdr"
+            icon: "brightness_high"
+            label: Tr.tr("Brightness of normal content in HDR")
+            valueLabel: `${Math.round((root.monitor?.sdrBrightness ?? 1) * 100)}%`
+            // 50% .. 200%
+            value: ((root.monitor?.sdrBrightness ?? 1) - 0.5) / 1.5
+            onMoved: v => root.change({
+                sdrbrightness: Math.round((0.5 + v * 1.5) * 20) / 20
+            })
+        }
+
+        RowButton {
+            last: true
+            icon: "palette"
+            text: Tr.tr("Colour profile")
+            subtext: {
+                const icc = HyprSettings.saved.monitors?.[root.monitor?.name]?.icc ?? "";
+                return icc ? icc.split("/").pop() : Tr.tr("None: an ICC file from the screen's maker or a calibration");
+            }
+            trailingIcon: (HyprSettings.saved.monitors?.[root.monitor?.name]?.icc ?? "") ? "close" : "folder_open"
+            onClicked: {
+                if (HyprSettings.saved.monitors?.[root.monitor?.name]?.icc)
+                    root.change({
+                        icc: ""
+                    });
+                else
+                    iccPicker.open();
+            }
+        }
+
+        FileDialog {
+            id: iccPicker
+
+            title: Tr.tr("Select a colour profile")
+            filterLabel: Tr.tr("ICC profiles")
+            filters: ["icc", "icm"]
+            onAccepted: path => root.change({
+                icc: path
             })
         }
 
@@ -515,13 +637,24 @@ PageBase {
         }
 
         Process {
+            running: true
+            command: ["sh", "-c", "ls /sys/class/backlight 2>/dev/null | head -1; command -v ddcutil >/dev/null && echo @ddcutil"]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    root.hasDdcutil = text.includes("@ddcutil");
+                    root.hasBacklight = text.replace("@ddcutil", "").trim().length > 0;
+                }
+            }
+        }
+
+        Process {
             id: monitorsProc
 
             command: ["hyprctl", "-j", "monitors", "all"]
             stdout: StdioCollector {
                 onStreamFinished: {
                     try {
-                        root.monitors = JSON.parse(text).filter(m => !m.name.startsWith("HEADLESS"));
+                        root.monitors = JSON.parse(text).filter(m => !m.name.startsWith("HEADLESS") || Quickshell.env("CAELESTIA_NEXUS_HEADLESS"));
                     } catch (e) {}
                 }
             }
@@ -555,6 +688,123 @@ PageBase {
             path: root.sunsetConf
             printErrors: false
             blockLoading: false
+        }
+    }
+
+    // The monitors as boxes, to scale; drag one to move it. When dropped it
+    // snaps against the nearest side of another, so there are no gaps.
+    component ArrangementView: StyledRect {
+        id: arrangement
+
+        readonly property var boxes: root.monitors.filter(m => !m.disabled).map(m => {
+            const rotated = m.transform % 2 === 1;
+            return {
+                name: m.name,
+                x: m.x,
+                y: m.y,
+                w: (rotated ? m.height : m.width) / m.scale,
+                h: (rotated ? m.width : m.height) / m.scale
+            };
+        })
+        readonly property real minX: Math.min(...boxes.map(b => b.x))
+        readonly property real minY: Math.min(...boxes.map(b => b.y))
+        readonly property real spanW: Math.max(...boxes.map(b => b.x + b.w)) - minX
+        readonly property real spanH: Math.max(...boxes.map(b => b.y + b.h)) - minY
+        readonly property real k: boxes.length ? Math.min((width - 48) / spanW, (height - 48) / spanH) : 1
+
+        function snap(name: string, x: real, y: real): var {
+            const me = boxes.find(b => b.name === name);
+            let best = null;
+            for (const o of boxes) {
+                if (o.name === name)
+                    continue;
+                // Each side of the other monitor, edges lined up where closest
+                const ys = [o.y, o.y + o.h - me.h, Math.max(o.y - me.h + 1, Math.min(y, o.y + o.h - 1))];
+                const xs = [o.x, o.x + o.w - me.w, Math.max(o.x - me.w + 1, Math.min(x, o.x + o.w - 1))];
+                const cands = [];
+                for (const yy of ys) {
+                    cands.push([o.x - me.w, yy]);
+                    cands.push([o.x + o.w, yy]);
+                }
+                for (const xx of xs) {
+                    cands.push([xx, o.y - me.h]);
+                    cands.push([xx, o.y + o.h]);
+                }
+                for (const [cx, cy] of cands) {
+                    const d = Math.hypot(cx - x, cy - y);
+                    if (!best || d < best.d)
+                        best = {
+                            x: cx,
+                            y: cy,
+                            d
+                        };
+                }
+            }
+            return best ? {
+                x: Math.round(best.x),
+                y: Math.round(best.y)
+            } : {
+                x: Math.round(x),
+                y: Math.round(y)
+            };
+        }
+
+        Layout.fillWidth: true
+        implicitHeight: 220
+        radius: Tokens.rounding.large
+        color: Colours.tPalette.m3surfaceContainer
+
+        Repeater {
+            model: arrangement.boxes
+
+            StyledRect {
+                id: box
+
+                required property var modelData
+                readonly property bool selected: modelData.name === root.monitor?.name
+
+                x: 24 + (modelData.x - arrangement.minX) * arrangement.k + (arrangement.width - 48 - arrangement.spanW * arrangement.k) / 2
+                y: 24 + (modelData.y - arrangement.minY) * arrangement.k + (arrangement.height - 48 - arrangement.spanH * arrangement.k) / 2
+                width: modelData.w * arrangement.k
+                height: modelData.h * arrangement.k
+                radius: Tokens.rounding.small
+                color: selected ? Colours.palette.m3primaryContainer : Colours.tPalette.m3surfaceContainerHighest
+                border.width: selected ? 2 : 1
+                border.color: selected ? Colours.palette.m3primary : Colours.palette.m3outlineVariant
+                z: drag.active ? 2 : selected ? 1 : 0
+
+                StyledText {
+                    anchors.centerIn: parent
+                    text: box.modelData.name
+                    color: box.selected ? Colours.palette.m3onPrimaryContainer : Colours.palette.m3onSurface
+                    font: Tokens.font.label.medium
+                }
+
+                DragHandler {
+                    id: drag
+
+                    onActiveChanged: {
+                        if (active) {
+                            root.selectedName = box.modelData.name;
+                            return;
+                        }
+                        // Back to monitor coordinates, snapped, then applied (with keep/revert)
+                        const ox = 24 + (arrangement.width - 48 - arrangement.spanW * arrangement.k) / 2;
+                        const oy = 24 + (arrangement.height - 48 - arrangement.spanH * arrangement.k) / 2;
+                        const p = arrangement.snap(box.modelData.name, (box.x - ox) / arrangement.k + arrangement.minX, (box.y - oy) / arrangement.k + arrangement.minY);
+                        root.change({
+                            position: `${p.x}x${p.y}`
+                        });
+                        // Let the binding place it again from the monitor's new position
+                        box.x = Qt.binding(() => 24 + (box.modelData.x - arrangement.minX) * arrangement.k + (arrangement.width - 48 - arrangement.spanW * arrangement.k) / 2);
+                        box.y = Qt.binding(() => 24 + (box.modelData.y - arrangement.minY) * arrangement.k + (arrangement.height - 48 - arrangement.spanH * arrangement.k) / 2);
+                    }
+                }
+
+                TapHandler {
+                    onTapped: root.selectedName = box.modelData.name
+                }
+            }
         }
     }
 }

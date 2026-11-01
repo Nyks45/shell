@@ -20,6 +20,16 @@ PageBase {
     // The system defaults (xdg-settings / xdg-mime), as desktop entry ids
     property string browserId
     property string editorId
+    // Defaults by file type (xdg-mime): first type -> desktop entry id
+    property var mimeDefaults: ({})
+    readonly property var mimeGroups: ({
+            images: ["image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp", "image/svg+xml", "image/tiff", "image/avif", "image/heic", "image/x-icon"],
+            video: ["video/mp4", "video/x-matroska", "video/webm", "video/quicktime", "video/x-msvideo", "video/mpeg", "video/ogg", "video/x-flv"],
+            music: ["audio/mpeg", "audio/flac", "audio/ogg", "audio/x-wav", "audio/wav", "audio/mp4", "audio/aac", "audio/opus", "audio/x-vorbis+ogg"],
+            pdf: ["application/pdf"],
+            archives: ["application/zip", "application/x-tar", "application/x-7z-compressed", "application/vnd.rar", "application/x-rar", "application/gzip", "application/x-compressed-tar", "application/x-xz-compressed-tar", "application/zstd", "application/x-bzip2"],
+            email: ["x-scheme-handler/mailto"]
+        })
     readonly property list<string> textTypes: ["text/plain", "text/markdown", "text/x-csrc", "text/x-chdr", "text/x-c++src", "text/x-c++hdr", "text/x-python", "text/x-shellscript", "application/x-shellscript", "application/json", "application/xml", "application/toml", "text/x-lua", "application/x-yaml", "text/x-log"]
 
     // A desktop entry's command for the config (no %u-style placeholders)
@@ -99,6 +109,73 @@ PageBase {
             }
         }
 
+        // By file type
+        SectionHeader {
+            text: Tr.tr("Open files with")
+        }
+
+        DefaultRow {
+            first: true
+            icon: "image"
+            label: Tr.trCtx("Images", "default app category")
+            group: "images"
+            category: "Graphics"
+        }
+
+        DefaultRow {
+            icon: "movie"
+            label: Tr.trCtx("Videos", "default app category")
+            group: "video"
+            category: "Video"
+        }
+
+        DefaultRow {
+            icon: "music_note"
+            label: Tr.trCtx("Music", "default app category")
+            group: "music"
+            category: "Audio"
+        }
+
+        DefaultRow {
+            icon: "picture_as_pdf"
+            label: Tr.trCtx("PDF documents", "default app category")
+            group: "pdf"
+            category: "Office"
+        }
+
+        DefaultRow {
+            icon: "folder_zip"
+            label: Tr.trCtx("Archives", "default app category")
+            group: "archives"
+            category: "Archiving"
+        }
+
+        DefaultRow {
+            last: true
+            icon: "mail"
+            label: Tr.trCtx("Email", "default app category")
+            group: "email"
+            category: "Email"
+        }
+
+        Process {
+            id: mimeProc
+
+            running: true
+            command: ["sh", "-c", Object.entries(root.mimeGroups).map(([g, types]) => `echo "${g}=$(xdg-mime query default ${types[0]})"`).join("; ")]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    const out = {};
+                    for (const line of text.split("\n")) {
+                        const i = line.indexOf("=");
+                        if (i > 0)
+                            out[line.slice(0, i)] = line.slice(i + 1).trim();
+                    }
+                    root.mimeDefaults = out;
+                }
+            }
+        }
+
         // Library
         SectionHeader {
             text: Tr.trCtx("Library", "app library")
@@ -111,6 +188,45 @@ PageBase {
             text: Tr.tr("All apps")
             subtext: Tr.tr("Browse installed apps, set favourites and hidden")
             onClicked: root.nState.openSubPage(1)
+        }
+
+        // The launcher's lists of app id patterns (regular expressions)
+        SectionHeader {
+            text: Tr.tr("Pinned in the launcher")
+        }
+
+        StringListEditor {
+            values: GlobalConfig.launcher.favouriteApps
+            placeholderText: Tr.tr("App id or pattern, e.g. firefox or ^org\\.gnome\\.")
+            emptyText: Tr.tr("None: pin apps from All apps, or add a pattern")
+            validate: t => {
+                try {
+                    new RegExp(t);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
+            onEdited: v => GlobalConfig.launcher.favouriteApps = v
+        }
+
+        SectionHeader {
+            text: Tr.tr("Hidden from the launcher")
+        }
+
+        StringListEditor {
+            values: GlobalConfig.launcher.hiddenApps
+            placeholderText: Tr.tr("App id or pattern")
+            emptyText: Tr.tr("None")
+            validate: t => {
+                try {
+                    new RegExp(t);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
+            onEdited: v => GlobalConfig.launcher.hiddenApps = v
         }
 
         // Non-visual helpers (the page takes one item: they live in its column)
@@ -130,12 +246,25 @@ PageBase {
     component DefaultRow: PopupRow {
         id: row
 
+        // A group of file types (mimeGroups) this row sets the default app for
+        property string group
+
         // Only apps of this kind (a desktop file category), when there are any
         property string category
 
         readonly property int popupHeight: root.flickable.height - y + root.flickable.contentY - Tokens.padding.large - Tokens.padding.extraExtraLarge
 
         signal selected(app: DesktopEntry)
+
+        status: group ? (root.mimeDefaults[group] ? root.nameOf(root.mimeDefaults[group]) : Tr.tr("Not set")) : ""
+        onSelected: app => {
+            if (!group)
+                return;
+            const next = Object.assign({}, root.mimeDefaults);
+            next[group] = `${app.id}.desktop`;
+            root.mimeDefaults = next;
+            Quickshell.execDetached(["xdg-mime", "default", `${app.id}.desktop`, ...root.mimeGroups[group]]);
+        }
 
         keepPopupAsChild: {
             if (root.nState.animatingContainer || root.opacity < 1)
