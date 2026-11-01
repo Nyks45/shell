@@ -21,6 +21,8 @@ MouseArea {
     }
 
     required property Item attachTo
+    // What opened the menu (a press there only closes it); the attach point by default
+    property Item ownArea: attachTo
     property int attachSideX: Menu.Right
     property int attachSideY: Menu.Bottom
     property int thisSideX: Menu.Right
@@ -44,7 +46,16 @@ MouseArea {
     enabled: expanded
     hoverEnabled: expanded
     cursorShape: expanded ? Qt.ArrowCursor : undefined
-    onClicked: expanded = false
+    // A press outside closes the menu and goes on to what's under it: another
+    // menu's button or a row works with that one click, not a second one
+    // (A press on the menu's own button just closes it: passed on, the button
+    // would open it again.)
+    onPressed: mouse => {
+        const p = ownArea ? ownArea.mapFromItem(root, mouse.x, mouse.y) : null;
+        const onOwnButton = p && p.x >= 0 && p.y >= 0 && p.x < ownArea.width && p.y < ownArea.height;
+        expanded = false;
+        mouse.accepted = onOwnButton;
+    }
 
     opacity: expanded ? 1 : 0
     // Gone once faded out: closed, the menu is only scaled down (to 10%), and a

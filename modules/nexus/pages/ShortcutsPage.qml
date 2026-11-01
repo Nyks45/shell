@@ -300,9 +300,17 @@ PageBase {
         }
 
         // Non-visual helpers (the page takes one item: they live in its column)
+        // The four files load one after another: build the list once, after them
+        Timer {
+            id: rebuildTimer
+
+            interval: 30
+            onTriggered: root.rebuild()
+        }
+
         Connections {
             function onSavedChanged(): void {
-                root.rebuild();
+                rebuildTimer.restart();
             }
 
             target: HyprSettings
@@ -313,7 +321,7 @@ PageBase {
 
             path: `${root.hyprDir}/variables.lua`
             printErrors: false
-            onLoaded: root.rebuild()
+            onLoaded: rebuildTimer.restart()
         }
 
         FileView {
@@ -321,7 +329,7 @@ PageBase {
 
             path: `${root.caelestiaDir}/hypr-vars.lua`
             printErrors: false
-            onLoaded: root.rebuild()
+            onLoaded: rebuildTimer.restart()
         }
 
         FileView {
@@ -329,7 +337,7 @@ PageBase {
 
             path: `${root.caelestiaDir}/hypr-user.lua`
             printErrors: false
-            onLoaded: root.rebuild()
+            onLoaded: rebuildTimer.restart()
         }
 
         FileView {
@@ -337,7 +345,7 @@ PageBase {
 
             path: `${root.caelestiaDir}/hyprflow.lua`
             printErrors: false
-            onLoaded: root.rebuild()
+            onLoaded: rebuildTimer.restart()
         }
     }
 
@@ -577,18 +585,24 @@ PageBase {
                 }
             }
 
-            KeysEditor {
+            // Made only for the row being changed: one per row (150 of them)
+            // made the page slow to open
+            Loader {
                 Layout.fillWidth: true
-                visible: srow.open
-                initial: srow.item.raw
-                acceptText: Tr.trCtx("Save", "button")
-                cancellable: true
-                canTurnOff: srow.item.kind === "bind"
-                canReset: srow.item.changed
-                onAccepted: keys => root.save(srow.item, keys)
-                onCancelled: root.editing = ""
-                onTurnedOff: root.save(srow.item, "")
-                onResetClicked: root.reset(srow.item)
+                active: srow.open
+                visible: active
+
+                sourceComponent: KeysEditor {
+                    initial: srow.item.raw
+                    acceptText: Tr.trCtx("Save", "button")
+                    cancellable: true
+                    canTurnOff: srow.item.kind === "bind"
+                    canReset: srow.item.changed
+                    onAccepted: keys => root.save(srow.item, keys)
+                    onCancelled: root.editing = ""
+                    onTurnedOff: root.save(srow.item, "")
+                    onResetClicked: root.reset(srow.item)
+                }
             }
         }
     }

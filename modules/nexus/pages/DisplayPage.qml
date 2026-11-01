@@ -340,9 +340,9 @@ PageBase {
 
                 MenuItem {
                     required property string modelData
-                    required property int index
 
-                    text: index === 0 ? Tr.tr("%1 (recommended)").arg(modelData.replace("x", " × ")) : modelData.replace("x", " × ")
+                    // Variants gives no index: the first resolution is the screen's own
+                    text: root.resolutions.indexOf(modelData) === 0 ? Tr.tr("%1 (recommended)").arg(modelData.replace("x", " × ")) : modelData.replace("x", " × ")
                     value: modelData
                 }
             }

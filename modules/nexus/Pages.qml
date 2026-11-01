@@ -12,9 +12,17 @@ Item {
     property int animOff
     property Item currentItem
 
+    // Each load's number: pages are created asynchronously, and switching
+    // quickly started several; one that finished after a newer one was asked
+    // for attached too, and the pages piled up over each other
+    property int loadToken
+
     function loadPage(idx: int): void {
-        if (currentItem)
+        const token = ++loadToken;
+        if (currentItem) {
             currentItem.destroy();
+            currentItem = null;
+        }
 
         const comp = PageCompRegistry.pageComps[idx] ?? PageCompRegistry.placeholderComp;
         const incubator = comp.incubateObject(container, {
@@ -22,6 +30,11 @@ Item {
         });
 
         const attach = () => {
+            // A newer page was asked for meanwhile: this one is stale
+            if (token !== root.loadToken) {
+                incubator.object.destroy();
+                return;
+            }
             incubator.object.anchors.fill = container;
             currentItem = incubator.object;
         };
