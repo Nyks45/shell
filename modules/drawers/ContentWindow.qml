@@ -141,7 +141,7 @@ StyledWindow {
 
     StyledRect {
         anchors.fill: parent
-        opacity: (root.screenState.session && Config.session.enabled) || panels.popouts.detachedMode !== "" ? 0.5 : 0
+        opacity: (root.screenState.session && Config.session.enabled && !root.screenState.sessionAtBar) || panels.popouts.detachedMode !== "" ? 0.5 : 0
         color: Colours.palette.m3scrim
 
         Behavior on opacity {

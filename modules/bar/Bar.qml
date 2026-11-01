@@ -18,6 +18,8 @@ ColumnLayout {
     required property BarPopouts.Wrapper popouts
     required property bool fullscreen
     readonly property int vPadding: Tokens.padding.large
+    // The power button (its menu opens from it)
+    property Item powerButton
 
     function closeTray(): void {
         if (!Config.bar.tray.compact)
@@ -31,6 +33,10 @@ ColumnLayout {
     }
 
     function checkPopout(y: real): void {
+        // The power menu was clicked open: it stays until closed
+        if (popouts.hasCurrent && popouts.currentName === "session")
+            return;
+
         const ch = childAt(width / 2, y) as EntryWrapper;
 
         if (ch?.entryId !== "tray")
@@ -193,8 +199,16 @@ ColumnLayout {
                 roleValue: "power"
                 delegate: EntryWrapper {
                     Power {
+                        id: power
+
                         objectName: "taskbarPowerButton"
                         screenState: root.screenState
+
+                        Component.onCompleted: root.powerButton = power
+                        Component.onDestruction: {
+                            if (root.powerButton === power)
+                                root.powerButton = null;
+                        }
                     }
                 }
             }

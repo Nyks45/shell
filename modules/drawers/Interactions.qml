@@ -80,7 +80,7 @@ CustomMouseArea {
             if (!utilitiesShortcutActive)
                 screenState.utilities = false;
 
-            if (!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1) {
+            if (popouts.currentName !== "session" && (!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1)) {
                 popouts.hasCurrent = false;
                 bar.closeTray();
             }
@@ -171,7 +171,7 @@ CustomMouseArea {
             }
 
             // Show/hide session on drag
-            if (pressed && inRightPanel(panels.sessionWrapper, dragStart.x, dragStart.y) && withinPanelHeight(panels.sessionWrapper, x, y)) {
+            if (pressed && !screenState.sessionAtBar && inRightPanel(panels.sessionWrapper, dragStart.x, dragStart.y) && withinPanelHeight(panels.sessionWrapper, x, y)) {
                 if (dragX < -Config.session.dragThreshold)
                     screenState.session = true;
                 else if (dragX > Config.session.dragThreshold)
@@ -200,7 +200,7 @@ CustomMouseArea {
             }
 
             // Show/hide session on drag
-            if (pressed && outOfSidebar && inRightPanel(panels.sessionWrapper, dragStart.x, dragStart.y) && withinPanelHeight(panels.sessionWrapper, x, y)) {
+            if (pressed && outOfSidebar && !screenState.sessionAtBar && inRightPanel(panels.sessionWrapper, dragStart.x, dragStart.y) && withinPanelHeight(panels.sessionWrapper, x, y)) {
                 if (dragX < -Config.session.dragThreshold)
                     screenState.session = true;
                 else if (dragX > Config.session.dragThreshold)
@@ -272,7 +272,7 @@ CustomMouseArea {
         // Show popouts on hover (not while a window is dragged over the bar)
         if (x < bar.implicitWidth && !Hypr.windowDragging) {
             bar.checkPopout(y);
-        } else if ((!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1) && !inLeftPanel(panels.popoutsWrapper, x, y)) {
+        } else if (popouts.currentName !== "session" && (!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1) && !inLeftPanel(panels.popoutsWrapper, x, y)) {
             popouts.hasCurrent = false;
             bar.closeTray();
         }

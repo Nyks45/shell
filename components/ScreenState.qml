@@ -7,6 +7,8 @@ PersistentProperties {
     property bool bar
     property bool osd
     property bool session
+    // The power menu is the bar's popout on this screen (it has a power button)
+    property bool sessionAtBar
     property bool launcher
     property bool dashboard
     property bool utilities
