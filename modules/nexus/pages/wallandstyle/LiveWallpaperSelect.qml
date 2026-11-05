@@ -408,6 +408,27 @@ PageBase {
             }
         }
 
+        SelectRow {
+            label: Tr.tr("Post-processing")
+            subtext: Tr.tr("Ultra enables HDR bloom in wallpapers that support it")
+            menuItems: [
+                MenuItem {
+                    text: Tr.tr("Off")
+                    value: "off"
+                },
+                MenuItem {
+                    text: Tr.tr("Normal")
+                    value: "normal"
+                },
+                MenuItem {
+                    text: Tr.tr("Ultra / HDR bloom")
+                    value: "ultra"
+                }
+            ]
+            active: menuItems.find(i => i.value === LiveWallpaper.setting("postProcessing", "ultra")) ?? null
+            onSelected: item => LiveWallpaper.set("postProcessing", item.value)
+        }
+
         ToggleRow {
             text: Tr.tr("Pause behind fullscreen apps")
             subtext: Tr.tr("Games and videos get the GPU to themselves")

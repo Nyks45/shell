@@ -150,6 +150,10 @@ else:
         else:
             args += ["--screen-root", screen, "--bg", path] + output_opts(path)
 args += ["--fps", str(c.get("fps") or 60)]
+quality = c.get("postProcessing") or "ultra"
+if quality not in ("off", "normal", "ultra"):
+    quality = "ultra"
+args += ["--post-processing", quality]
 if c.get("silent", True):
     args.append("--silent")
 else:

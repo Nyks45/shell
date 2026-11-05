@@ -14,7 +14,7 @@ import qs.utils
 // wallpapers, tests them, reads the Workshop and writes the playlists.
 //
 // live-wallpaper.json: { screens: { "*" | monitor: folder | "playlist:NAME" },
-//   fps, pauseOnFullscreen, pauseOnlyActive, pauseIgnore[], silent, volume,
+//   fps, postProcessing (off|normal|ultra, default ultra), pauseOnFullscreen, pauseOnlyActive, pauseIgnore[], silent, volume,
 //   noAutomute, audioProcessing, scaling, clamp, span, disableMouse,
 //   disableParallax, disableParticles, assetsDir, extraFolders[],
 //   overrides: { folder: { scaling?, volume?, properties?: { name: value } } },
@@ -518,7 +518,7 @@ c = {"screens": {}, "overrides": {}, "compat": {}, "history": active.get("applie
 for screen, w in (active.get("activeWallpapers") or {}).items():
     if w.get("backgroundId"):
         c["screens"][w.get("screen") or screen] = w["backgroundId"]
-for key in ("fps", "volume", "silent", "noAutomute", "audioProcessing", "disableMouse", "disableParallax", "disableParticles", "pauseOnFullscreen", "assetsDir"):
+for key in ("fps", "postProcessing", "volume", "silent", "noAutomute", "audioProcessing", "disableMouse", "disableParallax", "disableParticles", "pauseOnFullscreen", "assetsDir"):
     if settings.get(key) is not None:
         c[key] = settings[key]
 if settings.get("defaultScaling"):
