@@ -43,7 +43,9 @@ StyledRect {
     // Tell hyprflow where each window's icon is, so minimizing pours the window
     // right into it (its genie animation). Relative to the bar itself, so it's
     // right even while an auto-hiding bar is slid away.
-    function reportIcons(): void {
+    property string lastIconReport
+
+    function reportIcons(force: bool): void {
         const msgs = [];
         for (let i = 0; i < items.count; i++) {
             const item = items.itemAt(i) as TaskbarApp;
@@ -53,8 +55,11 @@ StyledRect {
             for (const t of item.modelData.toplevels)
                 msgs.push(`eval hl.plugin.hyprflow.taskbar_icon("address:0x${t.address}", ${screen.x + p.x}, ${screen.y + p.y}, ${item.width}, ${item.height})`);
         }
-        if (msgs.length > 0)
+        // Only what changed: the check below runs every second.
+        const report = msgs.join("\n");
+        if (msgs.length > 0 && (force || report !== lastIconReport))
             Hypr.extras.batchMessage(msgs);
+        lastIconReport = report;
     }
 
     clip: true
@@ -274,15 +279,32 @@ StyledRect {
     Timer {
         id: reportTimer
 
+        property bool force
+
         interval: 400
-        onTriggered: root.reportIcons()
+        onTriggered: {
+            root.reportIcons(force);
+            force = false;
+        }
+    }
+
+    // The icons also move when the rest of the bar changes size (the taskbar
+    // sits in its middle), which none of the signals here notice: an early
+    // report then stayed behind and the genie poured below the icons.
+    Timer {
+        interval: 1000
+        repeat: true
+        running: true
+        onTriggered: root.reportIcons(false)
     }
 
     // hyprflow forgets them when it's reloaded (hyprpm update): resend.
     Connections {
         function onRawEvent(event: HyprlandEvent): void {
-            if (event.name === "hyprflowloaded")
+            if (event.name === "hyprflowloaded") {
+                reportTimer.force = true;
                 reportTimer.restart();
+            }
         }
 
         target: Hyprland
