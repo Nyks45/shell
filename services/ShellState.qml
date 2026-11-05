@@ -20,12 +20,15 @@ Singleton {
         return null;
     }
 
+    // Matched by name: after sleep (or a monitor reconnect) Hyprland re-creates
+    // its monitor objects, so comparing objects found nothing and the launcher,
+    // shortcuts and everything else "for the active screen" stopped working.
     function forActive(): ScreenState {
-        const mon = Hypr.focusedMonitor;
+        const name = Hypr.focusedMonitor?.name;
         for (const s of states.instances)
-            if (Hypr.monitorFor(s.modelData) === mon)
+            if (s.modelData?.name === name)
                 return s;
-        return null;
+        return states.instances.length > 0 ? states.instances[0] : null;
     }
 
     function componentsFor(screen: ShellScreen): Components {
@@ -36,11 +39,11 @@ Singleton {
     }
 
     function componentsForActive(): Components {
-        const mon = Hypr.focusedMonitor;
+        const name = Hypr.focusedMonitor?.name;
         for (const c of components.instances)
-            if (Hypr.monitorFor(c.modelData) === mon)
+            if (c.modelData?.name === name)
                 return c;
-        return null;
+        return components.instances.length > 0 ? components.instances[0] : null;
     }
 
     Variants {
