@@ -278,6 +278,16 @@ StyledRect {
         onTriggered: root.reportIcons()
     }
 
+    // hyprflow forgets them when it's reloaded (hyprpm update): resend.
+    Connections {
+        function onRawEvent(event: HyprlandEvent): void {
+            if (event.name === "hyprflowloaded")
+                reportTimer.restart();
+        }
+
+        target: Hyprland
+    }
+
     onAppsChanged: reportTimer.restart()
     onYChanged: reportTimer.restart()
     Component.onCompleted: reportTimer.restart()
