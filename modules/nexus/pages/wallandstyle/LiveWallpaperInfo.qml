@@ -155,6 +155,8 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         ClipRect {
+            id: infoPreview
+
             Layout.fillWidth: true
             Layout.preferredHeight: Math.min(width * 9 / 16, 360)
             radius: Tokens.rounding.large
@@ -179,8 +181,8 @@ PageBase {
                 id: infoFrame
 
                 anchors.fill: parent
-                visible: parent.isCurrent && status === Image.Ready
-                source: parent.isCurrent && LiveWallpaper.currentFrame ? `file://${LiveWallpaper.currentFrame}` : ""
+                visible: infoPreview.isCurrent && status === Image.Ready
+                source: infoPreview.isCurrent && LiveWallpaper.currentFrame ? `file://${LiveWallpaper.currentFrame}` : ""
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
                 cache: false
@@ -192,7 +194,7 @@ PageBase {
             // Not for the wallpaper that's on (its sharp frame looks better).
             Loader {
                 anchors.fill: parent
-                active: !parent.isCurrent && (root.w.preview ?? "").toLowerCase().endsWith(".gif")
+                active: !infoPreview.isCurrent && (root.w.preview ?? "").toLowerCase().endsWith(".gif")
                 asynchronous: true
                 opacity: item?.status === AnimatedImage.Ready ? 1 : 0
 
@@ -233,7 +235,8 @@ PageBase {
             wrapMode: Text.WordWrap
         }
 
-        RowLayout {
+        Flow {
+            Layout.fillWidth: true
             Layout.topMargin: Tokens.spacing.medium
             Layout.bottomMargin: Tokens.spacing.medium
             spacing: Tokens.spacing.small

@@ -82,7 +82,10 @@ UI_LABELS = {
 }
 
 
-def clean_label(text: str, name: str) -> str:
+def clean_label(text: str, name: str, loc: dict | None = None) -> str:
+    # The wallpaper's own labels (general.localization, English) first
+    if loc and isinstance(text, str) and text in loc:
+        text = str(loc[text])
     text = re.sub(r"<[^>]+>", "", text or "").strip()
     if text in UI_LABELS:
         return UI_LABELS[text]
@@ -93,6 +96,8 @@ def clean_label(text: str, name: str) -> str:
 
 def properties(project: dict) -> list[dict]:
     props = (project.get("general") or {}).get("properties") or {}
+    locs = (project.get("general") or {}).get("localization") or {}
+    loc = locs.get("en-us") or locs.get("en") or {}
     out = []
     for i, (name, p) in enumerate(props.items()):
         if not isinstance(p, dict):
@@ -103,13 +108,14 @@ def properties(project: dict) -> list[dict]:
         if kind in ("text", "group"):
             # A heading or a note: its text without HTML; nothing left (an
             # image only): left out
-            plain = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", str(p.get("text") or ""))).strip()
+            raw = str(p.get("text") or "")
+            plain = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", str(loc.get(raw, raw)))).strip()
             if not plain:
                 continue
         entry = {
             "name": name,
             "type": kind,
-            "label": clean_label(p.get("text", ""), name),
+            "label": clean_label(p.get("text", ""), name, loc),
             "value": p.get("value"),
             "order": p.get("order", i),
             # Wallpaper Engine's show/hide rule ("a.value && b.value == 2"), evaluated
@@ -122,7 +128,7 @@ def properties(project: dict) -> list[dict]:
             if k in p:
                 entry[k] = p[k]
         if kind == "combo":
-            entry["options"] = [{"label": clean_label(o.get("label", ""), str(o.get("value"))), "value": o.get("value")} for o in p.get("options") or [] if isinstance(o, dict)]
+            entry["options"] = [{"label": clean_label(o.get("label", ""), str(o.get("value")), loc), "value": o.get("value")} for o in p.get("options") or [] if isinstance(o, dict)]
         out.append(entry)
     out.sort(key=lambda e: (e["order"] if isinstance(e["order"], (int, float)) else 0))
     return out

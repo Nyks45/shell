@@ -287,6 +287,7 @@ PageBase {
         }
 
         ConnectedRect {
+            Layout.fillWidth: true
             first: LiveWallpaper.appRules.length === 0
             last: true
             implicitHeight: ruleCol.implicitHeight + Tokens.padding.medium * 2
