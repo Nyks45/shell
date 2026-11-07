@@ -106,6 +106,7 @@ PageBase {
                     Layout.preferredWidth: 168
                     Layout.preferredHeight: 96
                     source: LiveWallpaper.currentInfo?.preview ?? ""
+                    still: LiveWallpaper.currentInfo?.still ?? ""
                     playing: true
                 }
 
@@ -602,6 +603,8 @@ PageBase {
         id: prev
 
         property string source
+        // A still that isn't black (for GIFs that fade in), else source's first frame
+        property string still
         property bool playing
 
         radius: Tokens.rounding.medium
@@ -611,7 +614,7 @@ PageBase {
         // AnimatedImage decodes every frame up front, ~100 of them took seconds
         Image {
             anchors.fill: parent
-            source: prev.source ? `file://${prev.source}` : ""
+            source: prev.still || prev.source ? `file://${prev.still || prev.source}` : ""
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             sourceSize.width: 360
@@ -673,6 +676,7 @@ PageBase {
                 Layout.fillWidth: true
                 Layout.preferredHeight: width * 9 / 16
                 source: card.modelData.preview
+                still: card.modelData.still ?? ""
                 playing: cardState.containsMouse
             }
 

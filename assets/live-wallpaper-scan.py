@@ -114,6 +114,43 @@ def properties(project: dict) -> list[dict]:
     return out
 
 
+STILLS = Path(os.environ.get("XDG_CACHE_HOME") or HOME / ".cache") / "caelestia/live-stills"
+
+
+def still(preview: Path) -> str:
+    """A still for an animated preview: the first frame that isn't (nearly)
+    black. Many GIFs fade in from black, and a still shows only frame 0.
+    Cached by path and modification time; "" when the preview's first frame
+    is fine as it is (or Pillow isn't there)."""
+    if preview.suffix.lower() != ".gif":
+        return ""
+    try:
+        st = preview.stat()
+        out = STILLS / (hashlib.sha1(f"{preview}:{st.st_mtime_ns}:{st.st_size}".encode()).hexdigest() + ".jpg")
+        if out.is_file():
+            return str(out)
+        from PIL import Image, ImageStat
+        im = Image.open(preview)
+        frames = getattr(im, "n_frames", 1)
+        best, best_light = 0, -1.0
+        for i in range(0, frames, max(1, frames // 12)):  # a dozen samples
+            im.seek(i)
+            light = sum(ImageStat.Stat(im.convert("L")).mean)
+            if light > best_light:
+                best, best_light = i, light
+            if light > 40:  # bright enough: take the earliest such frame
+                best = i
+                break
+        if best == 0:
+            return ""
+        im.seek(best)
+        STILLS.mkdir(parents=True, exist_ok=True)
+        im.convert("RGB").save(out, "JPEG", quality=92)
+        return str(out)
+    except Exception:
+        return ""
+
+
 def scan_dir(folder: Path, source: str, seen: set) -> list[dict]:
     out = []
     try:
@@ -153,6 +190,7 @@ def scan_dir(folder: Path, source: str, seen: set) -> list[dict]:
             "title": str(project.get("title") or d.name),
             "type": kind,
             "preview": str(prev_path) if prev_path else "",
+            "still": still(prev_path) if prev_path else "",
             "tags": [str(t) for t in project.get("tags") or []],
             "rating": RATINGS.get(str(project.get("contentrating") or "").lower(), ""),
             "source": source,

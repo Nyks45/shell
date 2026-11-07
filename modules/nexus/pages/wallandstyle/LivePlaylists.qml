@@ -259,7 +259,7 @@ PageBase {
 
                             Image {
                                 anchors.fill: parent
-                                source: pick.modelData.preview ? `file://${pick.modelData.preview}` : ""
+                                source: pick.modelData.still || pick.modelData.preview ? `file://${pick.modelData.still || pick.modelData.preview}` : ""
                                 fillMode: Image.PreserveAspectCrop
                                 asynchronous: true
                                 sourceSize.width: 280

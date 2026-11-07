@@ -291,6 +291,8 @@ PageBase {
                     color: Colours.tPalette.m3surfaceContainer
 
                     StateLayer {
+                        id: mineState
+
                         anchors.fill: parent
                         radius: parent.radius
                         onClicked: root.openMine(mineCard.modelData)
@@ -311,10 +313,21 @@ PageBase {
 
                             Image {
                                 anchors.fill: parent
-                                source: mineCard.modelData.preview
+                                source: mineCard.modelData.still || mineCard.modelData.preview
                                 fillMode: Image.PreserveAspectCrop
                                 asynchronous: true
                                 sourceSize.width: 800
+                            }
+
+                            Loader {
+                                anchors.fill: parent
+                                active: mineState.containsMouse && mineCard.modelData.preview.toLowerCase().endsWith(".gif")
+                                sourceComponent: AnimatedImage {
+                                    source: `file://${mineCard.modelData.preview}`
+                                    fillMode: Image.PreserveAspectCrop
+                                    asynchronous: true
+                                    playing: true
+                                }
                             }
                         }
 
