@@ -1,12 +1,13 @@
 import QtQuick
 import qs.components
+import qs.services
 
 Flickable {
     id: root
 
     property bool doneFakeFlick
-    // Where a mouse-wheel scroll is gliding to
-    property real wheelTarget
+    // Middle-click autoscroll (like Windows): where it started, and on
+    readonly property alias autoscrolling: autoscroll.active
 
     maximumFlickVelocity: 3000
 
@@ -31,28 +32,40 @@ Flickable {
         onTriggered: root.doneFakeFlick = false
     }
 
-    // The mouse wheel glides to the next spot instead of flicking. A flick
-    // keeps the view "moving" for a while, and Flickable takes a click made
-    // then to stop it: a click right after scrolling did nothing (settings
-    // pages: 3 of 3 lost, 0 of 2 after 0.7 s). This animation isn't a flick,
-    // so clicks reach the controls at once. Touchpads (pixel deltas) scroll
-    // directly. Only for views that scroll vertically.
+    function clampY(y: real): real {
+        const minY = originY - topMargin;
+        const maxY = Math.max(minY, originY + contentHeight + bottomMargin - height);
+        return Math.max(minY, Math.min(maxY, y));
+    }
+
+    // Mouse wheel / touchpad scrolling that stays clickable. Flickable's own
+    // wheel scrolling flicks, and Flickable takes a click made while it
+    // flicks just to stop it: a click right after scrolling did nothing
+    // (sandbox: 3 of 3 lost). Here the wheel glides with an animation (not a
+    // flick: clicks get through) over Flickable's own distance and curve: a
+    // notch starts at maximumFlickVelocity / 4 and decelerates at
+    // flickDeceleration (v^2 / 2a, constant deceleration = OutQuad), so it
+    // scrolls as far as before. Hi-res wheels (steps of 1/8 notch) get their
+    // share per step; touchpads (pixel deltas) move 1:1 as with Flickable.
+    property real wheelTarget
+
     WheelHandler {
         acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
         enabled: root.interactive && root.contentHeight > root.height
         onWheel: event => {
-            const minY = root.originY - root.topMargin;
-            const maxY = Math.max(minY, root.originY + root.contentHeight + root.bottomMargin - root.height);
-            const clamp = y => Math.max(minY, Math.min(maxY, y));
             root.cancelFlick();
             if (event.pixelDelta.y !== 0) {
                 wheelAnim.stop();
-                root.contentY = clamp(root.contentY - event.pixelDelta.y);
-            } else {
-                // From where a running glide is heading, so fast notches add up
+                root.contentY = root.clampY(root.contentY - event.pixelDelta.y);
+            } else if (event.angleDelta.y !== 0) {
+                const v = root.maximumFlickVelocity / 4;
+                const a = Math.max(1, root.flickDeceleration);
+                const notch = v * v / (2 * a);
+                // From where a running glide is heading, so quick notches add up
                 const from = wheelAnim.running ? root.wheelTarget : root.contentY;
-                root.wheelTarget = clamp(from - event.angleDelta.y / 120 * 240);
+                root.wheelTarget = root.clampY(from - event.angleDelta.y / 120 * notch);
                 wheelAnim.to = root.wheelTarget;
+                wheelAnim.duration = Math.round(v / a * 1000);
                 wheelAnim.restart();
             }
             event.accepted = true;
@@ -64,7 +77,88 @@ Flickable {
 
         target: root
         property: "contentY"
-        duration: 120
-        easing.type: Easing.OutCubic
+        easing.type: Easing.OutQuad
+    }
+
+    // Middle-click autoscroll, like Windows: middle-click (or hold the middle
+    // button) and move the pointer up or down: the further from where it
+    // started, the faster it scrolls; any click (or releasing a held middle
+    // button after moving) stops it. Only the middle button is taken: left
+    // and right clicks go to the controls as before.
+    MouseArea {
+        id: autoscroll
+
+        property bool active
+        property real originX
+        property real originY
+        property real pointerY
+        property bool dragged
+
+        // Over the visible area (a child of the Flickable itself, not of its content)
+        parent: root
+        x: 0
+        y: 0
+        width: root.width
+        height: root.height
+        z: 1000
+        enabled: root.interactive && root.contentHeight > root.height
+        acceptedButtons: active ? Qt.AllButtons : Qt.MiddleButton
+        hoverEnabled: active
+        cursorShape: active ? Qt.SizeVerCursor : undefined
+        onPressed: mouse => {
+            if (active) {
+                // Any click stops it (and does nothing else)
+                active = false;
+                return;
+            }
+            wheelAnim.stop();
+            root.cancelFlick();
+            originX = mouse.x;
+            originY = mouse.y;
+            pointerY = mouse.y;
+            dragged = false;
+            active = true;
+        }
+        onPositionChanged: mouse => {
+            pointerY = mouse.y;
+            if (Math.abs(mouse.y - originY) > 12)
+                dragged = true;
+        }
+        // Held and moved: letting go stops it (a plain middle click keeps it on)
+        onReleased: mouse => {
+            if (active && mouse.button === Qt.MiddleButton && dragged)
+                active = false;
+        }
+
+        Timer {
+            running: autoscroll.active
+            repeat: true
+            interval: 16
+            onTriggered: {
+                // A dead zone around where it started, then faster with distance
+                const d = autoscroll.pointerY - autoscroll.originY;
+                const off = Math.abs(d) < 10 ? 0 : (Math.abs(d) - 10) * Math.sign(d);
+                root.contentY = root.clampY(root.contentY + off * 0.15);
+            }
+        }
+
+        // Where it started: a small marker with arrows
+        StyledRect {
+            visible: autoscroll.active
+            x: autoscroll.originX - width / 2
+            y: autoscroll.originY - height / 2
+            implicitWidth: 28
+            implicitHeight: 28
+            radius: 14
+            color: Qt.alpha(Colours.palette.m3surfaceContainerHighest, 0.9)
+            border.width: 1
+            border.color: Colours.palette.m3outline
+
+            MaterialIcon {
+                anchors.centerIn: parent
+                text: "unfold_more"
+                color: Colours.palette.m3onSurface
+            }
+        }
     }
 }
