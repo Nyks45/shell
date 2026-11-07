@@ -37,11 +37,16 @@ Singleton {
     property int testDone
     property int testTotal
     readonly property bool testing: testProc.running
-    // The Workshop page shown: { items, error }
+    // The Workshop page shown: { items, page, pages, total, tagGroups, error }
     property var workshopPage: ({
             items: []
         })
     property bool workshopLoading
+    // Its filter groups (Type, Age Rating, Genre, Resolution, ...), kept once known
+    property var workshopTagGroups: []
+    // Details of the Workshop item opened (description, views), or null
+    property var workshopItem: null
+    property bool workshopItemLoading
     property bool pendingRandom
 
     readonly property string configPath: `${Paths.config}/live-wallpaper.json`
@@ -300,10 +305,25 @@ Singleton {
         testProc.running = false;
     }
 
-    function loadWorkshop(sort: string, page: int, kind: string, search: string): void {
+    // q: { sort (trend/toprated/recent/updated/subscribed), days, page, search, tags[], mature }
+    function loadWorkshop(q: var): void {
+        const cmd = ["python3", "-I", scanner, "workshop", "--sort", q.sort ?? "trend", "--days", String(q.days ?? 7), "--page", String(q.page ?? 1)];
+        if (q.search)
+            cmd.push("--search", q.search);
+        for (const t of q.tags ?? [])
+            cmd.push("--tag", t);
+        if (q.mature)
+            cmd.push("--mature");
         workshopProc.running = false;
-        workshopProc.command = ["python3", "-I", scanner, "workshop", sort, String(page), kind, search];
+        workshopProc.command = cmd;
         workshopProc.running = true;
+    }
+
+    function loadWorkshopItem(id: string): void {
+        workshopItem = null;
+        workshopItemProc.running = false;
+        workshopItemProc.command = ["python3", "-I", scanner, "workshop-item", id];
+        workshopItemProc.running = true;
     }
 
     // In Steam: the item's page, where it's subscribed to (Steam downloads it)
@@ -459,11 +479,28 @@ Singleton {
             onStreamFinished: {
                 try {
                     root.workshopPage = JSON.parse(text);
+                    if ((root.workshopPage.tagGroups ?? []).length > 0)
+                        root.workshopTagGroups = root.workshopPage.tagGroups;
                 } catch (e) {
                     root.workshopPage = {
                         items: [],
                         error: "No answer from the Workshop"
                     };
+                }
+            }
+        }
+    }
+
+    Process {
+        id: workshopItemProc
+
+        onRunningChanged: root.workshopItemLoading = running
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    root.workshopItem = JSON.parse(text).items?.[0] ?? null;
+                } catch (e) {
+                    root.workshopItem = null;
                 }
             }
         }

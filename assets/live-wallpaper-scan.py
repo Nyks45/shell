@@ -11,14 +11,15 @@ user properties (general.properties) and when it was added.
     live-wallpaper-scan.py assets              the assets folder the renderer needs ("" if none)
     live-wallpaper-scan.py test FOLDER...      try each in the renderer (3 at a time, 5 s, a hidden
                                                window); one JSON line per folder: grade + errors
-    live-wallpaper-scan.py workshop SORT PAGE [TYPE] [SEARCH]
-                                               a page of the Steam Workshop (SORT: trend, popular,
-                                               recent; TYPE: Scene, Video, Web or ""), as JSON
+    live-wallpaper-scan.py workshop [--sort trend|toprated|recent|updated|subscribed] [--days N]
+                                    [--page N] [--search TEXT] [--tag TAG]... [--mature]
+                                               a page of the Steam Workshop as JSON: items (rating,
+                                               votes, author, tags...), page, pages, total, tagGroups
+    live-wallpaper-scan.py workshop-item ID...  details of Workshop items (description, stats)
     live-wallpaper-scan.py playlists FILE      write the playlists in FILE (the settings app's
                                                live-wallpaper.json) into Wallpaper Engine's config.json
 """
 
-from html import unescape as html_unescape
 import json
 import os
 import re
@@ -217,30 +218,141 @@ def test(folders: list[str]) -> None:
             running.remove(item)
 
 
-# A page of the Steam Workshop (its public listing; subscribing happens in Steam)
-SORTS = {"trend": "browsesort=trend&actualsort=trend&days=7", "popular": "browsesort=totaluniquesubscribers&actualsort=totaluniquesubscribers&days=-1", "recent": "browsesort=mostrecent&actualsort=mostrecent"}
+# The Steam Workshop, keyless: the public browse page embeds its results as
+# JSON (React SSR data: "valve-ssr-data"), with ratings, authors and tags;
+# item details come from ISteamRemoteStorage/GetPublishedFileDetails, which
+# needs no Web API key. Subscribing happens in Steam.
+SORTS = {
+    "trend": "trend",  # with days
+    "toprated": "toprated",
+    "recent": "mostrecent",
+    "updated": "lastupdated",
+    "subscribed": "totaluniquesubscribers",
+}
+UA = {"User-Agent": "Mozilla/5.0", "Accept-Language": "en"}
 
 
-def workshop(sort: str, page: int, kind: str, search: str) -> None:
-    q = f"https://steamcommunity.com/workshop/browse/?appid=431960&section=readytouseitems&{SORTS.get(sort, SORTS['trend'])}&p={page}&requiredtags%5B%5D=Everyone"
-    if kind:
-        q += "&requiredtags%5B%5D=" + urllib.parse.quote(kind)
-    if search:
-        q += "&searchtext=" + urllib.parse.quote(search)
-    req = urllib.request.Request(q, headers={"User-Agent": "Mozilla/5.0", "Accept-Language": "en"})
+def _ssr(html: str) -> dict:
+    m = re.search(r'<script[^>]*id="valve-ssr-data"[^>]*>(.*?)</script>', html, re.S)
+    if not m:
+        return {}
+
+    def deep(o):  # values are JSON strings within JSON
+        if isinstance(o, str) and o[:1] in "{[":
+            try:
+                return deep(json.loads(o))
+            except ValueError:
+                return o
+        if isinstance(o, dict):
+            return {k: deep(v) for k, v in o.items()}
+        if isinstance(o, list):
+            return [deep(v) for v in o]
+        return o
+
+    return deep(json.loads(m.group(1)))
+
+
+def _item(r: dict, names: dict) -> dict:
+    tags = [t.get("tag", "") for t in r.get("tags", [])]
+    preview = r.get("preview_url", "")
+    return {
+        "id": str(r.get("publishedfileid", "")),
+        "title": r.get("title", ""),
+        "preview": preview + ("?imw=400&imh=400&ima=fit" if preview and "?" not in preview else ""),
+        "previewFull": preview,
+        "rating": r.get("star_rating", 0) or 0,
+        "votes": r.get("total_votes", 0) or 0,
+        "subscriptions": r.get("subscriptions", 0) or 0,
+        "favorited": r.get("favorited", 0) or 0,
+        "size": int(r.get("file_size", 0) or 0),
+        "updated": r.get("time_updated", 0) or 0,
+        "created": r.get("time_created", 0) or 0,
+        "author": names.get(str(r.get("creator", "")), ""),
+        "authorId": str(r.get("creator", "")),
+        "description": r.get("short_description", "") or r.get("file_description", ""),
+        "tags": tags,
+    }
+
+
+def workshop(args: list[str]) -> None:
+    opt = {"sort": "trend", "days": "7", "page": "1", "search": ""}
+    tags: list[str] = []
+    mature = False
+    it = iter(args)
+    for a in it:
+        if a == "--tag":
+            tags.append(next(it, ""))
+        elif a == "--mature":
+            mature = True
+        elif a.startswith("--"):
+            opt[a[2:]] = next(it, "")
+    q = {
+        "appid": "431960",
+        "section": "readytouseitems",
+        "browsesort": SORTS.get(opt["sort"], "trend"),
+        "actualsort": SORTS.get(opt["sort"], "trend"),
+        "p": opt["page"] or "1",
+    }
+    if q["browsesort"] == "trend":
+        q["days"] = opt["days"] or "7"
+    if opt["search"]:
+        q["searchtext"] = opt["search"]
+        q["browsesort"] = q["actualsort"] = "textsearch"
+    url = "https://steamcommunity.com/workshop/browse/?" + urllib.parse.urlencode(q)
+    # Without --mature only "Everyone" (Steam shows the rest only when asked)
+    for t in tags + ([] if mature or any(t in ("Questionable", "Mature") for t in tags) else ["Everyone"]):
+        url += "&requiredtags%5B%5D=" + urllib.parse.quote(t)
     try:
-        html = urllib.request.urlopen(req, timeout=20).read().decode("utf-8", "replace")
+        html = urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=20).read().decode("utf-8", "replace")
+        data = _ssr(html)
     except Exception as e:
         json.dump({"error": str(e), "items": []}, sys.stdout)
         return
-    items, seen = [], set()
-    for m in re.finditer(r'filedetails/\?id=(\d+)"[^>]*>\s*<img src="([^"]+)" alt="([^"]*)"', html):
-        if m.group(1) in seen:
+    names, browse, declared = {}, {}, []
+    for qd in data.get("renderContext", {}).get("queryData", {}).get("queries", []):
+        key = qd.get("queryKey") or [""]
+        st = (qd.get("state") or {}).get("data")
+        if key[0] == "workshop_browse" and isinstance(st, dict):
+            browse = st
+        elif key[0] == "PlayerLinkDetails" and isinstance(st, dict):
+            pub = st.get("public_data") or {}
+            names[str(key[1])] = pub.get("persona_name", "")
+        elif key[0] == "declared_tags_v6" and len(key) > 1 and str(key[1]) == "431960" and isinstance(st, dict):
+            # Filter groups as the Workshop shows them (assets/scripts left out)
+            declared = [{"name": g.get("name", ""), "multi": g.get("htmlelement") == "checkbox",
+                         "tags": [t.get("name", "") for t in g.get("tags", []) if not t.get("admin_only")]}
+                        for g in st.get("mtx_tags", [])]
+    if not browse:
+        json.dump({"error": "Steam changed its Workshop page (no results data found)", "items": []}, sys.stdout)
+        return
+    json.dump({
+        "items": [_item(r, names) for r in browse.get("results", [])],
+        "page": int(opt["page"] or 1),
+        "pages": browse.get("total_pages", 1),
+        "total": browse.get("total_count", 0),
+        "tagGroups": declared,
+    }, sys.stdout)
+
+
+def workshop_item(ids: list[str]) -> None:
+    body = {"itemcount": str(len(ids))}
+    for i, x in enumerate(ids):
+        body[f"publishedfileids[{i}]"] = x
+    try:
+        req = urllib.request.Request("https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/",
+                                     data=urllib.parse.urlencode(body).encode(), headers=UA)
+        res = json.load(urllib.request.urlopen(req, timeout=20)).get("response", {})
+    except Exception as e:
+        json.dump({"error": str(e), "items": []}, sys.stdout)
+        return
+    items = []
+    for d in res.get("publishedfiledetails", []):
+        if d.get("result") != 1:
             continue
-        seen.add(m.group(1))
-        # Steam letterboxes the thumbnail in black: ask for it plain, a bit larger
-        preview = re.sub(r"\?.*$", "?imw=400&imh=400&ima=fit", m.group(2).replace("&amp;", "&"))
-        items.append({"id": m.group(1), "preview": preview, "title": html_unescape(m.group(3))})
+        i = _item(d, {})
+        i["description"] = d.get("description", "")
+        i["views"] = d.get("views", 0)
+        items.append(i)
     json.dump({"items": items}, sys.stdout)
 
 
@@ -294,8 +406,10 @@ def main() -> int:
         test(sys.argv[2:])
         return 0
     if cmd == "workshop":
-        a = sys.argv[2:] + ["", "", "", ""]
-        workshop(a[0] or "trend", int(a[1] or 1), a[2], a[3])
+        workshop(sys.argv[2:])
+        return 0
+    if cmd == "workshop-item":
+        workshop_item(sys.argv[2:])
         return 0
     if cmd == "playlists":
         write_playlists(sys.argv[2])
