@@ -31,6 +31,10 @@ import urllib.request
 from pathlib import Path
 
 HOME = Path.home()
+# The settings app's own library (no Wallpaper Engine install needed): assets/,
+# projects/defaultprojects/, workshop/<id>/ (downloaded items). Found first,
+# so its copies win over Steam's.
+LIBRARY = Path(os.environ.get("LIVE_WALLPAPER_LIBRARY") or HOME / ".local/share/caelestia/wallpaper-engine")
 ROOTS = [
     HOME / ".local/share/Steam",
     HOME / ".steam/steam",
@@ -161,6 +165,8 @@ def assets_dir() -> str:
     override = os.environ.get("LIVE_WALLPAPER_ASSETS", "")
     if override and Path(override).is_dir():
         return override
+    if (LIBRARY / "assets").is_dir():
+        return str(LIBRARY / "assets")
     for lib in libraries():
         a = lib / "steamapps/common/wallpaper_engine/assets"
         if a.is_dir():
@@ -426,6 +432,9 @@ def main() -> int:
             items += one
         else:
             items += scan_dir(p, "folder", seen)
+    items += scan_dir(LIBRARY / "workshop", "workshop", seen)
+    items += scan_dir(LIBRARY / "projects/defaultprojects", "built-in", seen)
+    items += scan_dir(LIBRARY / "assets/presets", "preset", seen)
     for lib in libraries():
         apps = lib / "steamapps"
         items += scan_dir(apps / "workshop/content/431960", "workshop", seen)

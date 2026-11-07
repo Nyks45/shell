@@ -96,6 +96,21 @@ Singleton {
         });
     }
 
+    // Wallpapers the config refers to by a path that isn't theirs any more
+    // (Steam's folders, from before the own library had a copy): point them
+    // at where the scan found them. Quiet (no restart): the running renderer
+    // keeps its folder until it starts again.
+    function migratePaths(): void {
+        const byName = {};
+        for (const w of wallpapers)
+            byName[w.path.split("/").pop()] = w.path;
+        const known = new Set(wallpapers.map(w => w.path));
+        const text = JSON.stringify(config);
+        const out = text.replace(/"(\/[^"]*\/(?:workshop\/content\/431960|projects\/defaultprojects)\/([^"\/]+))"/g, (m, p, name) => !known.has(p) && byName[name] && byName[name] !== p ? JSON.stringify(byName[name]) : m);
+        if (out !== text)
+            save(JSON.parse(out));
+    }
+
     function info(path: string): var {
         return wallpapers.find(w => w.path === path) ?? null;
     }
@@ -421,6 +436,7 @@ Singleton {
                     root.lastScan = text;
                     try {
                         root.wallpapers = JSON.parse(text);
+                        root.migratePaths();
                     } catch (e) {
                         root.wallpapers = [];
                     }

@@ -18,6 +18,10 @@
 # links here.
 set -euo pipefail
 
+# The settings app's own library (no Wallpaper Engine install needed): its
+# assets, built-in projects and downloaded Workshop items; Steam's folders
+# are used as well while they exist.
+LIB="${LIVE_WALLPAPER_LIBRARY:-$HOME/.local/share/caelestia/wallpaper-engine}"
 STEAM="${STEAM_DIR:-$HOME/.local/share/Steam}"
 WE="$STEAM/steamapps/common/wallpaper_engine"
 WORKSHOP="$STEAM/steamapps/workshop/content/431960"
@@ -36,6 +40,8 @@ die() { notify-send -a "Live wallpaper" "Live wallpaper" "$1" 2>/dev/null || tru
 resolve() {
     local arg="$1"
     if [[ -d "$arg" ]]; then realpath "$arg"
+    elif [[ -d "$LIB/workshop/$arg" ]]; then echo "$LIB/workshop/$arg"
+    elif [[ -d "$LIB/projects/defaultprojects/$arg" ]]; then echo "$LIB/projects/defaultprojects/$arg"
     elif [[ -d "$WORKSHOP/$arg" ]]; then echo "$WORKSHOP/$arg"
     elif [[ -d "$DEFAULTS/$arg" ]]; then echo "$DEFAULTS/$arg"
     else return 1; fi
@@ -184,11 +190,13 @@ EOF
 }
 
 start() {
-    # The assets folder: the settings app's choice, else Steam's Wallpaper Engine
+    # The assets folder: the settings app's choice, else its own library's,
+    # else Steam's Wallpaper Engine
     local assets
     assets="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("assetsDir") or "")' "$SETTINGS" 2>/dev/null || true)"
+    [[ -d "$assets" ]] || assets="$LIB/assets"
     [[ -d "$assets" ]] || assets="$WE/assets"
-    [[ -d "$assets" ]] || die "Wallpaper Engine isn't installed in Steam (no $WE/assets)"
+    [[ -d "$assets" ]] || die "No Wallpaper Engine assets: get them in Settings > Wallpaper > Live"
     local args=(--assets-dir "$assets" --layer background) dir="" gui=() cfg=()
     mapfile -t cfg < <(config_args)
     [[ -f "$SETTINGS" ]] || mapfile -t gui < <(gui_args)
@@ -265,13 +273,17 @@ set_wallpaper() {
 pick() {
     # "Title  ·  type" lines; the folder after a tab, hidden from the menu.
     local list choice
-    list="$(python3 - "$WORKSHOP" "$DEFAULTS" <<'EOF'
+    list="$(python3 - "$LIB/workshop" "$LIB/projects/defaultprojects" "$WORKSHOP" "$DEFAULTS" <<'EOF'
 import json, os, sys
+seen = set()
 for root in sys.argv[1:]:
     if not os.path.isdir(root):
         continue
     for name in sorted(os.listdir(root)):
         d = os.path.join(root, name)
+        if name in seen:  # in the own library and Steam's both
+            continue
+        seen.add(name)
         try:
             p = json.load(open(os.path.join(d, "project.json"), encoding="utf-8"))
         except Exception:
