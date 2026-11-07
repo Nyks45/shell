@@ -132,23 +132,10 @@ PageBase {
                     }
 
                     TextButton {
-                        text: root.monitors.length > 1 ? Tr.tr("Play on all") : Tr.tr("Play")
+                        text: Tr.tr("Play")
                         type: TextButton.Tonal
                         disabled: plRow.modelData.items.length === 0
                         onClicked: LiveWallpaper.apply(`playlist:${plRow.modelData.name}`, "*")
-                    }
-
-                    Repeater {
-                        model: root.monitors.length > 1 ? root.monitors : []
-
-                        TextButton {
-                            required property string modelData
-
-                            text: modelData
-                            type: TextButton.Text
-                            disabled: plRow.modelData.items.length === 0
-                            onClicked: LiveWallpaper.apply(`playlist:${plRow.modelData.name}`, modelData)
-                        }
                     }
 
                     IconButton {

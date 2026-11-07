@@ -110,21 +110,9 @@ PageBase {
             spacing: Tokens.spacing.small
 
             TextButton {
-                text: root.monitors.length > 1 ? Tr.tr("Use on all monitors") : Tr.tr("Use this wallpaper")
+                text: Tr.tr("Use this wallpaper")
                 type: TextButton.Filled
                 onClicked: LiveWallpaper.apply(root.path, "*")
-            }
-
-            Repeater {
-                model: root.monitors.length > 1 ? root.monitors : []
-
-                TextButton {
-                    required property string modelData
-
-                    text: Tr.tr("Only %1").arg(modelData)
-                    type: TextButton.Tonal
-                    onClicked: LiveWallpaper.apply(root.path, modelData)
-                }
             }
 
             TextButton {

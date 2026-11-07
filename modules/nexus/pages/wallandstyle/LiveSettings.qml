@@ -88,14 +88,6 @@ PageBase {
         }
 
         ToggleRow {
-            visible: LiveWallpaper.setting("pauseOnFullscreen", true) && root.monitors.length > 1
-            text: Tr.tr("Only on that monitor")
-            subtext: Tr.tr("Other monitors keep playing")
-            checked: LiveWallpaper.setting("pauseOnlyActive", false)
-            onToggled: LiveWallpaper.set("pauseOnlyActive", checked)
-        }
-
-        ToggleRow {
             text: Tr.tr("Sound")
             subtext: Tr.tr("For wallpapers that have it")
             checked: !LiveWallpaper.setting("silent", true)
@@ -148,14 +140,6 @@ PageBase {
             ]
             active: menuItems.find(i => i.value === LiveWallpaper.setting("scaling", "fill")) ?? null
             onSelected: item => LiveWallpaper.set("scaling", item.value)
-        }
-
-        ToggleRow {
-            visible: root.monitors.length > 1
-            text: Tr.tr("Stretch one wallpaper across monitors")
-            subtext: Tr.tr("Instead of the same one on each")
-            checked: LiveWallpaper.setting("span", false)
-            onToggled: LiveWallpaper.set("span", checked)
         }
 
         ToggleRow {

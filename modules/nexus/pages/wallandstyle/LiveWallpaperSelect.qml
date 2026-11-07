@@ -195,35 +195,6 @@ PageBase {
             }
         }
 
-        // Each monitor: what's on it
-        SectionHeader {
-            visible: root.monitors.length > 1
-            text: Tr.tr("On your monitors")
-        }
-
-        Repeater {
-            id: monList
-
-            model: root.monitors.length > 1 ? root.monitors : []
-
-            RowButton {
-                required property string modelData
-                required property int index
-                readonly property string target: LiveWallpaper.screens[modelData] ?? LiveWallpaper.screens["*"] ?? ""
-
-                first: index === 0
-                last: index === monList.count - 1
-                icon: "monitor"
-                text: modelData
-                subtext: !target ? Tr.tr("Nothing (Caelestia's wallpaper)") : target.startsWith("playlist:") ? Tr.tr("Playlist: %1").arg(target.slice(9)) : (LiveWallpaper.info(target)?.title ?? target.split("/").pop())
-                trailingIcon: target ? "close" : ""
-                onClicked: {
-                    if (target)
-                        LiveWallpaper.stopScreen(modelData);
-                }
-            }
-        }
-
         // Playlists, the Workshop and the settings: compact buttons, not full rows
         Flow {
             Layout.fillWidth: true

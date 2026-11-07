@@ -571,22 +571,6 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Only on that monitor",
-            "ctx": "",
-            "sub": "Other monitors keep playing",
-            "section": "Playback",
-            "page": 0,
-            "path": [
-                4,
-                8
-            ],
-            "trail": [
-                "Live wallpapers",
-                "Live wallpaper settings"
-            ],
-            "keywords": ""
-        },
-        {
             "label": "Sound",
             "ctx": "",
             "sub": "For wallpapers that have it",
@@ -654,22 +638,6 @@ QtObject {
             "label": "Fit",
             "ctx": "",
             "sub": "",
-            "section": "Playback",
-            "page": 0,
-            "path": [
-                4,
-                8
-            ],
-            "trail": [
-                "Live wallpapers",
-                "Live wallpaper settings"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Stretch one wallpaper across monitors",
-            "ctx": "",
-            "sub": "Instead of the same one on each",
             "section": "Playback",
             "page": 0,
             "path": [
@@ -1387,16 +1355,6 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Monitor",
-            "ctx": "",
-            "sub": "",
-            "section": "Monitor",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
             "label": "Brightness",
             "ctx": "",
             "sub": "",
@@ -1405,26 +1363,6 @@ QtObject {
             "path": [],
             "trail": [],
             "keywords": "backlight dim"
-        },
-        {
-            "label": "Use this monitor",
-            "ctx": "",
-            "sub": "The last monitor in use can't be turned off",
-            "section": "Monitor",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Mirror",
-            "ctx": "",
-            "sub": "Show the same picture as another monitor",
-            "section": "Monitor",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": ""
         },
         {
             "label": "Brightness: this monitor doesn't answer over DDC/CI",
@@ -4001,22 +3939,6 @@ QtObject {
             "label": "Show unoccupied",
             "ctx": "bar workspaces",
             "sub": "Show workspaces that are inactive and empty",
-            "section": "",
-            "page": 26,
-            "path": [
-                2,
-                6
-            ],
-            "trail": [
-                "Taskbar",
-                "Workspaces"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Per monitor",
-            "ctx": "bar workspaces",
-            "sub": "Hide workspaces not on the current monitor",
             "section": "",
             "page": 26,
             "path": [
