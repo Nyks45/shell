@@ -15,8 +15,9 @@ import qs.modules.nexus.common
 PageBase {
     id: root
 
-    // A live wallpaper is playing (Caelestia's own is hidden under it)
-    readonly property bool live: !Config.background.wallpaperEnabled && !!LiveWallpaper.current
+    // A live wallpaper is on: chosen, and the renderer running (or Caelestia's
+    // own wallpaper hidden for it, while it starts)
+    readonly property bool live: !!LiveWallpaper.current && (LiveWallpaper.running || !Config.background.wallpaperEnabled)
     readonly property bool livePlaylist: LiveWallpaper.current.startsWith("playlist:")
 
     title: Tr.tr("Wallpaper & style")

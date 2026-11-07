@@ -105,6 +105,15 @@ PageBase {
             onToggled: LiveWallpaper.set("pauseOnFullscreen", checked)
         }
 
+        // Fullscreen apps that don't pause it (their app id, or a part of it)
+        StringListEditor {
+            visible: LiveWallpaper.setting("pauseOnFullscreen", true)
+            values: LiveWallpaper.setting("pauseIgnore", [])
+            placeholderText: Tr.tr("Don't pause for this app (its app id, e.g. mpv)")
+            emptyText: Tr.tr("Every fullscreen app pauses it")
+            onEdited: v => LiveWallpaper.set("pauseIgnore", v)
+        }
+
         ToggleRow {
             text: Tr.tr("Sound")
             subtext: Tr.tr("For wallpapers that have it")
