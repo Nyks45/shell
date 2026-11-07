@@ -53,6 +53,8 @@ Singleton {
     property var steamPending: []
     property string steamError
     readonly property bool steamBusy: steamSubProc.running
+    // Download into the own library (DepotDownloader): { id, state: qr|progress|done|error, qr, percent, error }
+    property var download: null
     readonly property string steamHelper: `${Quickshell.shellDir}/assets/live-wallpaper-steam.py`
     // Details of the Workshop item opened (description, views), or null
     property var workshopItem: null
@@ -330,8 +332,45 @@ Singleton {
         testProc.running = false;
     }
 
+    // Settings windows open: the Workshop's first page is fetched when the first
+    // one opens (ready by the time it's visited), and the Workshop cache is
+    // cleared when the last one closes
+    property int settingsOpen
+    property string workshopKey
+
+    function settingsOpened(): void {
+        settingsOpen++;
+        if (settingsOpen === 1)
+            loadWorkshop({
+                sort: "trend",
+                days: 7,
+                page: 1,
+                search: "",
+                tags: [],
+                mature: setting("showMature", false)
+            });
+    }
+
+    function settingsClosed(): void {
+        settingsOpen = Math.max(0, settingsOpen - 1);
+        if (settingsOpen > 0)
+            return;
+        workshopProc.running = false;
+        workshopKey = "";
+        workshopPage = {
+            items: []
+        };
+        workshopItem = null;
+        Quickshell.execDetached(["rm", "-rf", `${Paths.cache}/workshop`]);
+    }
+
     // q: { sort (trend/toprated/recent/updated/subscribed), days, page, search, tags[], mature }
     function loadWorkshop(q: var): void {
+        // The same page already loading or shown (e.g. fetched as the settings opened)
+        const key = JSON.stringify([q.sort ?? "trend", q.days ?? 7, q.page ?? 1, q.search ?? "", q.tags ?? [], !!q.mature]);
+        if (key === workshopKey && (workshopProc.running || (workshopPage.items ?? []).length > 0))
+            return;
+        workshopKey = key;
         const cmd = ["python3", "-I", scanner, "workshop", "--sort", q.sort ?? "trend", "--days", String(q.days ?? 7), "--page", String(q.page ?? 1)];
         if (q.search)
             cmd.push("--search", q.search);
@@ -341,6 +380,7 @@ Singleton {
             cmd.push("--mature");
         workshopProc.running = false;
         workshopProc.command = cmd;
+        workshopLoading = true;
         workshopProc.running = true;
     }
 
@@ -376,8 +416,36 @@ Singleton {
         steamSubProc.running = true;
     }
 
+    // Subscribe: on the Steam account (when signed in) and download it into
+    // the own library (no Wallpaper Engine or Steam client needed)
+    function getWallpaper(id: string): void {
+        if (steamSignedIn)
+            steamSubscribe(id, true);
+        download = {
+            id,
+            state: "starting"
+        };
+        downloadProc.running = false;
+        downloadProc.command = ["python3", "-I", steamHelper, "download", id];
+        downloadProc.running = true;
+    }
+
+    function cancelDownload(): void {
+        downloadProc.running = false;
+        download = null;
+    }
+
+    // Unsubscribe: off the Steam account and out of the library
+    function removeWallpaper(id: string): void {
+        if (steamSignedIn)
+            steamSubscribe(id, false);
+        removeProc.command = ["python3", "-I", steamHelper, "remove", id];
+        removeProc.running = true;
+    }
+
     function loadWorkshopItem(id: string): void {
         workshopItem = null;
+        workshopItemLoading = true;
         workshopItemProc.running = false;
         workshopItemProc.command = ["python3", "-I", scanner, "workshop-item", id];
         workshopItemProc.running = true;
@@ -529,16 +597,19 @@ Singleton {
         }
     }
 
+    // Lines: the cached page at once, then Steam's (when it changed)
     Process {
         id: workshopProc
 
-        onRunningChanged: root.workshopLoading = running
-        stdout: StdioCollector {
-            onStreamFinished: {
+        onRunningChanged: root.workshopLoading = running && !root.workshopPage.cached
+        stdout: SplitParser {
+            onRead: line => {
                 try {
-                    root.workshopPage = JSON.parse(text);
+                    root.workshopPage = JSON.parse(line);
                     if ((root.workshopPage.tagGroups ?? []).length > 0)
                         root.workshopTagGroups = root.workshopPage.tagGroups;
+                    // A cached page shows as loaded; Steam's copy replaces it quietly
+                    root.workshopLoading = false;
                 } catch (e) {
                     root.workshopPage = {
                         items: [],
@@ -615,16 +686,42 @@ Singleton {
     }
 
     Process {
+        id: downloadProc
+
+        stdout: SplitParser {
+            onRead: line => {
+                try {
+                    const st = JSON.parse(line);
+                    if (st.state === "log")
+                        return;
+                    root.download = Object.assign({}, root.download, st);
+                    if (st.state === "done") {
+                        root.steamPending = root.steamPending.filter(x => x !== root.download.id);
+                        root.refresh();
+                    }
+                } catch (e) {}
+            }
+        }
+    }
+
+    Process {
+        id: removeProc
+
+        stdout: StdioCollector {
+            onStreamFinished: root.refresh()
+        }
+    }
+
+    Process {
         id: workshopItemProc
 
-        onRunningChanged: root.workshopItemLoading = running
-        stdout: StdioCollector {
-            onStreamFinished: {
+        onRunningChanged: if (!running) root.workshopItemLoading = false
+        stdout: SplitParser {
+            onRead: line => {
                 try {
-                    root.workshopItem = JSON.parse(text).items?.[0] ?? null;
-                } catch (e) {
-                    root.workshopItem = null;
-                }
+                    root.workshopItem = JSON.parse(line).items?.[0] ?? null;
+                    root.workshopItemLoading = false;
+                } catch (e) {}
             }
         }
     }

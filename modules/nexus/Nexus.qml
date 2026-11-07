@@ -20,6 +20,10 @@ Item {
 
     signal close
 
+    // The live wallpapers' Workshop: fetched as the settings open, cleared as they close
+    Component.onCompleted: LiveWallpaper.settingsOpened()
+    Component.onDestruction: LiveWallpaper.settingsClosed()
+
     implicitWidth: Math.round(implicitHeight * Tokens.sizes.nexus.ratio)
     implicitHeight: Math.round(nState.screen.height * Tokens.sizes.nexus.heightMult)
 
@@ -34,12 +38,7 @@ Item {
     // The mouse's back button: up one sub-page (or out of the search)
     TapHandler {
         acceptedButtons: Qt.BackButton
-        onTapped: {
-            if (root.nState.subPageIdxStack.length > 0)
-                root.nState.closeSubPage();
-            else if (root.nState.searchOpen)
-                root.nState.searchOpen = false;
-        }
+        onTapped: root.nState.back()
     }
 
     BlobGroup {

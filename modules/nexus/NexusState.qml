@@ -33,7 +33,22 @@ QtObject {
         subPageOpened(idx);
     }
 
+    // A page with steps of its own (e.g. the Workshop's item details) handles
+    // "back" itself first: a function returning true when it did
+    property var backHandler: null
+
+    // The mouse's back button and the header's back arrow: a step back
+    function back(): void {
+        if (backHandler && backHandler())
+            return;
+        if (subPageIdxStack.length > 0)
+            closeSubPage();
+        else if (searchOpen)
+            searchOpen = false;
+    }
+
     function closeSubPage(): void {
+        backHandler = null;
         subPageClosed();
         subPageIdxStack.pop();
     }

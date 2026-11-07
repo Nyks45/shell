@@ -159,7 +159,7 @@ ColumnLayout {
                     isRound: true
                     inactiveColour: Colours.tPalette.m3surfaceContainerHigh
                     inactiveOnColour: Colours.palette.m3onSurfaceVariant
-                    onClicked: root.nState.closeSubPage()
+                    onClicked: root.nState.back()
                 }
             }
 

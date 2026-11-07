@@ -21,6 +21,9 @@ import qs.modules.nexus.common
 PageBase {
     id: root
 
+    // "browse" (the Workshop) or "mine" (your Workshop wallpapers)
+    property string tab: "browse"
+    readonly property var mineList: LiveWallpaper.wallpapers.filter(w => w.source === "workshop")
     property string sort: "trend"
     property int days: 7
     property string search
@@ -65,6 +68,18 @@ PageBase {
         reload();
     }
 
+    // One of yours, as a Workshop entry (its stats load with the details)
+    function openMine(w: var): void {
+        open({
+            id: w.id,
+            title: w.title,
+            preview: w.preview,
+            previewFull: w.preview,
+            tags: w.tags,
+            mine: true
+        });
+    }
+
     function open(item: var): void {
         selected = item;
         LiveWallpaper.loadWorkshopItem(item.id);
@@ -87,6 +102,16 @@ PageBase {
     Component.onCompleted: {
         load();
         LiveWallpaper.steamStatus();
+    }
+
+    // Back (mouse button, header arrow) from an item's details: to the list
+    onSelectedChanged: nState.backHandler = selected ? (() => {
+                selected = null;
+                return true;
+            }) : null
+    Component.onDestruction: {
+        if (nState?.backHandler)
+            nState.backHandler = null;
     }
 
     title: root.selected ? root.selected.title : Tr.tr("Steam Workshop")
@@ -218,11 +243,105 @@ PageBase {
             }
         }
 
-        // ---- Browsing --------------------------------------------------
+        // ---- Tabs ------------------------------------------------------
 
         RowLayout {
             Layout.fillWidth: true
             visible: !root.selected
+            spacing: Tokens.spacing.small
+
+            TextButton {
+                text: Tr.tr("Browse")
+                isToggle: true
+                checked: root.tab === "browse"
+                type: TextButton.Tonal
+                onClicked: root.tab = "browse"
+            }
+
+            TextButton {
+                text: Tr.tr("Subscribed (%1)").arg(root.mineList.length)
+                isToggle: true
+                checked: root.tab === "mine"
+                type: TextButton.Tonal
+                onClicked: root.tab = "mine"
+            }
+        }
+
+        // ---- Your Workshop wallpapers ----------------------------------
+
+        GridLayout {
+            Layout.fillWidth: true
+            visible: !root.selected && root.tab === "mine"
+            columns: Math.max(2, Math.floor((width + columnSpacing) / (190 + columnSpacing)))
+            columnSpacing: Tokens.spacing.small
+            rowSpacing: Tokens.spacing.small
+
+            Repeater {
+                model: root.tab === "mine" ? root.mineList : []
+
+                StyledRect {
+                    id: mineCard
+
+                    required property var modelData
+
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignTop
+                    implicitHeight: mineCol.implicitHeight + Tokens.padding.small * 2
+                    radius: Tokens.rounding.large
+                    color: Colours.tPalette.m3surfaceContainer
+
+                    StateLayer {
+                        anchors.fill: parent
+                        radius: parent.radius
+                        onClicked: root.openMine(mineCard.modelData)
+                    }
+
+                    ColumnLayout {
+                        id: mineCol
+
+                        anchors.fill: parent
+                        anchors.margins: Tokens.padding.small
+                        spacing: Tokens.spacing.extraSmall
+
+                        ClipRect {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: width
+                            radius: Tokens.rounding.medium
+                            color: Colours.tPalette.m3surfaceContainerHigh
+
+                            Image {
+                                anchors.fill: parent
+                                source: mineCard.modelData.preview
+                                fillMode: Image.PreserveAspectCrop
+                                asynchronous: true
+                                sourceSize.width: 800
+                            }
+                        }
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: mineCard.modelData.title
+                            font: Tokens.font.label.medium
+                            elide: Text.ElideRight
+                        }
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: `${mineCard.modelData.type} · ${root.size(mineCard.modelData.size)}`
+                            color: Colours.palette.m3outline
+                            font: Tokens.font.label.small
+                            elide: Text.ElideRight
+                        }
+                    }
+                }
+            }
+        }
+
+        // ---- Browsing --------------------------------------------------
+
+        RowLayout {
+            Layout.fillWidth: true
+            visible: !root.selected && root.tab === "browse"
             spacing: Tokens.spacing.small
 
             StyledTextField {
@@ -246,7 +365,7 @@ PageBase {
 
         Flow {
             Layout.fillWidth: true
-            visible: !root.selected && !root.search
+            visible: !root.selected && !root.search && root.tab === "browse"
             spacing: Tokens.spacing.small
 
             Repeater {
@@ -291,7 +410,7 @@ PageBase {
         // "Most popular" over a period, like the app's Today/Week/Month/Year
         Flow {
             Layout.fillWidth: true
-            visible: !root.selected && !root.search && root.sort === "trend"
+            visible: !root.selected && !root.search && root.sort === "trend" && root.tab === "browse"
             spacing: Tokens.spacing.small
 
             Repeater {
@@ -332,7 +451,7 @@ PageBase {
         // The Workshop's filter groups
         StyledRect {
             Layout.fillWidth: true
-            visible: !root.selected && root.showFilters
+            visible: !root.selected && root.showFilters && root.tab === "browse"
             implicitHeight: filterCol.implicitHeight + Tokens.padding.large * 2
             radius: Tokens.rounding.large
             color: Colours.tPalette.m3surfaceContainer
@@ -415,7 +534,7 @@ PageBase {
 
         RowLayout {
             Layout.fillWidth: true
-            visible: !root.selected
+            visible: !root.selected && root.tab === "browse"
 
             StyledText {
                 Layout.fillWidth: true
@@ -446,7 +565,7 @@ PageBase {
 
         GridLayout {
             Layout.fillWidth: true
-            visible: !root.selected
+            visible: !root.selected && root.tab === "browse"
             opacity: LiveWallpaper.workshopLoading ? 0.5 : 1
             columns: Math.max(2, Math.floor((width + columnSpacing) / (190 + columnSpacing)))
             columnSpacing: Tokens.spacing.small
@@ -472,6 +591,8 @@ PageBase {
                     color: Colours.tPalette.m3surfaceContainer
 
                     StateLayer {
+                        id: itemState
+
                         anchors.fill: parent
                         radius: parent.radius
                         onClicked: root.open(item.modelData)
@@ -495,7 +616,20 @@ PageBase {
                                 source: item.modelData.preview
                                 fillMode: Image.PreserveAspectCrop
                                 asynchronous: true
-                                sourceSize.width: 400
+                                sourceSize.width: 800
+                            }
+
+                            // Hovered: its animated preview, like Wallpaper Engine's grid
+                            // (only this card's, so 30 GIFs never play at once)
+                            Loader {
+                                anchors.fill: parent
+                                active: itemState.containsMouse && item.modelData.previewFull.length > 0
+                                sourceComponent: AnimatedImage {
+                                    source: item.modelData.previewFull
+                                    fillMode: Image.PreserveAspectCrop
+                                    asynchronous: true
+                                    playing: true
+                                }
                             }
 
                             Badge {
@@ -536,7 +670,7 @@ PageBase {
         RowLayout {
             Layout.alignment: Qt.AlignHCenter
             Layout.topMargin: Tokens.spacing.medium
-            visible: !root.selected
+            visible: !root.selected && root.tab === "browse"
             spacing: Tokens.spacing.small
 
             TextButton {
@@ -575,7 +709,9 @@ PageBase {
 
             readonly property var it: root.selected ? Object.assign({}, root.selected, LiveWallpaper.workshopItem?.id === root.selected.id ? LiveWallpaper.workshopItem : {}) : null
             readonly property var mine: it ? LiveWallpaper.wallpapers.find(w => w.id === it.id) : null
-            readonly property bool downloading: !!it && !mine && LiveWallpaper.steamPending.includes(it.id)
+            // Downloading into the library (DepotDownloader), this item
+            readonly property var dl: it && LiveWallpaper.download?.id === it.id ? LiveWallpaper.download : null
+            readonly property bool downloading: !!dl && ["starting", "qr", "progress"].includes(dl.state)
 
             Layout.fillWidth: true
             visible: !!root.selected
@@ -626,6 +762,8 @@ PageBase {
                     }
 
                     RowLayout {
+                        // Yours (no Steam rating in its details): no stars
+                        visible: typeof details.it?.rating === "number"
                         spacing: Tokens.spacing.small
 
                         Stars {
@@ -645,27 +783,28 @@ PageBase {
 
                     TextButton {
                         Layout.fillWidth: true
-                        text: details.mine ? Tr.tr("Use it") : details.downloading ? Tr.tr("Downloading…") : LiveWallpaper.steamSignedIn ? Tr.tr("Subscribe") : Tr.tr("Subscribe in Steam")
+                        text: details.mine ? Tr.tr("Use it") : details.downloading ? Tr.tr("Downloading…") : Tr.tr("Subscribe")
                         type: TextButton.Filled
-                        disabled: details.downloading || LiveWallpaper.steamBusy
+                        disabled: details.downloading
                         onClicked: {
                             if (details.mine) {
                                 root.nState.selectedLiveWallpaper = details.mine;
                                 root.nState.openSubPage(5);
-                            } else if (LiveWallpaper.steamSignedIn) {
-                                LiveWallpaper.steamSubscribe(details.it.id, true);
                             } else {
-                                LiveWallpaper.openInSteam(details.it.id);
+                                LiveWallpaper.getWallpaper(details.it.id);
                             }
                         }
                     }
 
                     TextButton {
                         Layout.fillWidth: true
-                        visible: LiveWallpaper.steamSignedIn && (details.downloading || details.mine?.source === "workshop")
+                        visible: details.mine?.source === "workshop"
                         text: Tr.tr("Unsubscribe")
                         type: TextButton.Tonal
-                        onClicked: LiveWallpaper.steamSubscribe(details.it.id, false)
+                        onClicked: {
+                            LiveWallpaper.removeWallpaper(details.it.id);
+                            root.selected = null;
+                        }
                     }
 
                     TextButton {
@@ -673,6 +812,81 @@ PageBase {
                         text: Tr.tr("Copy link")
                         type: TextButton.Tonal
                         onClicked: Quickshell.clipboardText = `https://steamcommunity.com/sharedfiles/filedetails/?id=${details.it.id}`
+                    }
+                }
+            }
+
+            // The download: the one-time sign-in code, progress, errors
+            StyledRect {
+                Layout.fillWidth: true
+                visible: !!details.dl && details.dl.state !== "done"
+                implicitHeight: dlRow.implicitHeight + Tokens.padding.medium * 2
+                radius: Tokens.rounding.large
+                color: Colours.tPalette.m3surfaceContainer
+
+                RowLayout {
+                    id: dlRow
+
+                    anchors.fill: parent
+                    anchors.margins: Tokens.padding.medium
+                    spacing: Tokens.spacing.large
+
+                    StyledRect {
+                        visible: details.dl?.state === "qr"
+                        implicitWidth: 196
+                        implicitHeight: 196
+                        radius: Tokens.rounding.medium
+                        color: "white"
+
+                        Image {
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            source: details.dl?.qr ? `file://${details.dl.qr}` : ""
+                            cache: false
+                            smooth: false
+                            fillMode: Image.PreserveAspectFit
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: Tokens.spacing.small
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: {
+                                const d = details.dl;
+                                return !d ? "" : d.state === "starting" ? Tr.tr("Connecting to Steam…") : d.state === "qr" ? Tr.tr("First download: sign the downloader in once. Open the Steam app on your phone, tap the shield (Steam Guard) and scan this code.") : d.state === "progress" ? Tr.tr("Downloading… %1%").arg(Math.round(d.percent ?? 0)) : Tr.tr("Couldn't download it: %1").arg(d.error ?? "");
+                            }
+                            font: Tokens.font.body.medium
+                            wrapMode: Text.WordWrap
+                        }
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            visible: details.dl?.state === "qr"
+                            text: Tr.tr("Only once: the download session is kept in your keyring like the other sign-in, and is on disk only while a download runs.")
+                            color: Colours.palette.m3outline
+                            font: Tokens.font.label.small
+                            wrapMode: Text.WordWrap
+                        }
+
+                        RowLayout {
+                            spacing: Tokens.spacing.small
+
+                            TextButton {
+                                visible: details.dl?.state === "error"
+                                text: Tr.tr("Try again")
+                                type: TextButton.Tonal
+                                onClicked: LiveWallpaper.getWallpaper(details.it.id)
+                            }
+
+                            TextButton {
+                                text: details.downloading ? Tr.tr("Cancel") : Tr.tr("Close")
+                                type: TextButton.Text
+                                onClicked: LiveWallpaper.cancelDownload()
+                            }
+                        }
                     }
                 }
             }
@@ -689,8 +903,8 @@ PageBase {
 
             StyledText {
                 Layout.fillWidth: true
-                visible: !details.mine
-                text: details.downloading ? Tr.tr("Steam is downloading it; it shows up among your wallpapers when done.") : LiveWallpaper.steamSignedIn ? Tr.tr("Steam downloads it once subscribed; it then shows up among your wallpapers.") : Tr.tr("Subscribe on its page in Steam (or sign in above to do it here): the download then shows up among your wallpapers by itself.")
+                visible: !details.mine && !details.dl
+                text: LiveWallpaper.steamSignedIn ? Tr.tr("Subscribe downloads it into your library and adds it to your Steam subscriptions.") : Tr.tr("Subscribe downloads it into your library. Sign in above to also add it to your Steam subscriptions.")
                 color: Colours.palette.m3outline
                 font: Tokens.font.label.small
                 wrapMode: Text.WordWrap
@@ -765,7 +979,7 @@ PageBase {
         StyledText {
             Layout.fillWidth: true
             Layout.topMargin: Tokens.spacing.small
-            text: Tr.tr("Steam has to be running and signed in; Wallpaper Engine has to be in your Steam library.")
+            text: Tr.tr("Downloads need a Steam account that owns Wallpaper Engine; neither the Steam client nor Wallpaper Engine has to be installed.")
             color: Colours.palette.m3outline
             font: Tokens.font.label.small
             wrapMode: Text.WordWrap

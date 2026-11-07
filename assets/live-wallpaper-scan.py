@@ -20,6 +20,8 @@ user properties (general.properties) and when it was added.
                                                live-wallpaper.json) into Wallpaper Engine's config.json
 """
 
+import gzip
+import hashlib
 import json
 import os
 import re
@@ -235,7 +237,39 @@ SORTS = {
     "updated": "lastupdated",
     "subscribed": "totaluniquesubscribers",
 }
-UA = {"User-Agent": "Mozilla/5.0", "Accept-Language": "en"}
+UA = {"User-Agent": "Mozilla/5.0", "Accept-Language": "en", "Accept-Encoding": "gzip"}
+# Pages and details seen before: shown at once, then refreshed (Steam takes
+# ~1.5 s to answer); the next page and the other sorts are fetched ahead.
+CACHE = Path(os.environ.get("XDG_CACHE_HOME") or HOME / ".cache") / "caelestia/workshop"
+
+
+def _get(req) -> str:
+    with urllib.request.urlopen(req, timeout=20) as r:
+        data = r.read()
+        if r.headers.get("Content-Encoding") == "gzip":
+            data = gzip.decompress(data)
+    return data.decode("utf-8", "replace")
+
+
+def _cache_path(key: str) -> Path:
+    return CACHE / (hashlib.sha1(key.encode()).hexdigest() + ".json")
+
+
+def _cache_read(key: str) -> str:
+    try:
+        return _cache_path(key).read_text()
+    except OSError:
+        return ""
+
+
+def _cache_write(key: str, text: str) -> None:
+    try:
+        CACHE.mkdir(parents=True, exist_ok=True)
+        tmp = _cache_path(key).with_suffix(".tmp")
+        tmp.write_text(text)
+        tmp.replace(_cache_path(key))
+    except OSError:
+        pass
 
 
 def _ssr(html: str) -> dict:
@@ -264,7 +298,7 @@ def _item(r: dict, names: dict) -> dict:
     return {
         "id": str(r.get("publishedfileid", "")),
         "title": r.get("title", ""),
-        "preview": preview + ("?imw=400&imh=400&ima=fit" if preview and "?" not in preview else ""),
+        "preview": preview + ("?imw=800&imh=800&ima=fit" if preview and "?" not in preview else ""),
         "previewFull": preview,
         "rating": r.get("star_rating", 0) or 0,
         "votes": r.get("total_votes", 0) or 0,
@@ -280,18 +314,7 @@ def _item(r: dict, names: dict) -> dict:
     }
 
 
-def workshop(args: list[str]) -> None:
-    opt = {"sort": "trend", "days": "7", "page": "1", "search": ""}
-    tags: list[str] = []
-    mature = False
-    it = iter(args)
-    for a in it:
-        if a == "--tag":
-            tags.append(next(it, ""))
-        elif a == "--mature":
-            mature = True
-        elif a.startswith("--"):
-            opt[a[2:]] = next(it, "")
+def _browse_url(opt: dict, tags: list[str], mature: bool) -> str:
     q = {
         "appid": "431960",
         "section": "readytouseitems",
@@ -308,12 +331,12 @@ def workshop(args: list[str]) -> None:
     # Without --mature only "Everyone" (Steam shows the rest only when asked)
     for t in tags + ([] if mature or any(t in ("Questionable", "Mature") for t in tags) else ["Everyone"]):
         url += "&requiredtags%5B%5D=" + urllib.parse.quote(t)
-    try:
-        html = urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=20).read().decode("utf-8", "replace")
-        data = _ssr(html)
-    except Exception as e:
-        json.dump({"error": str(e), "items": []}, sys.stdout)
-        return
+    return url
+
+
+def _fetch_page(url: str, page: int) -> str:
+    """A browse page as our JSON (text), or raises."""
+    data = _ssr(_get(urllib.request.Request(url, headers=UA)))
     names, browse, declared = {}, {}, []
     for qd in data.get("renderContext", {}).get("queryData", {}).get("queries", []):
         key = qd.get("queryKey") or [""]
@@ -329,27 +352,87 @@ def workshop(args: list[str]) -> None:
                          "tags": [t.get("name", "") for t in g.get("tags", []) if not t.get("admin_only")]}
                         for g in st.get("mtx_tags", [])]
     if not browse:
-        json.dump({"error": "Steam changed its Workshop page (no results data found)", "items": []}, sys.stdout)
-        return
-    json.dump({
+        raise ValueError("Steam changed its Workshop page (no results data found)")
+    return json.dumps({
         "items": [_item(r, names) for r in browse.get("results", [])],
-        "page": int(opt["page"] or 1),
+        "page": page,
         "pages": browse.get("total_pages", 1),
         "total": browse.get("total_count", 0),
         "tagGroups": declared,
-    }, sys.stdout)
+    })
+
+
+def workshop(args: list[str]) -> None:
+    """JSON lines: the cached page at once (if any, "cached": true), then
+    Steam's. Then, silently, the next page and the other sorts into the
+    cache. --prefetch: only that (no output)."""
+    opt = {"sort": "trend", "days": "7", "page": "1", "search": ""}
+    tags: list[str] = []
+    mature = prefetch = False
+    it = iter(args)
+    for a in it:
+        if a == "--tag":
+            tags.append(next(it, ""))
+        elif a == "--mature":
+            mature = True
+        elif a == "--prefetch":
+            prefetch = True
+        elif a.startswith("--"):
+            opt[a[2:]] = next(it, "")
+    page = int(opt["page"] or 1)
+    url = _browse_url(opt, tags, mature)
+    if not prefetch:
+        cached = _cache_read(url)
+        if cached:
+            print(cached[:-1] + ', "cached": true}', flush=True)
+        try:
+            fresh = _fetch_page(url, page)
+            _cache_write(url, fresh)
+            if fresh != cached:
+                print(fresh, flush=True)
+        except Exception as e:
+            if not cached:
+                print(json.dumps({"error": str(e), "items": []}), flush=True)
+            return
+        # The rest in the background (detached): the settings app sees this
+        # process end now, and opening another page doesn't cut it short
+        sys.stdout.flush()
+        if os.fork() != 0:
+            return
+        os.setsid()
+        devnull = os.open(os.devnull, os.O_RDWR)
+        for fd in (0, 1, 2):
+            os.dup2(devnull, fd)
+    # Ahead: the next page, and (from the first page) the other sorts
+    ahead = [dict(opt, page=str(page + 1))]
+    if page == 1 and not opt["search"]:
+        ahead += [dict(opt, sort=srt, page="1") for srt in SORTS if srt != opt["sort"]]
+    for o in ahead if not prefetch else [opt]:
+        u = _browse_url(o, tags, mature)
+        if prefetch or not _cache_read(u):
+            try:
+                _cache_write(u, _fetch_page(u, int(o["page"])))
+            except Exception:
+                pass
+    if not prefetch:
+        os._exit(0)
 
 
 def workshop_item(ids: list[str]) -> None:
+    key = "item:" + ",".join(ids)
+    cached = _cache_read(key)
+    if cached:
+        print(cached, flush=True)
     body = {"itemcount": str(len(ids))}
     for i, x in enumerate(ids):
         body[f"publishedfileids[{i}]"] = x
     try:
         req = urllib.request.Request("https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/",
                                      data=urllib.parse.urlencode(body).encode(), headers=UA)
-        res = json.load(urllib.request.urlopen(req, timeout=20)).get("response", {})
+        res = json.loads(_get(req)).get("response", {})
     except Exception as e:
-        json.dump({"error": str(e), "items": []}, sys.stdout)
+        if not cached:
+            print(json.dumps({"error": str(e), "items": []}), flush=True)
         return
     items = []
     for d in res.get("publishedfiledetails", []):
@@ -358,8 +441,14 @@ def workshop_item(ids: list[str]) -> None:
         i = _item(d, {})
         i["description"] = d.get("description", "")
         i["views"] = d.get("views", 0)
+        # Not in this answer (the browse page has them): don't blank them
+        for k in ("rating", "votes", "author", "preview"):
+            i.pop(k, None)
         items.append(i)
-    json.dump({"items": items}, sys.stdout)
+    fresh = json.dumps({"items": items})
+    _cache_write(key, fresh)
+    if fresh != cached:
+        print(fresh, flush=True)
 
 
 # Wallpaper Engine's config.json, where the renderer looks for playlists: in
