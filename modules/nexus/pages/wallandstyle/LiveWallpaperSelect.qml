@@ -167,6 +167,14 @@ PageBase {
                             onClicked: LiveWallpaper.togglePause()
                         }
 
+                        // A playlist: its next wallpaper
+                        TextButton {
+                            visible: LiveWallpaper.current.startsWith("playlist:")
+                            text: Tr.tr("Next")
+                            type: TextButton.Tonal
+                            onClicked: LiveWallpaper.nextInPlaylist(LiveWallpaper.current.slice(9))
+                        }
+
                         TextButton {
                             text: Tr.tr("Random")
                             type: TextButton.Tonal

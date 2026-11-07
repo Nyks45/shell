@@ -126,7 +126,22 @@ if "*" in screens:
         mons = []
     screens = {m: screens["*"] for m in mons} or screens
 overrides = c.get("overrides") or {}
-walls = [v for v in screens.values() if not v.startswith("playlist:")]
+# Playlists are run by the settings app: a playlist's screen shows its
+# current wallpaper (playlistNow), like any other
+lists = {p.get("name"): p for p in c.get("playlists") or []}
+now = c.get("playlistNow") or {}
+def resolve(v):
+    if not v.startswith("playlist:"):
+        return v
+    pl = lists.get(v[9:]) or {}
+    items = pl.get("items") or []
+    cur = (now.get(v[9:]) or {}).get("path", "")
+    return cur if cur in items else (items[0] if items else "")
+screens = {k: resolve(v) for k, v in screens.items()}
+screens = {k: v for k, v in screens.items() if v}
+if not screens:
+    sys.exit(0)
+walls = list(screens.values())
 # The first line: a wallpaper folder (for the saved frame and the colours), or "-"
 args = [walls[0] if walls else "-"]
 # Process-wide options: the first shown wallpaper's own values win
@@ -150,11 +165,7 @@ if c.get("span") and len(screens) > 1 and len(set(screens.values())) == 1 and wa
     args += ["--screen-span", ",".join(screens), "--bg", path] + output_opts(path)
 else:
     for screen, path in screens.items():
-        if path.startswith("playlist:"):
-            # Wallpaper Engine's config.json playlist: the renderer rotates it
-            args += ["--screen-root", screen, "--playlist", path[len("playlist:"):]]
-        else:
-            args += ["--screen-root", screen, "--bg", path] + output_opts(path)
+        args += ["--screen-root", screen, "--bg", path] + output_opts(path)
 args += ["--fps", str(c.get("fps") or 60)]
 quality = c.get("postProcessing") or "ultra"
 if quality not in ("off", "normal", "ultra"):

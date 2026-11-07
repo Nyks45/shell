@@ -23,12 +23,24 @@ PageBase {
     property string pickQuery
     readonly property var monitors: Hypr.monitors.values.map(m => m.name)
 
+    function modeText(pl: var): string {
+        const m = pl.mode ?? "timer";
+        if (m === "timer") {
+            const d = pl.delay ?? 30;
+            return d >= 60 ? Tr.tr("every %1 h %2 min").arg(Math.floor(d / 60)).arg(d % 60) : Tr.tr("every %1 min").arg(d);
+        }
+        return m === "login" ? Tr.tr("at login") : m === "timeofday" ? Tr.tr("by time of day") : m === "weekday" ? Tr.tr("by day of week") : Tr.tr("by hand");
+    }
+
     function edit(pl: var): void {
         draft = pl ? JSON.parse(JSON.stringify(pl)) : {
             name: "",
             items: [],
             delay: 30,
-            order: "sequential"
+            order: "sequential",
+            mode: "timer",
+            beginFirst: false,
+            whilePaused: false
         };
         draftOriginal = pl?.name ?? "";
     }
@@ -112,7 +124,7 @@ PageBase {
 
                         StyledText {
                             Layout.fillWidth: true
-                            text: [Tr.trN("%n wallpaper", "%n wallpapers", plRow.modelData.items.length), Tr.tr("every %1 min").arg(plRow.modelData.delay), plRow.modelData.order === "random" ? Tr.tr("shuffled") : Tr.tr("in order"), plRow.playingOn.length ? Tr.tr("playing") : ""].filter(s => s).join(" · ")
+                            text: [Tr.trN("%n wallpaper", "%n wallpapers", plRow.modelData.items.length), root.modeText(plRow.modelData), plRow.modelData.order === "random" ? Tr.tr("shuffled") : Tr.tr("in order"), plRow.playingOn.length ? Tr.tr("playing") : ""].filter(s => s).join(" · ")
                             color: Colours.palette.m3outline
                             font: Tokens.font.label.small
                             elide: Text.ElideRight
@@ -169,16 +181,89 @@ PageBase {
                 })
         }
 
-        StepperRow {
+        // Wallpaper Engine's "Change wallpaper"
+        SelectRow {
             visible: !!root.draft
-            label: Tr.tr("Change every")
-            subtext: Tr.tr("Minutes")
-            value: root.draft?.delay ?? 30
-            from: 1
-            to: 1440
+            label: Tr.tr("Change wallpaper")
+            menuItems: [
+                MenuItem {
+                    text: Tr.tr("On a timer")
+                    value: "timer"
+                },
+                MenuItem {
+                    text: Tr.tr("When logging in")
+                    value: "login"
+                },
+                MenuItem {
+                    text: Tr.tr("Time of day")
+                    value: "timeofday"
+                },
+                MenuItem {
+                    text: Tr.tr("Day of week")
+                    value: "weekday"
+                },
+                MenuItem {
+                    text: Tr.tr("Never (by hand)")
+                    value: "never"
+                }
+            ]
+            active: menuItems.find(i => i.value === (root.draft?.mode ?? "timer")) ?? null
+            onSelected: item => root.draft = Object.assign({}, root.draft, {
+                    mode: item.value
+                })
+        }
+
+        StyledText {
+            Layout.fillWidth: true
+            Layout.leftMargin: Tokens.padding.large
+            visible: !!root.draft && ["timeofday", "weekday"].includes(root.draft?.mode ?? "")
+            text: root.draft?.mode === "timeofday" ? Tr.tr("The day is split evenly between the wallpapers, in their order (the first from midnight).") : Tr.tr("One wallpaper per day, Monday first, in their order (seven at most are used).")
+            color: Colours.palette.m3outline
+            font: Tokens.font.label.small
+            wrapMode: Text.WordWrap
+        }
+
+        StepperRow {
+            visible: !!root.draft && (root.draft?.mode ?? "timer") === "timer"
+            label: Tr.tr("Hours")
+            value: Math.floor((root.draft?.delay ?? 30) / 60)
+            from: 0
+            to: 24
+            stepSize: 1
+            onMoved: v => root.draft = Object.assign({}, root.draft, {
+                    delay: Math.max(1, Math.round(v) * 60 + (root.draft.delay ?? 30) % 60)
+                })
+        }
+
+        StepperRow {
+            visible: !!root.draft && (root.draft?.mode ?? "timer") === "timer"
+            label: Tr.tr("Minutes")
+            value: (root.draft?.delay ?? 30) % 60
+            from: 0
+            to: 55
             stepSize: 5
             onMoved: v => root.draft = Object.assign({}, root.draft, {
-                    delay: Math.max(1, Math.round(v))
+                    delay: Math.max(1, Math.floor((root.draft.delay ?? 30) / 60) * 60 + Math.round(v))
+                })
+        }
+
+        ToggleRow {
+            visible: !!root.draft
+            text: Tr.tr("Always begin with the first wallpaper")
+            subtext: Tr.tr("When the playlist is put on (else it goes on where it was)")
+            checked: root.draft?.beginFirst ?? false
+            onToggled: root.draft = Object.assign({}, root.draft, {
+                    beginFirst: checked
+                })
+        }
+
+        ToggleRow {
+            visible: !!root.draft
+            text: Tr.tr("Change while paused")
+            subtext: Tr.tr("Also when the live wallpaper is paused")
+            checked: root.draft?.whilePaused ?? false
+            onToggled: root.draft = Object.assign({}, root.draft, {
+                    whilePaused: checked
                 })
         }
 

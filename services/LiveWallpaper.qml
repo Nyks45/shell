@@ -67,7 +67,11 @@ Singleton {
     readonly property var screens: config.screens ?? {}
     // The wallpaper on all screens (or the first screen's)
     readonly property string current: screens["*"] ?? Object.values(screens)[0] ?? ""
-    readonly property var currentInfo: wallpapers.find(w => w.path === current) ?? null
+    // The wallpaper shown (a playlist's current one too)
+    readonly property var currentInfo: {
+        const p = current.startsWith("playlist:") ? playlistPath(current.slice(9)) : current;
+        return wallpapers.find(w => w.path === p) ?? null;
+    }
     readonly property var playlists: config.playlists ?? []
 
     function setting(key: string, fallback: var): var {
@@ -168,6 +172,8 @@ Singleton {
             });
         changes.paused = false; // a new wallpaper plays
         patch(changes);
+        if (target.startsWith("playlist:"))
+            startPlaylist(target.slice(9));
         // Caelestia's own wallpaper stays hidden under the live one (the script
         // still sets it, for the lock screen and the colours)
         GlobalConfig.background.wallpaperEnabled = false;
@@ -283,7 +289,114 @@ Singleton {
             restartTimer.restart();
     }
 
-    // Playlists (Wallpaper Engine's format: the renderer rotates them itself)
+    // Playlists, run here (not by the renderer: it only reads them from a
+    // Wallpaper Engine install). Like Wallpaper Engine's: change on a timer,
+    // when logging in, by time of day, by day of week, or never (by hand);
+    // in order or shuffled. The wallpaper each one shows now is in
+    // playlistNow { name: { path, changed (ms) } }; the start script shows it.
+    function playlist(name: string): var {
+        return playlists.find(p => p.name === name) ?? null;
+    }
+
+    function playlistPath(name: string): string {
+        const pl = playlist(name);
+        const now = (config.playlistNow ?? {})[name]?.path ?? "";
+        return pl && pl.items.includes(now) ? now : (pl?.items[0] ?? "");
+    }
+
+    function playingPlaylists(): var {
+        return [...new Set(Object.values(screens).filter(v => v.startsWith("playlist:")).map(v => v.slice(9)))];
+    }
+
+    // Show item `path` of playlist `name` (restarts the renderer if it's shown)
+    function setPlaylistItem(name: string, path: string): void {
+        patch({
+            playlistNow: Object.assign({}, config.playlistNow ?? {}, {
+                [name]: {
+                    path,
+                    changed: Date.now()
+                }
+            })
+        });
+        if (playingPlaylists().includes(name))
+            restartTimer.restart();
+    }
+
+    // The next one: in order, or a random other one
+    function nextInPlaylist(name: string): void {
+        const pl = playlist(name);
+        if (!pl || !pl.items.length)
+            return;
+        const items = pl.items.filter(i => wallpapers.length === 0 || wallpapers.some(w => w.path === i));
+        if (!items.length)
+            return;
+        const cur = items.indexOf(playlistPath(name));
+        let next;
+        if (pl.order === "random" && items.length > 1) {
+            do
+                next = Math.floor(Math.random() * items.length);
+            while (next === cur);
+        } else {
+            next = (cur + 1) % items.length;
+        }
+        setPlaylistItem(name, items[next]);
+    }
+
+    // Which item the clock picks (time of day: the day split between them;
+    // day of week: one per weekday, Monday first), or -1
+    function scheduledIndex(pl: var): int {
+        const n = pl.items.length;
+        if (!n)
+            return -1;
+        const d = new Date();
+        if (pl.mode === "timeofday")
+            return Math.min(n - 1, Math.floor((d.getHours() * 60 + d.getMinutes()) / (1440 / n)));
+        if (pl.mode === "weekday")
+            return ((d.getDay() + 6) % 7) % n;
+        return -1;
+    }
+
+    // Every 30 s (and at start): change what's due
+    function tickPlaylists(): void {
+        for (const name of playingPlaylists()) {
+            const pl = playlist(name);
+            if (!pl)
+                continue;
+            if (paused && !pl.whilePaused)
+                continue;
+            const mode = pl.mode ?? "timer";
+            if (mode === "timer") {
+                const changed = (config.playlistNow ?? {})[name]?.changed ?? 0;
+                if (Date.now() - changed >= Math.max(1, pl.delay ?? 30) * 60000)
+                    nextInPlaylist(name);
+            } else if (mode === "timeofday" || mode === "weekday") {
+                const i = scheduledIndex(pl);
+                if (i >= 0 && pl.items[i] !== playlistPath(name))
+                    setPlaylistItem(name, pl.items[i]);
+            }
+        }
+    }
+
+    // A playlist put on a screen: from its first wallpaper when it says so
+    // (or the clock's, for time of day / day of week)
+    function startPlaylist(name: string): void {
+        const pl = playlist(name);
+        if (!pl)
+            return;
+        const i = scheduledIndex(pl);
+        if (i >= 0)
+            setPlaylistItem(name, pl.items[i]);
+        else if (pl.beginFirst || !(config.playlistNow ?? {})[name])
+            setPlaylistItem(name, pl.items[0]);
+        else
+            setPlaylistItem(name, playlistPath(name)); // its timer starts again
+    }
+
+    // "When logging in": the next one once per boot
+    function loginPlaylists(): void {
+        bootProc.running = true;
+    }
+
     function savePlaylist(pl: var, oldName: string): void {
         const list = playlists.filter(p => p.name !== (oldName || pl.name));
         list.push(pl);
@@ -291,7 +404,6 @@ Singleton {
         patch({
             playlists: list
         });
-        writePlaylists();
         // A playing one changed (or was renamed): show the new version
         const playing = Object.entries(screens).filter(([, v]) => v === `playlist:${oldName || pl.name}`);
         if (playing.length) {
@@ -309,14 +421,9 @@ Singleton {
         patch({
             playlists: playlists.filter(p => p.name !== name)
         });
-        writePlaylists();
         for (const [k, v] of Object.entries(screens))
             if (v === `playlist:${name}`)
                 stopScreen(k);
-    }
-
-    function writePlaylists(): void {
-        playlistTimer.restart();
     }
 
     function refresh(): void {
@@ -349,6 +456,7 @@ Singleton {
     // cleared when the last one closes
     property int settingsOpen
     property string workshopKey
+    property bool loginChecked
 
     function settingsOpened(): void {
         settingsOpen++;
@@ -526,10 +634,29 @@ Singleton {
     }
 
     Timer {
-        id: playlistTimer
+        running: root.playingPlaylists().length > 0
+        repeat: true
+        triggeredOnStart: true
+        interval: 30000
+        onTriggered: root.tickPlaylists()
+    }
 
-        interval: 300
-        onTriggered: Quickshell.execDetached(["env", `LIVE_WALLPAPER_ASSETS=${root.setting("assetsDir", "")}`, "python3", "-I", root.scanner, "playlists", root.configPath])
+    // This boot's id: "when logging in" playlists change once per boot
+    Process {
+        id: bootProc
+
+        command: ["cat", "/proc/sys/kernel/random/boot_id"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const boot = text.trim();
+                if (!boot || boot === root.setting("playlistBoot", ""))
+                    return;
+                root.setQuiet("playlistBoot", boot);
+                for (const name of root.playingPlaylists())
+                    if ((root.playlist(name)?.mode ?? "timer") === "login")
+                        root.nextInPlaylist(name);
+            }
+        }
     }
 
     Process {
@@ -790,6 +917,11 @@ Singleton {
                 root.config = JSON.parse(text());
             } catch (e) {
                 root.config = {};
+            }
+            // Once per shell start: "when logging in" playlists
+            if (!root.loginChecked) {
+                root.loginChecked = true;
+                root.loginPlaylists();
             }
         }
         // None yet: take over what the Linux Wallpaper Engine GUI had (its

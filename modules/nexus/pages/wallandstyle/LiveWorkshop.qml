@@ -703,6 +703,7 @@ PageBase {
                 font: Tokens.font.label.medium
             }
 
+
             TextButton {
                 text: Tr.tr("Next")
                 type: TextButton.Tonal
@@ -713,6 +714,17 @@ PageBase {
                     root.flickable.contentY = 0;
                 }
             }
+        }
+
+        // Steam lists 1000 pages (30,000 results) of any list at most
+        StyledText {
+            Layout.fillWidth: true
+            visible: !root.selected && root.tab === "browse" && root.pages >= 1000 && (LiveWallpaper.workshopPage.total ?? 0) > root.pages * 30
+            text: Tr.tr("Steam shows the first 1000 pages of any list (%1 wallpapers in all): search or filter to find others.").arg(root.count(LiveWallpaper.workshopPage.total ?? 0))
+            color: Colours.palette.m3outline
+            font: Tokens.font.label.small
+            wrapMode: Text.WordWrap
+            horizontalAlignment: Text.AlignHCenter
         }
 
         // ---- An item's details ----------------------------------------
