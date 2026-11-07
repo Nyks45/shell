@@ -29,7 +29,8 @@ Singleton {
     property bool hasScript
     property bool hasEngine
     property bool running
-    property bool paused
+    // Paused (saved: the start script pauses again after restarts and logins)
+    readonly property bool paused: config.paused ?? false
     property string engineVersion
     property string engineLatest
     property string assetsDetected
@@ -113,6 +114,16 @@ Singleton {
             save(JSON.parse(out));
     }
 
+    // Favourites (Wallpaper Engine's heart), by folder
+    function isFavourite(path: string): bool {
+        return (config.favourites ?? []).includes(path);
+    }
+
+    function toggleFavourite(path: string): void {
+        const fav = config.favourites ?? [];
+        setQuiet("favourites", fav.includes(path) ? fav.filter(p => p !== path) : fav.concat([path]));
+    }
+
     function info(path: string): var {
         return wallpapers.find(w => w.path === path) ?? null;
     }
@@ -155,13 +166,13 @@ Singleton {
             changes.history = Object.assign({}, config.history ?? {}, {
                 [target]: Date.now()
             });
+        changes.paused = false; // a new wallpaper plays
         patch(changes);
         // Caelestia's own wallpaper stays hidden under the live one (the script
         // still sets it, for the lock screen and the colours)
         GlobalConfig.background.wallpaperEnabled = false;
-        paused = false;
         restartTimer.restart();
-        checkTimer.restart();
+        checkPending = true; // checked once the restart is done (see startProc)
     }
 
     // Nothing on one monitor (or all)
@@ -184,9 +195,9 @@ Singleton {
 
     function stop(): void {
         patch({
-            screens: {}
+            screens: {},
+            paused: false
         });
-        paused = false;
         Quickshell.execDetached(["live-wallpaper", "stop"]);
         runningTimer.restart();
     }
@@ -225,8 +236,9 @@ Singleton {
     property int randomTries
 
     function togglePause(): void {
-        paused = !paused;
-        Quickshell.execDetached(["live-wallpaper", paused ? "pause" : "resume"]);
+        const p = !paused;
+        setQuiet("paused", p);
+        Quickshell.execDetached(["live-wallpaper", p ? "pause" : "resume"]);
     }
 
     // Per wallpaper: scaling, volume, its own properties (--set-property)
@@ -465,7 +477,36 @@ Singleton {
         id: restartTimer
 
         interval: 500
-        onTriggered: Quickshell.execDetached(["live-wallpaper", "start"])
+        onTriggered: {
+            if (startProc.running)
+                startProc.again = true;
+            else
+                startProc.running = true;
+        }
+    }
+
+    // A wallpaper applied: is it still running a few seconds after its start?
+    property bool checkPending
+
+    // The start script (stops the old renderer, up to 2 s, then starts); the
+    // "does it work" check counts from when it's done, not from the click
+    Process {
+        id: startProc
+
+        property bool again
+
+        command: ["live-wallpaper", "start"]
+        onExited: {
+            if (again) {
+                again = false;
+                running = true;
+                return;
+            }
+            if (root.checkPending) {
+                root.checkPending = false;
+                checkTimer.restart();
+            }
+        }
     }
 
     // A few seconds after applying: still running? If not, the wallpaper

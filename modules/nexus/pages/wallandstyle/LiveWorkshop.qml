@@ -810,11 +810,22 @@ PageBase {
                     }
 
                     TextButton {
+                        property bool confirm
+
                         Layout.fillWidth: true
                         visible: details.mine?.source === "workshop"
-                        text: Tr.tr("Unsubscribe")
+                        text: confirm ? Tr.tr("Remove it? Click again") : Tr.tr("Unsubscribe")
                         type: TextButton.Tonal
                         onClicked: {
+                            if (!confirm) {
+                                confirm = true;
+                                return;
+                            }
+                            confirm = false;
+                            // Not on a screen any more before its folder goes
+                            for (const [screen, path] of Object.entries(LiveWallpaper.screens))
+                                if (path === details.mine.path)
+                                    LiveWallpaper.stopScreen(screen);
                             LiveWallpaper.removeWallpaper(details.it.id);
                             root.selected = null;
                         }

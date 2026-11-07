@@ -21,6 +21,13 @@ PageBase {
     property string query
     property string typeFilter
     property string tagFilter
+    // Wallpaper Engine's filters: source (workshop / built-in / mine / preset),
+    // age rating (g / pg13 / r), favourites only
+    property string sourceFilter
+    property string ageFilter
+    property bool favouritesOnly
+    readonly property bool filtering: !!(query || typeFilter || tagFilter || sourceFilter || ageFilter || favouritesOnly || compatFilter)
+    readonly property bool hasApps: LiveWallpaper.wallpapers.some(w => w.type === "application")
     readonly property string compatFilter: LiveWallpaper.setting("compatFilter", "")
     readonly property var allTags: {
         const count = {};
@@ -38,17 +45,32 @@ PageBase {
         // Only what the filter and sort in use read (a binding depends on what it
         // touched): changing a playback setting mustn't rebuild every card
         const hist = sortBy === "recent" ? (LiveWallpaper.config.history ?? {}) : {};
+        const fav = new Set(favouritesOnly || sortBy === "favourite" ? (LiveWallpaper.config.favourites ?? []) : []);
         const list = LiveWallpaper.wallpapers.filter(w => {
             const grade = compatFilter ? (LiveWallpaper.compat(w.path)?.grade ?? "") : "";
-            return (!typeFilter || w.type === typeFilter) && (!tagFilter || w.tags.includes(tagFilter)) && (showMature || w.rating === "g" || w.rating === "") && (!q || `${w.title} ${w.tags.join(" ")}`.toLowerCase().includes(q)) && (!compatFilter || (compatFilter === "working" ? grade === "perfect" || grade === "minor" : compatFilter === "untested" ? !grade : compatFilter === "hidebroken" ? grade !== "broken" : true));
+            const src = w.source === "folder" ? "mine" : w.source;
+            return (!typeFilter || w.type === typeFilter) && (!tagFilter || w.tags.includes(tagFilter)) && (!sourceFilter || src === sourceFilter) && (!ageFilter || (w.rating || "g") === ageFilter) && (!favouritesOnly || fav.has(w.path)) && (showMature || w.rating === "g" || w.rating === "") && (!q || `${w.title} ${w.tags.join(" ")}`.toLowerCase().includes(q)) && (!compatFilter || (compatFilter === "working" ? grade === "perfect" || grade === "minor" : compatFilter === "untested" ? !grade : compatFilter === "hidebroken" ? grade !== "broken" : true));
         });
         const by = {
             name: (a, b) => a.title.localeCompare(b.title),
+            favourite: (a, b) => fav.has(b.path) - fav.has(a.path) || a.title.localeCompare(b.title),
             newest: (a, b) => b.added - a.added,
+            updated: (a, b) => (b.updated ?? 0) - (a.updated ?? 0),
             size: (a, b) => b.size - a.size,
             recent: (a, b) => (hist[b.path] ?? 0) - (hist[a.path] ?? 0) || b.added - a.added
         }[sortBy] ?? ((a, b) => 0);
         return list.sort(by);
+    }
+
+    function resetFilters(): void {
+        query = "";
+        searchField.text = "";
+        typeFilter = "";
+        tagFilter = "";
+        sourceFilter = "";
+        ageFilter = "";
+        favouritesOnly = false;
+        LiveWallpaper.setQuiet("compatFilter", "");
     }
 
     function openInfo(w: var): void {
@@ -214,7 +236,7 @@ PageBase {
 
         // The library
         SectionHeader {
-            text: LiveWallpaper.scanning ? Tr.tr("Looking for wallpapers…") : Tr.tr("Your wallpapers (%1)").arg(root.shown.length)
+            text: LiveWallpaper.scanning ? Tr.tr("Looking for wallpapers…") : root.filtering ? Tr.tr("Your wallpapers (%1 of %2)").arg(root.shown.length).arg(LiveWallpaper.wallpapers.length) : Tr.tr("Your wallpapers (%1)").arg(root.shown.length)
         }
 
         RowLayout {
@@ -223,7 +245,10 @@ PageBase {
             spacing: Tokens.spacing.small
 
             StyledTextField {
+                id: searchField
+
                 Layout.fillWidth: true
+                leadingIcon: "search"
                 placeholderText: Tr.tr("Search by name or tag")
                 onTextChanged: root.query = text
             }
@@ -246,7 +271,12 @@ PageBase {
                         value: "web",
                         text: Tr.tr("Web")
                     }
-                ]
+                ].concat(root.hasApps ? [
+                    {
+                        value: "application",
+                        text: Tr.tr("Apps")
+                    }
+                ] : [])
 
                 TextButton {
                     required property var modelData
@@ -257,6 +287,33 @@ PageBase {
                     type: TextButton.Tonal
                     onClicked: root.typeFilter = modelData.value
                 }
+            }
+
+            TextButton {
+                text: Tr.tr("Favourites")
+                isToggle: true
+                checked: root.favouritesOnly
+                type: TextButton.Tonal
+                onClicked: root.favouritesOnly = !root.favouritesOnly
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            visible: root.filtering
+            Layout.bottomMargin: Tokens.spacing.small
+
+            StyledText {
+                Layout.fillWidth: true
+                text: Tr.tr("Showing %1 of %2").arg(root.shown.length).arg(LiveWallpaper.wallpapers.length)
+                color: Colours.palette.m3onSurfaceVariant
+                font: Tokens.font.label.medium
+            }
+
+            TextButton {
+                text: Tr.tr("Reset filters")
+                type: TextButton.Text
+                onClicked: root.resetFilters()
             }
         }
 
@@ -269,16 +326,24 @@ PageBase {
                     value: "recent"
                 },
                 MenuItem {
-                    text: Tr.tr("Newest")
-                    value: "newest"
-                },
-                MenuItem {
                     text: Tr.tr("Name")
                     value: "name"
                 },
                 MenuItem {
-                    text: Tr.tr("Size")
+                    text: Tr.tr("Favourite")
+                    value: "favourite"
+                },
+                MenuItem {
+                    text: Tr.tr("File size")
                     value: "size"
+                },
+                MenuItem {
+                    text: Tr.tr("Subscription date")
+                    value: "newest"
+                },
+                MenuItem {
+                    text: Tr.tr("Last updated")
+                    value: "updated"
                 }
             ]
             active: menuItems.find(i => i.value === root.sortBy) ?? null
@@ -310,6 +375,59 @@ PageBase {
                     value: modelData
                 }
             }
+        }
+
+        SelectRow {
+            label: Tr.tr("Source")
+            menuItems: [
+                MenuItem {
+                    text: Tr.tr("Any")
+                    value: ""
+                },
+                MenuItem {
+                    text: Tr.tr("Workshop")
+                    value: "workshop"
+                },
+                MenuItem {
+                    text: Tr.tr("Official")
+                    value: "built-in"
+                },
+                MenuItem {
+                    text: Tr.tr("My wallpapers")
+                    value: "mine"
+                },
+                MenuItem {
+                    text: Tr.tr("Presets")
+                    value: "preset"
+                }
+            ]
+            active: menuItems.find(i => i.value === root.sourceFilter) ?? null
+            onSelected: item => root.sourceFilter = item.value
+        }
+
+        SelectRow {
+            visible: root.showMature
+            label: Tr.tr("Age rating")
+            menuItems: [
+                MenuItem {
+                    text: Tr.tr("Any")
+                    value: ""
+                },
+                MenuItem {
+                    text: Tr.tr("Everyone")
+                    value: "g"
+                },
+                MenuItem {
+                    text: Tr.tr("Questionable")
+                    value: "pg13"
+                },
+                MenuItem {
+                    text: Tr.tr("Mature")
+                    value: "r"
+                }
+            ]
+            active: menuItems.find(i => i.value === root.ageFilter) ?? null
+            onSelected: item => root.ageFilter = item.value
         }
 
         SelectRow {
@@ -678,6 +796,37 @@ PageBase {
                 source: card.modelData.preview
                 still: card.modelData.still ?? ""
                 playing: cardState.containsMouse
+
+                // Favourite: always shown when set, else on hover
+                StyledRect {
+                    readonly property bool fav: LiveWallpaper.isFavourite(card.modelData.path)
+
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.margins: 6
+                    visible: fav || cardState.containsMouse || heartArea.containsMouse
+                    implicitWidth: 28
+                    implicitHeight: 28
+                    radius: 14
+                    color: Qt.alpha(Colours.palette.m3scrim, 0.55)
+
+                    MaterialIcon {
+                        anchors.centerIn: parent
+                        text: "favorite"
+                        fill: parent.fav ? 1 : 0
+                        color: parent.fav ? "#ff5370" : "white"
+                        fontStyle: Tokens.font.icon.small
+                    }
+
+                    MouseArea {
+                        id: heartArea
+
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: LiveWallpaper.toggleFavourite(card.modelData.path)
+                    }
+                }
             }
 
             RowLayout {

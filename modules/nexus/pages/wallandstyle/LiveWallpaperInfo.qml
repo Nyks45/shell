@@ -138,9 +138,37 @@ PageBase {
             }
 
             TextButton {
+                readonly property bool fav: LiveWallpaper.isFavourite(root.path)
+
+                text: fav ? Tr.tr("♥ Favourite") : Tr.tr("♡ Add to favourites")
+                type: TextButton.Tonal
+                onClicked: LiveWallpaper.toggleFavourite(root.path)
+            }
+
+            TextButton {
                 text: Tr.tr("Open folder")
                 type: TextButton.Text
                 onClicked: Quickshell.execDetached(["xdg-open", root.path])
+            }
+
+            // Downloaded into the library: unsubscribe (Steam too when signed in) and remove
+            TextButton {
+                property bool confirm
+
+                visible: root.w.source === "workshop" && root.path.includes("/caelestia/wallpaper-engine/workshop/")
+                text: confirm ? Tr.tr("Remove it? Click again") : Tr.tr("Unsubscribe")
+                type: TextButton.Text
+                onClicked: {
+                    if (!confirm) {
+                        confirm = true;
+                        return;
+                    }
+                    // Not on a screen any more before its folder goes
+                    for (const s of root.onScreens)
+                        LiveWallpaper.stopScreen(s);
+                    LiveWallpaper.removeWallpaper(root.w.id);
+                    root.nState.back();
+                }
             }
 
             TextButton {

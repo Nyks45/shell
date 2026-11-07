@@ -238,6 +238,13 @@ start() {
     echo $! > "$PIDFILE"
     disown
 
+    # Paused in the settings (it survives restarts and logins): pause again
+    # once the first frames are drawn (the lock screen's frame is saved)
+    if [[ "$(python3 -c 'import json,sys; print(bool(json.load(open(sys.argv[1])).get("paused")))' "$SETTINGS" 2>/dev/null)" == True ]]; then
+        ( sleep 3; signal STOP ) > /dev/null 2>&1 < /dev/null &
+        disown
+    fi
+
     # Caelestia's (hidden) wallpaper follows the live one: lock screen (which must not
     # capture the screen, see shell.json lock.useWallpaper), and colours when the
     # dynamic scheme is used. The preview at once, the full-size frame once saved.

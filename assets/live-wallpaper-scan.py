@@ -175,8 +175,9 @@ def scan_dir(folder: Path, source: str, seen: set) -> list[dict]:
             kind = "scene"
         try:
             added = int(d.stat().st_mtime * 1000)
+            updated = int(pj.stat().st_mtime * 1000)
         except OSError:
-            added = 0
+            added = updated = 0
         size = 0
         for base, _, files in os.walk(d):
             for f in files:
@@ -194,6 +195,7 @@ def scan_dir(folder: Path, source: str, seen: set) -> list[dict]:
             "tags": [str(t) for t in project.get("tags") or []],
             "rating": RATINGS.get(str(project.get("contentrating") or "").lower(), ""),
             "source": source,
+            "updated": updated,
             "added": added,
             "size": size,
             "properties": properties(project),
