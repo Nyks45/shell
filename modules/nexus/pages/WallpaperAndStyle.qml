@@ -112,13 +112,16 @@ PageBase {
                         sourceSize.width: 1280
                     }
 
-                    AnimatedImage {
+                    // Until the frame is there: the still (not the animated
+                    // preview: an AnimatedImage decodes every frame first, which
+                    // made the settings open with a lag)
+                    Image {
                         anchors.fill: parent
                         visible: liveFrame.status !== Image.Ready
-                        source: visible && LiveWallpaper.currentInfo?.preview ? `file://${LiveWallpaper.currentInfo.preview}` : ""
+                        source: visible && LiveWallpaper.currentInfo ? `file://${LiveWallpaper.currentInfo.still || LiveWallpaper.currentInfo.preview}` : ""
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
-                        playing: root.visible
+                        sourceSize.width: 640
                     }
 
                     ColumnLayout {

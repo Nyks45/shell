@@ -51,7 +51,7 @@ Flickable {
             } else {
                 // From where a running glide is heading, so fast notches add up
                 const from = wheelAnim.running ? root.wheelTarget : root.contentY;
-                root.wheelTarget = clamp(from - event.angleDelta.y / 120 * 120);
+                root.wheelTarget = clamp(from - event.angleDelta.y / 120 * 240);
                 wheelAnim.to = root.wheelTarget;
                 wheelAnim.restart();
             }
@@ -64,7 +64,7 @@ Flickable {
 
         target: root
         property: "contentY"
-        duration: 180
+        duration: 120
         easing.type: Easing.OutCubic
     }
 }

@@ -564,7 +564,13 @@ Singleton {
 
     function settingsOpened(): void {
         settingsOpen++;
+        // After the window has opened (its first frames shouldn't wait on this)
         if (settingsOpen === 1)
+            warmTimer.restart();
+    }
+
+    function warmWorkshop(): void {
+        if (settingsOpen > 0)
             loadWorkshop({
                 sort: "trend",
                 days: 7,
@@ -743,6 +749,13 @@ Singleton {
         triggeredOnStart: true
         interval: 30000
         onTriggered: root.tickPlaylists()
+    }
+
+    Timer {
+        id: warmTimer
+
+        interval: 800
+        onTriggered: root.warmWorkshop()
     }
 
     // The playback rules, checked every second while a live wallpaper is on
