@@ -160,12 +160,52 @@ PageBase {
             radius: Tokens.rounding.large
             color: Colours.tPalette.m3surfaceContainer
 
-            AnimatedImage {
+            // Shown at once: the still (a GIF's first non-black frame, or the
+            // picture); for the wallpaper that's on, the renderer's sharp
+            // full-size frame instead of the small preview
+            readonly property bool isCurrent: LiveWallpaper.currentInfo?.path === root.path
+
+            Image {
+                id: infoStill
+
                 anchors.fill: parent
-                source: root.w.preview ? `file://${root.w.preview}` : ""
+                source: root.w.still || root.w.preview ? `file://${root.w.still || root.w.preview}` : ""
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
-                playing: true
+                sourceSize.width: 1280
+            }
+
+            Image {
+                id: infoFrame
+
+                anchors.fill: parent
+                visible: parent.isCurrent && status === Image.Ready
+                source: parent.isCurrent && LiveWallpaper.currentFrame ? `file://${LiveWallpaper.currentFrame}` : ""
+                fillMode: Image.PreserveAspectFit
+                asynchronous: true
+                cache: false
+                sourceSize.width: 1280
+            }
+
+            // The animation: decoded in the background (it decodes every frame
+            // first, which took seconds), faded in over the still when ready.
+            // Not for the wallpaper that's on (its sharp frame looks better).
+            Loader {
+                anchors.fill: parent
+                active: !parent.isCurrent && (root.w.preview ?? "").toLowerCase().endsWith(".gif")
+                asynchronous: true
+                opacity: item?.status === AnimatedImage.Ready ? 1 : 0
+
+                Behavior on opacity {
+                    Anim {}
+                }
+
+                sourceComponent: AnimatedImage {
+                    source: `file://${root.w.preview}`
+                    fillMode: Image.PreserveAspectFit
+                    asynchronous: true
+                    playing: true
+                }
             }
         }
 
