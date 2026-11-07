@@ -15,7 +15,9 @@ import qs.modules.nexus.common
 // search, Steam's sorts, the Workshop's own filters (type, age rating, genre,
 // resolution, ...), ratings, authors and an item's details. Read keyless from
 // Steam's public pages (live-wallpaper-scan.py workshop). Subscribing happens
-// in Steam, which downloads the wallpaper; it then shows up among yours.
+// from here once signed in to Steam (QR sign-in; the tokens stay in the
+// keyring, see assets/live-wallpaper-steam.py), or on the item's page in
+// Steam; Steam downloads it and it then shows up among yours.
 PageBase {
     id: root
 
@@ -82,7 +84,10 @@ PageBase {
         return group.name === "Age Rating" && !showMature ? group.tags.filter(t => t === "Everyone") : group.tags;
     }
 
-    Component.onCompleted: load()
+    Component.onCompleted: {
+        load();
+        LiveWallpaper.steamStatus();
+    }
 
     title: root.selected ? root.selected.title : Tr.tr("Steam Workshop")
     isSubPage: true
@@ -99,6 +104,118 @@ PageBase {
             repeat: true
             interval: 10000
             onTriggered: LiveWallpaper.refresh()
+        }
+
+        // Signed in done: close the sign-in panel after a moment
+        Timer {
+            running: LiveWallpaper.steamLogin?.state === "done"
+            interval: 1500
+            onTriggered: LiveWallpaper.steamLogin = null
+        }
+
+        // ---- Steam account -------------------------------------------
+
+        StyledRect {
+            Layout.fillWidth: true
+            implicitHeight: accountCol.implicitHeight + Tokens.padding.medium * 2
+            radius: Tokens.rounding.large
+            color: Colours.tPalette.m3surfaceContainer
+
+            ColumnLayout {
+                id: accountCol
+
+                anchors.fill: parent
+                anchors.margins: Tokens.padding.medium
+                spacing: Tokens.spacing.medium
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Tokens.spacing.medium
+
+                    MaterialIcon {
+                        text: LiveWallpaper.steamSignedIn ? "account_circle" : "login"
+                        color: Colours.palette.m3primary
+                        fontStyle: Tokens.font.icon.medium
+                    }
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: LiveWallpaper.steamSignedIn ? Tr.tr("Signed in to Steam as %1").arg(LiveWallpaper.steamAccount || "?") : Tr.tr("Sign in to Steam to subscribe right here")
+                        font: Tokens.font.body.medium
+                        wrapMode: Text.WordWrap
+                    }
+
+                    TextButton {
+                        visible: !LiveWallpaper.steamLogin
+                        text: LiveWallpaper.steamSignedIn ? Tr.tr("Sign out") : Tr.tr("Sign in")
+                        type: LiveWallpaper.steamSignedIn ? TextButton.Text : TextButton.Filled
+                        onClicked: LiveWallpaper.steamSignedIn ? LiveWallpaper.steamLogout() : LiveWallpaper.steamStartLogin()
+                    }
+                }
+
+                // QR sign-in
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: !!LiveWallpaper.steamLogin
+                    spacing: Tokens.spacing.large
+
+                    ClipRect {
+                        implicitWidth: 180
+                        implicitHeight: 180
+                        radius: Tokens.rounding.medium
+                        color: "white"
+                        visible: !!LiveWallpaper.steamLogin?.qr && ["scan", "confirm"].includes(LiveWallpaper.steamLogin?.state)
+
+                        Image {
+                            anchors.fill: parent
+                            source: LiveWallpaper.steamLogin?.qr ? `file://${LiveWallpaper.steamLogin.qr}` : ""
+                            cache: false
+                            smooth: false
+                            fillMode: Image.PreserveAspectFit
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: Tokens.spacing.small
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: {
+                                const st = LiveWallpaper.steamLogin?.state ?? "";
+                                return st === "starting" ? Tr.tr("Asking Steam for a sign-in code…") : st === "scan" ? Tr.tr("Open the Steam app on your phone, tap the shield (Steam Guard) and scan this code.") : st === "confirm" ? Tr.tr("Now approve the sign-in on your phone.") : st === "done" ? Tr.tr("Signed in.") : st === "expired" ? Tr.tr("The code expired. Try again.") : Tr.tr("Couldn't sign in: %1").arg(LiveWallpaper.steamLogin?.error ?? "");
+                            }
+                            font: Tokens.font.body.medium
+                            wrapMode: Text.WordWrap
+                        }
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: Tr.tr("The sign-in stays on this PC, in your keyring, and is only sent to Steam. Sign out deletes it.")
+                            color: Colours.palette.m3outline
+                            font: Tokens.font.label.small
+                            wrapMode: Text.WordWrap
+                        }
+
+                        RowLayout {
+                            spacing: Tokens.spacing.small
+
+                            TextButton {
+                                visible: ["expired", "error"].includes(LiveWallpaper.steamLogin?.state ?? "")
+                                text: Tr.tr("Try again")
+                                type: TextButton.Tonal
+                                onClicked: LiveWallpaper.steamStartLogin()
+                            }
+
+                            TextButton {
+                                text: Tr.tr("Cancel")
+                                type: TextButton.Text
+                                onClicked: LiveWallpaper.steamCancelLogin()
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // ---- Browsing --------------------------------------------------
@@ -262,6 +379,24 @@ PageBase {
                                 }
                             }
                         }
+                    }
+                }
+
+                // Same switch as on the live wallpapers page
+                TextButton {
+                    text: Tr.tr("Show mature wallpapers")
+                    isToggle: true
+                    checked: root.showMature
+                    type: TextButton.Tonal
+                    onClicked: {
+                        LiveWallpaper.setQuiet("showMature", !root.showMature);
+                        // Turned off: drop a mature age filter too
+                        if (root.showMature && root.chosen["Age Rating"]) {
+                            const c = Object.assign({}, root.chosen);
+                            delete c["Age Rating"];
+                            root.chosen = c;
+                        }
+                        Qt.callLater(root.reload);
                     }
                 }
 
@@ -440,6 +575,7 @@ PageBase {
 
             readonly property var it: root.selected ? Object.assign({}, root.selected, LiveWallpaper.workshopItem?.id === root.selected.id ? LiveWallpaper.workshopItem : {}) : null
             readonly property var mine: it ? LiveWallpaper.wallpapers.find(w => w.id === it.id) : null
+            readonly property bool downloading: !!it && !mine && LiveWallpaper.steamPending.includes(it.id)
 
             Layout.fillWidth: true
             visible: !!root.selected
@@ -509,16 +645,27 @@ PageBase {
 
                     TextButton {
                         Layout.fillWidth: true
-                        text: details.mine ? Tr.tr("Use it") : Tr.tr("Subscribe in Steam")
+                        text: details.mine ? Tr.tr("Use it") : details.downloading ? Tr.tr("Downloading…") : LiveWallpaper.steamSignedIn ? Tr.tr("Subscribe") : Tr.tr("Subscribe in Steam")
                         type: TextButton.Filled
+                        disabled: details.downloading || LiveWallpaper.steamBusy
                         onClicked: {
                             if (details.mine) {
                                 root.nState.selectedLiveWallpaper = details.mine;
                                 root.nState.openSubPage(5);
+                            } else if (LiveWallpaper.steamSignedIn) {
+                                LiveWallpaper.steamSubscribe(details.it.id, true);
                             } else {
                                 LiveWallpaper.openInSteam(details.it.id);
                             }
                         }
+                    }
+
+                    TextButton {
+                        Layout.fillWidth: true
+                        visible: LiveWallpaper.steamSignedIn && (details.downloading || details.mine?.source === "workshop")
+                        text: Tr.tr("Unsubscribe")
+                        type: TextButton.Tonal
+                        onClicked: LiveWallpaper.steamSubscribe(details.it.id, false)
                     }
 
                     TextButton {
@@ -530,10 +677,20 @@ PageBase {
                 }
             }
 
+            // Steam's answer when subscribing failed
+            StyledText {
+                Layout.fillWidth: true
+                visible: !!LiveWallpaper.steamError
+                text: LiveWallpaper.steamError
+                color: Colours.palette.m3error
+                font: Tokens.font.body.small
+                wrapMode: Text.WordWrap
+            }
+
             StyledText {
                 Layout.fillWidth: true
                 visible: !details.mine
-                text: Tr.tr("Subscribe on its page in Steam: the download then shows up among your wallpapers by itself.")
+                text: details.downloading ? Tr.tr("Steam is downloading it; it shows up among your wallpapers when done.") : LiveWallpaper.steamSignedIn ? Tr.tr("Steam downloads it once subscribed; it then shows up among your wallpapers.") : Tr.tr("Subscribe on its page in Steam (or sign in above to do it here): the download then shows up among your wallpapers by itself.")
                 color: Colours.palette.m3outline
                 font: Tokens.font.label.small
                 wrapMode: Text.WordWrap

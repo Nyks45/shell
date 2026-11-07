@@ -44,6 +44,16 @@ Singleton {
     property bool workshopLoading
     // Its filter groups (Type, Age Rating, Genre, Resolution, ...), kept once known
     property var workshopTagGroups: []
+    // Steam sign-in (assets/live-wallpaper-steam.py; tokens stay in the keyring)
+    property bool steamSignedIn
+    property string steamAccount
+    // While signing in: { state: scan|confirm|done|expired|error, qr, error }
+    property var steamLogin: null
+    // Workshop ids subscribed from here and still downloading
+    property var steamPending: []
+    property string steamError
+    readonly property bool steamBusy: steamSubProc.running
+    readonly property string steamHelper: `${Quickshell.shellDir}/assets/live-wallpaper-steam.py`
     // Details of the Workshop item opened (description, views), or null
     property var workshopItem: null
     property bool workshopItemLoading
@@ -319,6 +329,38 @@ Singleton {
         workshopProc.running = true;
     }
 
+    function steamStatus(): void {
+        steamStatusProc.running = false;
+        steamStatusProc.running = true;
+    }
+
+    function steamStartLogin(): void {
+        steamLogin = {
+            state: "starting"
+        };
+        steamLoginProc.running = false;
+        steamLoginProc.running = true;
+    }
+
+    function steamCancelLogin(): void {
+        steamLoginProc.running = false;
+        steamLogin = null;
+    }
+
+    function steamLogout(): void {
+        Quickshell.execDetached(["python3", "-I", steamHelper, "logout"]);
+        steamSignedIn = false;
+        steamAccount = "";
+    }
+
+    function steamSubscribe(id: string, on: bool): void {
+        steamError = "";
+        steamSubProc.item = id;
+        steamSubProc.on = on;
+        steamSubProc.command = ["python3", "-I", steamHelper, on ? "subscribe" : "unsubscribe", id];
+        steamSubProc.running = true;
+    }
+
     function loadWorkshopItem(id: string): void {
         workshopItem = null;
         workshopItemProc.running = false;
@@ -486,6 +528,71 @@ Singleton {
                         items: [],
                         error: "No answer from the Workshop"
                     };
+                }
+            }
+        }
+    }
+
+    Process {
+        id: steamStatusProc
+
+        command: ["python3", "-I", root.steamHelper, "status"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const st = JSON.parse(text);
+                    root.steamSignedIn = st.signedIn;
+                    root.steamAccount = st.account ?? "";
+                } catch (e) {}
+            }
+        }
+    }
+
+    Process {
+        id: steamLoginProc
+
+        command: ["python3", "-I", root.steamHelper, "login"]
+        stdout: SplitParser {
+            onRead: line => {
+                try {
+                    const st = JSON.parse(line);
+                    root.steamLogin = st;
+                    if (st.state === "done") {
+                        root.steamSignedIn = true;
+                        root.steamAccount = st.account ?? "";
+                    }
+                } catch (e) {}
+            }
+        }
+    }
+
+    Process {
+        id: steamSubProc
+
+        property string item
+        property bool on
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let r = {};
+                try {
+                    r = JSON.parse(text);
+                } catch (e) {
+                    r = {
+                        error: "No answer"
+                    };
+                }
+                if (r.ok) {
+                    if (steamSubProc.on)
+                        root.steamPending = root.steamPending.concat([steamSubProc.item]);
+                    else
+                        root.steamPending = root.steamPending.filter(x => x !== steamSubProc.item);
+                    // Steam removes an unsubscribed one's folder soon after
+                    root.refresh();
+                } else {
+                    root.steamError = r.error ?? "";
+                    if (r.signin)
+                        root.steamSignedIn = false;
                 }
             }
         }
