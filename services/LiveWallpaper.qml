@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Caelestia.Config
+import Caelestia.I18n
 import qs.utils
 
 // Live wallpapers (Wallpaper Engine wallpapers, drawn by linux-wallpaperengine)
@@ -119,6 +120,106 @@ Singleton {
         const out = text.replace(/"(\/[^"]*\/(?:workshop\/content\/431960|projects\/defaultprojects)\/([^"\/]+))"/g, (m, p, name) => !known.has(p) && byName[name] && byName[name] !== p ? JSON.stringify(byName[name]) : m);
         if (out !== text)
             save(JSON.parse(out));
+    }
+
+    // ---- Playback rules (Wallpaper Engine's "Other application focused /
+    // maximized / playing audio" and its per-app rules), run here: the
+    // renderer only knows "fullscreen". Actions: run, mute, pause, stop (frees
+    // memory; starts again when the rule no longer holds). The strongest
+    // applies (stop > pause > mute). A pause set by hand always wins.
+    readonly property var playbackRules: Object.assign({
+        focused: "run",
+        maximized: "run",
+        audio: "run"
+    }, config.playbackRules ?? {})
+    // [{ app: window class (part of it), when: running|focused|maximized|fullscreen|audio, action }]
+    readonly property var appRules: config.appRules ?? []
+    // What the rules do right now, and why (shown on the settings page)
+    property string ruleAction: "run"
+    property string ruleReason
+
+    function setPlaybackRule(key: string, action: string): void {
+        setQuiet("playbackRules", Object.assign({}, playbackRules, {
+            [key]: action
+        }));
+    }
+
+    function setAppRules(list: var): void {
+        setQuiet("appRules", list);
+    }
+
+    function evaluateRules(): void {
+        const rank = {
+            run: 0,
+            mute: 1,
+            pause: 2,
+            stop: 3
+        };
+        const visibleWs = Hypr.monitors.values.map(m => m.activeWorkspace?.id);
+        const wins = Hypr.toplevels.values.filter(t => t.lastIpcObject && !t.lastIpcObject.hidden && visibleWs.includes(t.workspace?.id));
+        const mon = Hypr.focusedMonitor;
+        const isMax = t => {
+            const o = t.lastIpcObject;
+            if (o.fullscreen === 1)
+                return true;
+            // Desktop mode's maximize: a floating window over the work area
+            const sz = o.size ?? [0, 0];
+            return !!mon && sz[0] >= mon.width / mon.scale * 0.95 && sz[1] >= mon.height / mon.scale * 0.85;
+        };
+        const playing = Players.list.filter(p => p.isPlaying);
+        const active = Hypr.activeToplevel;
+        const focused = !!active && wins.includes(active);
+        let best = "run", why = "";
+        const consider = (action, reason) => {
+            if ((rank[action] ?? 0) > rank[best]) {
+                best = action;
+                why = reason;
+            }
+        };
+        if (focused)
+            consider(playbackRules.focused, Tr.tr("an app is focused"));
+        if (wins.some(isMax))
+            consider(playbackRules.maximized, Tr.tr("an app is maximized"));
+        if (playing.length)
+            consider(playbackRules.audio, Tr.tr("%1 is playing").arg(playing[0].identity || Tr.tr("media")));
+        for (const r of appRules) {
+            const app = String(r.app ?? "").toLowerCase();
+            if (!app)
+                continue;
+            const all = Hypr.toplevels.values.filter(t => String(t.lastIpcObject?.class ?? "").toLowerCase().includes(app));
+            const shown = all.filter(t => wins.includes(t));
+            const hit = r.when === "running" ? all.length > 0 : r.when === "focused" ? !!active && all.includes(active) : r.when === "maximized" ? shown.some(isMax) : r.when === "fullscreen" ? shown.some(t => t.lastIpcObject.fullscreen === 2) : r.when === "audio" ? playing.some(p => String(p.identity ?? "").toLowerCase().includes(app) || String(p.desktopEntry ?? "").toLowerCase().includes(app)) : false;
+            if (hit)
+                consider(r.action, Tr.tr("rule for %1").arg(r.app));
+        }
+        ruleReason = why;
+        if (best === ruleAction)
+            return;
+        const prev = ruleAction;
+        ruleAction = best;
+        // Undo the old action, then do the new one
+        if (prev === "mute")
+            muteRenderer(false);
+        if (prev === "pause" && !paused)
+            Quickshell.execDetached(["live-wallpaper", "resume"]);
+        if (prev === "stop")
+            restartTimer.restart();
+        if (best === "mute")
+            muteRenderer(true);
+        if (best === "pause" && !paused)
+            Quickshell.execDetached(["live-wallpaper", "pause"]);
+        if (best === "stop")
+            Quickshell.execDetached(["live-wallpaper", "stop"]);
+    }
+
+    // The renderer's sound (its PipeWire stream), on or off
+    function muteRenderer(mute: bool): void {
+        for (const st of Audio.streams) {
+            const props = st.properties ?? {};
+            const who = `${props["application.process.binary"] ?? ""} ${props["application.name"] ?? ""}`.toLowerCase();
+            if (who.includes("wallpaperengine") && st.audio)
+                st.audio.muted = mute;
+        }
     }
 
     // Favourites (Wallpaper Engine's heart), by folder
@@ -642,6 +743,15 @@ Singleton {
         triggeredOnStart: true
         interval: 30000
         onTriggered: root.tickPlaylists()
+    }
+
+    // The playback rules, checked every second while a live wallpaper is on
+    Timer {
+        running: Object.keys(root.screens).length > 0
+        repeat: true
+        interval: 1000
+        onTriggered: root.evaluateRules()
+        onRunningChanged: if (!running) root.ruleAction = "run"
     }
 
     // This boot's id: "when logging in" playlists change once per boot

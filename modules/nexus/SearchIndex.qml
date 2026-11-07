@@ -699,6 +699,22 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Now",
+            "ctx": "",
+            "sub": "No rule applies",
+            "section": "When other apps are in use",
+            "page": 0,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
             "label": "Wallpaper Engine folder",
             "ctx": "",
             "sub": "Set by you; empty to find it by itself",

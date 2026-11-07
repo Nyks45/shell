@@ -19,6 +19,24 @@ PageBase {
 
     readonly property var monitors: Hypr.monitors.values.map(m => m.name)
 
+    function whenText(w: string): string {
+        return ({
+                running: Tr.tr("is running"),
+                focused: Tr.tr("is focused"),
+                maximized: Tr.tr("is maximized"),
+                fullscreen: Tr.tr("is fullscreen"),
+                audio: Tr.tr("is playing media")
+            })[w] ?? w;
+    }
+
+    function actionText(a: string): string {
+        return ({
+                pause: Tr.tr("pause"),
+                mute: Tr.tr("mute"),
+                stop: Tr.tr("stop (free memory)")
+            })[a] ?? a;
+    }
+
     title: Tr.tr("Live wallpaper settings")
     isSubPage: true
 
@@ -164,6 +182,185 @@ PageBase {
         }
 
         // Where wallpapers are found
+        // Wallpaper Engine's "Other application ..." rules and its app rules
+        SectionHeader {
+            text: Tr.tr("When other apps are in use")
+        }
+
+        Repeater {
+            model: [
+                {
+                    key: "focused",
+                    text: Tr.tr("Another app is focused")
+                },
+                {
+                    key: "maximized",
+                    text: Tr.tr("An app is maximized")
+                },
+                {
+                    key: "audio",
+                    text: Tr.tr("Media is playing"),
+                    sub: Tr.tr("Music, videos, browsers (anything that shows in the media controls)")
+                }
+            ]
+
+            SelectRow {
+                required property var modelData
+                required property int index
+
+                first: index === 0
+                label: modelData.text
+                subtext: modelData.sub ?? ""
+                menuItems: [
+                    MenuItem {
+                        text: Tr.tr("Keep running")
+                        value: "run"
+                    },
+                    MenuItem {
+                        text: Tr.tr("Mute")
+                        value: "mute"
+                    },
+                    MenuItem {
+                        text: Tr.tr("Pause")
+                        value: "pause"
+                    },
+                    MenuItem {
+                        text: Tr.tr("Stop (free memory)")
+                        value: "stop"
+                    }
+                ]
+                active: menuItems.find(i => i.value === LiveWallpaper.playbackRules[modelData.key]) ?? null
+                onSelected: item => LiveWallpaper.setPlaybackRule(modelData.key, item.value)
+            }
+        }
+
+        InfoRow {
+            last: true
+            icon: LiveWallpaper.ruleAction === "run" ? "play_circle" : LiveWallpaper.ruleAction === "mute" ? "volume_off" : LiveWallpaper.ruleAction === "pause" ? "pause_circle" : "stop_circle"
+            label: Tr.tr("Now")
+            subtext: LiveWallpaper.ruleAction === "run" ? Tr.tr("No rule applies") : LiveWallpaper.ruleReason
+            value: ({
+                    run: Tr.tr("Playing"),
+                    mute: Tr.tr("Muted"),
+                    pause: Tr.tr("Paused"),
+                    stop: Tr.tr("Stopped")
+                })[LiveWallpaper.ruleAction] ?? ""
+        }
+
+        // App rules: this app running / focused / maximized / fullscreen / playing -> action
+        SectionHeader {
+            text: Tr.tr("App rules")
+        }
+
+        Repeater {
+            id: ruleList
+
+            model: LiveWallpaper.appRules
+
+            RowButton {
+                required property var modelData
+                required property int index
+                property bool confirm
+
+                first: index === 0
+                icon: "rule"
+                text: modelData.app
+                subtext: confirm ? Tr.tr("Click again to delete this rule") : `${root.whenText(modelData.when)} → ${root.actionText(modelData.action)}`
+                trailingIcon: "delete"
+                onClicked: {
+                    if (!confirm) {
+                        confirm = true;
+                        return;
+                    }
+                    LiveWallpaper.setAppRules(LiveWallpaper.appRules.filter((r, i) => i !== index));
+                }
+            }
+        }
+
+        ConnectedRect {
+            first: LiveWallpaper.appRules.length === 0
+            last: true
+            implicitHeight: ruleCol.implicitHeight + Tokens.padding.medium * 2
+
+            ColumnLayout {
+                id: ruleCol
+
+                anchors.fill: parent
+                anchors.margins: Tokens.padding.medium
+                anchors.leftMargin: Tokens.padding.largeIncreased
+                spacing: Tokens.spacing.small
+
+                StyledText {
+                    text: Tr.tr("New rule")
+                    font: Tokens.font.body.small
+                }
+
+                StyledTextField {
+                    id: ruleApp
+
+                    Layout.fillWidth: true
+                    placeholderText: Tr.tr("App (its window class, e.g. steam_app or firefox)")
+                }
+
+                // Running apps, to pick from
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Tokens.spacing.extraSmall
+
+                    Repeater {
+                        model: [...new Set(Hypr.toplevels.values.map(t => t.lastIpcObject?.class ?? "").filter(c => c))].sort()
+
+                        TextButton {
+                            required property string modelData
+
+                            text: modelData
+                            type: TextButton.Text
+                            onClicked: ruleApp.text = modelData
+                        }
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Tokens.spacing.small
+
+                    SelectButtonLike {
+                        id: ruleWhen
+
+                        options: [["running", root.whenText("running")], ["focused", root.whenText("focused")], ["maximized", root.whenText("maximized")], ["fullscreen", root.whenText("fullscreen")], ["audio", root.whenText("audio")]]
+                    }
+
+                    StyledText {
+                        text: "→"
+                    }
+
+                    SelectButtonLike {
+                        id: ruleAction
+
+                        options: [["pause", root.actionText("pause")], ["mute", root.actionText("mute")], ["stop", root.actionText("stop")]]
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
+                    TextButton {
+                        text: Tr.tr("Add")
+                        type: TextButton.Filled
+                        disabled: !ruleApp.text.trim()
+                        onClicked: {
+                            LiveWallpaper.setAppRules(LiveWallpaper.appRules.concat([{
+                                    app: ruleApp.text.trim(),
+                                    when: ruleWhen.value,
+                                    action: ruleAction.value
+                                }]));
+                            ruleApp.text = "";
+                        }
+                    }
+                }
+            }
+        }
+
         SectionHeader {
             text: Tr.tr("Folders")
         }
@@ -222,5 +419,16 @@ PageBase {
             subtext: Tr.tr("The renderer build installed (updated with its package, not from here)")
             value: LiveWallpaper.engineVersion || Tr.tr("Not installed")
         }
+    }
+
+    // A compact choice: click to go to the next option
+    component SelectButtonLike: TextButton {
+        property var options: []
+        property int current
+        readonly property string value: options[current]?.[0] ?? ""
+
+        text: `${options[current]?.[1] ?? ""} ▾`
+        type: TextButton.Tonal
+        onClicked: current = (current + 1) % options.length
     }
 }
