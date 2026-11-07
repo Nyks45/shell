@@ -253,6 +253,7 @@ PageBase {
             TextButton {
                 text: Tr.tr("Browse")
                 isToggle: true
+                followChecked: true
                 checked: root.tab === "browse"
                 type: TextButton.Tonal
                 onClicked: root.tab = "browse"
@@ -261,6 +262,7 @@ PageBase {
             TextButton {
                 text: Tr.tr("Subscribed (%1)").arg(root.mineList.length)
                 isToggle: true
+                followChecked: true
                 checked: root.tab === "mine"
                 type: TextButton.Tonal
                 onClicked: root.tab = "mine"
@@ -370,6 +372,7 @@ PageBase {
             TextButton {
                 text: root.chosenTags.length > 0 ? Tr.tr("Filters (%1)").arg(root.chosenTags.length) : Tr.tr("Filters")
                 isToggle: true
+                followChecked: true
                 checked: root.showFilters
                 type: TextButton.Tonal
                 onClicked: root.showFilters = !root.showFilters
@@ -410,6 +413,7 @@ PageBase {
 
                     text: modelData.text
                     isToggle: true
+                    followChecked: true
                     checked: root.sort === modelData.value
                     type: TextButton.Tonal
                     onClicked: {
@@ -451,6 +455,7 @@ PageBase {
 
                     text: modelData.text
                     isToggle: true
+                    followChecked: true
                     checked: root.days === modelData.value
                     type: TextButton.Text
                     onClicked: {
@@ -505,6 +510,7 @@ PageBase {
 
                                     text: modelData
                                     isToggle: true
+                                    followChecked: true
                                     checked: (root.chosen[group.modelData.name] ?? []).includes(modelData)
                                     type: TextButton.Tonal
                                     onClicked: root.toggleTag(group.modelData, modelData)
@@ -518,6 +524,7 @@ PageBase {
                 TextButton {
                     text: Tr.tr("Show mature wallpapers")
                     isToggle: true
+                    followChecked: true
                     checked: root.showMature
                     type: TextButton.Tonal
                     onClicked: {

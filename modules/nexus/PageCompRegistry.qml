@@ -37,7 +37,7 @@ QtObject {
                 Component {
                     ColourSelect {}
                 }
-                // Live wallpapers: the list (4), one wallpaper (5), playlists (6), the Workshop (7)
+                // Live wallpapers: the list (4), one wallpaper (5), playlists (6), the Workshop (7), settings (8)
                 Component {
                     LiveWallpaperSelect {}
                 }
@@ -49,6 +49,9 @@ QtObject {
                 }
                 Component {
                     LiveWorkshop {}
+                }
+                Component {
+                    LiveSettings {}
                 }
             }
         },

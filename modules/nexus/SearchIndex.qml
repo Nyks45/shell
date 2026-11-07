@@ -266,36 +266,6 @@ QtObject {
             "keywords": "animated moving video wallpaper engine background"
         },
         {
-            "label": "Playlists",
-            "ctx": "",
-            "sub": "Wallpapers that take turns",
-            "section": "More",
-            "opens": 6,
-            "page": 0,
-            "path": [
-                4
-            ],
-            "trail": [
-                "Live wallpapers"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Steam Workshop",
-            "ctx": "",
-            "sub": "Find new wallpapers: trending, popular, newest",
-            "section": "More",
-            "opens": 7,
-            "page": 0,
-            "path": [
-                4
-            ],
-            "trail": [
-                "Live wallpapers"
-            ],
-            "keywords": ""
-        },
-        {
             "label": "Sort by",
             "ctx": "",
             "sub": "",
@@ -311,6 +281,34 @@ QtObject {
         },
         {
             "label": "Tag",
+            "ctx": "",
+            "sub": "",
+            "section": "Looking for wallpapers…",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Source",
+            "ctx": "",
+            "sub": "",
+            "section": "Looking for wallpapers…",
+            "page": 0,
+            "path": [
+                4
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Age rating",
             "ctx": "",
             "sub": "",
             "section": "Looking for wallpapers…",
@@ -352,195 +350,14 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Frame rate",
-            "ctx": "",
-            "sub": "Higher is smoother and uses more power",
-            "section": "Playback",
-            "page": 0,
-            "path": [
-                4
-            ],
-            "trail": [
-                "Live wallpapers"
-            ],
-            "keywords": "fps live wallpaper"
-        },
-        {
-            "label": "Pause behind fullscreen apps",
-            "ctx": "",
-            "sub": "Games and videos get the GPU to themselves",
-            "section": "Playback",
-            "page": 0,
-            "path": [
-                4
-            ],
-            "trail": [
-                "Live wallpapers"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Only on that monitor",
-            "ctx": "",
-            "sub": "Other monitors keep playing",
-            "section": "Playback",
-            "page": 0,
-            "path": [
-                4
-            ],
-            "trail": [
-                "Live wallpapers"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Sound",
-            "ctx": "",
-            "sub": "For wallpapers that have it",
-            "section": "Playback",
-            "page": 0,
-            "path": [
-                4
-            ],
-            "trail": [
-                "Live wallpapers"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Volume",
+            "label": "Playlists",
             "ctx": "",
             "sub": "",
-            "section": "Playback",
+            "section": "",
             "page": 0,
             "path": [
-                4
-            ],
-            "trail": [
-                "Live wallpapers"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Quiet while other apps play sound",
-            "ctx": "",
-            "sub": "",
-            "section": "Playback",
-            "page": 0,
-            "path": [
-                4
-            ],
-            "trail": [
-                "Live wallpapers"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "React to music",
-            "ctx": "",
-            "sub": "Audio visualisers in wallpapers follow what's playing",
-            "section": "Playback",
-            "page": 0,
-            "path": [
-                4
-            ],
-            "trail": [
-                "Live wallpapers"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Fit",
-            "ctx": "",
-            "sub": "",
-            "section": "Playback",
-            "page": 0,
-            "path": [
-                4
-            ],
-            "trail": [
-                "Live wallpapers"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Stretch one wallpaper across monitors",
-            "ctx": "",
-            "sub": "Instead of the same one on each",
-            "section": "Playback",
-            "page": 0,
-            "path": [
-                4
-            ],
-            "trail": [
-                "Live wallpapers"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "React to the mouse",
-            "ctx": "",
-            "sub": "",
-            "section": "Playback",
-            "page": 0,
-            "path": [
-                4
-            ],
-            "trail": [
-                "Live wallpapers"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Parallax",
-            "ctx": "",
-            "sub": "Layers shift as the mouse moves",
-            "section": "Playback",
-            "page": 0,
-            "path": [
-                4
-            ],
-            "trail": [
-                "Live wallpapers"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Particles",
-            "ctx": "",
-            "sub": "Off saves GPU on busy wallpapers",
-            "section": "Playback",
-            "page": 0,
-            "path": [
-                4
-            ],
-            "trail": [
-                "Live wallpapers"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Wallpaper Engine folder",
-            "ctx": "",
-            "sub": "Set by you; empty to find it by itself",
-            "section": "Folders",
-            "page": 0,
-            "path": [
-                4
-            ],
-            "trail": [
-                "Live wallpapers"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Update to the newest version",
-            "ctx": "",
-            "sub": "Rebuilds it from upstream; opens a terminal",
-            "section": "Renderer",
-            "page": 0,
-            "path": [
-                4
+                4,
+                6
             ],
             "trail": [
                 "Live wallpapers"
@@ -580,9 +397,73 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Change every",
+            "label": "Change wallpaper",
             "ctx": "",
-            "sub": "Minutes",
+            "sub": "",
+            "section": "",
+            "page": 0,
+            "path": [
+                4,
+                6
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Playlists"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Hours",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 0,
+            "path": [
+                4,
+                6
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Playlists"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Minutes",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 0,
+            "path": [
+                4,
+                6
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Playlists"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Always begin with the first wallpaper",
+            "ctx": "",
+            "sub": "When the playlist is put on (else it goes on where it was)",
+            "section": "",
+            "page": 0,
+            "path": [
+                4,
+                6
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Playlists"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Change while paused",
+            "ctx": "",
+            "sub": "Also when the live wallpaper is paused",
             "section": "",
             "page": 0,
             "path": [
@@ -608,6 +489,260 @@ QtObject {
             "trail": [
                 "Live wallpapers",
                 "Playlists"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Steam Workshop",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 0,
+            "path": [
+                4,
+                7
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Live wallpaper settings",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 0,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Frame rate",
+            "ctx": "",
+            "sub": "Higher is smoother and uses more power",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": "fps live wallpaper"
+        },
+        {
+            "label": "Post-processing",
+            "ctx": "",
+            "sub": "Ultra enables HDR bloom in wallpapers that support it",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Pause behind fullscreen apps",
+            "ctx": "",
+            "sub": "Games and videos get the GPU to themselves",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Only on that monitor",
+            "ctx": "",
+            "sub": "Other monitors keep playing",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Sound",
+            "ctx": "",
+            "sub": "For wallpapers that have it",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Volume",
+            "ctx": "",
+            "sub": "",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Quiet while other apps play sound",
+            "ctx": "",
+            "sub": "",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "React to music",
+            "ctx": "",
+            "sub": "Audio visualisers in wallpapers follow what's playing",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Fit",
+            "ctx": "",
+            "sub": "",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Stretch one wallpaper across monitors",
+            "ctx": "",
+            "sub": "Instead of the same one on each",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "React to the mouse",
+            "ctx": "",
+            "sub": "",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Parallax",
+            "ctx": "",
+            "sub": "Layers shift as the mouse moves",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Particles",
+            "ctx": "",
+            "sub": "Off saves GPU on busy wallpapers",
+            "section": "Playback",
+            "page": 0,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Wallpaper Engine folder",
+            "ctx": "",
+            "sub": "Set by you; empty to find it by itself",
+            "section": "Folders",
+            "page": 0,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
             ],
             "keywords": ""
         },

@@ -15,6 +15,11 @@ StyledRect {
     property bool checked
     property alias disabled: stateLayer.disabled
     property bool isToggle
+    // A toggle whose `checked` follows state the click changes at once (a
+    // filter chip): shown as `checked` again right after the click (else
+    // clicking the active one of a group would show it off while it stays on).
+    // Off by default: toggles of slow state (Wi-Fi, VPN) keep the instant flip.
+    property bool followChecked
     property bool isRound
 
     property bool radiusMorph: true
@@ -76,6 +81,8 @@ StyledRect {
             if (root.isToggle)
                 root.internalChecked = !root.internalChecked;
             root.clicked();
+            if (root.isToggle && root.followChecked)
+                Qt.callLater(() => root.internalChecked = root.checked);
         }
     }
 

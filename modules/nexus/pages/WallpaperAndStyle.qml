@@ -98,10 +98,23 @@ PageBase {
                 }
 
                 sourceComponent: Item {
+                    // The renderer's full-size frame (sharp); until it's saved, the
+                    // wallpaper's own (small, animated) preview
+                    Image {
+                        id: liveFrame
+
+                        anchors.fill: parent
+                        source: LiveWallpaper.currentFrame ? `file://${LiveWallpaper.currentFrame}` : ""
+                        fillMode: Image.PreserveAspectCrop
+                        asynchronous: true
+                        cache: false
+                        sourceSize.width: 1280
+                    }
+
                     AnimatedImage {
                         anchors.fill: parent
-                        visible: !root.livePlaylist
-                        source: LiveWallpaper.currentInfo?.preview ? `file://${LiveWallpaper.currentInfo.preview}` : ""
+                        visible: liveFrame.status !== Image.Ready
+                        source: visible && LiveWallpaper.currentInfo?.preview ? `file://${LiveWallpaper.currentInfo.preview}` : ""
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
                         playing: root.visible
@@ -109,7 +122,7 @@ PageBase {
 
                     ColumnLayout {
                         anchors.centerIn: parent
-                        visible: root.livePlaylist
+                        visible: root.livePlaylist && !LiveWallpaper.currentInfo
                         spacing: Tokens.spacing.extraSmall
 
                         MaterialIcon {
@@ -140,7 +153,7 @@ PageBase {
                             id: liveBadge
 
                             anchors.centerIn: parent
-                            text: LiveWallpaper.paused ? Tr.tr("Live · paused") : Tr.tr("Live")
+                            text: (root.livePlaylist ? Tr.tr("Playlist %1 · ").arg(LiveWallpaper.current.replace(/^playlist:/, "")) : "") + (LiveWallpaper.paused ? Tr.tr("Live · paused") : Tr.tr("Live"))
                             color: Colours.palette.m3onPrimary
                             font: Tokens.font.label.medium
                         }

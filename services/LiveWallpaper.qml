@@ -67,6 +67,9 @@ Singleton {
     readonly property var screens: config.screens ?? {}
     // The wallpaper on all screens (or the first screen's)
     readonly property string current: screens["*"] ?? Object.values(screens)[0] ?? ""
+    // Full-size frame of the wallpaper shown, saved by the renderer at start
+    // (for the lock screen): a sharp preview, where the Workshop one is small
+    readonly property string currentFrame: currentInfo ? `${Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state"}/live-wallpaper/frame-${currentInfo.path.split("/").pop()}.png` : ""
     // The wallpaper shown (a playlist's current one too)
     readonly property var currentInfo: {
         const p = current.startsWith("playlist:") ? playlistPath(current.slice(9)) : current;

@@ -13,8 +13,8 @@ import qs.modules.nexus
 import qs.modules.nexus.common
 
 // Live wallpapers: the Wallpaper Engine wallpapers on this PC (linux-
-// wallpaperengine draws them). What's on now, the library (search, type,
-// sort), playback options and the renderer's version.
+// wallpaperengine draws them). What's on now and the library (search, type,
+// filters, sort); the settings are on their own page (LiveSettings).
 PageBase {
     id: root
 
@@ -26,6 +26,7 @@ PageBase {
     property string sourceFilter
     property string ageFilter
     property bool favouritesOnly
+    property bool showFilters
     readonly property bool filtering: !!(query || typeFilter || tagFilter || sourceFilter || ageFilter || favouritesOnly || compatFilter)
     readonly property bool hasApps: LiveWallpaper.wallpapers.some(w => w.type === "application")
     readonly property string compatFilter: LiveWallpaper.setting("compatFilter", "")
@@ -129,6 +130,7 @@ PageBase {
                     Layout.preferredHeight: 96
                     source: LiveWallpaper.currentInfo?.preview ?? ""
                     still: LiveWallpaper.currentInfo?.still ?? ""
+                    frame: LiveWallpaper.currentFrame
                     playing: true
                 }
 
@@ -222,24 +224,36 @@ PageBase {
             }
         }
 
-        SectionHeader {
-            text: Tr.tr("More")
-        }
+        // Playlists, the Workshop and the settings: compact buttons, not full rows
+        Flow {
+            Layout.fillWidth: true
+            Layout.topMargin: Tokens.spacing.small
+            Layout.bottomMargin: Tokens.spacing.small
+            spacing: Tokens.spacing.small
 
-        NavRow {
-            first: true
-            icon: "playlist_play"
-            text: Tr.tr("Playlists")
-            subtext: LiveWallpaper.playlists.length ? Tr.trN("%n playlist", "%n playlists", LiveWallpaper.playlists.length) : Tr.tr("Wallpapers that take turns")
-            onClicked: root.nState.openSubPage(6)
-        }
+            IconTextButton {
+                icon: "storefront"
+                text: Tr.tr("Workshop")
+                type: TextButton.Tonal
+                isRound: true
+                onClicked: root.nState.openSubPage(7)
+            }
 
-        NavRow {
-            last: true
-            icon: "storefront"
-            text: Tr.tr("Steam Workshop")
-            subtext: Tr.tr("Find new wallpapers: trending, popular, newest")
-            onClicked: root.nState.openSubPage(7)
+            IconTextButton {
+                icon: "playlist_play"
+                text: LiveWallpaper.playlists.length ? Tr.tr("Playlists (%1)").arg(LiveWallpaper.playlists.length) : Tr.tr("Playlists")
+                type: TextButton.Tonal
+                isRound: true
+                onClicked: root.nState.openSubPage(6)
+            }
+
+            IconTextButton {
+                icon: "tune"
+                text: Tr.tr("Settings")
+                type: TextButton.Tonal
+                isRound: true
+                onClicked: root.nState.openSubPage(8)
+            }
         }
 
         // The library
@@ -247,19 +261,21 @@ PageBase {
             text: LiveWallpaper.scanning ? Tr.tr("Looking for wallpapers…") : root.filtering ? Tr.tr("Your wallpapers (%1 of %2)").arg(root.shown.length).arg(LiveWallpaper.wallpapers.length) : Tr.tr("Your wallpapers (%1)").arg(root.shown.length)
         }
 
-        RowLayout {
+        // The search on its own row (its hint isn't cut off), the chips below
+        StyledTextField {
+            id: searchField
+
+            Layout.fillWidth: true
+            Layout.bottomMargin: Tokens.spacing.small
+            leadingIcon: "search"
+            placeholderText: Tr.tr("Search your wallpapers by name or tag")
+            onTextChanged: root.query = text
+        }
+
+        Flow {
             Layout.fillWidth: true
             Layout.bottomMargin: Tokens.spacing.small
             spacing: Tokens.spacing.small
-
-            StyledTextField {
-                id: searchField
-
-                Layout.fillWidth: true
-                leadingIcon: "search"
-                placeholderText: Tr.tr("Search by name or tag")
-                onTextChanged: root.query = text
-            }
 
             Repeater {
                 model: [
@@ -291,18 +307,39 @@ PageBase {
 
                     text: modelData.text
                     isToggle: true
+                    followChecked: true
                     checked: root.typeFilter === modelData.value
                     type: TextButton.Tonal
-                    onClicked: root.typeFilter = modelData.value
+                    // The chosen one again: off, back to all
+                    onClicked: {
+                        root.typeFilter = root.typeFilter === modelData.value ? "" : modelData.value;
+                    }
                 }
             }
 
             TextButton {
                 text: Tr.tr("Favourites")
                 isToggle: true
+                followChecked: true
                 checked: root.favouritesOnly
                 type: TextButton.Tonal
-                onClicked: root.favouritesOnly = !root.favouritesOnly
+                onClicked: {
+                    root.favouritesOnly = !root.favouritesOnly;
+                }
+            }
+
+            // Sort and the other filters, folded away by default
+            TextButton {
+                readonly property int active: [root.tagFilter, root.sourceFilter, root.ageFilter, root.compatFilter].filter(x => x).length
+
+                text: active ? Tr.tr("Filters (%1)").arg(active) : Tr.tr("Filters")
+                isToggle: true
+                followChecked: true
+                checked: root.showFilters
+                type: TextButton.Tonal
+                onClicked: {
+                    root.showFilters = !root.showFilters;
+                }
             }
         }
 
@@ -326,6 +363,7 @@ PageBase {
         }
 
         SelectRow {
+            visible: root.showFilters
             first: true
             label: Tr.tr("Sort by")
             menuItems: [
@@ -359,6 +397,7 @@ PageBase {
         }
 
         SelectRow {
+            visible: root.showFilters
             label: Tr.tr("Tag")
             menuItems: [anyTag, ...tagItems.instances]
             active: root.tagFilter ? tagItems.instances.find(i => i.value === root.tagFilter) ?? null : anyTag
@@ -386,6 +425,7 @@ PageBase {
         }
 
         SelectRow {
+            visible: root.showFilters
             label: Tr.tr("Source")
             menuItems: [
                 MenuItem {
@@ -414,7 +454,7 @@ PageBase {
         }
 
         SelectRow {
-            visible: root.showMature
+            visible: root.showFilters && root.showMature
             label: Tr.tr("Age rating")
             menuItems: [
                 MenuItem {
@@ -439,6 +479,7 @@ PageBase {
         }
 
         SelectRow {
+            visible: root.showFilters
             label: Tr.tr("Works with Linux")
             menuItems: [
                 MenuItem {
@@ -463,6 +504,7 @@ PageBase {
         }
 
         ToggleRow {
+            visible: root.showFilters
             last: true
             text: Tr.tr("Show mature wallpapers")
             subtext: Tr.tr("Ones rated Questionable or Mature on the Workshop")
@@ -471,6 +513,7 @@ PageBase {
         }
 
         RowButton {
+            visible: root.showFilters
             Layout.topMargin: Tokens.spacing.small
             first: true
             last: true
@@ -503,225 +546,6 @@ PageBase {
             font: Tokens.font.body.small
             wrapMode: Text.WordWrap
         }
-
-        // Playback (all live wallpapers)
-        SectionHeader {
-            text: Tr.tr("Playback")
-        }
-
-        SelectRow {
-            first: true
-            label: Tr.tr("Frame rate")
-            subtext: Tr.tr("Higher is smoother and uses more power")
-            menuItems: fpsItems.instances
-            active: fpsItems.instances.find(i => i.value === LiveWallpaper.setting("fps", 60)) ?? null
-            fallbackText: `${LiveWallpaper.setting("fps", 60)} fps`
-            onSelected: item => LiveWallpaper.set("fps", item.value)
-
-            Variants {
-                id: fpsItems
-
-                model: {
-                    const maxRate = Math.max(60, ...Hypr.monitors.values.map(m => Math.round(m.lastIpcObject?.refreshRate ?? 60)));
-                    return [15, 24, 30, 60, 90, 120, 144, 165, 240, 360].filter(f => f <= maxRate);
-                }
-
-                MenuItem {
-                    required property int modelData
-
-                    text: `${modelData} fps`
-                    value: modelData
-                }
-            }
-        }
-
-        SelectRow {
-            label: Tr.tr("Post-processing")
-            subtext: Tr.tr("Ultra enables HDR bloom in wallpapers that support it")
-            menuItems: [
-                MenuItem {
-                    text: Tr.tr("Off")
-                    value: "off"
-                },
-                MenuItem {
-                    text: Tr.tr("Normal")
-                    value: "normal"
-                },
-                MenuItem {
-                    text: Tr.tr("Ultra / HDR bloom")
-                    value: "ultra"
-                }
-            ]
-            active: menuItems.find(i => i.value === LiveWallpaper.setting("postProcessing", "ultra")) ?? null
-            onSelected: item => LiveWallpaper.set("postProcessing", item.value)
-        }
-
-        ToggleRow {
-            text: Tr.tr("Pause behind fullscreen apps")
-            subtext: Tr.tr("Games and videos get the GPU to themselves")
-            checked: LiveWallpaper.setting("pauseOnFullscreen", true)
-            onToggled: LiveWallpaper.set("pauseOnFullscreen", checked)
-        }
-
-        ToggleRow {
-            visible: LiveWallpaper.setting("pauseOnFullscreen", true) && root.monitors.length > 1
-            text: Tr.tr("Only on that monitor")
-            subtext: Tr.tr("Other monitors keep playing")
-            checked: LiveWallpaper.setting("pauseOnlyActive", false)
-            onToggled: LiveWallpaper.set("pauseOnlyActive", checked)
-        }
-
-        ToggleRow {
-            text: Tr.tr("Sound")
-            subtext: Tr.tr("For wallpapers that have it")
-            checked: !LiveWallpaper.setting("silent", true)
-            onToggled: LiveWallpaper.set("silent", !checked)
-        }
-
-        SliderRow {
-            visible: !LiveWallpaper.setting("silent", true)
-            icon: "volume_up"
-            label: Tr.tr("Volume")
-            valueLabel: `${LiveWallpaper.setting("volume", 50)}%`
-            value: LiveWallpaper.setting("volume", 50) / 100
-            onMoved: v => LiveWallpaper.set("volume", Math.round(v * 100))
-        }
-
-        ToggleRow {
-            visible: !LiveWallpaper.setting("silent", true)
-            text: Tr.tr("Quiet while other apps play sound")
-            checked: !LiveWallpaper.setting("noAutomute", false)
-            onToggled: LiveWallpaper.set("noAutomute", !checked)
-        }
-
-        ToggleRow {
-            text: Tr.tr("React to music")
-            subtext: Tr.tr("Audio visualisers in wallpapers follow what's playing")
-            checked: LiveWallpaper.setting("audioProcessing", true)
-            onToggled: LiveWallpaper.set("audioProcessing", checked)
-        }
-
-        SelectRow {
-            label: Tr.tr("Fit")
-            menuOnTop: true
-            menuItems: [
-                MenuItem {
-                    text: Tr.tr("Fill the screen (crop)")
-                    value: "fill"
-                },
-                MenuItem {
-                    text: Tr.tr("Fit (bars at the sides)")
-                    value: "fit"
-                },
-                MenuItem {
-                    text: Tr.tr("Stretch")
-                    value: "stretch"
-                },
-                MenuItem {
-                    text: Tr.tr("As the wallpaper says")
-                    value: "default"
-                }
-            ]
-            active: menuItems.find(i => i.value === LiveWallpaper.setting("scaling", "fill")) ?? null
-            onSelected: item => LiveWallpaper.set("scaling", item.value)
-        }
-
-        ToggleRow {
-            visible: root.monitors.length > 1
-            text: Tr.tr("Stretch one wallpaper across monitors")
-            subtext: Tr.tr("Instead of the same one on each")
-            checked: LiveWallpaper.setting("span", false)
-            onToggled: LiveWallpaper.set("span", checked)
-        }
-
-        ToggleRow {
-            text: Tr.tr("React to the mouse")
-            checked: !LiveWallpaper.setting("disableMouse", false)
-            onToggled: LiveWallpaper.set("disableMouse", !checked)
-        }
-
-        ToggleRow {
-            text: Tr.tr("Parallax")
-            subtext: Tr.tr("Layers shift as the mouse moves")
-            checked: !LiveWallpaper.setting("disableParallax", false)
-            onToggled: LiveWallpaper.set("disableParallax", !checked)
-        }
-
-        ToggleRow {
-            last: true
-            text: Tr.tr("Particles")
-            subtext: Tr.tr("Off saves GPU on busy wallpapers")
-            checked: !LiveWallpaper.setting("disableParticles", false)
-            onToggled: LiveWallpaper.set("disableParticles", !checked)
-        }
-
-        // Where wallpapers are found
-        SectionHeader {
-            text: Tr.tr("Folders")
-        }
-
-        TextFieldRow {
-            first: true
-            label: Tr.tr("Wallpaper Engine folder")
-            subtext: LiveWallpaper.setting("assetsDir", "") ? Tr.tr("Set by you; empty to find it by itself") : Tr.tr("Found by itself: %1").arg(Paths.shortenHome(LiveWallpaper.assetsDetected.replace(/\/assets$/, "")) || Tr.tr("not found"))
-            value: LiveWallpaper.setting("assetsDir", "")
-            placeholderText: Tr.tr("Its assets folder, if it's somewhere unusual")
-            onEditingFinished: v => {
-                LiveWallpaper.set("assetsDir", v.trim());
-                LiveWallpaper.refresh();
-            }
-        }
-
-        StyledText {
-            Layout.fillWidth: true
-            Layout.leftMargin: Tokens.padding.small
-            Layout.topMargin: Tokens.spacing.small
-            text: Tr.tr("Every Steam library is searched (also on other drives). Extra folders with wallpapers of your own:")
-            color: Colours.palette.m3outline
-            font: Tokens.font.label.small
-            wrapMode: Text.WordWrap
-        }
-
-        StringListEditor {
-            values: LiveWallpaper.setting("extraFolders", [])
-            placeholderText: Tr.tr("A folder of wallpapers, e.g. ~/Wallpapers/Live")
-            onEdited: v => {
-                LiveWallpaper.setQuiet("extraFolders", v);
-                Qt.callLater(() => LiveWallpaper.refresh());
-            }
-        }
-
-        StyledText {
-            Layout.fillWidth: true
-            Layout.leftMargin: Tokens.padding.small
-            Layout.topMargin: Tokens.spacing.medium
-            text: Tr.tr("For shortcuts (Keyboard shortcuts > Your own): caelestia shell liveWallpaper random | pause | stop")
-            color: Colours.palette.m3outline
-            font: Tokens.font.label.small
-            wrapMode: Text.WordWrap
-        }
-
-        // The renderer: always the newest upstream build (the -git package)
-        SectionHeader {
-            text: Tr.tr("Renderer")
-        }
-
-        InfoRow {
-            first: true
-            icon: "memory"
-            label: "linux-wallpaperengine"
-            subtext: LiveWallpaper.engineLatest ? (LiveWallpaper.engineVersion.includes(LiveWallpaper.engineLatest) ? Tr.tr("Up to date") : Tr.tr("A newer version is out (%1)").arg(LiveWallpaper.engineLatest)) : Tr.tr("Built from the newest upstream code")
-            value: LiveWallpaper.engineVersion || Tr.tr("Not installed")
-            Component.onCompleted: LiveWallpaper.checkEngineUpdate()
-        }
-
-        RowButton {
-            last: true
-            icon: "update"
-            text: Tr.tr("Update to the newest version")
-            subtext: Tr.tr("Rebuilds it from upstream; opens a terminal")
-            onClicked: Term.run("paru -S linux-wallpaperengine-git && live-wallpaper start")
-        }
     }
 
     // A preview: animated ones play on hover (all of them at once would be heavy)
@@ -731,6 +555,8 @@ PageBase {
         property string source
         // A still that isn't black (for GIFs that fade in), else source's first frame
         property string still
+        // A full-size frame (the renderer's), preferred when it exists
+        property string frame
         property bool playing
 
         radius: Tokens.rounding.medium
@@ -740,10 +566,22 @@ PageBase {
         // AnimatedImage decodes every frame up front, ~100 of them took seconds
         Image {
             anchors.fill: parent
+            visible: frameImg.status !== Image.Ready
             source: prev.still || prev.source ? `file://${prev.still || prev.source}` : ""
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             sourceSize.width: 360
+        }
+
+        Image {
+            id: frameImg
+
+            anchors.fill: parent
+            source: prev.frame ? `file://${prev.frame}` : ""
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            cache: false
+            sourceSize.width: 640
         }
 
         Loader {
