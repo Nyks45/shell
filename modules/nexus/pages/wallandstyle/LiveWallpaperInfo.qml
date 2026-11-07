@@ -51,6 +51,95 @@ PageBase {
         return v === undefined ? p.value : v;
     }
 
+    // Wallpaper Engine's show/hide rule for a property, e.g.
+    // "background_enable.value && background_type.value == 2". It comes from
+    // the wallpaper's files, so it's never run as code: a small parser that
+    // only knows property values, numbers, true/false, strings, ! && || and
+    // comparisons. Anything else shows the property.
+    function condOk(expr: string): bool {
+        if (!expr)
+            return true;
+        // "rule ? <restyle the label> : false": shown when the rule holds; a
+        // ternary of two restylings: always shown (only the label changes)
+        const q = expr.indexOf("?");
+        if (q >= 0)
+            return /:\s*false\s*$/.test(expr) ? condOk(expr.slice(0, q)) : true;
+        const re = /\s*(\(|\)|!=|==|>=|<=|&&|\|\||!|>|<|-?\d+(?:\.\d+)?|true|false|"[^"]*"|'[^']*'|[A-Za-z_][\w]*\.value)/y;
+        const toks = [];
+        let pos = 0;
+        while (pos < expr.length) {
+            if (!expr.slice(pos).trim())
+                break;
+            re.lastIndex = pos;
+            const m = re.exec(expr);
+            if (!m)
+                return true;
+            toks.push(m[1]);
+            pos = re.lastIndex;
+        }
+        let i = 0;
+        const peek = () => toks[i];
+        const val = v => v === "true" ? true : v === "false" ? false : (v !== "" && v !== null && v !== undefined && !isNaN(Number(v)) && typeof v !== "boolean") ? Number(v) : v;
+        const primary = () => {
+            const t = toks[i++];
+            if (t === undefined)
+                throw "end";
+            if (t === "(") {
+                const v = or();
+                if (toks[i++] !== ")")
+                    throw "paren";
+                return v;
+            }
+            if (t === "!")
+                return !truthy(primary());
+            if (t === "true" || t === "false")
+                return t === "true";
+            if (/^-?\d/.test(t))
+                return Number(t);
+            if (/^["']/.test(t))
+                return t.slice(1, -1);
+            const name = t.slice(0, -6);
+            const p = (w.properties ?? []).find(x => x.name === name);
+            return val(p ? propValue(p) : undefined);
+        };
+        const truthy = v => v === true || (typeof v === "number" && v !== 0) || (typeof v === "string" && v !== "" && v !== "0" && v !== "false");
+        const cmp = () => {
+            let a = primary();
+            while (["==", "!=", ">", "<", ">=", "<="].includes(peek())) {
+                const op = toks[i++];
+                const b = primary();
+                const x = typeof a === "boolean" || typeof b === "boolean" ? truthy(a) : a;
+                const y = typeof a === "boolean" || typeof b === "boolean" ? truthy(b) : b;
+                a = op === "==" ? x == y : op === "!=" ? x != y : op === ">" ? x > y : op === "<" ? x < y : op === ">=" ? x >= y : x <= y;
+            }
+            return a;
+        };
+        const and = () => {
+            let a = truthy(cmp());
+            while (peek() === "&&") {
+                i++;
+                const b = truthy(cmp());
+                a = a && b;
+            }
+            return a;
+        };
+        const or = () => {
+            let a = and();
+            while (peek() === "||") {
+                i++;
+                const b = and();
+                a = a || b;
+            }
+            return a;
+        };
+        try {
+            const r = or();
+            return i === toks.length ? r : true;
+        } catch (e) {
+            return true;
+        }
+    }
+
     // Back to the author's value removes the change
     function setProp(p: var, v: var): void {
         LiveWallpaper.setProperty(path, p.name, String(v) === String(p.value) ? null : v);
@@ -347,13 +436,81 @@ PageBase {
                 required property int index
 
                 Layout.fillWidth: true
+                // Hidden by its show/hide rule (re-checked as values change)
+                visible: root.condOk(modelData.condition)
+                active: visible
                 sourceComponent: ({
                         bool: boolProp,
                         slider: sliderProp,
                         combo: comboProp,
                         color: colorProp,
-                        textinput: textProp
+                        textinput: textProp,
+                        group: groupProp,
+                        text: noteProp,
+                        file: pathProp,
+                        directory: pathProp,
+                        scenetexture: pathProp,
+                        usershortcut: shortcutProp
                     })[modelData.type] ?? null
+
+                // A heading for the ones after it
+                Component {
+                    id: groupProp
+
+                    StyledText {
+                        topPadding: Tokens.spacing.medium
+                        bottomPadding: Tokens.spacing.extraSmall
+                        leftPadding: Tokens.padding.small
+                        text: propLoader.modelData.label
+                        font: Tokens.font.label.large
+                        color: Colours.palette.m3primary
+                        wrapMode: Text.WordWrap
+                    }
+                }
+
+                // The author's note (its HTML as plain text)
+                Component {
+                    id: noteProp
+
+                    StyledText {
+                        topPadding: Tokens.spacing.extraSmall
+                        bottomPadding: Tokens.spacing.extraSmall
+                        leftPadding: Tokens.padding.small
+                        text: propLoader.modelData.label
+                        font: Tokens.font.label.medium
+                        color: Colours.palette.m3onSurfaceVariant
+                        wrapMode: Text.WordWrap
+                        textFormat: Text.PlainText
+                    }
+                }
+
+                // A file, folder or texture: its path
+                Component {
+                    id: pathProp
+
+                    TextFieldRow {
+                        first: propLoader.index === 0
+                        last: propLoader.index === props.count - 1
+                        label: propLoader.modelData.label
+                        placeholderText: propLoader.modelData.type === "directory" ? Tr.tr("A folder, e.g. ~/Pictures") : Tr.tr("A file, e.g. ~/Pictures/picture.jpg")
+                        value: String(root.propValue(propLoader.modelData) ?? "")
+                        onEditingFinished: v => root.setProp(propLoader.modelData, v.replace(/^~(?=\/|$)/, Quickshell.env("HOME")))
+                    }
+                }
+
+                // A command the wallpaper offers: not run (it's meant for
+                // Windows, and running what wallpapers ship isn't safe)
+                Component {
+                    id: shortcutProp
+
+                    InfoRow {
+                        first: propLoader.index === 0
+                        last: propLoader.index === props.count - 1
+                        icon: "terminal"
+                        label: propLoader.modelData.label
+                        subtext: Tr.tr("A shortcut the wallpaper offers; not run on Linux")
+                    }
+                }
 
                 Component {
                     id: boolProp

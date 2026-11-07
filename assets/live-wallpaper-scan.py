@@ -44,7 +44,7 @@ ROOTS = [
     HOME / ".var/app/com.valvesoftware.Steam/.data/Steam",
 ]
 RATINGS = {"everyone": "g", "questionable": "pg13", "mature": "r"}
-PROPERTY_TYPES = {"bool", "slider", "combo", "color", "textinput"}
+PROPERTY_TYPES = {"bool", "slider", "combo", "color", "textinput", "group", "text", "file", "directory", "scenetexture", "usershortcut"}
 
 
 def libraries() -> list[Path]:
@@ -95,19 +95,33 @@ def properties(project: dict) -> list[dict]:
     props = (project.get("general") or {}).get("properties") or {}
     out = []
     for i, (name, p) in enumerate(props.items()):
-        if not isinstance(p, dict) or p.get("type") not in PROPERTY_TYPES:
+        if not isinstance(p, dict):
             continue
+        kind = p.get("type") or "text"  # untyped ones are labels (often HTML)
+        if kind not in PROPERTY_TYPES:
+            continue
+        if kind in ("text", "group"):
+            # A heading or a note: its text without HTML; nothing left (an
+            # image only): left out
+            plain = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", str(p.get("text") or ""))).strip()
+            if not plain:
+                continue
         entry = {
             "name": name,
-            "type": p["type"],
+            "type": kind,
             "label": clean_label(p.get("text", ""), name),
             "value": p.get("value"),
             "order": p.get("order", i),
+            # Wallpaper Engine's show/hide rule ("a.value && b.value == 2"), evaluated
+            # by the settings page (a small safe parser, never as code)
+            "condition": str(p.get("condition") or ""),
         }
+        if kind == "file":
+            entry["fileType"] = str(p.get("fileType") or "")
         for k in ("min", "max", "step"):
             if k in p:
                 entry[k] = p[k]
-        if p["type"] == "combo":
+        if kind == "combo":
             entry["options"] = [{"label": clean_label(o.get("label", ""), str(o.get("value"))), "value": o.get("value")} for o in p.get("options") or [] if isinstance(o, dict)]
         out.append(entry)
     out.sort(key=lambda e: (e["order"] if isinstance(e["order"], (int, float)) else 0))
