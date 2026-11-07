@@ -20,6 +20,7 @@ user properties (general.properties) and when it was added.
                                                live-wallpaper.json) into Wallpaper Engine's config.json
 """
 
+from html import unescape as html_unescape
 import gzip
 import hashlib
 import json
@@ -82,11 +83,26 @@ UI_LABELS = {
 }
 
 
+def html_text(text: str) -> str:
+    """A label's HTML as plain text: line breaks as spaces, tags out, entities
+    decoded (&nbsp; often without its ';'), spaces collapsed."""
+    text = re.sub(r"(?i)<br\s*/?>", " ", text or "")
+    text = re.sub(r"<[^>]+>", "", text)
+    text = re.sub(r"(?i)&nbsp;?", " ", text)
+    text = html_unescape(text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def image_only(text: str) -> bool:
+    """A label that's only a picture (authors use them as dividers)."""
+    return bool(re.search(r"(?i)<img", text or "")) and not html_text(text)
+
+
 def clean_label(text: str, name: str, loc: dict | None = None) -> str:
     # The wallpaper's own labels (general.localization, English) first
     if loc and isinstance(text, str) and text in loc:
         text = str(loc[text])
-    text = re.sub(r"<[^>]+>", "", text or "").strip()
+    text = html_text(text)
     if text in UI_LABELS:
         return UI_LABELS[text]
     if not text or text.startswith("ui_"):
@@ -105,13 +121,16 @@ def properties(project: dict) -> list[dict]:
         kind = p.get("type") or "text"  # untyped ones are labels (often HTML)
         if kind not in PROPERTY_TYPES:
             continue
-        if kind in ("text", "group"):
-            # A heading or a note: its text without HTML; nothing left (an
-            # image only): left out
-            raw = str(p.get("text") or "")
-            plain = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", str(loc.get(raw, raw)))).strip()
-            if not plain:
-                continue
+        raw = str(p.get("text") or "")
+        raw = str(loc.get(raw, raw))
+        # A picture for a label: authors use them as dividers (and give the
+        # property a name made from the picture's address): a divider line
+        if image_only(raw):
+            if out and out[-1]["type"] != "divider":
+                out.append({"name": name, "type": "divider", "label": "", "value": None, "order": p.get("order", i), "condition": str(p.get("condition") or "")})
+            continue
+        if kind in ("text", "group") and not html_text(raw):
+            continue
         entry = {
             "name": name,
             "type": kind,

@@ -138,7 +138,9 @@ ColumnLayout {
 
     MouseArea { // Prevent clicks from reaching flickable
         z: 1
-        implicitWidth: header.implicitWidth
+        // The page's width, not the title's: a long title (Workshop ones are)
+        // made the header wider than the page and pushed the page sideways
+        Layout.fillWidth: true
         implicitHeight: header.implicitHeight - Layout.bottomMargin
         Layout.bottomMargin: -flickable.topMargin // Extra height to block clicks on flickable top margin
         onClicked: focus = true
@@ -146,6 +148,8 @@ ColumnLayout {
         RowLayout {
             id: header
 
+            anchors.left: parent.left
+            anchors.right: parent.right
             spacing: Tokens.spacing.largeIncreased
 
             Loader {

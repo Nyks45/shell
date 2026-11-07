@@ -493,8 +493,28 @@ PageBase {
                         file: pathProp,
                         directory: pathProp,
                         scenetexture: pathProp,
-                        usershortcut: shortcutProp
+                        usershortcut: shortcutProp,
+                        divider: dividerProp
                     })[modelData.type] ?? null
+
+                // The author's picture divider, as a line
+                Component {
+                    id: dividerProp
+
+                    Item {
+                        implicitHeight: Tokens.spacing.medium * 2
+
+                        StyledRect {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.leftMargin: Tokens.padding.large
+                            anchors.rightMargin: Tokens.padding.large
+                            implicitHeight: 1
+                            color: Colours.palette.m3outlineVariant
+                        }
+                    }
+                }
 
                 // A heading for the ones after it
                 Component {
