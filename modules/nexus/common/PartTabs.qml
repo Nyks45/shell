@@ -5,9 +5,8 @@ import QtQuick.Layouts
 import Caelestia.Config
 import qs.components.controls
 
-// The sub-settings of a page (TabParts), one at a time. At first only a row
-// for each (what it has); once one is chosen, its settings below and chips
-// above to switch to another.
+// The sub-settings of a page (TabParts): switchers on top; a part's settings
+// show once it is chosen (none at first).
 ColumnLayout {
     id: root
 
@@ -25,7 +24,6 @@ ColumnLayout {
     Flow {
         Layout.fillWidth: true
         Layout.bottomMargin: Tokens.spacing.medium
-        visible: root.chosen
         spacing: Tokens.spacing.small
 
         Repeater {
@@ -41,19 +39,6 @@ ColumnLayout {
                 type: TextButton.Tonal
                 onClicked: root.show(modelData)
             }
-        }
-    }
-
-    Repeater {
-        model: root.chosen ? [] : root.parts
-
-        NavRow {
-            required property Item modelData
-
-            icon: modelData.icon
-            text: modelData.title
-            subtext: modelData.summary
-            onClicked: root.show(modelData)
         }
     }
 }
