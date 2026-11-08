@@ -275,7 +275,6 @@ Singleton {
                 [target]: Date.now()
             });
         changes.paused = false; // a new wallpaper plays
-        watchdog.restarts = [];
         patch(changes);
         if (target.startsWith("playlist:"))
             startPlaylist(target.slice(9));
@@ -832,50 +831,7 @@ Singleton {
         id: runningProc
 
         command: ["sh", "-c", `p=$(cat "\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper/pid" 2>/dev/null); [ -n "$p" ] && [ "$(cat /proc/$p/comm 2>/dev/null)" = linux-wallpaper ]`]
-        onExited: code => {
-            root.running = code === 0;
-            if (watchdog.checking) {
-                watchdog.checking = false;
-                watchdog.verdict(code === 0);
-            }
-        }
-    }
-
-    // The renderer crashing on its own (it does on some wallpapers, now and
-    // then): start it again, as long as a live wallpaper is set and nothing
-    // here stopped it (stop rule, a restart under way). At most 5 restarts a
-    // minute, then it stays off with a notification instead of looping.
-    Timer {
-        id: watchdog
-
-        property bool checking
-        property var restarts: []
-
-        function verdict(alive: bool): void {
-            if (alive || startProc.running || restartTimer.running || root.ruleAction === "stop" || !Object.keys(root.screens).length)
-                return;
-            const now = Date.now();
-            restarts = restarts.filter(t => now - t < 60000);
-            if (restarts.length >= 5) {
-                if (restarts.length === 5) {
-                    restarts = restarts.concat([now]); // say it once
-                    Quickshell.execDetached(["notify-send", "-a", "Live wallpaper", "Live wallpaper", Tr.tr("The renderer keeps crashing on %1; it stays off. Pick it again to retry.").arg(root.currentInfo?.title ?? Tr.tr("this wallpaper"))]);
-                }
-                return;
-            }
-            restarts = restarts.concat([now]);
-            startProc.running = true;
-        }
-
-        running: Object.keys(root.screens).length > 0 && root.ruleAction !== "stop"
-        repeat: true
-        interval: 5000
-        onTriggered: {
-            if (runningProc.running || startProc.running || restartTimer.running)
-                return;
-            checking = true;
-            runningProc.running = true;
-        }
+        onExited: code => root.running = code === 0
     }
 
     Process {
