@@ -222,10 +222,13 @@ QtObject {
             }
         },
         Component {
-            // Backups
+            // Backups: the snapshots (0), one snapshot (1)
             StackPage {
                 Component {
                     BackupsPage {}
+                }
+                Component {
+                    SnapshotPage {}
                 }
             }
         },

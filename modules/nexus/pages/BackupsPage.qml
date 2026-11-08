@@ -23,7 +23,6 @@ PageBase {
     property bool allowed
     property bool checked
     property bool hasSnapper
-    property bool hasAssistant
     // { number, type, date, description, cleanup, userdata }
     property var snapshots: []
     property var settings: ({})
@@ -49,11 +48,10 @@ PageBase {
 
         Process {
             running: true
-            command: ["sh", "-c", "command -v snapper >/dev/null && echo snapper; command -v btrfs-assistant >/dev/null && echo assistant"]
+            command: ["sh", "-c", "command -v snapper >/dev/null && echo snapper"]
             stdout: StdioCollector {
                 onStreamFinished: {
                     root.hasSnapper = text.includes("snapper");
-                    root.hasAssistant = text.includes("assistant");
                     if (root.hasSnapper)
                         root.refresh();
                     else
@@ -218,6 +216,15 @@ PageBase {
                 Layout.fillWidth: true
                 implicitHeight: snapLayout.implicitHeight + Tokens.padding.medium * 2
 
+                // Opens it: what changed since, restoring files, its files
+                StateLayer {
+                    onClicked: {
+                        root.nState.selectedSnapperConfig = root.config;
+                        root.nState.selectedSnapshot = snap.modelData.number;
+                        root.nState.openSubPage(1);
+                    }
+                }
+
                 Timer {
                     id: confirmTimer
 
@@ -300,14 +307,6 @@ PageBase {
             subtext: busy ? Tr.tr("Applying…") : ""
             disabled: busy
             onClicked: Admin.run("snapper-timeline", [root.config, root.settings.TIMELINE_CREATE === "yes" ? "no" : "yes"], what, () => root.refresh())
-        }
-
-        RowButton {
-            visible: root.allowed && root.hasAssistant
-            icon: "open_in_new"
-            text: Tr.tr("More in Btrfs Assistant")
-            subtext: Tr.tr("Compare and restore files, more snapshot settings")
-            onClicked: Quickshell.execDetached(["btrfs-assistant"])
         }
 
         StyledText {

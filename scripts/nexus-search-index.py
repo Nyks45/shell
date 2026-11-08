@@ -31,7 +31,7 @@ ROW_TYPES = {
 # Sub-pages that only make sense with something picked first
 NEEDS_SELECTION = {
     "EthernetDetailPage", "NetworkDetailPage", "AddVpnPage", "BtDeviceInfo", "AppInfo", "WallpaperCategory",
-    "LiveWallpaperInfo", "DiskPartitionPage", "DiskHealthPage",
+    "LiveWallpaperInfo", "DiskPartitionPage", "DiskHealthPage", "SnapshotPage",
 }
 # Extra words people search for, by label
 SYNONYMS = {

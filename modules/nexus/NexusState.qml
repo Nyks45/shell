@@ -24,6 +24,9 @@ QtObject {
     // Disks & drives: the drive and partition (udisks object paths) being looked at
     property string selectedDrive
     property string selectedPartition
+    // Backups: the snapshot being looked at
+    property int selectedSnapshot
+    property string selectedSnapperConfig
     property bool networkDetailsFromSaved
 
     signal close

@@ -177,6 +177,161 @@ def act_firewall(args):
         raise Refused("on or off")
 
 
+# --- Btrfs -------------------------------------------------------------------
+
+def mounts():
+    """(device, mountpoint, fstype, options) of every mount."""
+    out = []
+    for line in open("/proc/self/mounts"):
+        dev, mp, fs, opts = line.split()[:4]
+        out.append((dev, mp.replace("\\040", " "), fs, opts))
+    return out
+
+
+def btrfs_mount(path):
+    """A path that is a mounted Btrfs filesystem's mount point."""
+    if not path.startswith("/") or "\n" in path:
+        raise Refused("not an absolute path")
+    real = os.path.realpath(path)
+    if not any(mp == real and fs == "btrfs" for _, mp, fs, _ in mounts()):
+        raise Refused(f"{path} isn't a mounted Btrfs filesystem")
+    return real
+
+
+NAME = re.compile(r"^[A-Za-z0-9@._+-][A-Za-z0-9@._+ -]{0,63}$")
+
+
+def act_btrfs_subvolumes(args):
+    """btrfs-subvolumes MOUNT: lists them (id, path, mounted at)"""
+    need(args, 1, "btrfs-subvolumes MOUNT")
+    mp = btrfs_mount(args[0])
+    mounted = {}
+    for dev, m, fs, opts in mounts():
+        if fs == "btrfs":
+            sv = next((o[7:] for o in opts.split(",") if o.startswith("subvol=")), None)
+            if sv:
+                mounted.setdefault(sv.lstrip("/"), []).append(m)
+    out = subprocess.run(["btrfs", "subvolume", "list", "-t", mp], text=True, stdout=subprocess.PIPE, check=True).stdout
+    for line in out.splitlines()[2:]:
+        parts = line.split(None, 3)
+        if len(parts) == 4 and parts[0].isdigit():
+            sid, path = parts[0], parts[3]
+            print(f"{sid}\t{path}\t{','.join(mounted.get(path, []))}")
+
+
+def subvolume_target(mp, rel):
+    """A subvolume below the mount point, by its path from the top level."""
+    if rel.startswith("/") or ".." in rel.split("/") or "\n" in rel:
+        raise Refused("bad subvolume path")
+    full = os.path.join(mp, rel)
+    if not os.path.isdir(full):
+        raise Refused(f"{rel} isn't reachable from {mp}")
+    return full
+
+
+def act_btrfs_subvolume_create(args):
+    """btrfs-subvolume-create MOUNT NAME: a new subvolume at the mount point's top"""
+    need(args, 2, "btrfs-subvolume-create MOUNT NAME")
+    mp = btrfs_mount(args[0])
+    if not NAME.match(args[1]) or "/" in args[1]:
+        raise Refused("bad name")
+    run("btrfs", "subvolume", "create", os.path.join(mp, args[1]))
+
+
+def act_btrfs_subvolume_delete(args):
+    """btrfs-subvolume-delete MOUNT PATH: never one that is mounted or holds snapshots"""
+    need(args, 2, "btrfs-subvolume-delete MOUNT PATH")
+    mp = btrfs_mount(args[0])
+    rel = args[1].strip("/")
+    for dev, m, fs, opts in mounts():
+        if fs == "btrfs" and any(o == f"subvol=/{rel}" or o == f"subvol={rel}" for o in opts.split(",")):
+            raise Refused(f"{rel} is mounted at {m}")
+    if rel.split("/")[-1] in (".snapshots", "@snapshots") or "/.snapshots/" in f"/{rel}/":
+        raise Refused("snapshots are managed on the Backups page")
+    if "/.refind-btrfs/" in f"/{rel}/":
+        raise Refused("rEFInd's boot snapshots are managed by refind-btrfs")
+    full = subvolume_target(mp, rel)
+    run("btrfs", "subvolume", "delete", full)
+
+
+def act_btrfs_scrub(args):
+    """btrfs-scrub MOUNT start|cancel: reads everything and checks it against its checksums"""
+    need(args, 2, "btrfs-scrub MOUNT start|cancel")
+    mp = btrfs_mount(args[0])
+    if args[1] not in ("start", "cancel"):
+        raise Refused("start or cancel")
+    run("btrfs", "scrub", args[1], mp)
+
+
+def act_btrfs_balance(args):
+    """btrfs-balance MOUNT start|cancel: compacts half-empty chunks (frees allocated space)"""
+    need(args, 2, "btrfs-balance MOUNT start|cancel")
+    mp = btrfs_mount(args[0])
+    if args[1] == "start":
+        run("btrfs", "balance", "start", "--bg", "-dusage=50", "-musage=50", mp)
+    elif args[1] == "cancel":
+        run("btrfs", "balance", "cancel", mp, check=False)
+    else:
+        raise Refused("start or cancel")
+
+
+def act_btrfs_status(args):
+    """btrfs-status MOUNT: scrub and balance progress"""
+    need(args, 1, "btrfs-status MOUNT")
+    mp = btrfs_mount(args[0])
+    run("btrfs", "scrub", "status", mp, check=False)
+    run("btrfs", "balance", "status", mp, check=False)
+
+
+# --- Snapshots ------------------------------------------------------------------
+
+def act_snapper_restore(args):
+    """snapper-restore CONFIG NUMBER PATH: one file or folder back as it was in snapshot NUMBER"""
+    need(args, 3, "snapper-restore CONFIG NUMBER PATH")
+    config, number, path = args
+    if not CONFIG.match(config) or not number.isdigit() or int(number) == 0:
+        raise Refused("bad config or snapshot")
+    if not path.startswith("/") or ".." in path.split("/") or "\n" in path:
+        raise Refused("bad path")
+    run("snapper", "-c", config, "undochange", f"{number}..0", path)
+
+
+# --- Partitions -------------------------------------------------------------
+
+DISK = re.compile(r"^/dev/(sd[a-z]+|nvme[0-9]+n[0-9]+|vd[a-z]+|mmcblk[0-9]+|loop[0-9]+)$")
+
+
+def act_move_partition(args):
+    """move-partition DISK NUMBER START: moves the partition (and its data) to start at
+    byte START, keeping its size. Never a mounted or system partition."""
+    need(args, 3, "move-partition DISK NUMBER START")
+    disk, num, start = args
+    if not DISK.match(disk) or not num.isdigit() or not start.isdigit():
+        raise Refused("bad arguments")
+    part = f"{disk}p{num}" if disk[-1].isdigit() else f"{disk}{num}"
+    if not os.path.exists(part):
+        raise Refused(f"no {part}")
+    # mounted (directly, through a holder like LUKS/LVM, or as swap)?
+    holders = os.listdir(f"/sys/class/block/{os.path.basename(part)}/holders")
+    if holders:
+        raise Refused(f"{part} is in use (opened as {', '.join(holders)})")
+    real = os.path.realpath(part)
+    if any(os.path.realpath(dev) == real for dev, _, _, _ in mounts() if dev.startswith("/dev/")):
+        raise Refused(f"{part} is mounted; unmount it first")
+    if real in open("/proc/swaps").read():
+        raise Refused(f"{part} is in use as swap")
+    sector = 512
+    try:
+        sector = int(open(f"/sys/class/block/{os.path.basename(disk)}/queue/logical_block_size").read())
+    except OSError:
+        pass
+    first = int(start) // sector
+    if int(start) % (1024 * 1024):
+        raise Refused("the start must be 1 MiB aligned")
+    run("sfdisk", "--move-data", "--no-reread", "-N", num, disk, input=f"{first},\n")
+    run("partprobe", disk, check=False)
+
+
 ACTIONS = {
     "power-key": act_power_key,
     "install": act_install,
@@ -189,6 +344,14 @@ ACTIONS = {
     "snapper-allow-me": act_snapper_allow_me,
     "snapper-timeline": act_snapper_timeline,
     "firewall": act_firewall,
+    "btrfs-subvolumes": act_btrfs_subvolumes,
+    "btrfs-subvolume-create": act_btrfs_subvolume_create,
+    "btrfs-subvolume-delete": act_btrfs_subvolume_delete,
+    "btrfs-scrub": act_btrfs_scrub,
+    "btrfs-balance": act_btrfs_balance,
+    "btrfs-status": act_btrfs_status,
+    "snapper-restore": act_snapper_restore,
+    "move-partition": act_move_partition,
 }
 
 

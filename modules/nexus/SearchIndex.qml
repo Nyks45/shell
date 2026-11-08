@@ -2565,16 +2565,6 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "More in Btrfs Assistant",
-            "ctx": "",
-            "sub": "Compare and restore files, more snapshot settings",
-            "section": "Automatic snapshots",
-            "page": 17,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
             "label": "Copy to the clipboard",
             "ctx": "",
             "sub": "Ready to paste anywhere",

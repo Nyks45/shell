@@ -40,6 +40,15 @@ PageBase {
         return gap ? gap.offset + gap.size - end : 0;
     }
     readonly property string pname: p ? Disks.partName(p) : ""
+    // Where it can start (moving it, same size): from the free space right
+    // before it to the end of the free space right after it, 1 MiB steps
+    readonly property real moveFrom: {
+        if (!isPartition || !drive)
+            return 0;
+        const gap = drive.free.find(f => f.offset + f.size <= p.offset && f.offset + f.size > p.offset - 1048576);
+        return gap ? gap.offset : p.offset;
+    }
+    readonly property real moveTo: isPartition ? p.offset + Math.floor(growRoom / 1048576) * 1048576 : 0
 
     title: p ? pname : Tr.tr("Partition")
     isSubPage: true
@@ -400,6 +409,17 @@ PageBase {
             }
         }
 
+        // ---- Btrfs: space, scrub, balance, subvolumes (the system's too) ----
+        Loader {
+            Layout.fillWidth: true
+            active: root.fs?.type === "btrfs" && root.mountList.length > 0
+            visible: active
+            sourceComponent: BtrfsSection {
+                mountPoint: root.mountList[0]
+                flickable: root.flickable
+            }
+        }
+
         // ---- Change it ------------------------------------------------------
         SectionHeader {
             visible: !!root.p && !root.p.system
@@ -464,6 +484,62 @@ PageBase {
                 }
             }
             onAccepted: Disks.run("resize", [root.p.id, String(Math.min(root.p.size + root.growRoom, sizeMiB * mib))], what)
+        }
+
+        // Move: same size, into the free space before or after it
+        DialogRowButton {
+            id: move
+
+            readonly property string what: Tr.tr("Move the partition")
+            readonly property real mib: 1048576
+            property real start
+
+            visible: root.isPartition && !root.p?.system && (root.moveFrom < root.p.offset || root.moveTo > root.p.offset)
+            rootParent: root.flickable
+            openHeight: Math.min(root.flickable.height * 0.9, 360)
+            icon: "swap_horiz"
+            label: what
+            header: Tr.tr("Move %1").arg(root.pname)
+            acceptLabel: Tr.trCtx("Move", "button")
+            acceptAllowed: !root.mounted && Math.round(start / mib) !== Math.round(root.p.offset / mib) && !Disks.busy(what)
+            onOpenChanged: if (open)
+                start = root.p.offset
+            content: Component {
+                ColumnLayout {
+                    spacing: Tokens.spacing.small
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        Layout.topMargin: Tokens.spacing.medium
+                        text: root.mounted ? Tr.tr("Unmount it first.") : Tr.tr("Starts at %1 (now %2); its size stays %3").arg(Disks.human(move.start)).arg(Disks.human(root.p.offset)).arg(Disks.human(root.p.size))
+                        font: Tokens.font.body.small
+                        wrapMode: Text.WordWrap
+                    }
+
+                    // StyledSlider works in 0..1, over where it can start
+                    StyledSlider {
+                        readonly property real span: Math.max(move.mib, root.moveTo - root.moveFrom)
+
+                        Layout.fillWidth: true
+                        implicitHeight: Tokens.padding.large * 2
+                        value: (move.start - root.moveFrom) / span
+                        onInteraction: v => move.start = root.moveFrom + Math.round(v * span / move.mib) * move.mib
+                    }
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: Tr.tr("All its data is copied to the new place: this takes a while, and a power cut during it can lose the partition. Back it up first. Systems that start from it may need their boot entry updated.")
+                        color: Colours.palette.m3onSurfaceVariant
+                        font: Tokens.font.body.small
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Item {
+                        Layout.fillHeight: true
+                    }
+                }
+            }
+            onAccepted: Admin.run("move-partition", [root.drive.device, String(root.p.number), String(Math.round(start / mib) * mib)], what)
         }
 
         // Format: what it becomes, then a typed confirmation
