@@ -9,16 +9,17 @@ import Caelestia.I18n
 import qs.components
 import qs.services
 import qs.utils
+import qs.modules.nexus
 import qs.modules.nexus.common
+import qs.modules.nexus.pages.disks
 
-// Storage: the drives and how full they are, what takes room in the home
-// folder, and cleaning up (Trash, thumbnails, package caches, unused packages,
-// old logs). Anything needing sudo runs in a terminal that says what it does.
+// Storage: the drives (each unfolds to its partitions, free space, health and
+// what a partition manager does), what takes room in the home folder, and
+// cleaning up (Trash, thumbnails, package caches, unused packages, old logs).
+// System changes ask for the password in the shell's own prompt.
 PageBase {
     id: root
 
-    // Mounted filesystems: { name, label, mount, fstype, size, used, model, removable }
-    property var drives: []
     // Folder -> bytes
     property var folders: ({})
     property var sizes: ({})
@@ -39,7 +40,6 @@ PageBase {
     }
 
     function refresh(): void {
-        drivesProc.running = true;
         sizesProc.running = true;
         foldersProc.running = true;
     }
@@ -51,44 +51,6 @@ PageBase {
         anchors.top: parent.top
         width: root.cappedWidth
         spacing: Tokens.spacing.extraSmall / 2
-
-        Process {
-            id: drivesProc
-
-            running: true
-            command: ["lsblk", "-J", "-b", "-o", "NAME,SIZE,TYPE,MOUNTPOINTS,FSTYPE,LABEL,MODEL,FSUSED,FSSIZE,RM,TRAN"]
-            stdout: StdioCollector {
-                onStreamFinished: {
-                    const out = [];
-                    const walk = (dev, disk) => {
-                        const mounts = (dev.mountpoints ?? []).filter(m => m && m !== "[SWAP]");
-                        if (mounts.length > 0 && dev.fssize) {
-                            // Btrfs subvolumes share one filesystem: show it once, at its shortest mount
-                            const mount = mounts.sort((a, b) => a.length - b.length)[0];
-                            if (!mount.startsWith("/boot") || mount === "/boot")
-                                out.push({
-                                    name: dev.name,
-                                    label: dev.label ?? "",
-                                    mount,
-                                    fstype: dev.fstype ?? "",
-                                    size: Number(dev.fssize),
-                                    used: Number(dev.fsused ?? 0),
-                                    model: disk?.model ?? "",
-                                    removable: !!(disk?.rm || dev.rm) || disk?.tran === "usb"
-                                });
-                        }
-                        for (const child of dev.children ?? [])
-                            walk(child, disk ?? dev);
-                    };
-                    try {
-                        for (const dev of JSON.parse(text).blockdevices ?? [])
-                            walk(dev, dev.type === "disk" ? dev : null);
-                    } catch (e) {}
-                    // The system drive first
-                    root.drives = out.sort((a, b) => (a.mount === "/" ? -1 : b.mount === "/" ? 1 : a.mount.localeCompare(b.mount)));
-                }
-            }
-        }
 
         // Cleanup sizes (bytes; -1 when it can't be read)
         Process {
@@ -191,84 +153,11 @@ done
             text: Tr.tr("Drives")
         }
 
-        Repeater {
-            id: driveList
-
-            model: root.drives
-
-            ConnectedRect {
-                id: drive
-
-                required property var modelData
-                required property int index
-                readonly property real ratio: modelData.size > 0 ? modelData.used / modelData.size : 0
-
-                Layout.fillWidth: true
-                first: index === 0
-                last: index === driveList.count - 1
-                implicitHeight: driveLayout.implicitHeight + Tokens.padding.medium * 2
-
-                RowLayout {
-                    id: driveLayout
-
-                    anchors.fill: parent
-                    anchors.margins: Tokens.padding.medium
-                    anchors.leftMargin: Tokens.padding.largeIncreased
-                    anchors.rightMargin: Tokens.padding.largeIncreased
-                    spacing: Tokens.spacing.medium
-
-                    MaterialIcon {
-                        text: drive.modelData.removable ? "usb" : drive.modelData.mount === "/" ? "hard_drive" : "storage"
-                        color: Colours.palette.m3onSurfaceVariant
-                        fontStyle: Tokens.font.icon.medium
-                    }
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: Tokens.spacing.extraSmall
-
-                        RowLayout {
-                            Layout.fillWidth: true
-
-                            StyledText {
-                                Layout.fillWidth: true
-                                text: drive.modelData.mount === "/" ? Tr.tr("System (%1)").arg(drive.modelData.mount) : drive.modelData.label ? `${drive.modelData.label} (${drive.modelData.mount})` : drive.modelData.mount
-                                font: Tokens.font.body.small
-                                elide: Text.ElideRight
-                            }
-
-                            StyledText {
-                                text: Tr.tr("%1 free of %2").arg(root.human(drive.modelData.size - drive.modelData.used)).arg(root.human(drive.modelData.size))
-                                color: Colours.palette.m3onSurfaceVariant
-                                font: Tokens.font.label.small
-                            }
-                        }
-
-                        // Usage bar: red-ish when nearly full
-                        StyledRect {
-                            Layout.fillWidth: true
-                            implicitHeight: 6
-                            radius: 3
-                            color: Colours.tPalette.m3surfaceContainerHighest
-
-                            StyledRect {
-                                width: parent.width * Math.min(1, drive.ratio)
-                                height: parent.height
-                                radius: 3
-                                color: drive.ratio > 0.9 ? Colours.palette.m3error : Colours.palette.m3primary
-                            }
-                        }
-
-                        StyledText {
-                            Layout.fillWidth: true
-                            text: [drive.modelData.model, drive.modelData.fstype, `/dev/${drive.modelData.name}`].filter(s => s).join(" · ")
-                            color: Colours.palette.m3outline
-                            font: Tokens.font.label.small
-                            elide: Text.ElideRight
-                        }
-                    }
-                }
-            }
+        // Each drive, unfolding to its partitions, free space, health and actions
+        DriveCards {
+            Layout.fillWidth: true
+            nState: root.nState
+            flickable: root.flickable
         }
 
         SectionHeader {
@@ -307,8 +196,6 @@ done
                         Games: Tr.tr("Games")
                     })
 
-                first: index === 0
-                last: index === folderList.count - 1
                 icon: modelData[0].startsWith(".") ? "folder_special" : "folder"
                 text: names[modelData[0]] ?? modelData[0]
                 subtext: `${root.human(modelData[1])} · ~/${modelData[0]}`
@@ -322,7 +209,6 @@ done
         }
 
         RowButton {
-            first: true
             icon: "delete"
             text: root.trashConfirm ? Tr.tr("Click again to empty the Trash") : Tr.tr("Empty the Trash")
             subtext: root.trashConfirm ? Tr.tr("Deleted files can't be brought back") : root.sizes.trash > 0 ? Tr.tr("%1 in the Trash").arg(root.human(root.sizes.trash)) : Tr.tr("The Trash is empty")
@@ -396,7 +282,6 @@ done
             readonly property string what: Tr.tr("Trim system logs")
             readonly property bool busy: Admin.jobs.some(j => j.what === what)
 
-            last: true
             icon: "receipt_long"
             text: what
             subtext: busy ? Tr.tr("Trimming…") : Tr.tr("%1 of logs; keeps the last two weeks").arg(root.human(root.sizes.journal ?? 0))

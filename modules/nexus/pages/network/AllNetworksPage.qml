@@ -33,7 +33,6 @@ PageBase {
         ConnectedRect {
             Layout.fillWidth: true
             implicitHeight: headerLayout.implicitHeight + Tokens.padding.medium * 2
-            first: true
 
             RowLayout {
                 id: headerLayout
@@ -135,7 +134,6 @@ PageBase {
 
             nState: root.nState
             enableFilter: true
-            last: true
         }
     }
 

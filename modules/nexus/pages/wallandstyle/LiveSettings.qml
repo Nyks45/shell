@@ -52,7 +52,6 @@ PageBase {
         }
 
         SelectRow {
-            first: true
             label: Tr.tr("Frame rate")
             subtext: Tr.tr("Higher is smoother and uses more power")
             menuItems: fpsItems.instances
@@ -183,7 +182,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Particles")
             subtext: Tr.tr("Off saves GPU on busy wallpapers")
             checked: !LiveWallpaper.setting("disableParticles", false)
@@ -217,7 +215,6 @@ PageBase {
                 required property var modelData
                 required property int index
 
-                first: index === 0
                 label: modelData.text
                 subtext: modelData.sub ?? ""
                 menuItems: [
@@ -244,7 +241,6 @@ PageBase {
         }
 
         InfoRow {
-            last: true
             icon: LiveWallpaper.ruleAction === "run" ? "play_circle" : LiveWallpaper.ruleAction === "mute" ? "volume_off" : LiveWallpaper.ruleAction === "pause" ? "pause_circle" : "stop_circle"
             label: Tr.tr("Now")
             subtext: LiveWallpaper.ruleAction === "run" ? Tr.tr("No rule applies") : LiveWallpaper.ruleReason
@@ -271,7 +267,6 @@ PageBase {
                 required property int index
                 property bool confirm
 
-                first: index === 0
                 icon: "rule"
                 text: modelData.app
                 subtext: confirm ? Tr.tr("Click again to delete this rule") : `${root.whenText(modelData.when)} → ${root.actionText(modelData.action)}`
@@ -288,8 +283,6 @@ PageBase {
 
         ConnectedRect {
             Layout.fillWidth: true
-            first: LiveWallpaper.appRules.length === 0
-            last: true
             implicitHeight: ruleCol.implicitHeight + Tokens.padding.medium * 2
 
             ColumnLayout {
@@ -376,7 +369,6 @@ PageBase {
         }
 
         TextFieldRow {
-            first: true
             label: Tr.tr("Wallpaper Engine folder")
             subtext: LiveWallpaper.setting("assetsDir", "") ? Tr.tr("Set by you; empty to find it by itself") : Tr.tr("Found by itself: %1").arg(Paths.shortenHome(LiveWallpaper.assetsDetected.replace(/\/assets$/, "")) || Tr.tr("not found"))
             value: LiveWallpaper.setting("assetsDir", "")
@@ -422,8 +414,6 @@ PageBase {
         }
 
         InfoRow {
-            first: true
-            last: true
             icon: "memory"
             label: "linux-wallpaperengine"
             subtext: Tr.tr("The renderer build installed (updated with its package, not from here)")

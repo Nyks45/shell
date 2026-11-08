@@ -166,7 +166,6 @@ PageBase {
         }
 
         InfoRow {
-            first: true
             icon: "link"
             label: Tr.tr("Status")
             value: root.device?.connected ? Tr.trCtx("Connected", "ethernet link state") : Tr.trCtx("Not connected", "ethernet link state")
@@ -198,7 +197,6 @@ PageBase {
         }
 
         InfoRow {
-            last: true
             icon: "memory"
             label: Tr.tr("MAC address")
             value: root.details?.macAddress || "—"
@@ -213,8 +211,6 @@ PageBase {
             id: methodSelect
 
             Layout.fillWidth: true
-            first: true
-            last: root.ipMethod === "auto"
             label: Tr.tr("IP assignment")
             fallbackText: Tr.tr("Automatic (DHCP)")
             fallbackIcon: "lan"

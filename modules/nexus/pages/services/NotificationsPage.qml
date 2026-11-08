@@ -58,7 +58,6 @@ PageBase {
         }
 
         SelectRow {
-            first: true
             label: Tr.tr("Show in fullscreen")
             subtext: Tr.tr("Whether notifications appear over fullscreen apps")
             menuItems: root.notifFullscreenItems
@@ -109,7 +108,6 @@ PageBase {
         }
 
         StepperRow {
-            last: true
             label: Tr.tr("Group preview count")
             subtext: Tr.tr("Notifications shown per group before collapsing")
             value: GlobalConfig.notifs.groupPreviewNum
@@ -125,7 +123,6 @@ PageBase {
         }
 
         SelectRow {
-            first: true
             label: Tr.tr("Show in fullscreen")
             subtext: Tr.tr("Whether toasts appear over fullscreen apps")
             menuItems: root.toastFullscreenItems
@@ -134,7 +131,6 @@ PageBase {
         }
 
         StepperRow {
-            last: true
             label: Tr.tr("Visible toasts")
             subtext: Tr.tr("Maximum number of toasts shown at once")
             value: GlobalConfig.utilities.maxToasts
@@ -150,7 +146,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Charging changes")
             checked: GlobalConfig.utilities.toasts.chargingChanged
             onToggled: GlobalConfig.utilities.toasts.chargingChanged = checked
@@ -211,7 +206,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Now playing")
             checked: GlobalConfig.utilities.toasts.nowPlaying
             onToggled: GlobalConfig.utilities.toasts.nowPlaying = checked
@@ -250,8 +244,6 @@ PageBase {
                 required property int index
                 readonly property string app: modelData[0]
 
-                first: index === 0
-                last: index === appList.count - 1
                 label: app
                 subtext: {
                     const m = NotifRules.mode(app);

@@ -25,7 +25,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.trCtx("Enabled", "toggle label")
             checked: Config.launcher.enabled
             onToggled: GlobalConfig.launcher.enabled = checked
@@ -60,7 +59,6 @@ PageBase {
         }
 
         TextFieldRow {
-            last: true
             label: Tr.tr("Special prefix")
             subtext: Tr.tr("Starts the launcher's special searches")
             value: GlobalConfig.launcher.specialPrefix
@@ -88,8 +86,6 @@ PageBase {
                 required property var modelData
                 required property int index
 
-                first: index === 0
-                last: index === actionList.count - 1
                 text: modelData.name
                 subtext: modelData.description
                 checked: modelData.enabled
@@ -103,7 +99,6 @@ PageBase {
         }
 
         StepperRow {
-            first: true
             label: Tr.tr("Max items shown")
             value: Config.launcher.maxShown
             from: 1
@@ -122,7 +117,6 @@ PageBase {
         }
 
         StepperRow {
-            last: true
             label: Tr.tr("Drag threshold")
             subtext: Tr.tr("Pixels dragged before the launcher opens")
             value: Config.launcher.dragThreshold
@@ -138,7 +132,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Vim keybinds")
             subtext: Tr.tr("Navigate results with Ctrl+hjkl")
             checked: GlobalConfig.launcher.vimKeybinds
@@ -146,7 +139,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Enable dangerous actions")
             subtext: Tr.tr("Allow actions that shut down or log out")
             checked: GlobalConfig.launcher.enableDangerousActions
@@ -159,7 +151,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Apps")
             checked: GlobalConfig.launcher.useFuzzy.apps
             onToggled: GlobalConfig.launcher.useFuzzy.apps = checked
@@ -184,7 +175,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Wallpapers")
             checked: GlobalConfig.launcher.useFuzzy.wallpapers
             onToggled: GlobalConfig.launcher.useFuzzy.wallpapers = checked

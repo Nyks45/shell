@@ -24,7 +24,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.trCtx("Enabled", "toggle label")
             subtext: Tr.tr("A slider at the screen edge when the volume or brightness changes")
             checked: Config.osd.enabled
@@ -44,7 +43,6 @@ PageBase {
         }
 
         StepperRow {
-            last: true
             label: Tr.tr("Hide after")
             subtext: Tr.tr("Milliseconds")
             value: Config.osd.hideDelay

@@ -81,7 +81,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Favourite")
             subtext: root.favouriteByRegex ? Tr.tr("Matched by a regex in favouriteApps — edit the config file to change") : Tr.tr("Pin to the top of the launcher")
             enabled: !root.favouriteByRegex
@@ -93,7 +92,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Hidden")
             subtext: root.hiddenByRegex ? Tr.tr("Matched by a regex in hiddenApps — edit the config file to change") : Tr.tr("Hide from the launcher")
             enabled: !root.hiddenByRegex

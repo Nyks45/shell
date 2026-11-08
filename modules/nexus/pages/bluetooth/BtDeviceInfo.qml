@@ -152,7 +152,6 @@ PageBase {
         // Connection group
         ToggleRow {
             verticalPadding: Tokens.padding.large
-            first: true
             text: Tr.trCtx("Trusted", "bluetooth device state")
             subtext: Tr.tr("Allow this device to connect automatically")
             checked: root.device?.trusted ?? false
@@ -175,7 +174,6 @@ PageBase {
 
         ToggleRow {
             verticalPadding: Tokens.padding.large
-            last: true
             text: Tr.tr("Wake allowed")
             subtext: Tr.tr("Allow this device to wake the system")
             checked: root.device?.wakeAllowed ?? false
@@ -190,7 +188,7 @@ PageBase {
             Layout.topMargin: Tokens.spacing.large - parent.spacing
             Layout.fillWidth: true
             implicitHeight: batteryLayout.implicitHeight + Tokens.padding.large * 2
-            first: true
+            groupStart: true
 
             ColumnLayout {
                 id: batteryLayout
@@ -234,7 +232,6 @@ PageBase {
         ConnectedRect {
             Layout.fillWidth: true
             implicitHeight: addrLayout.implicitHeight + Tokens.padding.large * 2
-            last: true
 
             RowLayout {
                 id: addrLayout

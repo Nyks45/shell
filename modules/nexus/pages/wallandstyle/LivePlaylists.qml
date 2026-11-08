@@ -93,7 +93,6 @@ PageBase {
                 readonly property var playingOn: Object.entries(LiveWallpaper.screens).filter(([, v]) => v === `playlist:${modelData.name}`).map(([k]) => k)
 
                 Layout.fillWidth: true
-                first: index === 0
                 implicitHeight: plLayout.implicitHeight + Tokens.padding.medium * 2
 
                 RowLayout {
@@ -149,8 +148,6 @@ PageBase {
 
         RowButton {
             visible: !root.draft
-            first: LiveWallpaper.playlists.length === 0
-            last: true
             icon: "add"
             text: Tr.tr("New playlist")
             onClicked: root.edit(null)
@@ -159,7 +156,6 @@ PageBase {
         // The editor
         TextFieldRow {
             visible: !!root.draft
-            first: true
             label: Tr.tr("Name")
             value: root.draft?.name ?? ""
             errorText: root.draft && root.draft.name.trim() && !root.nameOk ? Tr.tr("Another playlist has this name") : ""
@@ -256,7 +252,6 @@ PageBase {
 
         SelectRow {
             visible: !!root.draft
-            last: true
             label: Tr.tr("Order")
             menuItems: [
                 MenuItem {

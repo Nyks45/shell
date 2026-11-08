@@ -196,7 +196,6 @@ PageBase {
         }
 
         InfoRow {
-            first: true
             icon: "signal_wifi_4_bar"
             label: Tr.tr("Signal")
             value: root.ap ? Strings.percent(root.ap.strength) : "—"
@@ -233,7 +232,6 @@ PageBase {
         }
 
         InfoRow {
-            last: true
             icon: "memory"
             label: Tr.tr("MAC address")
             value: root.details?.macAddress || "—"
@@ -248,8 +246,6 @@ PageBase {
 
         ToggleRow {
             Layout.fillWidth: true
-            first: true
-            last: true
             text: Tr.tr("Connect automatically")
             subtext: Tr.tr("Join this network when it's in range")
             checked: root.autoconnect
@@ -268,8 +264,6 @@ PageBase {
         SelectRow {
             id: methodSelect
 
-            first: true
-            last: root.ipMethod === "auto"
             label: Tr.tr("IP assignment")
             // TRANSLATORS: DHCP and DNS are protocol names, leave them untranslated
             fallbackText: Tr.tr("Automatic (DHCP)")

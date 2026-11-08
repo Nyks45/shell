@@ -24,7 +24,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Persistent")
             subtext: Tr.tr("Keep the bar visible at all times")
             checked: Config.bar.persistent
@@ -53,7 +52,6 @@ PageBase {
         }
 
         StepperRow {
-            last: true
             label: Tr.tr("Drag threshold")
             subtext: Tr.tr("Pixels dragged before the bar reveals")
             value: Config.bar.dragThreshold
@@ -69,7 +67,6 @@ PageBase {
         }
 
         NavRow {
-            first: true
             icon: "workspaces"
             text: Tr.tr("Workspaces")
             subtext: Tr.tr("Indicators, window icons")
@@ -98,7 +95,6 @@ PageBase {
         }
 
         NavRow {
-            last: true
             icon: "schedule"
             text: Tr.tr("Clock")
             subtext: Tr.tr("Date, icon, background")
@@ -111,7 +107,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Workspaces")
             subtext: Tr.tr("Scroll over the workspace indicator to switch workspaces")
             checked: Config.bar.scrollActions.workspaces
@@ -126,7 +121,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Brightness")
             subtext: Tr.tr("Scroll on the bottom half of the bar to adjust brightness")
             checked: Config.bar.scrollActions.brightness

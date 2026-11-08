@@ -18,7 +18,6 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         ToggleRow {
-            first: true
             text: Tr.trCtx("Compact", "taskbar active window layout")
             checked: Config.bar.activeWindow.compact
             onToggled: GlobalConfig.bar.activeWindow.compact = checked
@@ -38,7 +37,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Popout on hover")
             subtext: Tr.tr("Show a window details popout when hovering")
             checked: Config.bar.popouts.activeWindow

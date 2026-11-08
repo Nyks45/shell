@@ -28,8 +28,6 @@ PageBase {
             id: savedList
 
             showList: true
-            first: true
-            last: true
             placeholderIcon: "wifi_find"
             placeholderText: Tr.tr("No saved networks")
 

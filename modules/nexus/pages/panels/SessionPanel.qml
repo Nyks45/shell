@@ -24,7 +24,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.trCtx("Enabled", "toggle label")
             subtext: Tr.tr("Log out, shut down, sleep and restart, from the screen's right edge")
             checked: Config.session.enabled
@@ -39,7 +38,6 @@ PageBase {
         }
 
         StepperRow {
-            last: true
             label: Tr.tr("Drag threshold")
             subtext: Tr.tr("Pixels dragged before the menu opens")
             value: Config.session.dragThreshold

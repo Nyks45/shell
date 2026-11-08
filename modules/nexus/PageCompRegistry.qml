@@ -11,6 +11,7 @@ import qs.modules.nexus.pages
 import qs.modules.nexus.pages.apps
 import qs.modules.nexus.pages.audio
 import qs.modules.nexus.pages.bluetooth
+import qs.modules.nexus.pages.disks
 import qs.modules.nexus.pages.network
 import qs.modules.nexus.pages.panels
 import qs.modules.nexus.pages.services
@@ -207,10 +208,16 @@ QtObject {
             }
         },
         Component {
-            // Storage
+            // Storage: the page with its drives (0), one partition (1), a drive's health details (2)
             StackPage {
                 Component {
                     StoragePage {}
+                }
+                Component {
+                    DiskPartitionPage {}
+                }
+                Component {
+                    DiskHealthPage {}
                 }
             }
         },

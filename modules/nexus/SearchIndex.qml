@@ -1471,16 +1471,6 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Install night light",
-            "ctx": "",
-            "sub": "Needs hyprsunset; opens a terminal to install it",
-            "section": "Night light",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
             "label": "Night light",
             "ctx": "",
             "sub": "Warmer colours in the evening, easier on the eyes",
@@ -1797,7 +1787,7 @@ QtObject {
         {
             "label": "Change password",
             "ctx": "",
-            "sub": "Opens a terminal; also used to unlock the screen",
+            "sub": "",
             "section": "Sign-in",
             "page": 10,
             "path": [],
@@ -2545,16 +2535,6 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Trim system logs",
-            "ctx": "",
-            "sub": "Trimming…",
-            "section": "Clean up",
-            "page": 16,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
             "label": "Description",
             "ctx": "",
             "sub": "",
@@ -2578,16 +2558,6 @@ QtObject {
             "label": "Hourly snapshots",
             "ctx": "",
             "sub": "",
-            "section": "Automatic snapshots",
-            "page": 17,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Turn hourly snapshots off",
-            "ctx": "",
-            "sub": "Applying…",
             "section": "Automatic snapshots",
             "page": 17,
             "path": [],
@@ -2767,7 +2737,7 @@ QtObject {
         {
             "label": "Update everything",
             "ctx": "",
-            "sub": "Opens a terminal: it asks for your password and shows the progress",
+            "sub": "",
             "section": "System updates",
             "page": 21,
             "path": [],

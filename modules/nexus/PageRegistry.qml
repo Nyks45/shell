@@ -143,8 +143,8 @@ QtObject {
             id: "storage",
             label: Tr.tr("Storage"),
             icon: "hard_drive",
-            description: Tr.tr("Drives, clean up"),
-            keywords: "disk space drives storage cleanup trash cache",
+            description: Tr.tr("Drives, partitions, clean up"),
+            keywords: "disk space drives storage cleanup trash cache partition partitions format resize shrink grow gparted partition manager table gpt mbr drive health smart ssd nvme hdd temperature wear self test mount unmount fstab startup encrypt luks unlock usb eject label filesystem ext4 btrfs ntfs exfat fat32",
             category: "system"
         },
         {

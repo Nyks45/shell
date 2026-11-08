@@ -163,8 +163,6 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         TextFieldRow {
-            first: true
-            last: true
             label: Tr.tr("Search")
             placeholderText: Tr.tr("A key or an action")
             onValueEdited: v => root.query = v
@@ -217,7 +215,6 @@ PageBase {
                 required property int index
 
                 Layout.fillWidth: true
-                first: index === 0
                 implicitHeight: customRow.implicitHeight + Tokens.padding.small * 2
 
                 RowLayout {
@@ -255,8 +252,6 @@ PageBase {
         ConnectedRect {
             Layout.fillWidth: true
             visible: !root.query
-            first: root.customBinds.length === 0
-            last: true
             implicitHeight: addLayout.implicitHeight + Tokens.padding.medium * 2
 
             ColumnLayout {

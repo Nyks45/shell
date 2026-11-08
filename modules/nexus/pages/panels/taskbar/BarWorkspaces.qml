@@ -19,7 +19,6 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         StepperRow {
-            first: true
             // TRANSLATORS: the number of workspaces shown on the bar
             label: Tr.trCtx("Shown", "bar workspaces")
             subtext: Tr.tr("Number of workspaces displayed")
@@ -110,7 +109,6 @@ PageBase {
         }
 
         StepperRow {
-            last: true
             // TRANSLATORS: maximum number of window icons shown per workspace
             label: Tr.trCtx("Max window icons", "bar workspaces")
             value: Config.bar.workspaces.maxWindowIcons

@@ -63,7 +63,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Copy to the clipboard")
             subtext: Tr.tr("Ready to paste anywhere")
             checked: Screenshots.copy
@@ -120,7 +119,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Shutter sound")
             checked: Screenshots.sound
             onToggled: Screenshots.set("sound", checked)
@@ -131,7 +129,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Print key: the whole screen, as above")
             subtext: Tr.tr("Off: the caelestia command's own screenshot")
             checked: HyprSettings.saved.screenshotKey ?? true
@@ -141,7 +138,6 @@ PageBase {
         }
 
         NavRow {
-            last: true
             icon: "keyboard_command_key"
             text: Tr.tr("Screenshot shortcuts")
             subtext: Tr.tr("Super+Shift+S: an area (the screen frozen); change them in Keyboard shortcuts")
@@ -156,7 +152,6 @@ PageBase {
         }
 
         SelectRow {
-            first: true
             label: Tr.tr("Quality")
             menuItems: [
                 MenuItem {
@@ -212,7 +207,6 @@ PageBase {
         }
 
         RowButton {
-            last: true
             icon: "folder_open"
             text: Tr.tr("Recordings folder")
             subtext: Paths.shortenHome(Paths.recsdir)

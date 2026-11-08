@@ -101,7 +101,6 @@ PageBase {
         ToggleRow {
             id: hiddenToggle
 
-            first: true
             text: Tr.tr("Hidden network")
             subtext: Tr.tr("Actively probe for a network that doesn't broadcast its name")
             checked: true
@@ -111,7 +110,6 @@ PageBase {
             id: securitySelect
 
             Layout.topMargin: Tokens.spacing.extraSmall / 2 - parent.spacing
-            last: !root.secured
             label: Tr.tr("Security")
             // TRANSLATORS: WPA/WPA2/WPA3 are protocol names, leave them untranslated
             fallbackText: Tr.tr("WPA/WPA2/WPA3 Personal")

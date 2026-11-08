@@ -50,8 +50,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
-            last: true
             disabled: !root.hyprflowLoaded
             text: Tr.tr("Desktop mode")
             subtext: root.hyprflowLoaded ? Tr.tr("Windows float and overlap, with title bars, snapping and a taskbar, like Windows") : Tr.tr("Needs the hyprflow Hyprland plugin")
@@ -62,8 +60,7 @@ PageBase {
         RequirementRow {
             Layout.topMargin: Tokens.spacing.small
             visible: !root.hyprflowLoaded
-            first: true
-            last: true
+            groupStart: true
             text: Tr.tr("Needs the hyprflow plugin")
             subtext: Tr.tr("Desktop mode, title bars, snapping, minimizing and hot corners come from hyprflow, a Hyprland plugin. It isn't loaded right now.")
             actionText: Tr.tr("Plugins")
@@ -81,7 +78,6 @@ PageBase {
 
         ToggleRow {
             visible: root.hyprflowLoaded
-            first: true
             text: Tr.tr("Snap windows")
             subtext: Tr.tr("Drag a window to a screen edge or corner to fill half or a quarter of it, or to the top to maximize")
             checked: HyprSettings.value("plugin:hyprflow:snap_enabled", true)
@@ -106,7 +102,6 @@ PageBase {
 
         ToggleRow {
             visible: root.hyprflowLoaded
-            last: true
             text: Tr.tr("Resize snapped windows together")
             subtext: Tr.tr("Dragging the edge between two snapped windows resizes both")
             checked: HyprSettings.value("plugin:hyprflow:snap_groups", true)
@@ -120,7 +115,6 @@ PageBase {
 
         ToggleRow {
             visible: root.hyprflowLoaded
-            first: true
             text: Tr.tr("Minimize animation")
             subtext: Tr.tr("Windows pour into their taskbar icon (genie); off: at once")
             checked: HyprSettings.value("plugin:hyprflow:minimize_animation", true)
@@ -129,7 +123,6 @@ PageBase {
 
         ToggleRow {
             visible: root.hyprflowLoaded
-            last: true
             text: Tr.tr("Keep windows drawing out of view")
             subtext: Tr.tr("Videos and games keep running behind other windows; off saves power")
             checked: HyprSettings.value("plugin:hyprflow:keep_alive", true)
@@ -143,7 +136,6 @@ PageBase {
 
         ToggleRow {
             visible: root.hyprflowLoaded
-            first: true
             text: Tr.tr("Title bars")
             subtext: Tr.tr("A bar on top of each window with its title and buttons")
             checked: HyprSettings.value("plugin:hyprflow:bar_enabled", true)
@@ -341,7 +333,6 @@ PageBase {
 
         StepperRow {
             visible: root.hyprflowLoaded
-            last: true
             label: Tr.tr("App icon size")
             subtext: Tr.tr("In pixels")
             value: HyprSettings.value("plugin:hyprflow:bar_icon_size", 14)

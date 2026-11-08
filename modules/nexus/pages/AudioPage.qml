@@ -22,7 +22,6 @@ PageBase {
 
         // Output
         SliderRow {
-            first: true
             icon: Icons.getVolumeIcon(Audio.volume, Audio.muted)
             label: Tr.trCtx("Output", "audio output")
             valueLabel: Strings.percentOne(value)
@@ -49,7 +48,7 @@ PageBase {
         // Input
         SliderRow {
             Layout.topMargin: Tokens.spacing.large - parent.spacing
-            first: true
+            groupStart: true
             icon: Icons.getMicVolumeIcon(Audio.sourceVolume, Audio.sourceMuted)
             label: Tr.trCtx("Input", "audio input")
             valueLabel: Strings.percentOne(value)
@@ -76,8 +75,7 @@ PageBase {
         // Per-app volumes
         NavRow {
             Layout.topMargin: Tokens.spacing.large - parent.spacing
-            first: true
-            last: true
+            groupStart: true
 
             icon: "tune"
             text: Tr.tr("App volumes")
@@ -92,7 +90,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Notification sound")
             subtext: Tr.tr("When a notification pops up (not quiet or low-priority ones)")
             checked: NotifRules.sound
@@ -133,7 +130,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Sounds in apps")
             subtext: Tr.tr("Event sounds of apps that play them (e.g. a click or an error)")
             checked: AppLook.get("org.gnome.desktop.sound", "event-sounds", true)

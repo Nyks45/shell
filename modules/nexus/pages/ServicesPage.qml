@@ -73,8 +73,6 @@ PageBase {
         }
 
         NavRow {
-            first: true
-            last: true
             icon: "notifications"
             text: Tr.tr("Notifications")
             subtext: Tr.tr("Notifications, toasts, timeouts")
@@ -87,7 +85,6 @@ PageBase {
         }
 
         StepperRow {
-            first: true
             label: Tr.tr("Media refresh")
             // TRANSLATORS: ms is the millisecond unit, leave it untranslated
             subtext: Tr.tr("How often the media position updates (ms)")
@@ -110,7 +107,6 @@ PageBase {
         }
 
         StepperRow {
-            last: true
             label: Tr.tr("Wi-Fi rescan")
             subtext: Tr.tr("How often available networks are rescanned (seconds)")
             value: GlobalConfig.nexus.networkRescanInterval / 1000
@@ -126,7 +122,6 @@ PageBase {
         }
 
         SelectRow {
-            first: true
             label: Tr.tr("Lyrics backend")
             subtext: Tr.tr("Source used to fetch synced lyrics")
             menuItems: root.lyricsItems
@@ -135,7 +130,6 @@ PageBase {
         }
 
         SelectRow {
-            last: true
             label: Tr.tr("Default player")
             subtext: Tr.tr("Preferred media player when several are open")
             menuItems: playerVariants.instances
@@ -151,7 +145,6 @@ PageBase {
         }
 
         StepperRow {
-            first: true
             label: Tr.tr("Volume step")
             subtext: Tr.tr("Amount the volume changes per scroll (%)")
             value: Math.round(GlobalConfig.services.audioIncrement * 100)
@@ -172,7 +165,6 @@ PageBase {
         }
 
         StepperRow {
-            last: true
             label: Tr.tr("Max volume")
             subtext: Tr.tr("Upper limit for output volume (%)")
             value: Math.round(GlobalConfig.services.maxVolume * 100)
@@ -188,7 +180,6 @@ PageBase {
         }
 
         StepperRow {
-            first: true
             // TRANSLATORS: bars of a spectrum analyser, not the taskbar
             label: Tr.tr("Visualiser bars")
             subtext: Tr.tr("Number of bars in the audio visualisers")
@@ -207,7 +198,6 @@ PageBase {
         }
 
         SelectRow {
-            last: true
             label: Tr.tr("GPU")
             subtext: Gpu.name ? Tr.tr("Monitoring: %1").arg(Gpu.name) : Tr.tr("Override for GPU type")
             menuOnTop: true

@@ -46,8 +46,6 @@ PageBase {
         }
 
         SelectRow {
-            first: true
-            last: true
             label: Tr.tr("Icon theme")
             subtext: Tr.tr("For apps, the taskbar and the launcher")
             menuItems: [defaultIcons, ...iconItems.instances]
@@ -169,7 +167,6 @@ for name in names:
         }
 
         SelectRow {
-            first: true
             label: Tr.tr("Style")
             subtext: Tr.tr("How buttons, menus and other controls of Qt apps are drawn")
             menuItems: styleItems.instances
@@ -198,7 +195,6 @@ for name in names:
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Open files with a single click")
             subtext: Tr.tr("In Qt file managers and dialogs")
             checked: AppLook.qt("singleClickActivate", false)
@@ -220,7 +216,6 @@ for name in names:
         }
 
         NavRow {
-            first: true
             icon: "palette"
             text: Tr.tr("Colours")
             subtext: Tr.tr("App colours follow the colour scheme")
@@ -241,7 +236,6 @@ for name in names:
         }
 
         NavRow {
-            last: true
             icon: "arrow_selector_tool"
             text: Tr.tr("Cursor")
             subtext: Tr.tr("Style and size, on Keyboard & mouse")

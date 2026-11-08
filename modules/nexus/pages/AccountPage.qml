@@ -179,7 +179,6 @@ PageBase {
         }
 
         RowButton {
-            first: true
             icon: "add_photo_alternate"
             text: Tr.tr("Change picture")
             subtext: Tr.tr("Shown on the dashboard and the lock screen")
@@ -197,7 +196,6 @@ PageBase {
         }
 
         TextFieldRow {
-            last: true
             label: Tr.tr("Full name")
             subtext: Tr.tr("Asks for your password")
             value: root.realName
@@ -299,8 +297,6 @@ PageBase {
         }
 
         TextFieldRow {
-            first: true
-            last: true
             label: Tr.tr("Computer name")
             subtext: Tr.tr("How it shows up on networks and Bluetooth; asks for your password")
             value: root.hostname

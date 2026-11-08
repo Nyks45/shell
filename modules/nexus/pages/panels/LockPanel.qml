@@ -29,7 +29,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Wallpaper as background")
             subtext: Tr.tr("Otherwise a plain colour")
             checked: GlobalConfig.lock.useWallpaper
@@ -51,7 +50,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Power buttons")
             subtext: Tr.tr("Shut down, restart and sleep from the lock screen")
             checked: GlobalConfig.lock.enableSessionControls
@@ -64,8 +62,6 @@ PageBase {
 
         RequirementRow {
             visible: root.checked && !root.hasFprint && !root.hasHowdy
-            first: true
-            last: true
             icon: "fingerprint"
             text: Tr.tr("Only the password unlocks this PC")
             subtext: Tr.tr("Fingerprint unlock needs fprintd and a fingerprint reader; face unlock needs Howdy and an infrared camera.")
@@ -73,8 +69,6 @@ PageBase {
 
         ToggleRow {
             visible: root.hasFprint
-            first: true
-            last: !root.hasHowdy && !GlobalConfig.lock.enableFprint
             text: Tr.tr("Fingerprint")
             checked: GlobalConfig.lock.enableFprint
             onToggled: GlobalConfig.lock.enableFprint = checked
@@ -93,8 +87,6 @@ PageBase {
 
         ToggleRow {
             visible: root.hasHowdy
-            first: !root.hasFprint
-            last: !GlobalConfig.lock.enableHowdy
             text: Tr.tr("Face (Howdy)")
             checked: GlobalConfig.lock.enableHowdy
             onToggled: GlobalConfig.lock.enableHowdy = checked
@@ -110,7 +102,6 @@ PageBase {
 
         StepperRow {
             visible: root.hasHowdy && GlobalConfig.lock.enableHowdy
-            last: true
             label: Tr.tr("Face attempts")
             value: GlobalConfig.lock.maxHowdyTries
             from: 1

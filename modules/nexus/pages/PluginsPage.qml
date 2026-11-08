@@ -50,8 +50,6 @@ PageBase {
 
         InfoRow {
             visible: root.plugins.length === 0
-            first: true
-            last: true
             icon: "extension_off"
             label: Tr.tr("No plugins")
             subtext: Tr.tr("Add one below")
@@ -64,8 +62,6 @@ PageBase {
                 required property var modelData
                 required property int index
 
-                first: index === 0
-                last: index === root.plugins.length - 1
                 text: modelData.name
                 subtext: `${modelData.repo}${modelData.author ? ` · ${modelData.author}` : ""} · ${root.loaded.includes(modelData.name) ? Tr.tr("loaded") : Tr.tr("not loaded")}`
                 checked: modelData.enabled
@@ -79,7 +75,6 @@ PageBase {
         }
 
         RowButton {
-            first: true
             icon: "update"
             text: Tr.tr("Update plugins")
             subtext: Tr.tr("Rebuild them for the running Hyprland (after a Hyprland update); opens a terminal")
@@ -87,7 +82,6 @@ PageBase {
         }
 
         RowButton {
-            last: true
             icon: "add"
             text: Tr.tr("Add a plugin")
             subtext: Tr.tr("From a git repository; opens a terminal")

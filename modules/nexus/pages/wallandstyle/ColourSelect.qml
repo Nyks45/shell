@@ -111,7 +111,6 @@ PageBase {
         }
 
         SelectRow {
-            first: true
             label: Tr.tr("Theme")
             subtext: Tr.tr("Light or dark surfaces, for the shell and apps")
             menuItems: [
@@ -131,7 +130,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Follow the wallpaper")
             subtext: Tr.tr("Picks light or dark, and the style, to suit each new wallpaper")
             checked: GlobalConfig.services.smartScheme
@@ -174,8 +172,6 @@ PageBase {
 
         SelectRow {
             visible: root.dynamic
-            first: true
-            last: true
             label: Tr.tr("Wallpaper colour style")
             subtext: active?.description ?? ""
             menuOnTop: true

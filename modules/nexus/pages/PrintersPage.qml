@@ -84,8 +84,6 @@ lpstat -p 2>/dev/null | sed -n 's/^printer \\([^ ]*\\) \\(.*\\)$/printer=\\1\\t\
         ConnectedRect {
             Layout.fillWidth: true
             visible: root.checked && (!root.hasCups || !root.cupsRunning)
-            first: true
-            last: true
             implicitHeight: installLayout.implicitHeight + Tokens.padding.large * 2
 
             ColumnLayout {
@@ -159,7 +157,6 @@ lpstat -p 2>/dev/null | sed -n 's/^printer \\([^ ]*\\) \\(.*\\)$/printer=\\1\\t\
                 required property var modelData
                 required property int index
 
-                first: index === 0
                 icon: "print"
                 text: modelData.name.replace(/_/g, " ")
                 subtext: modelData.name === root.defaultPrinter ? Tr.tr("Default · %1").arg(modelData.state) : modelData.state
@@ -174,7 +171,6 @@ lpstat -p 2>/dev/null | sed -n 's/^printer \\([^ ]*\\) \\(.*\\)$/printer=\\1\\t\
 
         RowButton {
             visible: root.hasCups && root.cupsRunning
-            first: root.printers.length === 0
             icon: "add"
             text: Tr.tr("Add a printer")
             subtext: root.hasConfigTool ? "" : Tr.tr("In the browser (CUPS)")
@@ -183,7 +179,6 @@ lpstat -p 2>/dev/null | sed -n 's/^printer \\([^ ]*\\) \\(.*\\)$/printer=\\1\\t\
 
         RowButton {
             visible: root.hasCups && root.cupsRunning
-            last: true
             icon: "open_in_new"
             text: Tr.tr("Print queue and more")
             subtext: Tr.tr("CUPS, in the browser")

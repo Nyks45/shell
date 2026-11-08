@@ -95,7 +95,6 @@ PageBase {
         }
 
         InfoRow {
-            first: true
             icon: root.checking ? "sync" : root.total > 0 ? "system_update" : "check_circle"
             label: root.checking ? Tr.tr("Checking for updates…") : root.total > 0 ? Tr.tr("%1 updates available").arg(root.total) : Tr.tr("Up to date")
             subtext: root.checkedAt.getTime() > 0 ? Tr.tr("Last checked at %1").arg(Qt.formatTime(root.checkedAt, "HH:mm")) : ""
@@ -109,7 +108,6 @@ PageBase {
         }
 
         RowButton {
-            last: true
             disabled: root.checking || root.total === 0 || root.updating
             icon: "download"
             text: Tr.tr("Update everything")
@@ -224,8 +222,6 @@ PageBase {
                 required property var modelData
                 required property int index
 
-                first: index === 0
-                last: index === Math.min(section.pkgs.length, 50) - 1
                 label: modelData.name
                 value: modelData.from ? `${modelData.from} → ${modelData.to}` : modelData.to
             }

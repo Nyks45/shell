@@ -163,8 +163,6 @@ PageBase {
             Layout.fillWidth: true
             Layout.bottomMargin: Tokens.spacing.large
             visible: root.undo !== null
-            first: true
-            last: true
             implicitHeight: keepLayout.implicitHeight + Tokens.padding.large * 2
             color: Colours.palette.m3secondaryContainer
 
@@ -216,7 +214,6 @@ PageBase {
         // (Several monitors: picker, arrangement, on/off and mirroring are
         // shelved for now; see git history, commit "Shelve multi-monitor UI")
         InfoRow {
-            first: true
             label: root.monitor?.model || root.monitor?.name || Tr.tr("No monitor")
             subtext: root.monitor ? [root.monitor.make, root.monitor.name].filter(s => s && s !== root.monitor.model).join(" · ") : ""
             icon: "monitor"
@@ -426,7 +423,6 @@ PageBase {
         }
 
         RowButton {
-            last: true
             icon: "palette"
             text: Tr.tr("Colour profile")
             subtext: {
@@ -465,8 +461,6 @@ PageBase {
             readonly property bool busy: Admin.jobs.some(j => j.what === what)
 
             visible: !root.sunsetInstalled
-            first: true
-            last: true
             icon: "download"
             text: what
             subtext: busy ? Tr.tr("Installing…") : Tr.tr("Needs hyprsunset (asks for your password)")
@@ -476,7 +470,6 @@ PageBase {
 
         ToggleRow {
             visible: root.sunsetInstalled
-            first: true
             text: Tr.tr("Night light")
             subtext: Tr.tr("Warmer colours in the evening, easier on the eyes")
             checked: root.night.enabled ?? false
@@ -533,7 +526,6 @@ PageBase {
 
         SelectRow {
             visible: root.sunsetInstalled && !(root.night.always ?? false)
-            last: true
             label: Tr.tr("Turns off at")
             menuOnTop: true
             menuItems: toItems.instances

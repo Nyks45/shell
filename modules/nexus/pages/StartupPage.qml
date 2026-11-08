@@ -70,8 +70,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
-            last: root.entries.length === 0
             text: Tr.tr("Start these apps at login")
             subtext: Tr.tr("Apps that start themselves (e.g. Steam's \"Run at startup\") show up here too")
             checked: HyprSettings.saved.autostart ?? true
@@ -85,7 +83,6 @@ PageBase {
                 required property var modelData
                 required property int index
 
-                last: index === root.entries.length - 1
                 disabled: !(HyprSettings.saved.autostart ?? true)
                 text: modelData.name
                 subtext: modelData.file.split("/").pop()

@@ -26,6 +26,12 @@ Item {
     property real openWidth: Math.min(rootParent.width * 0.8, Tokens.sizes.nexus.maxDialogWidth)
     property real openHeight: Math.min(rootParent.height * 0.8, Tokens.sizes.nexus.maxDialogHeight)
     property bool open
+    // Its place in a group of rows (rounded corners like ConnectedRect's):
+    // where it sits among the visible rows of its column (Rows) unless set
+    property bool groupStart
+    readonly property bool isGroupRow: true
+    property bool first: Rows.isFirst(root)
+    property bool last: Rows.isLast(root)
 
     signal accepted
     signal cancelled
@@ -37,6 +43,9 @@ Item {
         dialogWrapper.x = pos.x;
         dialogWrapper.y = pos.y;
     }
+
+    Component.onCompleted: Rows.bump()
+    Component.onDestruction: Rows.bump()
 
     Layout.fillWidth: true
     implicitHeight: openButton.implicitHeight
@@ -79,6 +88,8 @@ Item {
                 openButton.opacity: 0
                 dialogContent.opacity: 1
                 dialogBg.radius: root.Tokens.rounding.extraLargeIncreased
+                dialogBg.topLeftRadius: root.Tokens.rounding.extraLargeIncreased
+                dialogBg.topRightRadius: root.Tokens.rounding.extraLargeIncreased
                 dialogBg.bottomLeftRadius: root.Tokens.rounding.extraLargeIncreased
                 dialogBg.bottomRightRadius: root.Tokens.rounding.extraLargeIncreased
                 dialogWrapper.x: (root.rootParent.width - root.openWidth) / 2
@@ -103,7 +114,7 @@ Item {
                 property: "enabled"
             }
             Anim {
-                properties: "opacity,radius,bottomLeftRadius,bottomRightRadius"
+                properties: "opacity,radius,topLeftRadius,topRightRadius,bottomLeftRadius,bottomRightRadius"
                 type: Anim.DefaultEffects
             }
             Anim {
@@ -136,8 +147,10 @@ Item {
             opacity: blobGroup.color.a
 
             radius: Tokens.rounding.extraSmall
-            bottomLeftRadius: Tokens.rounding.extraLarge
-            bottomRightRadius: Tokens.rounding.extraLarge
+            topLeftRadius: root.first ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
+            topRightRadius: root.first ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
+            bottomLeftRadius: root.last ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
+            bottomRightRadius: root.last ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
         }
 
         RowButton {
@@ -152,7 +165,8 @@ Item {
             height: Math.min(implicitHeight, parent.height) // Clamp to parent height due to overshoot anim
             color: "transparent"
 
-            last: true
+            first: root.first
+            last: root.last
             icon: root.icon
             text: root.label
             onClicked: root.open = true

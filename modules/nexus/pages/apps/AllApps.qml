@@ -35,8 +35,6 @@ PageBase {
                 required property int index
 
                 Layout.fillWidth: true
-                first: index === 0
-                last: index === list.count - 1
                 implicitHeight: appRow.implicitHeight + appRow.anchors.margins * 2
 
                 StateLayer {

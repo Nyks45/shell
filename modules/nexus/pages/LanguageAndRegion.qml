@@ -74,8 +74,6 @@ PageBase {
         }
 
         SelectRow {
-            first: true
-            last: true
             label: Tr.tr("UI language")
             subtext: Tr.tr("The language used in the shell UI")
             active: menuItems.find(i => i.modelData === Tr.language) ?? autoLang
@@ -113,8 +111,6 @@ PageBase {
         }
 
         TextFieldRow {
-            first: true
-            last: true
             label: Tr.tr("Location")
             subtext: Tr.tr("A city, or coordinates (lat,lon); empty to guess it from your connection")
             placeholderText: Weather.city || Tr.tr("Automatic")
@@ -128,7 +124,6 @@ PageBase {
         }
 
         SelectRow {
-            first: true
             label: Tr.tr("Temperature")
             subtext: Tr.tr("Units for weather temperatures")
             menuItems: root.tempItems
@@ -145,7 +140,6 @@ PageBase {
         }
 
         SelectRow {
-            last: true
             label: Tr.tr("Data sizes")
             subtext: Tr.tr("Units for data sizes and network speeds")
             menuItems: root.dataItems
@@ -159,8 +153,6 @@ PageBase {
         }
 
         SelectRow {
-            first: true
-            last: true
             label: Tr.tr("Clock format")
             subtext: Tr.tr("How times are shown across the shell")
             menuOnTop: true

@@ -41,7 +41,6 @@ PageBase {
         }
 
         SliderRow {
-            first: true
             icon: "format_size"
             label: Tr.tr("Text size in apps")
             valueLabel: `${Math.round(AppLook.get("org.gnome.desktop.interface", "text-scaling-factor", 1) * 100)}%`
@@ -59,7 +58,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("High contrast in apps")
             subtext: Tr.tr("GTK apps draw with stronger borders and colours")
             checked: AppLook.get("org.gnome.desktop.a11y.interface", "high-contrast", false)
@@ -71,7 +69,6 @@ PageBase {
         }
 
         SliderRow {
-            first: true
             icon: "zoom_in"
             label: Tr.tr("Zoom")
             valueLabel: `${Math.round(HyprSettings.value("cursor:zoom_factor", 1) * 100)}%`
@@ -107,7 +104,6 @@ PageBase {
         }
 
         NavRow {
-            last: true
             icon: "arrow_selector_tool"
             text: Tr.tr("Bigger cursor")
             subtext: Tr.tr("Cursor size, on Keyboard & mouse")
@@ -124,7 +120,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Animations")
             subtext: Tr.tr("Off: windows, panels and apps change at once, without movement")
             checked: root.animationsOn
@@ -132,7 +127,6 @@ PageBase {
         }
 
         SliderRow {
-            last: true
             visible: root.animationsOn
             icon: "speed"
             label: Tr.tr("Shell animation speed")
@@ -147,8 +141,6 @@ PageBase {
         }
 
         NavRow {
-            first: true
-            last: true
             icon: "keyboard"
             text: Tr.tr("Key repeat")
             subtext: Tr.tr("How soon and how fast a held key repeats")

@@ -44,8 +44,6 @@ PageBase {
         }
 
         InfoRow {
-            first: true
-            last: true
             icon: "schedule"
             label: Time.format(Units.twelveHourClock ? "h:mm AP" : "HH:mm")
             subtext: Time.format("dddd, d MMMM yyyy")
@@ -57,7 +55,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Set the time automatically")
             subtext: Tr.tr("From the internet (NTP)")
             checked: root.ntp
@@ -74,7 +71,6 @@ PageBase {
         }
 
         SelectRow {
-            last: true
             label: Tr.tr("Clock format")
             subtext: Tr.tr("How times are shown across the shell")
             menuOnTop: true

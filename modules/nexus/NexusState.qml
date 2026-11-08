@@ -21,6 +21,9 @@ QtObject {
     property int editingVpnIndex: -1
     property string selectedNetworkSsid
     property string selectedEthernetInterface
+    // Disks & drives: the drive and partition (udisks object paths) being looked at
+    property string selectedDrive
+    property string selectedPartition
     property bool networkDetailsFromSaved
 
     signal close

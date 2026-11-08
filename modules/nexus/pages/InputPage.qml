@@ -133,7 +133,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Num Lock on at login")
             checked: HyprSettings.value("input:numlock_by_default", false)
             onToggled: HyprSettings.setOption("input:numlock_by_default", checked)
@@ -145,7 +144,6 @@ PageBase {
         }
 
         SliderRow {
-            first: true
             icon: "speed"
             label: Tr.tr("Pointer speed")
             valueLabel: {
@@ -180,7 +178,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Swap left and right buttons")
             subtext: Tr.tr("For using the mouse with the left hand")
             checked: HyprSettings.value("input:left_handed", false)
@@ -195,7 +192,6 @@ PageBase {
 
         ToggleRow {
             visible: root.hasTouchpad
-            first: true
             text: Tr.tr("Tap to click")
             checked: HyprSettings.value("input:touchpad:tap-to-click", true)
             onToggled: HyprSettings.setOption("input:touchpad:tap-to-click", checked)
@@ -210,7 +206,6 @@ PageBase {
 
         ToggleRow {
             visible: root.hasTouchpad
-            last: true
             text: Tr.tr("Turn off while typing")
             checked: HyprSettings.value("input:touchpad:disable_while_typing", true)
             onToggled: HyprSettings.setOption("input:touchpad:disable_while_typing", checked)
@@ -222,7 +217,6 @@ PageBase {
         }
 
         SelectRow {
-            first: true
             label: Tr.tr("Cursor style")
             menuItems: themeItems.instances
             active: themeItems.instances.find(i => i.value === root.cursorTheme) ?? null
@@ -253,7 +247,6 @@ PageBase {
         }
 
         SelectRow {
-            last: true
             label: Tr.tr("Hide the cursor when idle")
             subtext: Tr.tr("After the mouse hasn't moved for a while")
             menuOnTop: true

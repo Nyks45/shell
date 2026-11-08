@@ -36,8 +36,6 @@ PageBase {
         ItemList {
             id: streamList
 
-            first: true
-            last: true
             showList: true
             placeholderIcon: "music_off"
             placeholderText: Tr.tr("No apps playing audio")
@@ -56,8 +54,6 @@ PageBase {
 
                 anchors.left: streamList.list.contentItem.left
                 anchors.right: streamList.list.contentItem.right
-                first: index === 0
-                last: index === streamList.list.count - 1
 
                 icon: Icons.getVolumeIcon(stream.modelData?.audio?.volume ?? 0, stream.modelData?.audio?.muted ?? false)
                 label: Audio.getStreamName(stream.modelData)

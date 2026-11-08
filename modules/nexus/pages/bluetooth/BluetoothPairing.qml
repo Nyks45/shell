@@ -47,7 +47,6 @@ PageBase {
         ConnectedRect {
             Layout.fillWidth: true
             implicitHeight: headerText.implicitHeight + Tokens.padding.medium * 2
-            first: true
 
             StyledText {
                 id: headerText
@@ -69,7 +68,6 @@ PageBase {
             Layout.fillWidth: true
             showList: true
             extraHeight: scanIndicator.implicitHeight
-            last: true
             placeholderIcon: "bluetooth_searching"
             placeholderText: Tr.tr("Searching for devices…")
             list.anchors.top: scanIndicator.bottom

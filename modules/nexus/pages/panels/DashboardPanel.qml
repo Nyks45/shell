@@ -25,7 +25,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.trCtx("Enabled", "toggle label")
             checked: Config.dashboard.enabled
             onToggled: GlobalConfig.dashboard.enabled = checked
@@ -39,7 +38,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Show clock seconds")
             subtext: Tr.tr("Display seconds for the clock in the main panel")
             checked: Config.dashboard.showClockSeconds
@@ -52,7 +50,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Dashboard")
             checked: Config.dashboard.showDashboard
             onToggled: GlobalConfig.dashboard.showDashboard = checked
@@ -71,7 +68,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Weather")
             checked: Config.dashboard.showWeather
             onToggled: GlobalConfig.dashboard.showWeather = checked
@@ -83,7 +79,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Battery")
             checked: Config.dashboard.performance.showBattery
             onToggled: GlobalConfig.dashboard.performance.showBattery = checked
@@ -114,7 +109,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Network")
             checked: Config.dashboard.performance.showNetwork
             onToggled: GlobalConfig.dashboard.performance.showNetwork = checked
@@ -126,8 +120,6 @@ PageBase {
         }
 
         StepperRow {
-            first: true
-            last: true
             label: Tr.tr("Drag threshold")
             subtext: Tr.tr("Pixels dragged before the dashboard opens")
             value: Config.dashboard.dragThreshold

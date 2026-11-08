@@ -32,7 +32,6 @@ PageBase {
         }
 
         StepperRow {
-            first: true
             label: Tr.tr("Gap between windows")
             subtext: Tr.tr("In pixels")
             value: root.firstNumber(HyprSettings.value("general:gaps_in", 5), 5)
@@ -43,7 +42,6 @@ PageBase {
         }
 
         StepperRow {
-            last: true
             label: Tr.tr("Gap to the screen edges")
             subtext: Tr.tr("In pixels")
             value: root.firstNumber(HyprSettings.value("general:gaps_out", 10), 10)
@@ -58,7 +56,6 @@ PageBase {
         }
 
         StepperRow {
-            first: true
             label: Tr.tr("Border thickness")
             subtext: Tr.tr("The coloured line around windows; 0 for none")
             value: HyprSettings.value("general:border_size", 1)
@@ -79,7 +76,6 @@ PageBase {
         }
 
         SliderRow {
-            last: true
             icon: "opacity"
             label: Tr.tr("Window opacity")
             valueLabel: `${Math.round(HyprSettings.varValue("windowOpacity", 0.95) * 100)}%`
@@ -93,7 +89,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Blur")
             subtext: Tr.tr("Frosted glass behind see-through windows and panels")
             checked: HyprSettings.value("decoration:blur:enabled", true)
@@ -145,7 +140,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Animations")
             subtext: Tr.tr("Windows and workspaces move instead of appearing at once")
             checked: HyprSettings.value("animations:enabled", true)
@@ -157,7 +151,6 @@ PageBase {
         }
 
         StepperRow {
-            first: true
             label: Tr.tr("Screen frame")
             subtext: Tr.tr("Thickness of the shell's frame around the screen; 0 for none")
             value: Config.border.thickness
@@ -168,7 +161,6 @@ PageBase {
         }
 
         StepperRow {
-            last: true
             label: Tr.tr("Screen corners")
             subtext: Tr.tr("Rounding of the screen's corners (maximized windows follow it)")
             value: Config.border.rounding

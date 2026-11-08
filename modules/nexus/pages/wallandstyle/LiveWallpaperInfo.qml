@@ -306,8 +306,6 @@ PageBase {
         }
 
         SelectRow {
-            first: true
-            last: !(root.c?.errors ?? []).length
             label: {
                 const g = root.c?.grade ?? "";
                 return {
@@ -350,7 +348,6 @@ PageBase {
 
         InfoRow {
             visible: (root.c?.errors ?? []).length > 0
-            last: true
             icon: "bug_report"
             label: Tr.tr("What the renderer said")
             subtext: (root.c?.errors ?? []).join("\n")
@@ -371,8 +368,6 @@ PageBase {
                 required property var modelData
                 required property int index
 
-                first: index === 0
-                last: index === plList.count - 1
                 text: modelData.name
                 subtext: Tr.trN("%n wallpaper", "%n wallpapers", modelData.items.length)
                 checked: modelData.items.includes(root.path)
@@ -391,7 +386,6 @@ PageBase {
         }
 
         SelectRow {
-            first: true
             label: Tr.tr("Fit")
             menuItems: [
                 MenuItem {
@@ -455,7 +449,6 @@ PageBase {
 
         RowButton {
             visible: Object.keys(root.o).length > 0
-            last: !(root.w.properties ?? []).length
             icon: "restart_alt"
             text: Tr.tr("Back to the general settings and the author's values")
             onClicked: LiveWallpaper.resetOverrides(root.path)
@@ -552,8 +545,6 @@ PageBase {
                     id: pathProp
 
                     TextFieldRow {
-                        first: propLoader.index === 0
-                        last: propLoader.index === props.count - 1
                         label: propLoader.modelData.label
                         placeholderText: propLoader.modelData.type === "directory" ? Tr.tr("A folder, e.g. ~/Pictures") : Tr.tr("A file, e.g. ~/Pictures/picture.jpg")
                         value: String(root.propValue(propLoader.modelData) ?? "")
@@ -567,8 +558,6 @@ PageBase {
                     id: shortcutProp
 
                     InfoRow {
-                        first: propLoader.index === 0
-                        last: propLoader.index === props.count - 1
                         icon: "terminal"
                         label: propLoader.modelData.label
                         subtext: Tr.tr("A shortcut the wallpaper offers; not run on Linux")
@@ -579,8 +568,6 @@ PageBase {
                     id: boolProp
 
                     ToggleRow {
-                        first: propLoader.index === 0
-                        last: propLoader.index === props.count - 1
                         text: propLoader.modelData.label
                         checked: {
                             const v = root.propValue(propLoader.modelData);
@@ -599,8 +586,6 @@ PageBase {
                         readonly property real stepV: Number(propLoader.modelData.step ?? ((maxV - minV) / 100))
                         readonly property real cur: Number(root.propValue(propLoader.modelData) ?? minV)
 
-                        first: propLoader.index === 0
-                        last: propLoader.index === props.count - 1
                         icon: "tune"
                         label: propLoader.modelData.label
                         valueLabel: stepV >= 1 ? String(Math.round(cur)) : cur.toFixed(2)
@@ -617,8 +602,6 @@ PageBase {
                     id: comboProp
 
                     SelectRow {
-                        first: propLoader.index === 0
-                        last: propLoader.index === props.count - 1
                         label: propLoader.modelData.label
                         menuItems: comboItems.instances
                         active: comboItems.instances.find(i => String(i.value) === String(root.propValue(propLoader.modelData))) ?? null
@@ -644,8 +627,6 @@ PageBase {
                     id: colorProp
 
                     ConnectedRect {
-                        first: propLoader.index === 0
-                        last: propLoader.index === props.count - 1
                         implicitHeight: colorRow.implicitHeight + Tokens.padding.small * 2
 
                         RowLayout {
@@ -703,8 +684,6 @@ PageBase {
                     id: textProp
 
                     TextFieldRow {
-                        first: propLoader.index === 0
-                        last: propLoader.index === props.count - 1
                         label: propLoader.modelData.label
                         value: String(root.propValue(propLoader.modelData) ?? "")
                         onEditingFinished: v => root.setProp(propLoader.modelData, v)

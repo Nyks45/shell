@@ -11,6 +11,8 @@ StyledSwitch {
     property string subtext
     property alias first: bg.first
     property alias last: bg.last
+    property bool groupStart
+    readonly property bool isGroupRow: true
     readonly property alias bg: bg
 
     Layout.fillWidth: true
@@ -28,9 +30,15 @@ StyledSwitch {
     indicator.anchors.rightMargin: root.horizontalPadding
 
     onPressed: stateLayer.press(stateLayer.mouseX, stateLayer.mouseY)
+    Component.onCompleted: Rows.bump()
+    Component.onDestruction: Rows.bump()
 
     background: ConnectedRect {
         id: bg
+
+        // Its place among the rows around the toggle row (not inside it)
+        first: Rows.isFirst(root)
+        last: Rows.isLast(root)
 
         StateLayer {
             id: stateLayer

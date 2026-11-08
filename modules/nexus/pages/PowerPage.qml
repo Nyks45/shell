@@ -156,7 +156,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Lock before sleeping")
             subtext: Tr.tr("Waking up shows the lock screen")
             checked: GlobalConfig.general.idle.lockBeforeSleep
@@ -164,7 +163,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Stay awake while audio plays")
             subtext: Tr.tr("Music or a video playing keeps the screen on and the PC awake")
             checked: GlobalConfig.general.idle.inhibitWhenAudio
@@ -178,8 +176,6 @@ PageBase {
 
         SelectRow {
             visible: root.powerProfiles.length > 0
-            first: true
-            last: true
             label: Tr.tr("Power mode")
             subtext: Tr.tr("Trade speed against power use and heat")
             menuItems: profileItems.instances
@@ -210,8 +206,6 @@ PageBase {
         }
 
         SelectRow {
-            first: true
-            last: true
             label: Tr.tr("When the power button is pressed")
             subtext: root.powerKeyPending ? Tr.tr("Applying…") : ""
             menuOnTop: true

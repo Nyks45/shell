@@ -183,7 +183,7 @@ def snapshot(om=None):
                     "number": pt.get("Number", 0), "offset": pt.get("Offset", 0), "size": pt.get("Size", 0),
                     "name": pt.get("Name", ""), "type": tguid,
                     "typeName": GPT_TYPES.get(tguid.lower(), DOS_TYPES.get(tguid.lower(), "")),
-                    "flags": pt.get("Flags", 0), "partUuid": pt.get("UUID", ""),
+                    "flagBits": [b for b in range(64) if pt.get("Flags", 0) >> b & 1], "partUuid": pt.get("UUID", ""),
                     "isContainer": pt.get("IsContainer", False), "isContained": pt.get("IsContained", False),
                 })
                 parts.append(pe)
@@ -226,7 +226,7 @@ def snapshot(om=None):
                 pe.update({"number": pt.get("Number", 0), "offset": pt.get("Offset", 0), "size": pt.get("Size", 0),
                            "name": pt.get("Name", ""), "type": tguid,
                            "typeName": GPT_TYPES.get(tguid.lower(), DOS_TYPES.get(tguid.lower(), "")),
-                           "flags": pt.get("Flags", 0), "partUuid": pt.get("UUID", ""),
+                           "flagBits": [b for b in range(64) if pt.get("Flags", 0) >> b & 1], "partUuid": pt.get("UUID", ""),
                            "isContainer": pt.get("IsContainer", False), "isContained": pt.get("IsContained", False)})
                 entry["partitions"].append(pe)
             entry["partitions"].sort(key=lambda p: p["offset"])
@@ -244,8 +244,34 @@ def snapshot(om=None):
                          "cancelable": j.get("Cancelable", False), "rate": j.get("Rate", 0),
                          "expectedEnd": j.get("ExpectedEndTime", 0)})
 
+    share_filesystems(drives + loops)
     drives.sort(key=lambda d: (d["removable"], not d["system"], d["device"]))
     return {"drives": drives + loops, "jobs": jobs}
+
+
+def share_filesystems(drives):
+    """One filesystem on several devices (a multi-device Btrfs, e.g. /home
+    grown onto a second partition): every member shows as in use where the
+    filesystem is mounted, with the same system role, and names the others.
+    Without this, a member that isn't the mounted device looked unused, and
+    formatting it would wreck the mounted filesystem."""
+    members = {}
+    for d in drives:
+        for e in d["partitions"] + ([d["whole"]] if d["whole"] else []):
+            for fs in (e["fs"], e["crypto"]["inner"] if e.get("crypto") and e["crypto"]["inner"] else None):
+                if fs and fs.get("uuid") and fs.get("usage") == "filesystem":
+                    members.setdefault(fs["uuid"], []).append((d, e, fs))
+    for uuid, group in members.items():
+        if len(group) < 2:
+            continue
+        mounts = sorted({m for _, _, fs in group for m in fs["mounts"]})
+        role = next((e["system"] for _, e, _ in group if e.get("system")), "")
+        for d, e, fs in group:
+            fs["members"] = [x[1]["device"] for x in group if x[1] is not e]
+            fs["sharedMounts"] = [m for m in mounts if m not in fs["mounts"]]
+            if role and not e.get("system"):
+                e["system"] = role
+                d["system"] = d["system"] or role
 
 
 MIB = 1024 * 1024
@@ -381,7 +407,8 @@ def guard(path, what, need_unmounted=True, whole_drive=False, snap=None):
         items = [target] if target is p else ([d["whole"]] if d["whole"] else d["partitions"])
         for it in items:
             inner = it["crypto"]["inner"] if it.get("crypto") and it["crypto"]["inner"] else None
-            mounts = it["fs"]["mounts"] + (inner["mounts"] if inner else [])
+            mounts = it["fs"]["mounts"] + it["fs"].get("sharedMounts", []) + \
+                (inner["mounts"] + inner.get("sharedMounts", []) if inner else [])
             if mounts or it["fs"]["swapActive"] or (inner and inner["swapActive"]):
                 raise Refused(f"{what}: {it['device']} is in use ({', '.join(mounts) or 'swap'}); unmount it first")
     return d, p
@@ -566,10 +593,22 @@ def a_type(a):
     call(a[0], "Partition", "SetType", (a[1], opts()), "(sa{sv})")
 
 
+# Flags that make sense to change (GPT attribute bits; MBR: 7 = bootable)
+FLAG_BITS = {0, 2, 7, 60, 62, 63}
+
+
 def a_flags(a):
-    """flags PARTITION FLAGS"""
+    """flags PARTITION BIT on|off  (2 legacy BIOS bootable, 7 MBR bootable, 60 read-only,
+    62 hidden, 63 don't mount automatically)"""
+    bit, state = int(a[1]), a[2]
+    if bit not in FLAG_BITS or state not in ("on", "off"):
+        raise Refused("unknown flag")
     guard(a[0], "Change the flags", need_unmounted=False)
-    call(a[0], "Partition", "SetFlags", (int(a[1]), opts()), "(ta{sv})")
+    v = bus().call_sync(UD, a[0], "org.freedesktop.DBus.Properties", "Get",
+                        GLib.Variant("(ss)", (P + "Partition", "Flags")), GLib.VariantType("(v)"),
+                        Gio.DBusCallFlags.NONE, -1, None).unpack()[0]
+    new = v | (1 << bit) if state == "on" else v & ~(1 << bit)
+    call(a[0], "Partition", "SetFlags", (new, opts()), "(ta{sv})")
 
 
 def fstab_item(fsname, dirp, typ, mo, freq, passno):

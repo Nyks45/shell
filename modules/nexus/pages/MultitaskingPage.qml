@@ -72,7 +72,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Focus follows the mouse")
             subtext: Tr.tr("In the scrolling layout: the window under the pointer gets the keyboard")
             checked: HyprSettings.modeValue("tiling", "input:follow_mouse", 1) === 1
@@ -95,7 +94,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Move the pointer with the focus")
             subtext: Tr.tr("When the keyboard switches windows, the pointer jumps to the new one")
             checked: !HyprSettings.value("cursor:no_warps", false)
@@ -107,7 +105,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Go back with the same key")
             subtext: Tr.tr("Pressing the shortcut of the workspace you're on goes to the one before")
             checked: HyprSettings.value("binds:workspace_back_and_forth", false)
@@ -122,7 +119,6 @@ PageBase {
         }
 
         SelectRow {
-            last: true
             label: Tr.tr("New window over a fullscreen one")
             menuOnTop: true
             menuItems: [
@@ -150,8 +146,6 @@ PageBase {
 
         RequirementRow {
             visible: !root.scrollerLoaded
-            first: true
-            last: true
             text: Tr.tr("Needs the hyprscroller plugin")
             subtext: Tr.tr("The scrolling layout (columns side by side) comes from hyprscroller, which isn't loaded.")
             actionText: Tr.tr("Plugins")
@@ -163,7 +157,6 @@ PageBase {
 
         SliderRow {
             visible: root.scrollerLoaded
-            first: true
             icon: "view_column"
             label: Tr.tr("New column width")
             valueLabel: `${Math.round(root.sc("column_width", 0.5) * 100)}%`
@@ -315,7 +308,6 @@ PageBase {
 
         ToggleRow {
             visible: root.scrollerLoaded
-            last: true
             text: Tr.tr("Window titles in the overview")
             checked: root.sc("overview_titles", true)
             onToggled: root.setSc("overview_titles", checked ? 1 : 0)
@@ -344,8 +336,6 @@ PageBase {
         }
 
         SelectRow {
-            first: root.rules.length === 0
-            last: true
             label: Tr.tr("Add a rule for an open app")
             subtext: root.openClasses.length === 0 ? Tr.tr("Open the app first") : ""
             menuOnTop: true

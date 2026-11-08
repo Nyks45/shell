@@ -40,7 +40,6 @@ PageBase {
         }
 
         FontRow {
-            first: true
             label: Tr.tr("Interface font")
             subtext: Tr.tr("Panels, menus, the launcher and this app")
             family: Config.appearance.font.body.family
@@ -62,7 +61,6 @@ PageBase {
         }
 
         SliderRow {
-            last: true
             icon: "format_size"
             label: Tr.tr("Shell text size")
             valueLabel: `${Math.round(Config.appearance.font.scale * 100)}%`
@@ -76,7 +74,6 @@ PageBase {
         }
 
         FontRow {
-            first: true
             label: Tr.tr("App font")
             subtext: Tr.tr("GTK and Qt apps' menus, buttons and labels")
             family: root.gtkUi.family
@@ -118,7 +115,6 @@ PageBase {
         }
 
         StepperRow {
-            last: true
             label: Tr.tr("App monospace font size")
             subtext: Tr.tr("In points")
             value: root.gtkMono.size
@@ -137,8 +133,6 @@ PageBase {
 
         RequirementRow {
             visible: HyprSettings.values["plugin:hyprflow:bar_font"] === undefined
-            first: true
-            last: true
             text: Tr.tr("Needs the hyprflow plugin")
             subtext: Tr.tr("Window title bars come from hyprflow, which isn't loaded.")
             actionText: Tr.tr("Plugins")
@@ -150,7 +144,6 @@ PageBase {
 
         FontRow {
             visible: HyprSettings.values["plugin:hyprflow:bar_font"] !== undefined
-            first: true
             label: Tr.tr("Title font")
             family: HyprSettings.value("plugin:hyprflow:bar_font", "")
             onPicked: f => HyprSettings.setHyprflow("bar_font", f)
@@ -169,7 +162,6 @@ PageBase {
 
         SelectRow {
             visible: HyprSettings.values["plugin:hyprflow:bar_font"] !== undefined
-            last: true
             label: Tr.tr("Title weight")
             menuOnTop: true
             menuItems: [
@@ -199,7 +191,6 @@ PageBase {
         }
 
         SelectRow {
-            first: true
             label: Tr.tr("Smoothing")
             subtext: Tr.tr("How the edges of letters are softened")
             menuItems: [
@@ -221,7 +212,6 @@ PageBase {
         }
 
         SelectRow {
-            last: true
             label: Tr.tr("Hinting")
             subtext: Tr.tr("Fitting letters to the pixel grid: crisper, less true to the font")
             menuOnTop: true

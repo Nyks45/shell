@@ -44,8 +44,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
-            last: true
             text: Tr.trCtx("Enabled", "toggle label")
             subtext: Tr.tr("Show the utilities panel")
             checked: Config.utilities.enabled
@@ -58,7 +56,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Keep awake")
             subtext: Tr.tr("Show the idle inhibitor card")
             checked: Config.utilities.cards.keepAwake
@@ -73,7 +70,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Quick toggles")
             subtext: Tr.tr("Show the quick toggles card")
             checked: Config.utilities.cards.quickToggles
@@ -86,7 +82,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Wi-Fi")
             subtext: Tr.tr("Toggle wireless networking")
             disabled: !Config.utilities.cards.quickToggles
@@ -135,7 +130,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("VPN")
             subtext: Tr.tr("Connect or disconnect the VPN")
             disabled: !Config.utilities.cards.quickToggles

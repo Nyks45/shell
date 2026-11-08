@@ -20,7 +20,6 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         ToggleRow {
-            first: true
             text: Tr.trCtx("Background", "taskbar tray: draw a background behind the tray")
             checked: Config.bar.tray.background
             onToggled: GlobalConfig.bar.tray.background = checked
@@ -40,7 +39,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             text: Tr.tr("Popout on hover")
             subtext: Tr.tr("Show the tray menu popout when hovering")
             checked: Config.bar.popouts.tray
@@ -74,8 +72,6 @@ PageBase {
                 required property var modelData
                 required property int index
 
-                first: index === 0
-                last: index === trayList.count - 1
                 text: modelData.title
                 subtext: modelData.title !== modelData.id ? modelData.id : ""
                 checked: !GlobalConfig.bar.tray.hiddenIcons.includes(modelData.id)

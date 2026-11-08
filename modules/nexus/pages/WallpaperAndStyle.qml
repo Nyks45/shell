@@ -26,11 +26,14 @@ PageBase {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         width: root.cappedWidth
-        spacing: Tokens.spacing.large
+        // Rows sit close like on every page; the preview and its buttons get
+        // their room from their own margins
+        spacing: Tokens.spacing.extraSmall / 2
 
         ClipRect {
             id: wallWrapper
 
+            Layout.bottomMargin: Tokens.spacing.large
             Layout.alignment: Qt.AlignHCenter
             implicitWidth: {
                 const screen = root.nState.screen;
@@ -167,6 +170,7 @@ PageBase {
         }
 
         ButtonRow {
+            Layout.bottomMargin: Tokens.spacing.large
             Layout.alignment: Qt.AlignHCenter
             spacing: Tokens.spacing.small
 
@@ -209,7 +213,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Display wallpaper")
             checked: Config.background.wallpaperEnabled || root.live
             onToggled: {
@@ -221,8 +224,6 @@ PageBase {
         }
 
         ToggleRow {
-            Layout.topMargin: Tokens.spacing.extraSmall / 2 - parent.spacing
-
             text: Tr.tr("Desktop icons")
             subtext: Tr.tr("Show what's in the Desktop folder on the desktop")
             checked: Config.background.desktopIcons
@@ -230,8 +231,6 @@ PageBase {
         }
 
         ToggleRow {
-            Layout.topMargin: Tokens.spacing.extraSmall / 2 - parent.spacing
-
             text: Tr.tr("Transparency")
             // TRANSLATORS: %1/%2 = opacity values from 0 to 1 for the base surface and layered surfaces
             subtext: Tr.tr("Base %1, layers %2").arg(Colours.transparency.base).arg(Colours.transparency.layers)
@@ -240,8 +239,6 @@ PageBase {
         }
 
         ToggleRow {
-            Layout.topMargin: Tokens.spacing.extraSmall / 2 - parent.spacing
-
             text: Tr.tr("Dark theme")
             checked: !Colours.light
             onToggled: Colours.setMode(checked ? "dark" : "light")
@@ -266,7 +263,6 @@ PageBase {
         }
 
         SliderRow {
-            last: true
             icon: "rounded_corner"
             label: Tr.tr("Roundness of the shell")
             valueLabel: `${Math.round(Config.appearance.rounding.scale * 100)}%`
@@ -281,7 +277,6 @@ PageBase {
         }
 
         SelectRow {
-            first: true
             label: Tr.tr("Wallpaper transition")
             subtext: Tr.tr("The effect when the wallpaper changes")
             menuItems: transitionItems.instances
@@ -412,7 +407,6 @@ PageBase {
         }
 
         TextFieldRow {
-            last: true
             label: Tr.tr("Wallpaper folder")
             subtext: Tr.tr("Where the wallpaper picker looks")
             value: GlobalConfig.paths.wallpaperDir
@@ -428,8 +422,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
-            last: !Config.background.desktopClock.enabled
             text: Tr.tr("Clock on the desktop")
             checked: Config.background.desktopClock.enabled
             onToggled: GlobalConfig.background.desktopClock.enabled = checked
@@ -507,7 +499,6 @@ PageBase {
 
         ToggleRow {
             visible: Config.background.desktopClock.enabled
-            last: true
             text: Tr.tr("Shadow")
             checked: Config.background.desktopClock.shadow.enabled
             onToggled: GlobalConfig.background.desktopClock.shadow.enabled = checked
@@ -519,8 +510,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
-            last: !Config.background.visualiser.enabled
             text: Tr.tr("Visualiser on the desktop")
             subtext: Tr.tr("Bars at the bottom of the wallpaper that move with what's playing")
             checked: Config.background.visualiser.enabled
@@ -536,7 +525,6 @@ PageBase {
 
         ToggleRow {
             visible: Config.background.visualiser.enabled
-            last: true
             text: Tr.tr("Blur")
             checked: Config.background.visualiser.blur
             onToggled: GlobalConfig.background.visualiser.blur = checked

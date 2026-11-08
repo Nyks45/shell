@@ -59,7 +59,7 @@ PageBase {
 
         ToggleRow {
             Layout.topMargin: Nmcli.hasAvailableEthernet ? Tokens.spacing.large : 0
-            first: true
+            groupStart: true
             text: Tr.tr("Wi-Fi")
             font: Tokens.font.body.medium
             horizontalPadding: Tokens.padding.largeIncreased
@@ -106,7 +106,6 @@ PageBase {
         }
 
         RowButton {
-            last: true
             icon: "add"
             text: Tr.tr("Add network")
             disabled: !Nmcli.wifiEnabled
@@ -117,7 +116,7 @@ PageBase {
         ToggleRow {
             Layout.topMargin: Tokens.spacing.large
             Layout.fillWidth: true
-            first: true
+            groupStart: true
             text: Tr.tr("VPN")
             font: Tokens.font.body.medium
             horizontalPadding: Tokens.padding.largeIncreased
@@ -342,7 +341,6 @@ PageBase {
 
         // Add provider
         RowButton {
-            last: true
             icon: "add"
             text: Tr.tr("Add provider")
             onClicked: {

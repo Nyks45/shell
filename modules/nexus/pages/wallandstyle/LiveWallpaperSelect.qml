@@ -97,8 +97,6 @@ PageBase {
             readonly property string progress: (Admin.outputOf(what).trim().split("\n").pop() ?? "").slice(0, 120)
 
             visible: !LiveWallpaper.hasEngine
-            first: true
-            last: true
             icon: "wallpaper"
             text: Tr.tr("Needs linux-wallpaperengine")
             subtext: busy ? (progress || Tr.tr("Building…")) : Tr.tr("The renderer for Wallpaper Engine wallpapers. Installing it builds the newest version (asks for your password).")
@@ -110,8 +108,6 @@ PageBase {
 
         RequirementRow {
             visible: LiveWallpaper.hasEngine && !LiveWallpaper.hasScript
-            first: true
-            last: true
             text: Tr.tr("The live-wallpaper command is missing")
             subtext: Tr.tr("It starts the renderer, here and at login.")
             actionText: Tr.tr("Set up")
@@ -121,8 +117,6 @@ PageBase {
         // What's on now
         ConnectedRect {
             Layout.fillWidth: true
-            first: true
-            last: true
             implicitHeight: nowRow.implicitHeight + Tokens.padding.medium * 2
 
             RowLayout {
@@ -342,7 +336,6 @@ PageBase {
 
         SelectRow {
             visible: root.showFilters
-            first: true
             label: Tr.tr("Sort by")
             menuItems: [
                 MenuItem {
@@ -483,7 +476,6 @@ PageBase {
 
         ToggleRow {
             visible: root.showFilters
-            last: true
             text: Tr.tr("Show mature wallpapers")
             subtext: Tr.tr("Ones rated Questionable or Mature on the Workshop")
             checked: root.showMature
@@ -493,8 +485,7 @@ PageBase {
         RowButton {
             visible: root.showFilters
             Layout.topMargin: Tokens.spacing.small
-            first: true
-            last: true
+            groupStart: true
             icon: LiveWallpaper.testing ? "hourglass_top" : "fact_check"
             text: LiveWallpaper.testing ? Tr.tr("Testing %1 of %2… (click to stop)").arg(LiveWallpaper.testDone).arg(LiveWallpaper.testTotal) : Tr.tr("Test which wallpapers work")
             subtext: LiveWallpaper.testing ? "" : Tr.tr("Runs each untested one for a few seconds, hidden")

@@ -84,8 +84,6 @@ df -B1 --output=size,used / | tail -1 | awk '{print "disk=" $1 " " $2}'
         // Hero
         ConnectedRect {
             Layout.fillWidth: true
-            first: true
-            last: true
             implicitHeight: hero.implicitHeight + Tokens.padding.extraLarge * 2
 
             ColumnLayout {
@@ -123,7 +121,6 @@ df -B1 --output=size,used / | tail -1 | awk '{print "disk=" $1 " " $2}'
         }
 
         InfoRow {
-            first: true
             label: Tr.tr("Hostname")
             value: SysInfo.hostname
         }
@@ -144,7 +141,6 @@ df -B1 --output=size,used / | tail -1 | awk '{print "disk=" $1 " " $2}'
         }
 
         InfoRow {
-            last: true
             // TRANSLATORS: BIOS or UEFI firmware version
             label: Tr.tr("Firmware")
             value: SysInfo.firmware
@@ -156,7 +152,6 @@ df -B1 --output=size,used / | tail -1 | awk '{print "disk=" $1 " " $2}'
         }
 
         InfoRow {
-            first: true
             label: Tr.tr("Processor")
             value: root.hw.cpu ? Tr.tr("%1 (%2 threads)").arg(root.hw.cpu).arg(root.hw.cores) : ""
         }
@@ -179,7 +174,6 @@ df -B1 --output=size,used / | tail -1 | awk '{print "disk=" $1 " " $2}'
         }
 
         InfoRow {
-            last: true
             label: Tr.tr("Storage")
             value: {
                 const [size, used] = (root.hw.disk ?? "").split(" ").map(Number);
@@ -196,7 +190,6 @@ df -B1 --output=size,used / | tail -1 | awk '{print "disk=" $1 " " $2}'
         }
 
         InfoRow {
-            first: true
             label: Tr.trCtx("Shell", "the caelestia shell itself, not a unix shell")
             value: CUtils.version || "…"
         }
@@ -212,7 +205,6 @@ df -B1 --output=size,used / | tail -1 | awk '{print "disk=" $1 " " $2}'
         }
 
         InfoRow {
-            last: true
             label: "Qt"
             value: CUtils.qtVersion || "…"
         }
@@ -223,8 +215,6 @@ df -B1 --output=size,used / | tail -1 | awk '{print "disk=" $1 " " $2}'
         }
 
         InfoRow {
-            first: true
-            last: true
             label: Tr.tr("Loaded plugins")
             value: root.pluginCount.toString()
         }

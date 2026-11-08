@@ -15,7 +15,6 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         NavRow {
-            first: true
             icon: "dashboard"
             text: Tr.tr("Dashboard")
             subtext: Config.dashboard.enabled ? Tr.trCtx("Enabled", "panel status") : Tr.trCtx("Disabled", "panel status")
@@ -65,7 +64,6 @@ PageBase {
         }
 
         NavRow {
-            last: true
             icon: "power_settings_new"
             text: Tr.tr("Power menu")
             subtext: Config.session.enabled ? Tr.trCtx("Enabled", "panel status") : Tr.trCtx("Disabled", "panel status")

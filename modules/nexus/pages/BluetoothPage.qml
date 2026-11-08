@@ -28,7 +28,6 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         ToggleRow {
-            first: true
             text: Tr.tr("Bluetooth")
             font: Tokens.font.body.medium
             horizontalPadding: Tokens.padding.largeIncreased
@@ -178,7 +177,6 @@ PageBase {
         }
 
         RowButton {
-            last: true
             icon: "add"
             text: Tr.tr("Pair new device")
             disabled: !root.btEnabled
@@ -188,7 +186,7 @@ PageBase {
         ToggleRow {
             Layout.topMargin: Tokens.spacing.large - parent.spacing
 
-            first: true
+            groupStart: true
             // TRANSLATORS: adjective: other devices can find this computer
             text: Tr.trCtx("Discoverable", "bluetooth setting")
             subtext: Tr.tr("Allow nearby devices to find this one")
@@ -205,7 +203,6 @@ PageBase {
         }
 
         ToggleRow {
-            last: true
             // TRANSLATORS: adjective: other devices are allowed to pair with this computer
             text: Tr.trCtx("Pairable", "bluetooth setting")
             subtext: Tr.tr("Allow nearby devices to pair with this one")
@@ -239,8 +236,6 @@ PageBase {
 
                 readonly property bool charging: [UPowerDeviceState.Charging, UPowerDeviceState.FullyCharged, UPowerDeviceState.PendingCharge].includes(modelData.state)
 
-                first: index === 0
-                last: index === batteryList.count - 1
                 icon: {
                     switch (modelData.type) {
                     case UPowerDeviceType.Mouse:

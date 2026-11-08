@@ -57,7 +57,6 @@ PageBase {
 
         RequirementRow {
             visible: root.checked && root.firewall === ""
-            first: true
             icon: "shield"
             text: Tr.tr("No firewall installed")
             subtext: Tr.tr("ufw blocks incoming connections the PC didn't ask for. Installing it asks for your password.")
@@ -76,7 +75,6 @@ PageBase {
 
         ToggleRow {
             visible: root.firewall !== ""
-            first: true
             text: Tr.tr("Firewall")
             subtext: root.firewallPending ? Tr.tr("Applying…") : root.firewall === "active" ? Tr.tr("Blocks incoming connections the PC didn't ask for") : Tr.tr("Off: anything on the network can reach open ports")
             checked: root.firewall === "active"
@@ -87,7 +85,6 @@ PageBase {
         }
 
         NavRow {
-            last: true
             icon: "lock"
             text: Tr.tr("Screen lock")
             subtext: Tr.tr("When the screen locks by itself, on Power & sleep")
@@ -103,7 +100,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Remember recently used files")
             subtext: Tr.tr("Apps list them under Recent")
             checked: AppLook.get("org.gnome.desktop.privacy", "remember-recent-files", true)
@@ -129,7 +125,6 @@ PageBase {
 
         RowButton {
             visible: root.hasCliphist
-            last: true
             icon: "content_paste_off"
             text: Tr.tr("Clear clipboard history")
             onClicked: Quickshell.execDetached(["cliphist", "wipe"])

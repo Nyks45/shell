@@ -107,8 +107,6 @@ PageBase {
             readonly property bool busy: Admin.jobs.some(j => j.what === what)
 
             visible: root.checked && !root.hasSnapper
-            first: true
-            last: true
             icon: "history"
             text: Tr.tr("Snapshots need snapper")
             subtext: busy ? Tr.tr("Installing and setting up…") : Tr.tr("And a btrfs system drive. Installs it, sets it up for the system drive and lets this account manage the snapshots (asks for your password).")
@@ -130,8 +128,6 @@ PageBase {
         ConnectedRect {
             Layout.fillWidth: true
             visible: root.checked && root.hasSnapper && !root.allowed
-            first: true
-            last: true
             implicitHeight: allowLayout.implicitHeight + Tokens.padding.large * 2
 
             ColumnLayout {
@@ -175,7 +171,6 @@ PageBase {
 
         TextFieldRow {
             visible: root.allowed
-            first: true
             label: Tr.tr("Description")
             placeholderText: Tr.tr("e.g. Before changing drivers")
             value: root.newDescription
@@ -184,7 +179,6 @@ PageBase {
 
         RowButton {
             visible: root.allowed
-            last: true
             icon: "add_a_photo"
             text: Tr.tr("Make a snapshot now")
             subtext: Tr.tr("Of the system drive, as it is right now")
@@ -222,8 +216,6 @@ PageBase {
                 property bool confirmDelete
 
                 Layout.fillWidth: true
-                first: index === 0
-                last: index === snapList.count - 1
                 implicitHeight: snapLayout.implicitHeight + Tokens.padding.medium * 2
 
                 Timer {
@@ -292,7 +284,6 @@ PageBase {
 
         InfoRow {
             visible: root.allowed
-            first: true
             icon: "schedule"
             label: Tr.tr("Hourly snapshots")
             subtext: root.settings.TIMELINE_CREATE === "yes" ? Tr.tr("Keeps %1 hourly, %2 daily, %3 weekly").arg(root.settings.TIMELINE_LIMIT_HOURLY ?? "?").arg(root.settings.TIMELINE_LIMIT_DAILY ?? "?").arg(root.settings.TIMELINE_LIMIT_WEEKLY ?? "?") : ""
@@ -313,7 +304,6 @@ PageBase {
 
         RowButton {
             visible: root.allowed && root.hasAssistant
-            last: true
             icon: "open_in_new"
             text: Tr.tr("More in Btrfs Assistant")
             subtext: Tr.tr("Compare and restore files, more snapshot settings")

@@ -30,8 +30,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
-            last: true
             text: Tr.tr("Game mode")
             subtext: Tr.tr("Turns off animations, blur, shadows, gaps and rounding, and allows tearing, until it's turned off")
             checked: RuntimeState.gameMode
@@ -43,7 +41,6 @@ PageBase {
         }
 
         ToggleRow {
-            first: true
             text: Tr.tr("Allow screen tearing")
             subtext: Tr.tr("Lower input lag for games that ask for it; per app under Workspaces & focus > App rules")
             checked: HyprSettings.value("general:allow_tearing", false)
@@ -77,7 +74,6 @@ PageBase {
         }
 
         NavRow {
-            last: true
             icon: "notifications"
             text: Tr.tr("Notifications over fullscreen apps")
             subtext: Tr.tr("On Notifications")

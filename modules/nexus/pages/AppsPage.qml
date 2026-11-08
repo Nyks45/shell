@@ -182,8 +182,6 @@ PageBase {
         }
 
         NavRow {
-            first: true
-            last: true
             icon: "apps"
             text: Tr.tr("All apps")
             subtext: Tr.tr("Browse installed apps, set favourites and hidden")
