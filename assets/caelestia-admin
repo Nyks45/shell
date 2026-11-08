@@ -332,6 +332,33 @@ def act_move_partition(args):
     run("partprobe", disk, check=False)
 
 
+# --- Groups ------------------------------------------------------------------
+
+# Groups a person may be put in from the settings (hardware and service
+# access); administrators (wheel) are made through the account type instead
+JOINABLE = {"audio", "video", "input", "storage", "lp", "scanner", "network", "i2c", "docker", "libvirt", "kvm",
+            "uucp", "rfkill", "games", "adm", "systemd-journal", "realtime", "gamemode", "plugdev"}
+
+
+def act_group_member(args):
+    """group-member USER GROUP add|remove"""
+    need(args, 3, "group-member USER GROUP add|remove")
+    user, group, op = args
+    try:
+        if not 1000 <= pwd.getpwnam(user).pw_uid < 60000:
+            raise Refused("only people's accounts")
+    except KeyError:
+        raise Refused(f"no user {user}")
+    if group not in JOINABLE:
+        raise Refused(f"not a group the settings change: {group}")
+    if op == "add":
+        run("gpasswd", "-a", user, group)
+    elif op == "remove":
+        run("gpasswd", "-d", user, group)
+    else:
+        raise Refused("add or remove")
+
+
 ACTIONS = {
     "power-key": act_power_key,
     "install": act_install,
@@ -352,6 +379,7 @@ ACTIONS = {
     "btrfs-status": act_btrfs_status,
     "snapper-restore": act_snapper_restore,
     "move-partition": act_move_partition,
+    "group-member": act_group_member,
 }
 
 

@@ -11,18 +11,18 @@ import Quickshell.Services.Polkit
 // it inside itself (it is usually what asked); otherwise a card over the
 // screen does (PolkitOverlay).
 //
-// Only one agent can serve a session: when another one is already registered
-// (polkit-gnome from an old autostart), that one keeps working. When none can
-// be (the shell's failed), polkit-gnome is started as a fallback so password
-// requests never go unanswered.
+// It is the only agent (no polkit-gnome): if registering fails (another
+// agent still held the session for a moment), a fresh agent tries again every
+// few seconds until it is the session's agent.
 Singleton {
     id: root
 
-    readonly property alias agent: agent
-    // agent.flow, or the sandbox's simulated request (see demo below)
-    readonly property var flow: demo ?? agent.flow
-    readonly property bool active: (agent.isActive && !!agent.flow) || !!demo
-    readonly property bool registered: agent.isRegistered
+    // The agent (made again until it registers, see above)
+    property PolkitAgent agent: null
+    // The agent's request, or the sandbox's simulated one (see demo below)
+    readonly property var flow: demo ?? agent?.flow ?? null
+    readonly property bool active: (!!agent?.isActive && !!agent?.flow) || !!demo
+    readonly property bool registered: agent?.isRegistered ?? false
 
     // The settings' own helper (named actions): its prompt says what for
     readonly property bool ours: !!flow && flow.actionId === "org.caelestia.shell.admin"
@@ -37,6 +37,13 @@ Singleton {
     // The host is chosen for the current request (until then neither the
     // overlay nor a window shows it, so it never flashes in the wrong place)
     property bool decided
+
+    // Test sessions only (CAELESTIA_POLKIT_DEMO=1, set by the dev sandbox,
+    // which can't be the session's agent while the real one is): a simulated
+    // request, `qs ipc call polkit demo ACTION_ID`; the password "demo" is
+    // accepted, anything else fails once.
+    property QtObject demo: null
+    readonly property bool testSession: Quickshell.env("CAELESTIA_POLKIT_DEMO") === "1"
 
     function addHost(item: Item): void {
         if (!hosts.includes(item))
@@ -61,21 +68,15 @@ Singleton {
             flow.cancelAuthenticationRequest();
     }
 
-    PolkitAgent {
-        id: agent
-
-        onAuthenticationRequestStarted: root.pickHost()
-        onFlowChanged: if (flow && !root.decided)
-            root.pickHost()
-        onIsActiveChanged: {
-            if (!isActive)
-                root.ended();
-        }
-    }
-
     function pickHost(): void {
         host = hosts.find(h => h.windowActive) ?? null;
         decided = true;
+    }
+
+    function makeAgent(): void {
+        if (agent)
+            agent.destroy();
+        agent = agentComp.createObject(root);
     }
 
     function ended(): void {
@@ -84,15 +85,37 @@ Singleton {
         context = "";
     }
 
-    // Test sessions only (CAELESTIA_POLKIT_DEMO=1, set by the dev sandbox,
-    // which can't be the session's agent while the real one is): a simulated
-    // request, `qs ipc call polkit demo ACTION_ID`; the password "demo" is
-    // accepted, anything else fails once.
-    property QtObject demo: null
+    Component.onCompleted: makeAgent()
+
+    Component {
+        id: agentComp
+
+        PolkitAgent {
+            onAuthenticationRequestStarted: root.pickHost()
+            onFlowChanged: if (flow && !root.decided)
+                root.pickHost()
+            onIsActiveChanged: {
+                if (!isActive)
+                    root.ended();
+            }
+        }
+    }
+
+    // Not registered: a fresh agent tries again (not in test sessions: the dev
+    // sandbox shares the real session, whose agent is the live shell)
+    Timer {
+        running: !root.registered && !root.testSession
+        interval: 5000
+        repeat: true
+        onTriggered: {
+            console.warn("Polkit: not the session's agent yet; trying again");
+            root.makeAgent();
+        }
+    }
 
     IpcHandler {
         function demo(actionId: string): void {
-            if (Quickshell.env("CAELESTIA_POLKIT_DEMO") !== "1" || root.demo)
+            if (!root.testSession || root.demo)
                 return;
             root.pickHost();
             root.demo = demoComp.createObject(root, {
@@ -118,21 +141,6 @@ Singleton {
             property bool supplementaryIsError
             property bool failed
 
-            signal authenticationFailed
-
-            function submit(value: string): void {
-                isResponseRequired = false;
-                checkTimer.value = value;
-                checkTimer.start();
-            }
-
-            function cancelAuthenticationRequest(): void {
-                console.info("Polkit demo: cancelled");
-                root.demo = null;
-                root.ended();
-                d.destroy();
-            }
-
             property Timer checkTimer: Timer {
                 property string value
 
@@ -151,24 +159,21 @@ Singleton {
                     d.isResponseRequired = true;
                 }
             }
-        }
-    }
 
-    // Fallback agent (see above): once, if the shell's isn't registered
-    Timer {
-        running: true
-        interval: 4000
-        onTriggered: if (!agent.isRegistered)
-            fallbackCheck.running = true
-    }
+            signal authenticationFailed
 
-    Process {
-        id: fallbackCheck
+            function submit(value: string): void {
+                isResponseRequired = false;
+                checkTimer.value = value;
+                checkTimer.start();
+            }
 
-        command: ["sh", "-c", "pgrep -x polkit-gnome-au >/dev/null || pgrep -f '^/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1$' >/dev/null || { [ -x /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 ] && setsid -f /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 >/dev/null 2>&1; echo started; }"]
-        stdout: StdioCollector {
-            onStreamFinished: if (text.includes("started"))
-                console.warn("Polkit: the shell's agent isn't registered; started polkit-gnome instead")
+            function cancelAuthenticationRequest(): void {
+                console.info("Polkit demo: cancelled");
+                root.demo = null;
+                root.ended();
+                d.destroy();
+            }
         }
     }
 }

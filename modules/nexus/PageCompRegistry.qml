@@ -15,6 +15,7 @@ import qs.modules.nexus.pages.disks
 import qs.modules.nexus.pages.network
 import qs.modules.nexus.pages.panels
 import qs.modules.nexus.pages.services
+import qs.modules.nexus.pages.system
 import qs.modules.nexus.pages.wallandstyle
 import qs.modules.nexus.pages.panels.taskbar
 
@@ -160,10 +161,13 @@ QtObject {
 
         // System
         Component {
-            // Account
+            // Account: you and the others (0), another person's account (1)
             StackPage {
                 Component {
                     AccountPage {}
+                }
+                Component {
+                    UserPage {}
                 }
             }
         },
@@ -261,6 +265,25 @@ QtObject {
             StackPage {
                 Component {
                     UpdatesPage {}
+                }
+            }
+        },
+        Component {
+            // System services: the list (0), one service or scheduled task (1)
+            StackPage {
+                Component {
+                    SystemServicesPage {}
+                }
+                Component {
+                    ServicePage {}
+                }
+            }
+        },
+        Component {
+            // Logs
+            StackPage {
+                Component {
+                    LogsPage {}
                 }
             }
         },

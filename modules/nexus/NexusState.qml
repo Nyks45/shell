@@ -27,6 +27,13 @@ QtObject {
     // Backups: the snapshot being looked at
     property int selectedSnapshot
     property string selectedSnapperConfig
+    // System services: the unit being looked at (and whether it's the user's)
+    property string selectedUnit
+    property bool selectedUnitUser
+    // Logs: open them filtered to this unit (set by a service's page)
+    property string logUnit
+    // Account: the other person's account being looked at
+    property string selectedUser
     property bool networkDetailsFromSaved
 
     signal close

@@ -43,7 +43,7 @@ PageBase {
         }
     ]
 
-    title: Tr.tr("Services")
+    title: Tr.tr("Shell services")
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter

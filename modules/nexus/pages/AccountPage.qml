@@ -14,6 +14,7 @@ import qs.components.filedialog
 import qs.services
 import qs.utils
 import qs.modules.nexus.common
+import qs.modules.nexus.pages.system
 
 // The user's account: picture (~/.face, shown on the dashboard and the lock
 // screen), name and password (AccountsService) and the computer's name
@@ -41,6 +42,8 @@ PageBase {
     property string passwordStatus
 
     title: Tr.tr("Account")
+
+    Component.onCompleted: Users.reload()
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -289,6 +292,143 @@ PageBase {
 
                 interval: 5000
                 onTriggered: root.passwordStatus = ""
+            }
+        }
+
+        // ---- Your groups ----------------------------------------------------
+        SectionHeader {
+            visible: !!Users.me
+            text: Tr.tr("Your access")
+        }
+
+        GroupToggles {
+            visible: !!Users.me
+            Layout.fillWidth: true
+            user: Users.me
+            groups: Users.groups
+            changed: () => Users.reload()
+        }
+
+        // ---- Other people ---------------------------------------------------
+        SectionHeader {
+            text: Tr.tr("Other people")
+        }
+
+        Repeater {
+            model: Users.users.filter(u => !u.me)
+
+            NavRow {
+                required property var modelData
+
+                icon: "person"
+                text: modelData.fullName || modelData.name
+                subtext: [modelData.name, modelData.admin ? Tr.tr("administrator") : Tr.tr("standard user")].join(" · ")
+                onClicked: {
+                    root.nState.selectedUser = modelData.name;
+                    root.nState.openSubPage(1);
+                }
+            }
+        }
+
+        DialogRowButton {
+            id: addUser
+
+            readonly property string what: Tr.tr("Add an account")
+            property string userName
+            property string fullName
+            property bool admin
+            property string pass
+            property string repeat
+            readonly property bool nameOk: /^[a-z_][a-z0-9_-]{0,31}$/.test(userName) && !Users.find(userName)
+
+            rootParent: root.flickable
+            openHeight: Math.min(root.flickable.height * 0.95, 560)
+            icon: "person_add"
+            label: Tr.tr("Add someone")
+            header: what
+            acceptLabel: Tr.trCtx("Add", "button")
+            acceptAllowed: nameOk && pass.length > 0 && pass === repeat
+            onOpenChanged: {
+                userName = "";
+                fullName = "";
+                admin = false;
+                pass = "";
+                repeat = "";
+            }
+            content: Component {
+                ColumnLayout {
+                    spacing: Tokens.spacing.medium
+
+                    StyledTextField {
+                        Layout.fillWidth: true
+                        Layout.topMargin: Tokens.spacing.medium
+                        placeholderText: Tr.tr("Full name")
+                        leadingIcon: "badge"
+                        Component.onCompleted: forceActiveFocus()
+                        onTextChanged: {
+                            addUser.fullName = text;
+                            // A user name from it until one is typed
+                            if (!userField.edited)
+                                userField.text = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "").slice(0, 32);
+                        }
+                    }
+
+                    StyledTextField {
+                        id: userField
+
+                        property bool edited
+
+                        Layout.fillWidth: true
+                        placeholderText: Tr.tr("User name (lowercase, for signing in)")
+                        leadingIcon: "person"
+                        supportingText: text && !addUser.nameOk ? (Users.find(text) ? Tr.tr("That name is taken") : Tr.tr("Lowercase letters, digits, - and _; starting with a letter")) : ""
+                        onTextEdited: edited = true
+                        onTextChanged: addUser.userName = text
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: Tr.tr("Administrator (can change system settings)")
+                            font: Tokens.font.body.small
+                            wrapMode: Text.WordWrap
+                        }
+
+                        StyledSwitch {
+                            checked: addUser.admin
+                            onToggled: addUser.admin = checked
+                        }
+                    }
+
+                    StyledTextField {
+                        Layout.fillWidth: true
+                        echoMode: TextInput.Password
+                        placeholderText: Tr.tr("Password")
+                        leadingIcon: "key"
+                        onTextChanged: addUser.pass = text
+                    }
+
+                    StyledTextField {
+                        Layout.fillWidth: true
+                        echoMode: TextInput.Password
+                        placeholderText: Tr.tr("Repeat it")
+                        leadingIcon: "key"
+                        supportingText: text.length > 0 && text !== addUser.pass ? Tr.tr("The two don't match yet") : ""
+                        onTextChanged: addUser.repeat = text
+                    }
+
+                    Item {
+                        Layout.fillHeight: true
+                    }
+                }
+            }
+            onAccepted: {
+                const pw = pass;
+                pass = "";
+                repeat = "";
+                Users.change(["user-add", userName, fullName, admin ? "admin" : "standard"], what, null, pw);
             }
         }
 

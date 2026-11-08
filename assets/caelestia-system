@@ -1,0 +1,271 @@
+#!/usr/bin/python3 -I
+"""Caelestia settings: services, scheduled tasks, logs, crash reports and
+users, read as JSON for the settings app (runs as the user).
+
+    caelestia-system units [--user]          services: state, enabled, description
+    caelestia-system unit NAME [--user]      one service's details
+    caelestia-system timers [--user]         scheduled tasks: next/last run
+    caelestia-system logs [--boot N] [--priority P] [--unit U] [--grep TEXT] [--lines N] [--user]
+    caelestia-system boots                   the recorded boots
+    caelestia-system crashes                 crash reports (coredumpctl)
+    caelestia-system crash PID               one crash report as text (for bug reports)
+    caelestia-system users                   people's accounts and the groups they can join
+    caelestia-system user-add NAME FULLNAME admin|standard   (password on stdin)
+    caelestia-system user-delete NAME [--remove-files]
+    caelestia-system user-type NAME admin|standard
+    caelestia-system user-password NAME      (password on stdin)
+
+Changes go through AccountsService, which asks polkit (the shell's prompt);
+starting/stopping services is plain systemctl (polkit too); group
+memberships go through the root helper (caelestia-admin group-member).
+"""
+
+import grp
+import json
+import os
+import pwd
+import re
+import subprocess
+import sys
+import time
+
+from gi.repository import Gio, GLib
+
+
+def sh(*cmd):
+    p = subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    return p.stdout
+
+
+def scope(args):
+    return ["--user"] if "--user" in args else []
+
+
+# --- services ----------------------------------------------------------------
+
+def c_units(args):
+    s = scope(args)
+    units = {u["unit"]: u for u in json.loads(sh("systemctl", *s, "list-units", "--type=service", "--all", "-o", "json") or "[]")}
+    files = {f["unit_file"]: f["state"] for f in json.loads(sh("systemctl", *s, "list-unit-files", "--type=service", "-o", "json") or "[]")}
+    out = []
+    for name in sorted(set(units) | set(files)):
+        if name.endswith("@.service") and name not in units:
+            continue  # templates: their instances show instead
+        u = units.get(name, {})
+        out.append({"name": name, "description": u.get("description", ""), "load": u.get("load", ""),
+                    "active": u.get("active", "inactive"), "sub": u.get("sub", "dead"),
+                    "enabled": files.get(name, files.get(re.sub(r"@[^.]+\.", "@.", name), ""))})
+    print(json.dumps(out))
+
+
+PROPS = ["Id", "Description", "LoadState", "ActiveState", "SubState", "UnitFileState", "UnitFilePreset",
+         "FragmentPath", "MainPID", "MemoryCurrent", "CPUUsageNSec", "ActiveEnterTimestamp",
+         "InactiveEnterTimestamp", "ExecMainStartTimestamp", "Restart", "Type", "User", "Documentation",
+         "TriggeredBy", "Wants", "After", "Result", "NRestarts", "CanStart", "CanStop", "CanReload"]
+
+
+def c_unit(args):
+    name = args[0]
+    s = scope(args[1:])
+    out = {}
+    for line in sh("systemctl", *s, "show", name, "-p", ",".join(PROPS)).splitlines():
+        k, _, v = line.partition("=")
+        out[k] = v
+    # time and message only (the date, host and process are the same on every line)
+    lines = []
+    for line in sh("journalctl", *s, "-u" if not s else "--user-unit", name, "-n", "40", "-o", "json", "--no-pager").splitlines():
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        msg = e.get("MESSAGE", "")
+        if isinstance(msg, list):
+            msg = bytes(x for x in msg if isinstance(x, int)).decode(errors="replace")
+        t = int(e.get("__REALTIME_TIMESTAMP", 0)) // 1000000
+        lines.append(time.strftime("%d %b %H:%M:%S", time.localtime(t)) + "  " + msg)
+    out["log"] = lines[-40:]
+    print(json.dumps(out))
+
+
+def c_timers(args):
+    s = scope(args)
+    timers = json.loads(sh("systemctl", *s, "list-timers", "--all", "-o", "json") or "[]")
+    files = {f["unit_file"]: f["state"] for f in json.loads(sh("systemctl", *s, "list-unit-files", "--type=timer", "-o", "json") or "[]")}
+    for t in timers:
+        t["enabled"] = files.get(t["unit"], "")
+        desc = sh("systemctl", *s, "show", t["unit"], "-p", "Description", "--value").strip()
+        t["description"] = desc
+    print(json.dumps(timers))
+
+
+# --- logs ---------------------------------------------------------------------
+
+PRIORITY = {"0": "emerg", "1": "alert", "2": "crit", "3": "err", "4": "warning", "5": "notice", "6": "info", "7": "debug"}
+
+
+def opt(args, name, default=None):
+    if name in args:
+        i = args.index(name)
+        if i + 1 < len(args):
+            return args[i + 1]
+    return default
+
+
+def c_logs(args):
+    cmd = ["journalctl", "-o", "json", "--no-pager", "-n", opt(args, "--lines", "400")]
+    if "--user" in args:
+        cmd.append("--user")
+    boot = opt(args, "--boot", "0")
+    cmd += ["-b", boot]
+    pri = opt(args, "--priority")
+    if pri:
+        if not re.fullmatch(r"[0-7]", pri):
+            sys.exit("bad priority")
+        cmd += ["-p", pri]
+    unit = opt(args, "--unit")
+    if unit:
+        cmd += ["-u", unit]
+    text = opt(args, "--grep")
+    if text:
+        cmd += ["--case-sensitive=false", "-g", re.escape(text)]
+    out = []
+    for line in sh(*cmd).splitlines():
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        msg = e.get("MESSAGE", "")
+        if isinstance(msg, list):  # binary messages come as byte arrays
+            msg = bytes(x for x in msg if isinstance(x, int)).decode(errors="replace")
+        out.append({"time": int(e.get("__REALTIME_TIMESTAMP", 0)) // 1000, "priority": int(e.get("PRIORITY", 6)),
+                    "unit": e.get("_SYSTEMD_UNIT") or e.get("_SYSTEMD_USER_UNIT") or "",
+                    "ident": e.get("SYSLOG_IDENTIFIER") or e.get("_COMM") or "",
+                    "message": msg[:2000]})
+    out.reverse()  # newest first
+    print(json.dumps(out))
+
+
+def c_boots(args):
+    print(sh("journalctl", "--list-boots", "-o", "json") or "[]")
+
+
+def c_crashes(args):
+    try:
+        items = json.loads(sh("coredumpctl", "list", "--json=short", "--no-pager") or "[]")
+    except ValueError:
+        items = []
+    items.sort(key=lambda c: -c.get("time", 0))
+    print(json.dumps(items[:200]))
+
+
+def c_crash(args):
+    if not args or not args[0].isdigit():
+        sys.exit("crash PID")
+    print(sh("coredumpctl", "info", "--no-pager", args[0]))
+
+
+# --- users ---------------------------------------------------------------------
+
+def c_users(args):
+    admins = set(grp.getgrnam("wheel").gr_mem) if "wheel" in [g.gr_name for g in grp.getgrall()] else set()
+    users = []
+    for p in pwd.getpwall():
+        if 1000 <= p.pw_uid < 60000 and p.pw_shell not in ("/usr/bin/nologin", "/bin/false", "/sbin/nologin"):
+            groups = sorted(g.gr_name for g in grp.getgrall() if p.pw_name in g.gr_mem)
+            users.append({"name": p.pw_name, "uid": p.pw_uid, "fullName": p.pw_gecos.split(",")[0],
+                          "home": p.pw_dir, "admin": p.pw_name in admins, "groups": groups,
+                          "me": p.pw_uid == os.getuid()})
+    # Groups a person may usefully join (hardware and service access), with what they give
+    useful = {"wheel": "Administrator (sudo, the password prompt)", "audio": "Sound devices directly",
+              "video": "Graphics and camera devices", "input": "Input devices (keyboards, mice, controllers)",
+              "storage": "Removable drives", "lp": "Printers", "scanner": "Scanners", "network": "Network settings",
+              "i2c": "Monitor brightness over the cable (DDC/CI)", "docker": "Docker containers",
+              "libvirt": "Virtual machines", "kvm": "Virtual machine acceleration", "uucp": "Serial ports",
+              "rfkill": "Turning radios on and off", "games": "Shared game data", "adm": "Reading all system logs",
+              "systemd-journal": "Reading all system logs", "realtime": "Real-time audio priority",
+              "gamemode": "GameMode", "plugdev": "Pluggable devices"}
+    existing = {g.gr_name for g in grp.getgrall()}
+    print(json.dumps({"users": users, "groups": [{"name": n, "about": a} for n, a in useful.items() if n in existing]}))
+
+
+def accounts():
+    return Gio.bus_get_sync(Gio.BusType.SYSTEM)
+
+
+def acc_call(path, iface, method, sig, args, reply=None):
+    v = accounts().call_sync("org.freedesktop.Accounts", path, iface, method, GLib.Variant(sig, args),
+                             GLib.VariantType(reply) if reply else None,
+                             Gio.DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION, 120000, None)
+    return v.unpack() if v is not None else None
+
+
+def user_path(name):
+    return acc_call("/org/freedesktop/Accounts", "org.freedesktop.Accounts", "FindUserByName", "(s)", (name,), "(o)")[0]
+
+
+NAME = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
+
+
+def hashed(password):
+    if not password or "\n" in password:
+        sys.exit("no password given")
+    return subprocess.run(["openssl", "passwd", "-6", "-stdin"], input=password + "\n", text=True,
+                          stdout=subprocess.PIPE, check=True).stdout.strip()
+
+
+def c_user_add(args):
+    name, full, kind = args[0], args[1], args[2]
+    if not NAME.match(name) or kind not in ("admin", "standard"):
+        sys.exit("bad name or type")
+    pw = sys.stdin.readline().rstrip("\n")
+    path = acc_call("/org/freedesktop/Accounts", "org.freedesktop.Accounts", "CreateUser", "(ssi)",
+                    (name, full, 1 if kind == "admin" else 0), "(o)")[0]
+    if pw:
+        acc_call(path, "org.freedesktop.Accounts.User", "SetPassword", "(ss)", (hashed(pw), ""))
+    print(path)
+
+
+def c_user_delete(args):
+    name = args[0]
+    if pwd.getpwnam(name).pw_uid == os.getuid():
+        sys.exit("not your own account")
+    acc_call("/org/freedesktop/Accounts", "org.freedesktop.Accounts", "DeleteUser", "(xb)",
+             (pwd.getpwnam(name).pw_uid, "--remove-files" in args))
+
+
+def c_user_type(args):
+    name, kind = args[0], args[1]
+    if kind not in ("admin", "standard"):
+        sys.exit("admin or standard")
+    if pwd.getpwnam(name).pw_uid == os.getuid() and kind == "standard":
+        sys.exit("you can't take away your own administrator rights here")
+    acc_call(user_path(name), "org.freedesktop.Accounts.User", "SetAccountType", "(i)", (1 if kind == "admin" else 0,))
+
+
+def c_user_password(args):
+    acc_call(user_path(args[0]), "org.freedesktop.Accounts.User", "SetPassword", "(ss)",
+             (hashed(sys.stdin.readline().rstrip("\n")), ""))
+
+
+COMMANDS = {"units": c_units, "unit": c_unit, "timers": c_timers, "logs": c_logs, "boots": c_boots,
+            "crashes": c_crashes, "crash": c_crash, "users": c_users, "user-add": c_user_add,
+            "user-delete": c_user_delete, "user-type": c_user_type, "user-password": c_user_password}
+
+
+def main(argv):
+    if not argv or argv[0] not in COMMANDS:
+        print(__doc__, file=sys.stderr)
+        return 2
+    try:
+        return COMMANDS[argv[0]](argv[1:]) or 0
+    except (IndexError, KeyError):
+        print(f"usage: see caelestia-system --help ({argv[0]})", file=sys.stderr)
+        return 2
+    except GLib.Error as e:
+        msg = Gio.DBusError.get_remote_error(e) or ""
+        print(e.message.split(":", 2)[-1].strip(), file=sys.stderr)
+        return 126 if "NotAuthorized" in msg or "PermissionDenied" in msg else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

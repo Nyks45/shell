@@ -188,6 +188,22 @@ QtObject {
             category: "system"
         },
         {
+            id: "systemd",
+            label: Tr.tr("System services"),
+            icon: "settings_applications",
+            description: Tr.tr("Start, stop, start at boot, scheduled tasks"),
+            keywords: "systemd service services daemon unit start stop restart enable disable mask boot startup timer timers scheduled task cron failed",
+            category: "system"
+        },
+        {
+            id: "logs",
+            label: Tr.tr("Logs"),
+            icon: "receipt_long",
+            description: Tr.tr("System messages, errors, crash reports"),
+            keywords: "journal journalctl log logs error errors warnings boot previous crash crashes coredump bug report dmesg",
+            category: "system"
+        },
+        {
             id: "plugins",
             label: Tr.tr("Plugins"),
             icon: "extension",
@@ -237,7 +253,7 @@ QtObject {
         },
         {
             id: "services",
-            label: Tr.tr("Services"),
+            label: Tr.tr("Shell services"),
             icon: "build",
             description: Tr.tr("Poll intervals, lyrics, media"),
             keywords: "lyrics media player polling volume step",
