@@ -93,6 +93,9 @@ ConnectedRect {
                     return contentWin ? contentWin.interactionWrapper : (win as QsWindow).contentItem;
                 }
                 anchors.fill: parent
+                // Moved up into the window (above): hidden with its row (e.g. a
+                // settings tab not shown), which no longer hides it by itself
+                visible: triggerArea.visible
                 enabled: popup.open
                 hoverEnabled: popup.open
                 cursorShape: popup.open ? Qt.ArrowCursor : undefined

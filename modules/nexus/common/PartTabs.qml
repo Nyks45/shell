@@ -5,8 +5,8 @@ import QtQuick.Layouts
 import Caelestia.Config
 import qs.components.controls
 
-// The sub-settings of a page (TabParts): switchers on top; a part's settings
-// show once it is chosen (none at first).
+// The sub-settings of a page (TabParts): switchers on top, one part's
+// settings below (the first at first).
 ColumnLayout {
     id: root
 
@@ -20,6 +20,9 @@ ColumnLayout {
 
     Layout.fillWidth: true
     spacing: Tokens.spacing.extraSmall / 2
+
+    Component.onCompleted: if (!chosen && parts.length > 0)
+        show(parts[0])
 
     Flow {
         Layout.fillWidth: true
