@@ -1,0 +1,761 @@
+#!/usr/bin/python3 -I
+"""Caelestia settings: drives, partitions and drive health, through udisks2.
+
+    caelestia-disks list              one JSON snapshot
+    caelestia-disks watch             a JSON snapshot per line, again on every change
+    caelestia-disks ACTION ARGS...    see ACTIONS below (secrets come on stdin)
+
+Runs as the user. udisks asks polkit itself for anything that needs it (the
+shell's password prompt). Anything that erases or reshapes data is refused
+here too (not only in the page) on system filesystems: the ones mounted at
+/, /boot, /home, /var... and everything on the drives that hold them is
+listed as such.
+"""
+
+import json
+import os
+import sys
+
+from gi.repository import Gio, GLib
+
+UD = "org.freedesktop.UDisks2"
+P = "org.freedesktop.UDisks2."
+FOREVER = 2**31 - 1
+INTERACTIVE = Gio.DBusCallFlags.ALLOW_INTERACTIVE_AUTHORIZATION
+
+SYSTEM_MOUNTS = ("/", "/boot", "/boot/efi", "/efi", "/home", "/usr", "/var", "/var/log", "/var/cache",
+                 "/var/tmp", "/root", "/srv", "/opt", "/tmp")
+
+# GPT partition types worth a name (others show their GUID)
+GPT_TYPES = {
+    "c12a7328-f81f-11d2-ba4b-00a0c93ec93b": "EFI system",
+    "21686148-6449-6e6f-744e-656564454649": "BIOS boot",
+    "e3c9e316-0b5c-4db8-817d-f92df00215ae": "Microsoft reserved",
+    "ebd0a0a2-b9e5-4433-87c0-68b6b72699c7": "Microsoft basic data",
+    "de94bba4-06d1-4d40-a16a-bfd50179d6ac": "Windows recovery",
+    "0fc63daf-8483-4772-8e79-3d69d8477de4": "Linux filesystem",
+    "4f68bce3-e8cd-4db1-96e7-fbcaf984b709": "Linux root (x86-64)",
+    "933ac7e1-2eb4-4f13-b844-0e14e2aef915": "Linux home",
+    "0657fd6d-a4ab-43c4-84e5-0933c84b4f4f": "Linux swap",
+    "e6d6d379-f507-44c2-a23c-238f2a3df928": "Linux LVM",
+    "a19d880f-05fc-4d3b-a006-743f0f84911e": "Linux RAID",
+    "ca7d7ccb-63ed-4c53-861c-1742536059cc": "Linux LUKS",
+    "bc13c2ff-59e6-4262-a352-b275fd6f7172": "Linux extended boot",
+}
+DOS_TYPES = {"0x07": "NTFS/exFAT", "0x0b": "FAT32", "0x0c": "FAT32 (LBA)", "0x83": "Linux", "0x82": "Linux swap",
+             "0xef": "EFI system", "0x8e": "Linux LVM", "0x05": "Extended", "0x0f": "Extended (LBA)"}
+
+
+def bus():
+    return Gio.bus_get_sync(Gio.BusType.SYSTEM)
+
+
+def manager():
+    return Gio.DBusObjectManagerClient.new_sync(bus(), Gio.DBusObjectManagerClientFlags.NONE, UD,
+                                                "/org/freedesktop/UDisks2", None, None, None)
+
+
+def props(obj, iface):
+    i = obj.get_interface(P + iface)
+    if not i:
+        return None
+    return {k: i.get_cached_property(k).unpack() for k in i.get_cached_property_names()}
+
+
+def bstr(b):
+    """udisks' NUL-terminated byte arrays."""
+    if isinstance(b, (bytes, bytearray)):
+        return bytes(b).rstrip(b"\0").decode(errors="replace")
+    if isinstance(b, list):
+        return bytes(b).rstrip(b"\0").decode(errors="replace")
+    return b or ""
+
+
+def usage(mounts):
+    for m in mounts:
+        try:
+            st = os.statvfs(m)
+            return st.f_blocks * st.f_frsize, (st.f_blocks - st.f_bfree) * st.f_frsize
+        except OSError:
+            pass
+    return None, None
+
+
+def fstab_items(blk):
+    out = []
+    for kind, d in blk.get("Configuration", []):
+        if kind == "fstab":
+            out.append({"dir": bstr(d.get("dir")), "opts": bstr(d.get("opts")), "type": bstr(d.get("type")),
+                        "fsname": bstr(d.get("fsname")), "freq": d.get("freq", 0), "passno": d.get("passno", 0)})
+    return out
+
+
+def snapshot(om=None):
+    om = om or manager()
+    objs = {o.get_object_path(): o for o in om.get_objects()}
+    blocks = {}
+    for path, o in objs.items():
+        b = props(o, "Block")
+        if b is not None:
+            blocks[path] = (o, b)
+
+    # cleartext devices of unlocked LUKS containers
+    cleartext_of = {}
+    for path, (o, b) in blocks.items():
+        if b.get("CryptoBackingDevice") and b["CryptoBackingDevice"] != "/":
+            cleartext_of[b["CryptoBackingDevice"]] = path
+
+    def fs_info(path):
+        o, b = blocks[path]
+        f = props(o, "Filesystem")
+        sw = props(o, "Swapspace")
+        info = {
+            "type": b.get("IdType", ""), "usage": b.get("IdUsage", ""), "label": b.get("IdLabel", ""),
+            "uuid": b.get("IdUUID", ""), "version": b.get("IdVersion", ""),
+            "mounts": [bstr(m) for m in (f or {}).get("MountPoints", [])],
+            "isFilesystem": f is not None, "swapActive": bool(sw and sw.get("Active")),
+            "fstab": fstab_items(b),
+        }
+        if f is not None:
+            info["size"] = f.get("Size", 0)
+        total, used = usage(info["mounts"])
+        if total:
+            info["size"], info["used"] = total, used
+        return info
+
+    def system_role(mounts):
+        for m in mounts:
+            if m in SYSTEM_MOUNTS:
+                return m
+        return ""
+
+    def block_entry(path):
+        o, b = blocks[path]
+        e = {
+            "id": path, "device": bstr(b.get("PreferredDevice")) or bstr(b.get("Device")), "size": b.get("Size", 0),
+            "readOnly": b.get("ReadOnly", False),
+            "fs": fs_info(path), "crypto": None,
+        }
+        if props(o, "Encrypted") is not None:
+            ct = cleartext_of.get(path)
+            e["crypto"] = {"unlocked": bool(ct), "cleartext": ct or "", "inner": fs_info(ct) if ct else None}
+        mounts = e["fs"]["mounts"] + (e["crypto"]["inner"]["mounts"] if e["crypto"] and e["crypto"]["inner"] else [])
+        e["system"] = system_role(mounts)
+        if e["fs"]["swapActive"] or (e["crypto"] and e["crypto"]["inner"] and e["crypto"]["inner"]["swapActive"]):
+            e["system"] = e["system"] or "swap"
+        return e
+
+    drives = []
+    seen = set()
+    for path, o in objs.items():
+        d = props(o, "Drive")
+        if d is None:
+            continue
+        # the whole-disk block of this drive
+        disk = next((bp for bp, (bo, b) in blocks.items()
+                     if b.get("Drive") == path and props(bo, "Partition") is None and not b.get("CryptoBackingDevice", "/") != "/"), None)
+        if not disk:
+            continue
+        do, db = blocks[disk]
+        table = props(do, "PartitionTable")
+        entry = {
+            "id": path, "block": disk, "device": bstr(db.get("PreferredDevice")) or bstr(db.get("Device")),
+            "model": d.get("Model", "").strip(), "vendor": d.get("Vendor", "").strip(), "serial": d.get("Serial", ""),
+            "revision": d.get("Revision", ""), "size": d.get("Size", 0) or db.get("Size", 0),
+            "bus": d.get("ConnectionBus", ""), "removable": d.get("Removable", False), "media": d.get("Media", ""),
+            "ejectable": d.get("Ejectable", False), "canPowerOff": d.get("CanPowerOff", False),
+            "rotation": d.get("RotationRate", -1), "table": (table or {}).get("Type", ""),
+            "nvme": o.get_interface(P + "NVMe.Controller") is not None,
+            "partitions": [], "free": [], "health": health(o), "whole": None,
+        }
+        if not table:
+            entry["whole"] = block_entry(disk)
+        else:
+            parts = []
+            for pp in table.get("Partitions", []):
+                if pp not in blocks:
+                    continue
+                po, pb = blocks[pp]
+                pt = props(po, "Partition")
+                pe = block_entry(pp)
+                tguid = pt.get("Type", "")
+                pe.update({
+                    "number": pt.get("Number", 0), "offset": pt.get("Offset", 0), "size": pt.get("Size", 0),
+                    "name": pt.get("Name", ""), "type": tguid,
+                    "typeName": GPT_TYPES.get(tguid.lower(), DOS_TYPES.get(tguid.lower(), "")),
+                    "flags": pt.get("Flags", 0), "partUuid": pt.get("UUID", ""),
+                    "isContainer": pt.get("IsContainer", False), "isContained": pt.get("IsContained", False),
+                })
+                parts.append(pe)
+                seen.add(pp)
+            parts.sort(key=lambda p: p["offset"])
+            entry["partitions"] = parts
+            entry["free"] = free_space(entry["size"], parts, entry["table"])
+        seen.add(disk)
+        entry["system"] = next((p["system"] for p in entry["partitions"] if p["system"]), "") or \
+            (entry["whole"]["system"] if entry["whole"] else "")
+        drives.append(entry)
+
+    # Loop devices (disk images) set up by anyone, without a drive
+    loops = []
+    for path, (o, b) in blocks.items():
+        if path in seen or props(o, "Loop") is None or b.get("Size", 0) == 0:
+            continue
+        if props(o, "Partition") is not None:
+            continue
+        lp = props(o, "Loop")
+        table = props(o, "PartitionTable")
+        entry = {
+            "id": path, "block": path, "device": bstr(b.get("Device")), "model": "Disk image",
+            "vendor": "", "serial": "", "revision": "", "size": b.get("Size", 0), "bus": "loop",
+            "removable": True, "media": "", "ejectable": False, "canPowerOff": False, "rotation": -1,
+            "table": (table or {}).get("Type", ""), "nvme": False, "partitions": [], "free": [],
+            "health": None, "whole": None, "backingFile": bstr(lp.get("BackingFile")),
+            "setupByUid": lp.get("SetupByUID", -1),
+        }
+        if not table:
+            entry["whole"] = block_entry(path)
+        else:
+            for pp in table.get("Partitions", []):
+                if pp not in blocks:
+                    continue
+                po, pb = blocks[pp]
+                pt = props(po, "Partition")
+                pe = block_entry(pp)
+                tguid = pt.get("Type", "")
+                pe.update({"number": pt.get("Number", 0), "offset": pt.get("Offset", 0), "size": pt.get("Size", 0),
+                           "name": pt.get("Name", ""), "type": tguid,
+                           "typeName": GPT_TYPES.get(tguid.lower(), DOS_TYPES.get(tguid.lower(), "")),
+                           "flags": pt.get("Flags", 0), "partUuid": pt.get("UUID", ""),
+                           "isContainer": pt.get("IsContainer", False), "isContained": pt.get("IsContained", False)})
+                entry["partitions"].append(pe)
+            entry["partitions"].sort(key=lambda p: p["offset"])
+            entry["free"] = free_space(entry["size"], entry["partitions"], entry["table"])
+        entry["system"] = next((p["system"] for p in entry["partitions"] if p["system"]), "") or \
+            (entry["whole"]["system"] if entry["whole"] else "")
+        loops.append(entry)
+
+    jobs = []
+    for path, o in objs.items():
+        j = props(o, "Job")
+        if j is not None:
+            jobs.append({"id": path, "operation": j.get("Operation", ""), "progress": j.get("Progress", 0.0),
+                         "progressValid": j.get("ProgressValid", False), "objects": j.get("Objects", []),
+                         "cancelable": j.get("Cancelable", False), "rate": j.get("Rate", 0),
+                         "expectedEnd": j.get("ExpectedEndTime", 0)})
+
+    drives.sort(key=lambda d: (d["removable"], not d["system"], d["device"]))
+    return {"drives": drives + loops, "jobs": jobs}
+
+
+MIB = 1024 * 1024
+
+
+def free_space(size, parts, table):
+    """Unpartitioned gaps of at least 1 MiB, 1 MiB aligned (the first MiB and
+    GPT's backup table at the end are never free)."""
+    out = []
+    end_limit = size - (MIB if table == "gpt" else 0)
+    cursor = MIB
+    for p in parts:
+        if p.get("isContained"):
+            continue
+        if p["offset"] - cursor >= MIB:
+            out.append({"offset": cursor, "size": p["offset"] - cursor})
+        cursor = max(cursor, p["offset"] + p["size"])
+        cursor = (cursor + MIB - 1) // MIB * MIB
+    if end_limit - cursor >= MIB:
+        out.append({"offset": cursor, "size": (end_limit - cursor) // MIB * MIB})
+    return out
+
+
+def health(drive_obj):
+    """The drive's health in plain terms, from what udisks already read."""
+    nv = props(drive_obj, "NVMe.Controller")
+    ata = props(drive_obj, "Drive.Ata")
+    if nv is not None:
+        warnings = list(nv.get("SmartCriticalWarning", []))
+        h = {"kind": "nvme", "supported": True, "temperature": kelvin(nv.get("SmartTemperature", 0)),
+             "powerOnHours": nv.get("SmartPowerOnHours", 0), "warnings": warnings,
+             "selftest": nv.get("SmartSelftestStatus", ""), "selftestRemaining": nv.get("SmartSelftestPercentRemaining", -1),
+             "updated": nv.get("SmartUpdated", 0)}
+        h["status"] = "failing" if warnings else "good"
+        return h
+    if ata is not None and ata.get("SmartSupported"):
+        h = {"kind": "ata", "supported": True, "enabled": ata.get("SmartEnabled", False),
+             "temperature": kelvin(ata.get("SmartTemperature", 0)),
+             "powerOnHours": int(ata.get("SmartPowerOnSeconds", 0) // 3600),
+             "badSectors": ata.get("SmartNumBadSectors", 0), "failing": ata.get("SmartFailing", False),
+             "attributesFailing": ata.get("SmartNumAttributesFailing", 0),
+             "attributesFailedInPast": ata.get("SmartNumAttributesFailedInThePast", 0),
+             "selftest": ata.get("SmartSelftestStatus", ""), "selftestRemaining": ata.get("SmartSelftestPercentRemaining", -1),
+             "updated": ata.get("SmartUpdated", 0)}
+        h["status"] = "failing" if h["failing"] or h["attributesFailing"] else \
+            "warning" if h["badSectors"] or h["attributesFailedInPast"] else "good"
+        return h
+    return None
+
+
+def kelvin(k):
+    return round(k - 273.15) if k and k > 0 else None
+
+
+def cmd_list(args):
+    print(json.dumps(snapshot()))
+
+
+def cmd_watch(args):
+    om = manager()
+    loop = GLib.MainLoop()
+    pending = {"id": 0}
+
+    def emit():
+        pending["id"] = 0
+        print(json.dumps(snapshot(om)), flush=True)
+        return False
+
+    def changed(*_):
+        if not pending["id"]:
+            pending["id"] = GLib.timeout_add(250, emit)
+
+    om.connect("object-added", changed)
+    om.connect("object-removed", changed)
+    om.connect("interface-added", changed)
+    om.connect("interface-removed", changed)
+    om.connect("interface-proxy-properties-changed", changed)
+    # Mounted filesystems fill up without udisks noticing: now and then too
+    GLib.timeout_add_seconds(30, lambda: (changed(), True)[1])
+    emit()
+    loop.run()
+
+
+# --- actions ---------------------------------------------------------------
+
+class Refused(Exception):
+    pass
+
+
+def call(path, iface, method, args, sig, reply=None, timeout=FOREVER):
+    """A udisks method; polkit may ask (the shell's prompt)."""
+    v = bus().call_sync(UD, path, P + iface, method, GLib.Variant(sig, args),
+                        GLib.VariantType(reply) if reply else None, INTERACTIVE, timeout, None)
+    return v.unpack() if v is not None else None
+
+
+def opts(**kw):
+    out = {}
+    for k, v in kw.items():
+        k = k.replace("_", "-")
+        if isinstance(v, bool):
+            out[k] = GLib.Variant("b", v)
+        elif isinstance(v, int):
+            out[k] = GLib.Variant("t", v)
+        else:
+            out[k] = GLib.Variant("s", v)
+    return out
+
+
+def find(path, snap=None):
+    """The snapshot's drive and entry (partition or whole-disk filesystem) for
+    a block, a cleartext device or a drive (entry None for a drive)."""
+    snap = snap or snapshot()
+    for d in snap["drives"]:
+        if path in (d["id"], d["block"]):
+            return d, None
+        for p in d["partitions"]:
+            if p["id"] == path or (p["crypto"] and p["crypto"]["cleartext"] == path):
+                return d, p
+        if d["whole"] and (d["whole"]["id"] == path):
+            return d, d["whole"]
+    raise Refused(f"no such device: {path}")
+
+
+def guard(path, what, need_unmounted=True, whole_drive=False, snap=None):
+    """Refuses erasing/reshaping the system's filesystems (and, unless the
+    action can work online, mounted ones). Read-only: checks, changes nothing."""
+    d, p = find(path, snap)
+    target = d if whole_drive or p is None else p
+    if target.get("system"):
+        raise Refused(f"{what}: {target['device']} holds the system ({target['system']})")
+    if need_unmounted:
+        items = [target] if target is p else ([d["whole"]] if d["whole"] else d["partitions"])
+        for it in items:
+            inner = it["crypto"]["inner"] if it.get("crypto") and it["crypto"]["inner"] else None
+            mounts = it["fs"]["mounts"] + (inner["mounts"] if inner else [])
+            if mounts or it["fs"]["swapActive"] or (inner and inner["swapActive"]):
+                raise Refused(f"{what}: {it['device']} is in use ({', '.join(mounts) or 'swap'}); unmount it first")
+    return d, p
+
+
+def secret():
+    return sys.stdin.readline().rstrip("\n")
+
+
+def a_mount(a):
+    """mount BLOCK"""
+    print(call(a[0], "Filesystem", "Mount", (opts(),), "(a{sv})", "(s)")[0])
+
+
+def a_unmount(a):
+    """unmount BLOCK"""
+    call(a[0], "Filesystem", "Unmount", (opts(),), "(a{sv})")
+
+
+def a_unlock(a):
+    """unlock BLOCK (passphrase on stdin)"""
+    print(call(a[0], "Encrypted", "Unlock", (secret(), opts()), "(sa{sv})", "(o)")[0])
+
+
+def a_lock(a):
+    """lock BLOCK"""
+    call(a[0], "Encrypted", "Lock", (opts(),), "(a{sv})")
+
+
+def a_change_passphrase(a):
+    """change-passphrase BLOCK (old, then new passphrase on stdin)"""
+    old, new = secret(), secret()
+    call(a[0], "Encrypted", "ChangePassphrase", (old, new, opts()), "(ssa{sv})")
+
+
+FS_TYPES = {"ext4", "btrfs", "xfs", "f2fs", "vfat", "exfat", "ntfs", "swap", "empty"}
+
+
+OWNABLE = {"ext4", "btrfs", "xfs", "f2fs"}
+
+
+def format_opts(label, encrypt, erase, fstype=""):
+    o = opts(update_partition_type=True, tear_down=True)
+    # A new Linux filesystem belongs to whoever made it (else only root
+    # could write to it); FAT/exFAT/NTFS have no owners
+    if fstype in OWNABLE:
+        o["take-ownership"] = GLib.Variant("b", True)
+    if label:
+        o["label"] = GLib.Variant("s", label)
+    if erase:
+        o["erase"] = GLib.Variant("s", "zero")
+    if encrypt:
+        o["encrypt.passphrase"] = GLib.Variant("s", secret())
+        o["encrypt.type"] = GLib.Variant("s", "luks2")
+    return o
+
+
+def a_format(a):
+    """format BLOCK TYPE [LABEL] [--encrypt] [--erase]  (passphrase on stdin with --encrypt)"""
+    path, fstype = a[0], a[1]
+    label = next((x for x in a[2:] if not x.startswith("--")), "")
+    if fstype not in FS_TYPES:
+        raise Refused(f"unknown filesystem {fstype}")
+    guard(path, "Format")
+    call(path, "Block", "Format", (fstype, format_opts(label, "--encrypt" in a, "--erase" in a, fstype)), "(sa{sv})")
+
+
+def a_table(a):
+    """table DISKBLOCK gpt|dos: a new, empty partition table (erases the whole drive)"""
+    if a[1] not in ("gpt", "dos"):
+        raise Refused("gpt or dos")
+    d, _ = guard(a[0], "New partition table", whole_drive=True)
+    call(d["block"], "Block", "Format", (a[1], opts(tear_down=True)), "(sa{sv})")
+
+
+def a_create(a):
+    """create DISKBLOCK OFFSET SIZE FSTYPE [LABEL] [NAME] [--encrypt]"""
+    path, offset, size, fstype = a[0], int(a[1]), int(a[2]), a[3]
+    rest = [x for x in a[4:] if not x.startswith("--")]
+    label, name = (rest + ["", ""])[:2]
+    if fstype not in FS_TYPES:
+        raise Refused(f"unknown filesystem {fstype}")
+    d, _ = find(path)
+    if not d["table"]:
+        raise Refused("the drive has no partition table")
+    if not any(f["offset"] <= offset and offset + size <= f["offset"] + f["size"] for f in d["free"]):
+        raise Refused("that space isn't free")
+    ptype = "0657fd6d-a4ab-43c4-84e5-0933c84b4f4f" if fstype == "swap" and d["table"] == "gpt" else ""
+    out = call(d["block"], "PartitionTable", "CreatePartitionAndFormat",
+               (offset, size, ptype, name if d["table"] == "gpt" else "", opts(), fstype,
+                format_opts(label, "--encrypt" in a, False, fstype)),
+               "(ttssa{sv}sa{sv})", "(o)")
+    print(out[0])
+
+
+def a_delete(a):
+    """delete PARTITION"""
+    guard(a[0], "Delete")
+    call(a[0], "Partition", "Delete", (opts(tear_down=True),), "(a{sv})")
+
+
+# libblockdev's resize modes (Manager.CanResize)
+OFFLINE_SHRINK, OFFLINE_GROW, ONLINE_SHRINK, ONLINE_GROW = 2, 4, 8, 16
+
+
+def resize_modes(fstype):
+    ok, modes, util = call("/org/freedesktop/UDisks2/Manager", "Manager", "CanResize", (fstype,), "(s)", "((bts))")[0]
+    if not ok:
+        raise Refused(f"{fstype} can't be resized" + (f" (needs {util})" if util else ""))
+    return modes
+
+
+def a_resize(a):
+    """resize PARTITION NEWSIZE: the filesystem and the partition, in the safe order"""
+    path, new = a[0], int(a[1])
+    d, p = find(path)
+    if p is None or "number" not in p:
+        raise Refused("not a partition")
+    if p.get("crypto"):
+        raise Refused("encrypted partitions can't be resized here yet")
+    grow = new > p["size"]
+    if grow:
+        end = p["offset"] + p["size"]
+        # the free gap that starts right after it (free space is 1 MiB aligned)
+        gap = next((f for f in d["free"] if end <= f["offset"] < end + MIB), None)
+        if not gap or p["offset"] + new > gap["offset"] + gap["size"]:
+            raise Refused("there isn't that much free space right after it")
+    fs = p["fs"]
+    if not fs["isFilesystem"]:
+        if fs["type"]:
+            raise Refused(f"{fs['type']} can't be resized; format it instead")
+        guard(path, "Resize")
+        call(path, "Partition", "Resize", (new, opts()), "(ta{sv})")
+        return
+    modes = resize_modes(fs["type"])
+    mounted = bool(fs["mounts"])
+    offline, online = (OFFLINE_GROW, ONLINE_GROW) if grow else (OFFLINE_SHRINK, ONLINE_SHRINK)
+    if mounted and not modes & online:
+        raise Refused(f"{fs['type']} can't be {'grown' if grow else 'shrunk'} while mounted; unmount it first")
+    if not modes & (offline | online):
+        raise Refused(f"{fs['type']} can't be {'grown' if grow else 'shrunk'}")
+    guard(path, "Resize", need_unmounted=not (modes & online))
+    # Only online works (btrfs): mounted for the resize, unmounted again after
+    temp_mount = not mounted and not modes & offline
+    # resize2fs only works on a freshly checked ext filesystem (like GParted:
+    # a forced check that fixes what it safely can, before resizing it offline)
+    if fs["type"] in ("ext2", "ext3", "ext4") and not mounted:
+        if not call(path, "Filesystem", "Repair", (opts(),), "(a{sv})", "(b)")[0]:
+            raise Refused("the filesystem has errors that couldn't be fixed; not resizing it")
+    if temp_mount:
+        call(path, "Filesystem", "Mount", (opts(),), "(a{sv})", "(s)")
+    try:
+        if grow:
+            call(path, "Partition", "Resize", (new, opts()), "(ta{sv})")
+            call(path, "Filesystem", "Resize", (0, opts()), "(ta{sv})")  # 0: fill the partition
+        else:
+            call(path, "Filesystem", "Resize", (new, opts()), "(ta{sv})")
+            call(path, "Partition", "Resize", (new, opts()), "(ta{sv})")
+    finally:
+        if temp_mount:
+            call(path, "Filesystem", "Unmount", (opts(),), "(a{sv})")
+
+
+def a_label(a):
+    """label BLOCK LABEL"""
+    d, p = find(a[0])
+    e = p or d["whole"]
+    if e and e["fs"]["type"] == "swap":
+        call(a[0], "Swapspace", "SetLabel", (a[1], opts()), "(sa{sv})")
+    else:
+        call(a[0], "Filesystem", "SetLabel", (a[1], opts()), "(sa{sv})")
+
+
+def a_name(a):
+    """name PARTITION NAME"""
+    call(a[0], "Partition", "SetName", (a[1], opts()), "(sa{sv})")
+
+
+def a_type(a):
+    """type PARTITION TYPE"""
+    guard(a[0], "Change the type", need_unmounted=False)
+    call(a[0], "Partition", "SetType", (a[1], opts()), "(sa{sv})")
+
+
+def a_flags(a):
+    """flags PARTITION FLAGS"""
+    guard(a[0], "Change the flags", need_unmounted=False)
+    call(a[0], "Partition", "SetFlags", (int(a[1]), opts()), "(ta{sv})")
+
+
+def fstab_item(fsname, dirp, typ, mo, freq, passno):
+    ay = lambda t: GLib.Variant("ay", t.encode() + b"\0")
+    return ("fstab", {"fsname": ay(fsname), "dir": ay(dirp), "type": ay(typ), "opts": ay(mo),
+                      "freq": GLib.Variant("i", freq), "passno": GLib.Variant("i", passno)})
+
+
+def a_fstab(a):
+    """fstab BLOCK DIR OPTIONS: mount at startup there (replaces an existing entry)"""
+    path, dirpath, mopts = a[0], a[1], a[2]
+    if not dirpath.startswith("/") or any(c in dirpath + mopts for c in " \t\n#"):
+        raise Refused("bad mount point or options")
+    d, p = find(path)
+    e = p or d["whole"]
+    if e.get("system"):
+        raise Refused("the system's own mount entries stay as they are")
+    inner = e["crypto"]["inner"] if e.get("crypto") and e["crypto"]["inner"] else None
+    fs = inner or e["fs"]
+    if not fs["uuid"]:
+        raise Refused("no filesystem UUID")
+    target = e["crypto"]["cleartext"] if inner else e["id"]
+    passno = 0 if fs["type"] in ("btrfs", "xfs", "ntfs", "exfat", "vfat", "f2fs") else 2
+    new = fstab_item(f"UUID={fs['uuid']}", dirpath, "auto", mopts, 0, passno)
+    if fs["fstab"]:
+        old = fs["fstab"][0]
+        call(target, "Block", "UpdateConfigurationItem",
+             (fstab_item(old["fsname"], old["dir"], old["type"], old["opts"], old["freq"], old["passno"]), new, opts()),
+             "((sa{sv})(sa{sv})a{sv})")
+    else:
+        call(target, "Block", "AddConfigurationItem", (new, opts()), "((sa{sv})a{sv})")
+
+
+def a_fstab_remove(a):
+    """fstab-remove BLOCK: no longer mounted at startup"""
+    d, p = find(a[0])
+    e = p or d["whole"]
+    if e.get("system"):
+        raise Refused("the system's own mount entries stay as they are")
+    inner = e["crypto"]["inner"] if e.get("crypto") and e["crypto"]["inner"] else None
+    fs = inner or e["fs"]
+    target = e["crypto"]["cleartext"] if inner else e["id"]
+    for old in fs["fstab"]:
+        call(target, "Block", "RemoveConfigurationItem",
+             (fstab_item(old["fsname"], old["dir"], old["type"], old["opts"], old["freq"], old["passno"]), opts()),
+             "((sa{sv})a{sv})")
+
+
+def a_check(a):
+    """check BLOCK: looks for errors (unmounted)"""
+    guard(a[0], "Check")
+    ok = call(a[0], "Filesystem", "Check", (opts(),), "(a{sv})", "(b)")[0]
+    print("clean" if ok else "errors")
+    return 0 if ok else 3
+
+
+def a_repair(a):
+    """repair BLOCK (unmounted)"""
+    guard(a[0], "Repair")
+    ok = call(a[0], "Filesystem", "Repair", (opts(),), "(a{sv})", "(b)")[0]
+    print("repaired" if ok else "not repaired")
+    return 0 if ok else 3
+
+
+def a_take_ownership(a):
+    """take-ownership BLOCK: the filesystem's root folder becomes this user's"""
+    d, p = find(a[0])
+    if (p or d["whole"] or {}).get("system"):
+        raise Refused("not on the system's filesystems")
+    call(a[0], "Filesystem", "TakeOwnership", (opts(),), "(a{sv})")
+
+
+def a_power_off(a):
+    """power-off DRIVE (removable drives: safe to unplug)"""
+    d, _ = find(a[0])
+    if d["system"]:
+        raise Refused("this drive holds the system")
+    call(d["id"], "Drive", "PowerOff", (opts(),), "(a{sv})")
+
+
+def a_eject(a):
+    """eject DRIVE"""
+    d, _ = find(a[0])
+    call(d["id"], "Drive", "Eject", (opts(),), "(a{sv})")
+
+
+def a_selftest(a):
+    """selftest DRIVE short|extended|abort"""
+    d, _ = find(a[0])
+    iface = "NVMe.Controller" if d["nvme"] else "Drive.Ata"
+    if a[1] == "abort":
+        call(d["id"], iface, "SmartSelftestAbort", (opts(),), "(a{sv})")
+    elif a[1] in ("short", "extended"):
+        call(d["id"], iface, "SmartSelftestStart", (a[1], opts()), "(sa{sv})")
+    else:
+        raise Refused("short, extended or abort")
+
+
+def a_smart_update(a):
+    """smart-update DRIVE: reads the health data again"""
+    d, _ = find(a[0])
+    call(d["id"], "NVMe.Controller" if d["nvme"] else "Drive.Ata", "SmartUpdate", (opts(),), "(a{sv})")
+
+
+ATA_NAMES = {"reallocated-sector-count": "Reallocated sectors", "power-on-hours": "Power-on hours",
+             "power-cycle-count": "Power cycles", "temperature-celsius-2": "Temperature",
+             "current-pending-sector": "Sectors waiting to be reallocated",
+             "offline-uncorrectable": "Uncorrectable sectors", "udma-crc-error-count": "Cable/interface errors",
+             "percent-lifetime-remain": "Lifetime left", "total-lbas-written": "Data written"}
+
+
+def a_attributes(a):
+    """attributes DRIVE: health details as JSON"""
+    d, _ = find(a[0])
+    if d["nvme"]:
+        r = call(d["id"], "NVMe.Controller", "SmartGetAttributes", (opts(),), "(a{sv})", "(a{sv})")[0]
+        out = {"kind": "nvme", "wear": r.get("percent_used"), "spare": r.get("avail_spare"),
+               "spareThreshold": r.get("spare_thresh"), "dataWritten": r.get("total_data_written"),
+               "dataRead": r.get("total_data_read"), "powerCycles": r.get("power_cycles"),
+               "unsafeShutdowns": r.get("unsafe_shutdowns"), "mediaErrors": r.get("media_errors"),
+               "errorLogEntries": r.get("num_err_log_entries"),
+               "warningTemperature": kelvin(r.get("wctemp", 0)), "criticalTemperature": kelvin(r.get("cctemp", 0))}
+    else:
+        rows = call(d["id"], "Drive.Ata", "SmartGetAttributes", (opts(),), "(a{sv})", "(a(ysqiiixia{sv}))")[0]
+        attrs = [{"id": r[0], "name": r[1], "label": ATA_NAMES.get(r[1], r[1].replace("-", " ").capitalize()),
+                  "value": r[3], "worst": r[4], "threshold": r[5], "pretty": r[6], "unit": r[7],
+                  "failing": r[5] > 0 and 0 < r[3] <= r[5]} for r in rows]
+        out = {"kind": "ata", "attributes": attrs}
+    print(json.dumps(out))
+
+
+def a_loop_setup(a):
+    """loop-setup FILE: a disk image as a drive"""
+    fd = os.open(a[0], os.O_RDWR)
+    fdl = Gio.UnixFDList.new()
+    idx = fdl.append(fd)
+    v, _ = bus().call_with_unix_fd_list_sync(UD, "/org/freedesktop/UDisks2/Manager", P + "Manager", "LoopSetup",
+                                             GLib.Variant("(ha{sv})", (idx, opts())), GLib.VariantType("(o)"),
+                                             INTERACTIVE, FOREVER, fdl, None)
+    print(v.unpack()[0])
+
+
+def a_loop_delete(a):
+    """loop-delete BLOCK: detaches a disk image"""
+    d, _ = find(a[0])
+    if d["bus"] != "loop":
+        raise Refused("not a disk image")
+    call(d["block"], "Loop", "Delete", (opts(),), "(a{sv})")
+
+
+ACTIONS = {
+    "mount": a_mount, "unmount": a_unmount, "unlock": a_unlock, "lock": a_lock,
+    "change-passphrase": a_change_passphrase, "format": a_format, "table": a_table, "create": a_create,
+    "delete": a_delete, "resize": a_resize, "label": a_label, "name": a_name, "type": a_type,
+    "flags": a_flags, "fstab": a_fstab, "fstab-remove": a_fstab_remove, "check": a_check,
+    "repair": a_repair, "take-ownership": a_take_ownership, "power-off": a_power_off, "eject": a_eject,
+    "selftest": a_selftest, "smart-update": a_smart_update, "attributes": a_attributes,
+    "loop-setup": a_loop_setup, "loop-delete": a_loop_delete,
+}
+
+COMMANDS = {"list": cmd_list, "watch": cmd_watch, **ACTIONS}
+
+
+def main(argv):
+    if not argv or argv[0] not in COMMANDS:
+        print("usage: caelestia-disks list|watch|ACTION ...", file=sys.stderr)
+        return 2
+    try:
+        return COMMANDS[argv[0]](argv[1:]) or 0
+    except Refused as e:
+        print(f"Refused: {e}", file=sys.stderr)
+        return 2
+    except (IndexError, ValueError):
+        print(f"usage: {(COMMANDS[argv[0]].__doc__ or argv[0]).strip()}", file=sys.stderr)
+        return 2
+    except GLib.Error as e:
+        print(friendly(e), file=sys.stderr)
+        return 126 if "NotAuthorized" in (Gio.DBusError.get_remote_error(e) or "") else 1
+
+
+def friendly(e):
+    msg = e.message
+    if msg.startswith("GDBus.Error:"):
+        msg = msg.split(":", 2)[-1].strip()
+    return msg
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
