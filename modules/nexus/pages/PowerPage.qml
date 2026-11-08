@@ -27,9 +27,10 @@ PageBase {
         if (want === logindPowerKey)
             return;
         powerKeyPending = true;
-        Term.run(`sudo mkdir -p /etc/systemd/logind.conf.d && printf '[Login]\\nHandlePowerKey=${want}\\n' | sudo tee /etc/systemd/logind.conf.d/10-power-key.conf >/dev/null && sudo systemctl kill -s HUP systemd-logind && echo "Done: the power button is set."`);
-        powerKeyRecheck.left = 10;
-        powerKeyRecheck.restart();
+        Admin.run("power-key", [want], Tr.tr("Set what the power button does"), () => {
+            powerKeyPending = false;
+            powerKeyProc.running = true;
+        });
     }
 
     // A command list for the sleep action. (A JS array would arrive as a
@@ -212,7 +213,7 @@ PageBase {
             first: true
             last: true
             label: Tr.tr("When the power button is pressed")
-            subtext: root.powerKeyPending ? Tr.tr("Finish in the terminal (it asks for your password)") : ""
+            subtext: root.powerKeyPending ? Tr.tr("Applying…") : ""
             menuOnTop: true
             menuItems: [
                 MenuItem {
@@ -250,20 +251,6 @@ PageBase {
                     root.logindPowerKey = (text.match(/"(.*)"/) ?? [])[1] ?? "";
                     root.powerKeyPending = false;
                 }
-            }
-        }
-
-        Timer {
-            id: powerKeyRecheck
-
-            property int left
-
-            interval: 3000
-            repeat: true
-            onTriggered: {
-                powerKeyProc.running = true;
-                if (--left <= 0)
-                    stop();
             }
         }
 

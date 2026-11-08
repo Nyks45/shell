@@ -1383,7 +1383,7 @@ QtObject {
         {
             "label": "Brightness: this monitor doesn't answer over DDC/CI",
             "ctx": "",
-            "sub": "Turn DDC/CI on in the monitor's own menu, then open this page again. Some monitors and docks don't support it.",
+            "sub": "Installing…",
             "section": "Monitor",
             "page": 5,
             "path": [],
@@ -1877,7 +1877,7 @@ QtObject {
         {
             "label": "When the power button is pressed",
             "ctx": "",
-            "sub": "Finish in the terminal (it asks for your password)",
+            "sub": "Applying…",
             "section": "Power button",
             "page": 11,
             "path": [],
@@ -2535,29 +2535,9 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Clean the package cache",
-            "ctx": "",
-            "sub": "",
-            "section": "Clean up",
-            "page": 16,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
             "label": "Clear AUR build files",
             "ctx": "",
-            "sub": "",
-            "section": "Clean up",
-            "page": 16,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Remove unused packages",
-            "ctx": "",
-            "sub": "None",
+            "sub": "Click again: packages are then rebuilt from scratch on their next update",
             "section": "Clean up",
             "page": 16,
             "path": [],
@@ -2567,7 +2547,7 @@ QtObject {
         {
             "label": "Trim system logs",
             "ctx": "",
-            "sub": "",
+            "sub": "Trimming…",
             "section": "Clean up",
             "page": 16,
             "path": [],
@@ -2607,7 +2587,7 @@ QtObject {
         {
             "label": "Turn hourly snapshots off",
             "ctx": "",
-            "sub": "Opens a terminal",
+            "sub": "Applying…",
             "section": "Automatic snapshots",
             "page": 17,
             "path": [],
@@ -2907,7 +2887,7 @@ QtObject {
         {
             "label": "Firewall",
             "ctx": "",
-            "sub": "Finish in the terminal (it asks for your password)",
+            "sub": "Applying…",
             "section": "Security",
             "page": 24,
             "path": [],

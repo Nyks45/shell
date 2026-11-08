@@ -239,13 +239,29 @@ PageBase {
         // No way to set this screen's brightness: say why
         RequirementRow {
             readonly property var bm: root.monitor ? Brightness.getMonitor(root.monitor.name) : null
+            readonly property string what: Tr.tr("Install ddcutil for monitor brightness")
+            property bool installing
+            property bool installed
 
             visible: !!root.monitor && !root.hasBacklight && !(bm?.isDdc || bm?.isAppleDisplay)
             icon: "brightness_6"
             text: root.hasDdcutil ? Tr.tr("Brightness: this monitor doesn't answer over DDC/CI") : Tr.tr("Brightness of external monitors needs ddcutil")
-            subtext: root.hasDdcutil ? Tr.tr("Turn DDC/CI on in the monitor's own menu, then open this page again. Some monitors and docks don't support it.") : Tr.tr("It sets the brightness over the display cable (DDC/CI). Installing it asks for your password.")
-            actionText: root.hasDdcutil ? "" : Tr.tr("Install")
-            onAction: Term.run("sudo pacman -S --needed ddcutil && sudo usermod -aG i2c $USER && echo 'Done. Log out and in for the i2c group.'")
+            subtext: installing ? Tr.tr("Installing…") : installed ? Tr.tr("Installed. Log out and back in once so it may use the monitor's cable.") : root.hasDdcutil ? Tr.tr("Turn DDC/CI on in the monitor's own menu, then open this page again. Some monitors and docks don't support it.") : Tr.tr("It sets the brightness over the display cable (DDC/CI). Installing it asks for your password.")
+            actionText: root.hasDdcutil || installing ? "" : Tr.tr("Install")
+            // ddcutil talks to the monitor through /dev/i2c-*: the i2c group
+            onAction: {
+                installing = true;
+                Admin.run("install", ["ddcutil"], what, ok => {
+                    if (!ok) {
+                        installing = false;
+                        return;
+                    }
+                    Admin.run("join-group", ["i2c"], what, ok2 => {
+                        installing = false;
+                        installed = ok2;
+                    });
+                });
+            }
         }
 
         SelectRow {
@@ -445,16 +461,17 @@ PageBase {
         }
 
         RowButton {
+            readonly property string what: Tr.tr("Install night light")
+            readonly property bool busy: Admin.jobs.some(j => j.what === what)
+
             visible: !root.sunsetInstalled
             first: true
             last: true
             icon: "download"
-            text: Tr.tr("Install night light")
-            subtext: Tr.tr("Needs hyprsunset; opens a terminal to install it")
-            onClicked: {
-                Quickshell.execDetached([...GlobalConfig.general.apps.terminal, "-e", "sh", "-c", "sudo pacman -S --needed hyprsunset; echo; read -p 'Press Enter to close' _"]);
-                installCheck.restart();
-            }
+            text: what
+            subtext: busy ? Tr.tr("Installing…") : Tr.tr("Needs hyprsunset (asks for your password)")
+            disabled: busy
+            onClicked: Admin.run("install", ["hyprsunset"], what, () => whichSunset.running = true)
         }
 
         ToggleRow {
@@ -598,20 +615,6 @@ PageBase {
             running: true
             command: ["sh", "-c", "command -v hyprsunset"]
             onExited: code => root.sunsetInstalled = code === 0
-        }
-
-        // After the install terminal: look again for a while
-        Timer {
-            id: installCheck
-
-            interval: 5000
-            repeat: true
-            property int tries
-            onTriggered: {
-                whichSunset.running = true;
-                if (root.sunsetInstalled || ++tries > 60)
-                    stop();
-            }
         }
 
         FileView {

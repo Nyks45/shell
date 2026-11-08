@@ -110,13 +110,25 @@ lpstat -p 2>/dev/null | sed -n 's/^printer \\([^ ]*\\) \\(.*\\)$/printer=\\1\\t\
                 }
 
                 TextButton {
+                    readonly property string what: root.hasCups ? Tr.tr("Turn printing on") : Tr.tr("Set up printing")
+                    readonly property bool busy: Admin.jobs.some(j => j.what === what)
+
                     Layout.alignment: Qt.AlignRight
-                    text: root.hasCups ? Tr.tr("Turn on, in a terminal") : Tr.tr("Set up, in a terminal")
+                    text: busy ? Tr.tr("Working…") : root.hasCups ? Tr.tr("Turn on") : Tr.tr("Set up")
                     type: TextButton.Filled
+                    disabled: busy
                     onClicked: {
-                        Term.run(root.hasCups ? "sudo systemctl enable --now cups.socket && echo Done." : "sudo pacman -S --needed cups cups-pdf system-config-printer gutenprint foomatic-db-engine foomatic-db-ppds && sudo systemctl enable --now cups.socket && echo Done.");
-                        recheck.left = 30;
-                        recheck.restart();
+                        // systemctl asks polkit itself (the shell's prompt)
+                        const start = () => Admin.exec(["systemctl", "enable", "--now", "cups.socket"], what, () => root.refresh());
+                        if (root.hasCups)
+                            start();
+                        else
+                            Admin.run("install", ["cups", "cups-pdf", "system-config-printer", "gutenprint", "foomatic-db-engine", "foomatic-db-ppds"], what, ok => {
+                                if (ok)
+                                    start();
+                                else
+                                    root.refresh();
+                            });
                     }
                 }
             }

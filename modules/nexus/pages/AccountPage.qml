@@ -9,15 +9,16 @@ import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
+import qs.components.controls
 import qs.components.filedialog
 import qs.services
 import qs.utils
 import qs.modules.nexus.common
 
 // The user's account: picture (~/.face, shown on the dashboard and the lock
-// screen), name (AccountsService), password (passwd, in a terminal) and the
-// computer's name (hostnamectl). Name and computer-name changes ask for the
-// password through polkit.
+// screen), name and password (AccountsService) and the computer's name
+// (hostnamectl). Name, password and computer-name changes ask for the
+// password through polkit (the shell's prompt).
 PageBase {
     id: root
 
@@ -34,9 +35,10 @@ PageBase {
         faceProc.running = true;
     }
 
-    function runInTerminal(script: string): void {
-        Quickshell.execDetached([...GlobalConfig.general.apps.terminal, "-e", "sh", "-c", `${script}; echo; read -p 'Press Enter to close' _`]);
-    }
+    // The password dialog's fields (cleared as soon as it is used)
+    property string newPassword
+    property string repeatPassword
+    property string passwordStatus
 
     title: Tr.tr("Account")
 
@@ -213,13 +215,83 @@ PageBase {
             text: Tr.tr("Sign-in")
         }
 
-        RowButton {
-            first: true
-            last: true
+        DialogRowButton {
+            id: passwordDialog
+
+            readonly property string what: Tr.tr("Change your password")
+
+            rootParent: root.flickable
+            openHeight: Math.min(root.flickable.height * 0.95, 430)
             icon: "password"
-            text: Tr.tr("Change password")
-            subtext: Tr.tr("Opens a terminal; also used to unlock the screen")
-            onClicked: root.runInTerminal("passwd")
+            label: root.passwordStatus || Tr.tr("Change password")
+            header: Tr.tr("Change password")
+            acceptLabel: Tr.trCtx("Change", "button")
+            acceptAllowed: root.newPassword.length > 0 && root.newPassword === root.repeatPassword && !Admin.jobs.some(j => j.what === what)
+
+            content: Component {
+                ColumnLayout {
+                    spacing: Tokens.spacing.medium
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        Layout.topMargin: Tokens.spacing.medium
+                        text: Tr.tr("For signing in and unlocking the screen. You'll be asked for the current one.")
+                        color: Colours.palette.m3onSurfaceVariant
+                        font: Tokens.font.body.small
+                        wrapMode: Text.WordWrap
+                    }
+
+                    StyledTextField {
+                        Layout.fillWidth: true
+                        echoMode: TextInput.Password
+                        placeholderText: Tr.tr("New password")
+                        leadingIcon: "key"
+                        Component.onCompleted: forceActiveFocus()
+                        onTextChanged: root.newPassword = text
+                    }
+
+                    StyledTextField {
+                        Layout.fillWidth: true
+                        echoMode: TextInput.Password
+                        placeholderText: Tr.tr("Repeat it")
+                        leadingIcon: "key"
+                        supportingText: text.length > 0 && text !== root.newPassword ? Tr.tr("The two don't match yet") : ""
+                        onTextChanged: root.repeatPassword = text
+                        onAccepted: if (passwordDialog.acceptAllowed) {
+                            passwordDialog.accepted();
+                            passwordDialog.open = false;
+                        }
+                    }
+
+                    Item {
+                        Layout.fillHeight: true
+                    }
+                }
+            }
+
+            onOpenChanged: if (!open) {
+                root.repeatPassword = "";
+                if (!Admin.jobs.some(j => j.what === what))
+                    root.newPassword = "";
+            }
+            onAccepted: {
+                const pw = root.newPassword;
+                root.newPassword = "";
+                root.repeatPassword = "";
+                root.passwordStatus = Tr.tr("Changing the password…");
+                Admin.exec([`${Paths.libdir}/caelestia-set-password`], what, (ok, out, cancelled) => {
+                    root.passwordStatus = ok ? Tr.tr("Password changed") : "";
+                    if (ok)
+                        passwordStatusReset.restart();
+                }, pw);
+            }
+
+            Timer {
+                id: passwordStatusReset
+
+                interval: 5000
+                onTriggered: root.passwordStatus = ""
+            }
         }
 
         SectionHeader {

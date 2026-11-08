@@ -91,14 +91,21 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         RequirementRow {
+            readonly property string what: Tr.tr("Install the live wallpaper renderer")
+            readonly property bool busy: Admin.jobs.some(j => j.what === what)
+            // paru's last output line (download, build...)
+            readonly property string progress: (Admin.outputOf(what).trim().split("\n").pop() ?? "").slice(0, 120)
+
             visible: !LiveWallpaper.hasEngine
             first: true
             last: true
             icon: "wallpaper"
             text: Tr.tr("Needs linux-wallpaperengine")
-            subtext: Tr.tr("The renderer for Wallpaper Engine wallpapers. Installing it builds the newest version (asks for your password).")
-            actionText: Tr.tr("Install")
-            onAction: Term.run("paru -S --needed linux-wallpaperengine-git")
+            subtext: busy ? (progress || Tr.tr("Building…")) : Tr.tr("The renderer for Wallpaper Engine wallpapers. Installing it builds the newest version (asks for your password).")
+            actionText: busy ? "" : Tr.tr("Install")
+            // Built as this user from the AUR; paru's install step goes
+            // through pkexec (the shell's password prompt)
+            onAction: Admin.exec(["paru", "-S", "--needed", "--noconfirm", "--skipreview", "--sudo", "pkexec", "linux-wallpaperengine-git"], what, () => LiveWallpaper.refresh())
         }
 
         RequirementRow {

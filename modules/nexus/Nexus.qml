@@ -7,6 +7,7 @@ import qs.components
 import qs.components.controls
 import qs.services
 import qs.modules.nexus
+import qs.modules.polkit
 
 Item {
     id: root
@@ -17,12 +18,22 @@ Item {
         onClose: root.close()
     }
     property color blobColour: Colours.tPalette.m3surfaceContainerLow
+    // Has focus: a password request (polkit) then shows inside this window
+    readonly property bool windowActive: Window.active
 
     signal close
 
-    // The live wallpapers' Workshop: fetched as the settings open, cleared as they close
-    Component.onCompleted: LiveWallpaper.settingsOpened()
-    Component.onDestruction: LiveWallpaper.settingsClosed()
+    // The live wallpapers' Workshop: fetched as the settings open, cleared as
+    // they close. A settings window shows the password prompt itself.
+    Component.onCompleted: {
+        LiveWallpaper.settingsOpened();
+        if (nState.isWindow)
+            Polkit.addHost(root);
+    }
+    Component.onDestruction: {
+        LiveWallpaper.settingsClosed();
+        Polkit.removeHost(root);
+    }
 
     implicitWidth: Math.round(implicitHeight * Tokens.sizes.nexus.ratio)
     implicitHeight: Math.round(nState.screen.height * Tokens.sizes.nexus.heightMult)
@@ -123,5 +134,54 @@ Item {
         anchors.margins: Tokens.padding.extraLarge
 
         nState: nState
+    }
+
+    // The password prompt (polkit), when it is this window's: over the page,
+    // like the settings' other dialogs
+    Item {
+        id: polkitHost
+
+        readonly property bool shown: Polkit.active && Polkit.decided && Polkit.host === root
+
+        anchors.fill: parent
+        z: 10
+        visible: opacity > 0
+        opacity: shown ? 1 : 0
+
+        Behavior on opacity {
+            Anim {}
+        }
+
+        StyledRect {
+            anchors.fill: parent
+            radius: root.nState.isWindow ? 0 : Tokens.rounding.large
+            color: Qt.alpha(Colours.palette.m3scrim, 0.32)
+        }
+
+        // Nothing under it reacts while it's open
+        MouseArea {
+            anchors.fill: parent
+            enabled: polkitHost.shown
+            hoverEnabled: enabled
+            onWheel: event => event.accepted = true
+        }
+
+        Loader {
+            anchors.centerIn: parent
+            active: polkitHost.shown
+            sourceComponent: PolkitCard {
+                scale: 0.92
+                Component.onCompleted: {
+                    scale = 1;
+                    focusField();
+                }
+
+                Behavior on scale {
+                    Anim {
+                        type: Anim.DefaultSpatial
+                    }
+                }
+            }
+        }
     }
 }

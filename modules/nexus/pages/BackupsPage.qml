@@ -102,30 +102,28 @@ PageBase {
             onExited: root.refresh()
         }
 
-        // The terminal steps (sudo) take a moment: read back a few times
-        Timer {
-            id: recheck
-
-            property int left
-
-            interval: 3000
-            repeat: true
-            onTriggered: {
-                root.refresh();
-                if (--left <= 0)
-                    stop();
-            }
-        }
-
         RequirementRow {
+            readonly property string what: Tr.tr("Set up system snapshots")
+            readonly property bool busy: Admin.jobs.some(j => j.what === what)
+
             visible: root.checked && !root.hasSnapper
             first: true
             last: true
             icon: "history"
             text: Tr.tr("Snapshots need snapper")
-            subtext: Tr.tr("And a btrfs system drive. Installing it asks for your password; it then needs setting up for the drive.")
-            actionText: Tr.tr("Install")
-            onAction: Term.run("sudo pacman -S --needed snapper btrfs-assistant && sudo snapper -c root create-config / && echo Done.")
+            subtext: busy ? Tr.tr("Installing and setting up…") : Tr.tr("And a btrfs system drive. Installs it, sets it up for the system drive and lets this account manage the snapshots (asks for your password).")
+            actionText: busy ? "" : Tr.tr("Install")
+            onAction: Admin.run("install", ["snapper"], what, ok => {
+                if (ok)
+                    Admin.run("snapper-setup", [], what, ok2 => {
+                        if (ok2)
+                            Admin.run("snapper-allow-me", ["root"], what, () => root.refresh());
+                        else
+                            root.refresh();
+                    });
+                else
+                    root.refresh();
+            })
         }
 
         // Not allowed yet: one sudo step
@@ -158,14 +156,13 @@ PageBase {
                 }
 
                 TextButton {
+                    readonly property string what: Tr.tr("Let this account manage snapshots")
+
                     Layout.alignment: Qt.AlignRight
-                    text: Tr.tr("Allow, in a terminal")
+                    text: Tr.tr("Allow")
                     type: TextButton.Filled
-                    onClicked: {
-                        Term.run(`sudo snapper -c ${root.config} set-config "ALLOW_USERS=$USER" SYNC_ACL=yes && echo "Done: snapshots are allowed for $USER."`);
-                        recheck.left = 10;
-                        recheck.restart();
-                    }
+                    disabled: Admin.jobs.some(j => j.what === what)
+                    onClicked: Admin.run("snapper-allow-me", [root.config], what, () => root.refresh())
                 }
             }
         }
@@ -303,15 +300,15 @@ PageBase {
         }
 
         RowButton {
+            readonly property string what: root.settings.TIMELINE_CREATE === "yes" ? Tr.tr("Turn hourly snapshots off") : Tr.tr("Turn hourly snapshots on")
+            readonly property bool busy: Admin.jobs.some(j => j.what === what)
+
             visible: root.allowed
             icon: root.settings.TIMELINE_CREATE === "yes" ? "timer_off" : "timer"
-            text: root.settings.TIMELINE_CREATE === "yes" ? Tr.tr("Turn hourly snapshots off") : Tr.tr("Turn hourly snapshots on")
-            subtext: Tr.tr("Opens a terminal")
-            onClicked: {
-                Term.run(`sudo snapper -c ${root.config} set-config TIMELINE_CREATE=${root.settings.TIMELINE_CREATE === "yes" ? "no" : "yes"}`);
-                recheck.left = 6;
-                recheck.restart();
-            }
+            text: what
+            subtext: busy ? Tr.tr("Applying…") : ""
+            disabled: busy
+            onClicked: Admin.run("snapper-timeline", [root.config, root.settings.TIMELINE_CREATE === "yes" ? "no" : "yes"], what, () => root.refresh())
         }
 
         RowButton {

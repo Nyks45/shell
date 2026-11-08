@@ -24,6 +24,7 @@ PageBase {
     property var sizes: ({})
     property int orphans: -1
     property bool trashConfirm
+    property bool paruConfirm
 
     function human(bytes: real): string {
         if (!(bytes >= 0))
@@ -169,6 +170,13 @@ done
                 if (--left <= 0)
                     stop();
             }
+        }
+
+        Timer {
+            id: paruConfirmTimer
+
+            interval: 4000
+            onTriggered: root.paruConfirm = false
         }
 
         Timer {
@@ -345,50 +353,55 @@ done
         }
 
         RowButton {
+            readonly property string what: Tr.tr("Clean the package cache")
+            readonly property bool busy: Admin.jobs.some(j => j.what === what)
+
             icon: "inventory_2"
-            text: Tr.tr("Clean the package cache")
-            subtext: Tr.tr("%1 of downloaded packages; keeps the latest of each; opens a terminal").arg(root.human(root.sizes.pkg ?? 0))
-            onClicked: {
-                Term.confirm(Tr.tr("Removes old package files from /var/cache/pacman/pkg, keeping the newest version of each (and uninstalled ones' newest)."), "{ command -v paccache >/dev/null || sudo pacman -S --needed pacman-contrib; } && sudo paccache -rk1 && sudo paccache -ruk0");
-                refreshTimer.left = 8;
-                refreshTimer.restart();
-            }
+            text: what
+            subtext: busy ? Tr.tr("Cleaning…") : Tr.tr("%1 of downloaded packages; keeps the latest of each").arg(root.human(root.sizes.pkg ?? 0))
+            disabled: busy
+            onClicked: Admin.run("clean-package-cache", [], what, () => root.refresh())
         }
 
         RowButton {
             visible: (root.sizes.paru ?? 0) > 0
             icon: "build"
             text: Tr.tr("Clear AUR build files")
-            subtext: Tr.tr("%1 that paru keeps from building AUR packages").arg(root.human(root.sizes.paru ?? 0))
+            subtext: root.paruConfirm ? Tr.tr("Click again: packages are then rebuilt from scratch on their next update") : Tr.tr("%1 that paru keeps from building AUR packages").arg(root.human(root.sizes.paru ?? 0))
             onClicked: {
-                Term.confirm(Tr.tr("Deletes paru's build folders (~/.cache/paru/clone). Packages are rebuilt from scratch on their next update."), `rm -rf "\${XDG_CACHE_HOME:-$HOME/.cache}/paru/clone" && echo Done.`);
-                refreshTimer.left = 3;
+                if (!root.paruConfirm) {
+                    root.paruConfirm = true;
+                    paruConfirmTimer.restart();
+                    return;
+                }
+                root.paruConfirm = false;
+                Quickshell.execDetached(["sh", "-c", `rm -rf "\${XDG_CACHE_HOME:-$HOME/.cache}/paru/clone"`]);
+                refreshTimer.left = 2;
                 refreshTimer.restart();
             }
         }
 
         RowButton {
+            readonly property string what: Tr.tr("Remove unused packages")
+            readonly property bool busy: Admin.jobs.some(j => j.what === what)
+
             icon: "remove_selection"
-            text: Tr.tr("Remove unused packages")
-            subtext: root.orphans === 0 ? Tr.tr("None") : Tr.tr("%1 installed as dependencies of packages that are gone; opens a terminal").arg(root.orphans)
-            disabled: root.orphans === 0
-            onClicked: {
-                Term.run("pacman -Qdtq | sudo pacman -Rns -");
-                refreshTimer.left = 8;
-                refreshTimer.restart();
-            }
+            text: what
+            subtext: busy ? Tr.tr("Removing…") : root.orphans === 0 ? Tr.tr("None") : Tr.tr("%1 installed as dependencies of packages that are gone").arg(root.orphans)
+            disabled: root.orphans === 0 || busy
+            onClicked: Admin.run("remove-orphans", [], what, () => root.refresh())
         }
 
         RowButton {
+            readonly property string what: Tr.tr("Trim system logs")
+            readonly property bool busy: Admin.jobs.some(j => j.what === what)
+
             last: true
             icon: "receipt_long"
-            text: Tr.tr("Trim system logs")
-            subtext: Tr.tr("%1 of logs; keeps the last two weeks; opens a terminal").arg(root.human(root.sizes.journal ?? 0))
-            onClicked: {
-                Term.run("sudo journalctl --vacuum-time=2weeks");
-                refreshTimer.left = 4;
-                refreshTimer.restart();
-            }
+            text: what
+            subtext: busy ? Tr.tr("Trimming…") : Tr.tr("%1 of logs; keeps the last two weeks").arg(root.human(root.sizes.journal ?? 0))
+            disabled: busy
+            onClicked: Admin.run("journal-vacuum", ["2weeks"], what, () => root.refresh())
         }
     }
 }

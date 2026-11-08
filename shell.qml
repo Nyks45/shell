@@ -12,6 +12,7 @@ import qs.modules.areapicker
 import qs.modules.background
 import qs.modules.drawers
 import qs.modules.lock
+import qs.modules.polkit
 import qs.daemons
 
 ShellRoot {
@@ -31,6 +32,8 @@ ShellRoot {
         // Reads the live wallpaper library and settings (importing the old
         // GUI's on first run): the login script uses that settings file
         LiveWallpaper;
+        // The session's polkit agent (password prompts)
+        Polkit;
 
         if (GlobalConfig.utilities.vpn.enabled)
             VPN;
@@ -50,6 +53,7 @@ ShellRoot {
     Background {}
     Drawers {}
     AreaPicker {}
+    PolkitOverlay {}
     Lock {
         id: lock
     }

@@ -50,20 +50,6 @@ PageBase {
             }
         }
 
-        Timer {
-            id: recheck
-
-            property int left
-
-            interval: 3000
-            repeat: true
-            onTriggered: {
-                root.refresh();
-                if (--left <= 0)
-                    stop();
-            }
-        }
-
         SectionHeader {
             first: true
             text: Tr.tr("Security")
@@ -75,11 +61,16 @@ PageBase {
             icon: "shield"
             text: Tr.tr("No firewall installed")
             subtext: Tr.tr("ufw blocks incoming connections the PC didn't ask for. Installing it asks for your password.")
-            actionText: Tr.tr("Install")
+            actionText: root.firewallPending ? "" : Tr.tr("Install")
             onAction: {
-                Term.run("sudo pacman -S --needed ufw && sudo systemctl enable --now ufw && sudo ufw enable");
-                recheck.left = 20;
-                recheck.restart();
+                const what = Tr.tr("Install and turn on the firewall");
+                root.firewallPending = true;
+                Admin.run("install", ["ufw"], what, ok => {
+                    if (ok)
+                        Admin.run("firewall", ["on"], what, () => root.refresh());
+                    else
+                        root.refresh();
+                });
             }
         }
 
@@ -87,13 +78,11 @@ PageBase {
             visible: root.firewall !== ""
             first: true
             text: Tr.tr("Firewall")
-            subtext: root.firewallPending ? Tr.tr("Finish in the terminal (it asks for your password)") : root.firewall === "active" ? Tr.tr("Blocks incoming connections the PC didn't ask for") : Tr.tr("Off: anything on the network can reach open ports")
+            subtext: root.firewallPending ? Tr.tr("Applying…") : root.firewall === "active" ? Tr.tr("Blocks incoming connections the PC didn't ask for") : Tr.tr("Off: anything on the network can reach open ports")
             checked: root.firewall === "active"
             onToggled: {
                 root.firewallPending = true;
-                Term.run(checked ? "sudo systemctl enable --now ufw && sudo ufw enable" : "sudo ufw disable && sudo systemctl disable --now ufw");
-                recheck.left = 10;
-                recheck.restart();
+                Admin.run("firewall", [checked ? "on" : "off"], checked ? Tr.tr("Turn the firewall on") : Tr.tr("Turn the firewall off"), () => root.refresh());
             }
         }
 

@@ -11,8 +11,9 @@ import qs.services
 import qs.modules.nexus.common
 
 // System updates: pacman (checkupdates), the AUR (paru or yay) and Flatpak.
-// Updating runs in a terminal, where it can ask for the password and show
-// what it does.
+// Updating runs here, one source after the other, showing its progress; the
+// shell's password prompt asks (repository packages through the settings'
+// helper, the AUR helper's install step through pkexec, Flatpak by itself).
 PageBase {
     id: root
 
@@ -25,6 +26,10 @@ PageBase {
     property string aurHelper
     property bool hasFlatpak
 
+    // "repo", "aur", "flatpak" while updating
+    property string updateStep
+    readonly property string updateWhat: Tr.tr("Install the updates")
+    readonly property bool updating: Admin.jobs.some(j => j.what === updateWhat) || updateStep !== ""
     readonly property bool checking: pending > 0
     readonly property int total: repo.length + aur.length + flatpaks.length
 
@@ -52,10 +57,28 @@ PageBase {
     }
 
     function updateAll(): void {
-        const steps = [`${aurHelper || "sudo pacman"} -Syu`];
-        if (hasFlatpak)
-            steps.push("flatpak update");
-        Quickshell.execDetached([...GlobalConfig.general.apps.terminal, "-e", "sh", "-c", `${steps.join(" && ")}; echo; read -p 'Done. Press Enter to close' _`]);
+        const flatpak = () => {
+            if (!hasFlatpak || flatpaks.length === 0) {
+                updateStep = "";
+                check();
+                return;
+            }
+            updateStep = "flatpak";
+            Admin.exec(["flatpak", "update", "--noninteractive", "-y"], updateWhat, () => {
+                updateStep = "";
+                check();
+            });
+        };
+        const aurStep = () => {
+            if (!aurHelper || aur.length === 0)
+                return flatpak();
+            updateStep = "aur";
+            Admin.exec([aurHelper, "-Sua", "--noconfirm", ...(aurHelper === "paru" ? ["--skipreview"] : []), "--sudo", "pkexec"], updateWhat, ok => ok ? flatpak() : (updateStep = "", check()));
+        };
+        if (repo.length === 0)
+            return aurStep();
+        updateStep = "repo";
+        Admin.run("upgrade", [], updateWhat, ok => ok ? aurStep() : (updateStep = "", check()));
     }
 
     title: Tr.tr("Updates")
@@ -87,10 +110,16 @@ PageBase {
 
         RowButton {
             last: true
-            disabled: root.checking || root.total === 0
+            disabled: root.checking || root.total === 0 || root.updating
             icon: "download"
             text: Tr.tr("Update everything")
-            subtext: Tr.tr("Opens a terminal: it asks for your password and shows the progress")
+            subtext: {
+                if (!root.updating)
+                    return Tr.tr("Asks for your password, then shows the progress here");
+                const last = (Admin.outputOf(root.updateWhat).trim().split("\n").pop() ?? "").replace(/^\$ /, "").slice(0, 110);
+                const step = root.updateStep === "repo" ? Tr.tr("System packages") : root.updateStep === "aur" ? Tr.tr("AUR packages") : Tr.tr("Flatpak apps");
+                return last ? `${step}: ${last}` : step;
+            }
             onClicked: root.updateAll()
         }
 

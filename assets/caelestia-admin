@@ -1,0 +1,217 @@
+#!/usr/bin/python3 -I
+"""Caelestia settings: the system changes the settings app makes as root.
+
+Runs through pkexec (polkit action org.caelestia.shell.admin: the shell's own
+password prompt, remembered for a few minutes). Only the named actions below,
+each argument checked: never an arbitrary command, so a remembered password
+can't be used to run anything else.
+
+    caelestia-admin [--dry-run] ACTION [ARGS...]
+
+--dry-run prints the commands instead of running them (tests). Progress goes
+to stdout, errors to stderr; exit 2 = refused (bad action or argument).
+"""
+
+import os
+import pwd
+import re
+import subprocess
+import sys
+
+DRY = False
+
+
+class Refused(Exception):
+    pass
+
+
+def run(*cmd, input=None, check=True):
+    print("$ " + " ".join(cmd), flush=True)
+    if DRY:
+        return ""
+    proc = subprocess.run(cmd, input=input, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if proc.stdout:
+        print(proc.stdout, end="" if proc.stdout.endswith("\n") else "\n", flush=True)
+    if check and proc.returncode != 0:
+        raise SystemExit(proc.returncode)
+    return proc.stdout
+
+
+def write_file(path, text):
+    print(f"$ write {path}", flush=True)
+    if DRY:
+        print(text, end="")
+        return
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".caelestia-new"
+    with open(tmp, "w") as f:
+        f.write(text)
+    os.chmod(tmp, 0o644)
+    os.replace(tmp, path)
+
+
+def caller():
+    """The user who asked (pkexec sets PKEXEC_UID)."""
+    uid = os.environ.get("PKEXEC_UID")
+    if uid is None or not uid.isdigit():
+        raise Refused("not started through pkexec")
+    return pwd.getpwuid(int(uid)).pw_name
+
+
+def need(args, count, usage):
+    if len(args) != count:
+        raise Refused(f"usage: {usage}")
+
+
+PKG = re.compile(r"^[a-z0-9@_+][a-z0-9@._+-]*$")
+CONFIG = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+def check_pkgs(names):
+    if not names:
+        raise Refused("no packages")
+    for n in names:
+        if not PKG.match(n):
+            raise Refused(f"not a package name: {n!r}")
+    return names
+
+
+# --- actions ---------------------------------------------------------------
+
+POWER_KEY = {"ignore", "poweroff", "reboot", "suspend", "hibernate", "hybrid-sleep", "suspend-then-hibernate", "lock"}
+
+
+def act_power_key(args):
+    """power-key ACTION: what logind does with the power button."""
+    need(args, 1, "power-key " + "|".join(sorted(POWER_KEY)))
+    if args[0] not in POWER_KEY:
+        raise Refused(f"unknown power key action {args[0]!r}")
+    write_file("/etc/systemd/logind.conf.d/10-power-key.conf", f"[Login]\nHandlePowerKey={args[0]}\n")
+    run("systemctl", "kill", "-s", "HUP", "systemd-logind")
+
+
+def act_install(args):
+    """install PKG...: from the repositories (never a local file)."""
+    run("pacman", "-S", "--needed", "--noconfirm", "--", *check_pkgs(args))
+
+
+def act_upgrade(args):
+    """upgrade: every repository package (pacman -Syu)."""
+    need(args, 0, "upgrade")
+    run("pacman", "-Syu", "--noconfirm")
+
+
+def act_remove_orphans(args):
+    """remove-orphans: packages installed as dependencies that nothing needs."""
+    need(args, 0, "remove-orphans")
+    orphans = subprocess.run(["pacman", "-Qdtq"], text=True, stdout=subprocess.PIPE).stdout.split()
+    if not orphans:
+        print("Nothing to remove", flush=True)
+        return
+    run("pacman", "-Rns", "--noconfirm", "--", *orphans)
+
+
+def act_clean_package_cache(args):
+    """clean-package-cache: old package files, keeping the newest of each."""
+    need(args, 0, "clean-package-cache")
+    if not os.path.exists("/usr/bin/paccache"):
+        run("pacman", "-S", "--needed", "--noconfirm", "pacman-contrib")
+    run("paccache", "-rk1")
+    run("paccache", "-ruk0")
+
+
+VACUUM = re.compile(r"^[1-9][0-9]{0,3}(s|min|h|d|weeks|months|years)$")
+
+
+def act_journal_vacuum(args):
+    """journal-vacuum TIME: deletes logs older than TIME (e.g. 2weeks)."""
+    need(args, 1, "journal-vacuum TIME")
+    if not VACUUM.match(args[0]):
+        raise Refused(f"not a time span: {args[0]!r}")
+    run("journalctl", f"--vacuum-time={args[0]}")
+
+
+GROUPS = {"i2c"}
+
+
+def act_join_group(args):
+    """join-group GROUP: adds the calling user to a known group."""
+    need(args, 1, "join-group " + "|".join(sorted(GROUPS)))
+    if args[0] not in GROUPS:
+        raise Refused(f"not an allowed group: {args[0]!r}")
+    run("usermod", "-aG", args[0], caller())
+
+
+def act_snapper_setup(args):
+    """snapper-setup: the root config for the system drive (btrfs)."""
+    need(args, 0, "snapper-setup")
+    run("snapper", "-c", "root", "create-config", "/")
+
+
+def act_snapper_allow_me(args):
+    """snapper-allow-me CONFIG: lets the calling user list/make/delete snapshots."""
+    need(args, 1, "snapper-allow-me CONFIG")
+    if not CONFIG.match(args[0]):
+        raise Refused("bad config name")
+    run("snapper", "-c", args[0], "set-config", f"ALLOW_USERS={caller()}", "SYNC_ACL=yes")
+
+
+def act_snapper_timeline(args):
+    """snapper-timeline CONFIG yes|no: hourly snapshots on or off."""
+    need(args, 2, "snapper-timeline CONFIG yes|no")
+    if not CONFIG.match(args[0]) or args[1] not in ("yes", "no"):
+        raise Refused("bad arguments")
+    run("snapper", "-c", args[0], "set-config", f"TIMELINE_CREATE={args[1]}")
+
+
+def act_firewall(args):
+    """firewall on|off: ufw and its service together."""
+    need(args, 1, "firewall on|off")
+    if args[0] == "on":
+        run("systemctl", "enable", "--now", "ufw")
+        run("ufw", "--force", "enable")
+    elif args[0] == "off":
+        run("ufw", "disable")
+        run("systemctl", "disable", "--now", "ufw")
+    else:
+        raise Refused("on or off")
+
+
+ACTIONS = {
+    "power-key": act_power_key,
+    "install": act_install,
+    "upgrade": act_upgrade,
+    "remove-orphans": act_remove_orphans,
+    "clean-package-cache": act_clean_package_cache,
+    "journal-vacuum": act_journal_vacuum,
+    "join-group": act_join_group,
+    "snapper-setup": act_snapper_setup,
+    "snapper-allow-me": act_snapper_allow_me,
+    "snapper-timeline": act_snapper_timeline,
+    "firewall": act_firewall,
+}
+
+
+def main(argv):
+    global DRY
+    if argv[:1] == ["--dry-run"]:
+        DRY = True
+        argv = argv[1:]
+    if not argv or argv[0] not in ACTIONS:
+        print("unknown action; one of: " + ", ".join(sorted(ACTIONS)), file=sys.stderr)
+        return 2
+    if not DRY and os.geteuid() != 0:
+        print("must run as root (through pkexec)", file=sys.stderr)
+        return 2
+    os.environ["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/bin"
+    os.environ["LC_ALL"] = "C.UTF-8"
+    try:
+        ACTIONS[argv[0]](argv[1:])
+    except Refused as e:
+        print(f"refused: {e}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
