@@ -16,8 +16,12 @@ ColumnLayout {
     required property string title
     required property NexusState nState
     property bool isSubPage
+    // Shown inside another page (a merged page): no title or scroll area of
+    // its own; dialogs open over the host's scroll area (hostFlickable)
+    property bool embedded
+    property Flickable hostFlickable
     readonly property int cappedWidth: Math.min(Tokens.sizes.nexus.maxContentWidth, width)
-    readonly property alias flickable: flickable
+    readonly property Flickable flickable: embedded && hostFlickable ? hostFlickable : ownFlickable
 
     default property Item contentChild
 
@@ -44,9 +48,23 @@ ColumnLayout {
         return null;
     }
 
+    // Parts shown one at a time (TabPart) in this page
+    function folds(item, out) {
+        if (!item)
+            return out;
+        if (item.isFold === true)
+            out.push(item);
+        for (const child of item.children)
+            folds(child, out);
+        return out;
+    }
+
+    // The parts' open states before the search opened them all
+    property var openBeforeSearch: null
+
     function showHighlight(): void {
         const h = nState.highlight;
-        if (!h || (root.StackView.index >= 0 ? root.StackView.index : 0) !== h.depth)
+        if (embedded || !h || (root.StackView.index >= 0 ? root.StackView.index : 0) !== h.depth)
             return;
         // Labels used twice: try within the section, then anywhere
         const row = findRow(root.contentChild, h.text, h.section, {
@@ -54,18 +72,48 @@ ColumnLayout {
         }) ?? findRow(root.contentChild, h.text, "", {
             section: ""
         });
+        // Not visible: it may be in a part not shown (another tab); show them
+        // all, look again once they are built, then only the row's part (or,
+        // not found, the ones shown before)
+        if (!row && !openBeforeSearch) {
+            const all = folds(root.contentChild, []);
+            if (all.some(f => !f.open)) {
+                openBeforeSearch = all.map(f => f.open);
+                for (const f of all)
+                    f.open = true;
+                highlightTimer.restart();
+                return;
+            }
+        }
+        if (openBeforeSearch) {
+            const all = folds(root.contentChild, []);
+            all.forEach((f, i) => {
+                let inside = false;
+                for (let p = row; p; p = p.parent)
+                    if (p === f)
+                        inside = true;
+                f.open = row ? inside : openBeforeSearch[i];
+            });
+            openBeforeSearch = null;
+            // Scroll once the others are gone from the layout
+            if (row) {
+                highlightTimer.restart();
+                return;
+            }
+        }
         nState.highlight = null;
         if (!row)
             return;
 
-        const y = row.mapToItem(flickable.contentItem, 0, 0).y;
-        const maxY = Math.max(0, flickable.contentHeight - flickable.height + flickable.bottomMargin);
-        scrollAnim.to = Math.max(-flickable.topMargin, Math.min(maxY, y - flickable.height / 3));
+        const y = row.mapToItem(ownFlickable.contentItem, 0, 0).y;
+        const maxY = Math.max(0, ownFlickable.contentHeight - ownFlickable.height + ownFlickable.bottomMargin);
+        scrollAnim.to = Math.max(-ownFlickable.topMargin, Math.min(maxY, y - ownFlickable.height / 3));
         scrollAnim.restart();
         flashComp.createObject(row);
     }
 
-    Component.onCompleted: highlightTimer.start()
+    Component.onCompleted: if (!embedded)
+        highlightTimer.start()
 
     // After the page's fade-in and layout
     Timer {
@@ -86,7 +134,7 @@ ColumnLayout {
     Anim {
         id: scrollAnim
 
-        target: flickable
+        target: root.flickable
         property: "contentY"
         type: Anim.DefaultSpatial
     }
@@ -138,11 +186,12 @@ ColumnLayout {
 
     MouseArea { // Prevent clicks from reaching flickable
         z: 1
+        visible: !root.embedded
         // The page's width, not the title's: a long title (Workshop ones are)
         // made the header wider than the page and pushed the page sideways
         Layout.fillWidth: true
         implicitHeight: header.implicitHeight - Layout.bottomMargin
-        Layout.bottomMargin: -flickable.topMargin // Extra height to block clicks on flickable top margin
+        Layout.bottomMargin: root.embedded ? 0 : -ownFlickable.topMargin // Extra height to block clicks on flickable top margin
         onClicked: focus = true
 
         RowLayout {
@@ -177,8 +226,9 @@ ColumnLayout {
     }
 
     VerticalFadeFlickable {
-        id: flickable
+        id: ownFlickable
 
+        visible: !root.embedded
         Layout.fillWidth: true
         Layout.fillHeight: true
 
@@ -187,10 +237,18 @@ ColumnLayout {
         bottomMargin: Tokens.padding.extraLarge
 
         contentHeight: root.contentChild?.implicitHeight ?? 0
-        contentItem.children: [root.contentChild]
+        contentItem.children: root.embedded ? [] : [root.contentChild]
 
         TapHandler {
-            onTapped: flickable.focus = true
+            onTapped: ownFlickable.focus = true
         }
+    }
+
+    // Embedded: the content in the host page's column
+    Item {
+        visible: root.embedded
+        Layout.fillWidth: true
+        implicitHeight: root.contentChild?.implicitHeight ?? 0
+        children: root.embedded ? [root.contentChild] : []
     }
 }

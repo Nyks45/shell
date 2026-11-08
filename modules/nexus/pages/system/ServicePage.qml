@@ -243,7 +243,7 @@ PageBase {
             onClicked: {
                 root.nState.logUnit = root.unit;
                 root.nState.goTo({
-                    page: PageRegistry.pages.findIndex(p => p.id === "logs"),
+                    page: PageRegistry.find("logs"),
                     path: []
                 });
             }

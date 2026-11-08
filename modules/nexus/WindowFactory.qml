@@ -17,7 +17,7 @@ Singleton {
 
     // Opened at a page (PageRegistry id) and sub-page path, e.g. ("wallpaper", [4])
     function createAt(pageId: string, path: var): void {
-        const page = PageRegistry.pages.findIndex(p => p.id === pageId);
+        const page = PageRegistry.find(pageId);
         create(null, page < 0 ? {} : {
             startEntry: {
                 page,

@@ -108,7 +108,7 @@ PageBase {
             text: Tr.tr("Bigger cursor")
             subtext: Tr.tr("Cursor size, on Keyboard & mouse")
             onClicked: root.nState.goTo({
-                page: PageRegistry.pages.findIndex(p => p.id === "input"),
+                page: PageRegistry.find("input"),
                 path: [],
                 text: Tr.tr("Cursor size"),
                 sectionText: Tr.tr("Cursor")
@@ -145,7 +145,7 @@ PageBase {
             text: Tr.tr("Key repeat")
             subtext: Tr.tr("How soon and how fast a held key repeats")
             onClicked: root.nState.goTo({
-                page: PageRegistry.pages.findIndex(p => p.id === "input"),
+                page: PageRegistry.find("input"),
                 path: [],
                 text: Tr.tr("Repeat delay"),
                 sectionText: Tr.tr("Keyboard")

@@ -6,6 +6,7 @@ import Caelestia.I18n
 import Caelestia.Services
 import qs.components.controls
 import qs.services
+import qs.modules.nexus
 import qs.modules.nexus.common
 
 PageBase {
@@ -76,7 +77,10 @@ PageBase {
             icon: "notifications"
             text: Tr.tr("Notifications")
             subtext: Tr.tr("Notifications, toasts, timeouts")
-            onClicked: root.nState.openSubPage(1)
+            onClicked: root.nState.goTo({
+                page: PageRegistry.find("notifications"),
+                path: []
+            })
         }
 
         // Polling

@@ -89,7 +89,7 @@ PageBase {
             text: Tr.tr("Screen lock")
             subtext: Tr.tr("When the screen locks by itself, on Power & sleep")
             onClicked: root.nState.goTo({
-                page: PageRegistry.pages.findIndex(p => p.id === "power"),
+                page: PageRegistry.find("power"),
                 path: [],
                 text: Tr.tr("Lock the screen after")
             })

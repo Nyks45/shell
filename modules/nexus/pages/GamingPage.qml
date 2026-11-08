@@ -67,7 +67,7 @@ PageBase {
             text: Tr.tr("Variable refresh rate")
             subtext: Tr.tr("FreeSync / G-Sync, on Display")
             onClicked: root.nState.goTo({
-                page: PageRegistry.pages.findIndex(p => p.id === "display"),
+                page: PageRegistry.find("display"),
                 path: [],
                 text: Tr.tr("Variable refresh rate")
             })
@@ -78,7 +78,7 @@ PageBase {
             text: Tr.tr("Notifications over fullscreen apps")
             subtext: Tr.tr("On Notifications")
             onClicked: root.nState.goTo({
-                page: PageRegistry.pages.findIndex(p => p.id === "notifications"),
+                page: PageRegistry.find("notifications"),
                 path: [],
                 text: Tr.tr("Show in fullscreen")
             })

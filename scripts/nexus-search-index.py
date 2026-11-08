@@ -64,6 +64,8 @@ TR = re.compile(r'Tr\.(tr|trCtx)\("((?:[^"\\]|\\.)*)"(?:\s*,\s*"((?:[^"\\]|\\.)*
 PROP = re.compile(r'^\s*(label|text|subtext|title)\s*:\s*(.*)$')
 OPEN = re.compile(r'^\s*([A-Z][A-Za-z0-9_.]*)\s*\{')
 SUB = re.compile(r'openSubPage\((\d+)\)')
+# A page embedded in a merged one: `FooPage {` followed by `embedded: true`
+EMBEDDED = re.compile(r'^\s*([A-Z][A-Za-z0-9_]*)\s*\{\s*\n(?:\s*[A-Za-z.]+:.*\n)*?\s*embedded:\s*true', re.M)
 
 
 def strip_comment(line: str) -> str:
@@ -216,7 +218,16 @@ def main() -> int:
         for si, name in enumerate(comps):
             f = page_file(name)
             if f:
-                parsed[si] = (name, *parse_page(f))
+                title, entries, subs = parse_page(f)
+                # A merged page (pages/merged): its rows are those of the
+                # pages embedded in it (shown as its parts or in folds)
+                for embedded in EMBEDDED.findall(f.read_text()):
+                    ef = page_file(embedded)
+                    if ef:
+                        _, e_entries, e_subs = parse_page(ef)
+                        entries = entries + e_entries
+                        subs = subs + e_subs
+                parsed[si] = (name, title, entries, subs)
         # Paths to each sub-page: follow openSubPage from the page that calls it
         paths = {0: []}
         changed = True

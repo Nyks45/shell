@@ -147,12 +147,12 @@ Item {
                 nState.screen: root.screen
                 nState.animatingContainer: nexus.opacity < 1
                 // The popout's page, by id (indices move as pages are added)
-                nState.currentPageIdx: Math.max(0, PageRegistry.pages.findIndex(p => p.id === ({
+                nState.currentPageIdx: Math.max(0, PageRegistry.find(({
                             appearance: "wallpaper",
                             network: "network",
-                            bluetooth: "bluetooth",
+                            bluetooth: "devices",
                             audio: "audio"
-                        })[root.queuedMode]))
+                        })[root.queuedMode] ?? ""))
                 onClose: root.close()
             }
         }

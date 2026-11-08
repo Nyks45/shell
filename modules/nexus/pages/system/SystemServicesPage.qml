@@ -23,8 +23,10 @@ PageBase {
     property var units: []
     property var timers: []
     property bool loading: true
+    // A short list first; "Show all" lifts it (back to short on another tab or filter)
+    property bool showAll
 
-    readonly property var shown: {
+    readonly property var matching: {
         const q = search.toLowerCase();
         const list = (tab === "timers" ? timers : units).filter(u => {
             const name = (u.name ?? u.unit) + " " + (u.description ?? "");
@@ -40,8 +42,9 @@ PageBase {
                 return u.enabled === "enabled";
             return true;
         });
-        return list.slice(0, 150);
+        return list;
     }
+    readonly property var shown: showAll || search ? matching : matching.slice(0, 12)
 
     function load(): void {
         loading = true;
@@ -117,7 +120,10 @@ PageBase {
                     followChecked: true
                     checked: root.tab === modelData[0]
                     type: TextButton.Tonal
-                    onClicked: root.tab = modelData[0]
+                    onClicked: {
+                        root.tab = modelData[0];
+                        root.showAll = false;
+                    }
                 }
             }
         }
@@ -138,7 +144,10 @@ PageBase {
                     followChecked: true
                     checked: root.filter === modelData[0]
                     type: TextButton.Tonal
-                    onClicked: root.filter = modelData[0]
+                    onClicked: {
+                        root.filter = modelData[0];
+                        root.showAll = false;
+                    }
                 }
             }
         }
@@ -177,14 +186,12 @@ PageBase {
             }
         }
 
-        StyledText {
+        RowButton {
             Layout.fillWidth: true
-            Layout.leftMargin: Tokens.padding.small
-            Layout.topMargin: Tokens.spacing.small
-            visible: root.shown.length === 150
-            text: Tr.tr("Showing the first 150: find one to narrow it down.")
-            color: Colours.palette.m3outline
-            font: Tokens.font.label.small
+            visible: root.shown.length < root.matching.length
+            icon: "expand_more"
+            text: Tr.tr("Show all %1").arg(root.matching.length)
+            onClicked: root.showAll = true
         }
     }
 }

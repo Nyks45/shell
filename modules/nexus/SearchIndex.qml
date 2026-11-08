@@ -875,7 +875,7 @@ QtObject {
             "ctx": "",
             "sub": "For apps, the taskbar and the launcher",
             "section": "Icons",
-            "page": 2,
+            "page": 1,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -885,7 +885,7 @@ QtObject {
             "ctx": "",
             "sub": "How buttons, menus and other controls of Qt apps are drawn",
             "section": "Qt apps",
-            "page": 2,
+            "page": 1,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -895,7 +895,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Qt apps",
-            "page": 2,
+            "page": 1,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -905,7 +905,7 @@ QtObject {
             "ctx": "",
             "sub": "In Qt file managers and dialogs",
             "section": "Qt apps",
-            "page": 2,
+            "page": 1,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -915,7 +915,7 @@ QtObject {
             "ctx": "",
             "sub": "App colours follow the colour scheme",
             "section": "More",
-            "page": 2,
+            "page": 1,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -925,7 +925,7 @@ QtObject {
             "ctx": "",
             "sub": "App and shell fonts",
             "section": "More",
-            "page": 2,
+            "page": 1,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -935,7 +935,7 @@ QtObject {
             "ctx": "",
             "sub": "Style and size, on Keyboard & mouse",
             "section": "More",
-            "page": 2,
+            "page": 1,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -945,7 +945,7 @@ QtObject {
             "ctx": "",
             "sub": "In pixels",
             "section": "Spacing",
-            "page": 3,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -955,7 +955,7 @@ QtObject {
             "ctx": "",
             "sub": "In pixels",
             "section": "Spacing",
-            "page": 3,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -965,7 +965,7 @@ QtObject {
             "ctx": "",
             "sub": "The coloured line around windows; 0 for none",
             "section": "Frame",
-            "page": 3,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -975,7 +975,7 @@ QtObject {
             "ctx": "",
             "sub": "Radius of window corners; 0 for square",
             "section": "Frame",
-            "page": 3,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": "radius rounded corners"
@@ -985,7 +985,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Frame",
-            "page": 3,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": "transparency transparent"
@@ -995,7 +995,7 @@ QtObject {
             "ctx": "",
             "sub": "Frosted glass behind see-through windows and panels",
             "section": "Effects",
-            "page": 3,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": "frosted glass transparency"
@@ -1005,7 +1005,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Effects",
-            "page": 3,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1015,7 +1015,7 @@ QtObject {
             "ctx": "",
             "sub": "More is smoother, and costs more",
             "section": "Effects",
-            "page": 3,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1025,7 +1025,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Effects",
-            "page": 3,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1035,7 +1035,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Effects",
-            "page": 3,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1045,7 +1045,7 @@ QtObject {
             "ctx": "",
             "sub": "Windows you're not using are slightly darker",
             "section": "Effects",
-            "page": 3,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1055,7 +1055,7 @@ QtObject {
             "ctx": "",
             "sub": "Windows and workspaces move instead of appearing at once",
             "section": "Effects",
-            "page": 3,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1065,7 +1065,7 @@ QtObject {
             "ctx": "",
             "sub": "Thickness of the shell's frame around the screen; 0 for none",
             "section": "Screen",
-            "page": 3,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1075,7 +1075,7 @@ QtObject {
             "ctx": "",
             "sub": "Rounding of the screen's corners (maximized windows follow it)",
             "section": "Screen",
-            "page": 3,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1085,7 +1085,7 @@ QtObject {
             "ctx": "",
             "sub": "Windows float and overlap, with title bars, snapping and a taskbar, like Windows",
             "section": "Desktop mode",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1095,7 +1095,7 @@ QtObject {
             "ctx": "",
             "sub": "Drag a window to a screen edge or corner to fill half or a quarter of it, or to the top to maximize",
             "section": "Snapping",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1105,7 +1105,7 @@ QtObject {
             "ctx": "",
             "sub": "Rest the pointer on a window's maximize button to pick a layout for it",
             "section": "Snapping",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1115,7 +1115,7 @@ QtObject {
             "ctx": "",
             "sub": "After snapping a window, pick another one to fill the rest of the screen",
             "section": "Snapping",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1125,7 +1125,7 @@ QtObject {
             "ctx": "",
             "sub": "Dragging the edge between two snapped windows resizes both",
             "section": "Snapping",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1135,7 +1135,7 @@ QtObject {
             "ctx": "",
             "sub": "Windows pour into their taskbar icon (genie); off: at once",
             "section": "Windows",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1145,7 +1145,7 @@ QtObject {
             "ctx": "",
             "sub": "Videos and games keep running behind other windows; off saves power",
             "section": "Windows",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1155,7 +1155,7 @@ QtObject {
             "ctx": "",
             "sub": "A bar on top of each window with its title and buttons",
             "section": "Title bars",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1165,7 +1165,7 @@ QtObject {
             "ctx": "",
             "sub": "The bar appears when the pointer reaches the top of a window, and takes no space",
             "section": "Title bars",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1175,7 +1175,7 @@ QtObject {
             "ctx": "",
             "sub": "In pixels",
             "section": "Title bars",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1185,7 +1185,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Title bars",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1195,7 +1195,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Title bars",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1205,7 +1205,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Title bars",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1215,7 +1215,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Title bars",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1225,7 +1225,7 @@ QtObject {
             "ctx": "",
             "sub": "Before the title",
             "section": "Title bars",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1235,7 +1235,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Title bars",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1245,7 +1245,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Title bars",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1255,7 +1255,7 @@ QtObject {
             "ctx": "",
             "sub": "Maximize, float, pin, close and more, from the title bar",
             "section": "Title bars",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1265,7 +1265,7 @@ QtObject {
             "ctx": "",
             "sub": "The bar takes the colour of the app's top edge, so it blends in",
             "section": "Title bars",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1275,7 +1275,7 @@ QtObject {
             "ctx": "",
             "sub": "Blur behind see-through title bars",
             "section": "Title bars",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1285,7 +1285,7 @@ QtObject {
             "ctx": "",
             "sub": "Apps that draw their own title bar (GNOME apps, browsers) get one too",
             "section": "Title bars",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1295,7 +1295,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Title bars",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1305,7 +1305,7 @@ QtObject {
             "ctx": "",
             "sub": "Milliseconds before the bar shows",
             "section": "Title bars",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1315,7 +1315,7 @@ QtObject {
             "ctx": "",
             "sub": "In pixels",
             "section": "Title bars",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1325,7 +1325,7 @@ QtObject {
             "ctx": "",
             "sub": "In pixels",
             "section": "Title bars",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1335,7 +1335,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hot corners",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1345,7 +1345,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hot corners",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1355,7 +1355,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hot corners",
-            "page": 4,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -1365,1651 +1365,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hot corners",
-            "page": 4,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Brightness",
-            "ctx": "",
-            "sub": "",
-            "section": "Monitor",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": "backlight dim"
-        },
-        {
-            "label": "Brightness: this monitor doesn't answer over DDC/CI",
-            "ctx": "",
-            "sub": "Installing…",
-            "section": "Monitor",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Resolution",
-            "ctx": "",
-            "sub": "The first one is the screen's own",
-            "section": "Monitor",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": "screen size"
-        },
-        {
-            "label": "Refresh rate",
-            "ctx": "",
-            "sub": "How many times a second the picture updates",
-            "section": "Monitor",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Scale",
-            "ctx": "",
-            "sub": "Size of text, apps and the shell",
-            "section": "Monitor",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": "zoom size hidpi"
-        },
-        {
-            "label": "Orientation",
-            "ctx": "",
-            "sub": "",
-            "section": "Monitor",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Variable refresh rate",
-            "ctx": "",
-            "sub": "Matches the refresh rate to games to avoid tearing; some screens flicker with it",
-            "section": "Monitor",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": "vrr freesync gsync adaptive sync"
-        },
-        {
-            "label": "HDR",
-            "ctx": "",
-            "sub": "Brighter highlights and wider colours on HDR screens (experimental)",
-            "section": "Monitor",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Brightness of normal content in HDR",
-            "ctx": "",
-            "sub": "",
-            "section": "Monitor",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Colour profile",
-            "ctx": "",
-            "sub": "",
-            "section": "Monitor",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Night light",
-            "ctx": "",
-            "sub": "Warmer colours in the evening, easier on the eyes",
-            "section": "Night light",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": "blue light warm redshift"
-        },
-        {
-            "label": "Warmth",
-            "ctx": "",
-            "sub": "",
-            "section": "Night light",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "All day",
-            "ctx": "",
-            "sub": "Instead of only in the evening and at night",
-            "section": "Night light",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Turns on at",
-            "ctx": "",
-            "sub": "",
-            "section": "Night light",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Turns off at",
-            "ctx": "",
-            "sub": "",
-            "section": "Night light",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Wi-Fi",
-            "ctx": "",
-            "sub": "",
-            "section": "",
-            "page": 6,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Saved networks",
-            "ctx": "",
-            "sub": "",
-            "section": "",
-            "opens": 6,
-            "page": 6,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Add network",
-            "ctx": "",
-            "sub": "",
-            "section": "",
-            "opens": 2,
-            "page": 6,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "VPN",
-            "ctx": "",
-            "sub": "",
-            "section": "",
-            "page": 6,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Add provider",
-            "ctx": "",
-            "sub": "",
-            "section": "",
-            "page": 6,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Hidden network",
-            "ctx": "",
-            "sub": "Actively probe for a network that doesn't broadcast its name",
-            "section": "",
-            "page": 6,
-            "path": [
-                2
-            ],
-            "trail": [
-                "Add network"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Security",
-            "ctx": "",
-            "sub": "",
-            "section": "",
-            "page": 6,
-            "path": [
-                2
-            ],
-            "trail": [
-                "Add network"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "All networks",
-            "ctx": "",
-            "sub": "",
-            "section": "",
-            "page": 6,
-            "path": [
-                5
-            ],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Bluetooth",
-            "ctx": "",
-            "sub": "",
-            "section": "",
-            "page": 7,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Pair new device",
-            "ctx": "",
-            "sub": "",
-            "section": "",
-            "opens": 2,
-            "page": 7,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Discoverable",
-            "ctx": "bluetooth setting",
-            "sub": "Allow nearby devices to find this one",
-            "section": "",
-            "page": 7,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Pairable",
-            "ctx": "bluetooth setting",
-            "sub": "Allow nearby devices to pair with this one",
-            "section": "",
-            "page": 7,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Output",
-            "ctx": "audio output",
-            "sub": "",
-            "section": "",
-            "page": 8,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Muted",
-            "ctx": "audio output muted",
-            "sub": "",
-            "section": "",
-            "page": 8,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Input",
-            "ctx": "audio input",
-            "sub": "",
-            "section": "",
-            "page": 8,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Muted",
-            "ctx": "audio input muted",
-            "sub": "",
-            "section": "",
-            "page": 8,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "App volumes",
-            "ctx": "",
-            "sub": "No apps playing audio",
-            "section": "",
-            "opens": 1,
-            "page": 8,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Notification sound",
-            "ctx": "",
-            "sub": "When a notification pops up (not quiet or low-priority ones)",
-            "section": "Sounds",
-            "page": 8,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Sound",
-            "ctx": "",
-            "sub": "",
-            "section": "Sounds",
-            "page": 8,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Sounds in apps",
-            "ctx": "",
-            "sub": "Event sounds of apps that play them (e.g. a click or an error)",
-            "section": "Sounds",
-            "page": 8,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Add a printer",
-            "ctx": "",
-            "sub": "In the browser (CUPS)",
-            "section": "Printers",
-            "page": 9,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Print queue and more",
-            "ctx": "",
-            "sub": "CUPS, in the browser",
-            "section": "Printers",
-            "page": 9,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Change picture",
-            "ctx": "",
-            "sub": "Shown on the dashboard and the lock screen",
-            "section": "Profile",
-            "page": 10,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Remove picture",
-            "ctx": "",
-            "sub": "",
-            "section": "Profile",
-            "page": 10,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Full name",
-            "ctx": "",
-            "sub": "Asks for your password",
-            "section": "Profile",
-            "page": 10,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Change password",
-            "ctx": "",
-            "sub": "",
-            "section": "Sign-in",
-            "page": 10,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Add someone",
-            "ctx": "",
-            "sub": "",
-            "section": "Other people",
-            "page": 10,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Computer name",
-            "ctx": "",
-            "sub": "How it shows up on networks and Bluetooth; asks for your password",
-            "section": "This computer",
-            "page": 10,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Lock the screen after",
-            "ctx": "",
-            "sub": "Time without input before the lock screen shows",
-            "section": "When idle",
-            "page": 11,
-            "path": [],
-            "trail": [],
-            "keywords": "screen lock timeout idle"
-        },
-        {
-            "label": "Turn off the screen after",
-            "ctx": "",
-            "sub": "It comes back on when you move the mouse or press a key",
-            "section": "When idle",
-            "page": 11,
-            "path": [],
-            "trail": [],
-            "keywords": "dpms monitor off blank"
-        },
-        {
-            "label": "Sleep after",
-            "ctx": "",
-            "sub": "The PC goes to sleep; press a key or the power button to wake it",
-            "section": "When idle",
-            "page": 11,
-            "path": [],
-            "trail": [],
-            "keywords": "suspend"
-        },
-        {
-            "label": "Lock before sleeping",
-            "ctx": "",
-            "sub": "Waking up shows the lock screen",
-            "section": "Sleep",
-            "page": 11,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Stay awake while audio plays",
-            "ctx": "",
-            "sub": "Music or a video playing keeps the screen on and the PC awake",
-            "section": "Sleep",
-            "page": 11,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Power mode",
-            "ctx": "",
-            "sub": "Trade speed against power use and heat",
-            "section": "Power mode",
-            "page": 11,
-            "path": [],
-            "trail": [],
-            "keywords": "performance power saver profile"
-        },
-        {
-            "label": "When the power button is pressed",
-            "ctx": "",
-            "sub": "Applying…",
-            "section": "Power button",
-            "page": 11,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Layout",
-            "ctx": "",
-            "sub": "",
-            "section": "Keyboard",
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": "keyboard language"
-        },
-        {
-            "label": "Second layout",
-            "ctx": "",
-            "sub": "",
-            "section": "Keyboard",
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Switch layouts with",
-            "ctx": "",
-            "sub": "",
-            "section": "Keyboard",
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Repeat delay",
-            "ctx": "",
-            "sub": "How long a key is held before it repeats (ms)",
-            "section": "Keyboard",
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Repeat rate",
-            "ctx": "",
-            "sub": "Characters per second while a key repeats",
-            "section": "Keyboard",
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Num Lock on at login",
-            "ctx": "",
-            "sub": "",
-            "section": "Keyboard",
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Pointer speed",
-            "ctx": "",
-            "sub": "",
-            "section": "Mouse",
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": "mouse sensitivity dpi"
-        },
-        {
-            "label": "Pointer acceleration",
-            "ctx": "",
-            "sub": "Faster movements go further. Off: the pointer moves exactly with the mouse (better for games)",
-            "section": "Mouse",
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Natural scrolling",
-            "ctx": "",
-            "sub": "Content follows the wheel, like on a phone",
-            "section": "Mouse",
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": "reverse scroll direction"
-        },
-        {
-            "label": "Scroll speed",
-            "ctx": "",
-            "sub": "",
-            "section": "Mouse",
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Swap left and right buttons",
-            "ctx": "",
-            "sub": "For using the mouse with the left hand",
-            "section": "Mouse",
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Tap to click",
-            "ctx": "",
-            "sub": "",
-            "section": "Touchpad",
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Natural scrolling",
-            "ctx": "",
-            "sub": "",
-            "section": "Touchpad",
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": "reverse scroll direction"
-        },
-        {
-            "label": "Turn off while typing",
-            "ctx": "",
-            "sub": "",
-            "section": "Touchpad",
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Cursor style",
-            "ctx": "",
-            "sub": "",
-            "section": "Cursor",
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Cursor size",
-            "ctx": "",
-            "sub": "",
-            "section": "Cursor",
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Hide the cursor when idle",
-            "ctx": "",
-            "sub": "After the mouse hasn't moved for a while",
-            "section": "Cursor",
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Focus follows the mouse",
-            "ctx": "",
-            "sub": "In the scrolling layout: the window under the pointer gets the keyboard",
-            "section": "Focus",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Focus follows the mouse in desktop mode",
-            "ctx": "",
-            "sub": "Off: click a window to use it, like Windows",
-            "section": "Focus",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Bring windows forward when they ask",
-            "ctx": "",
-            "sub": "E.g. a link opened from another app focuses the browser",
-            "section": "Focus",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Move the pointer with the focus",
-            "ctx": "",
-            "sub": "When the keyboard switches windows, the pointer jumps to the new one",
-            "section": "Focus",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Go back with the same key",
-            "ctx": "",
-            "sub": "Pressing the shortcut of the workspace you're on goes to the one before",
-            "section": "Workspaces",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Open apps where they were started",
-            "ctx": "",
-            "sub": "An app that takes a while opens on the workspace it was started from",
-            "section": "Workspaces",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "New window over a fullscreen one",
-            "ctx": "",
-            "sub": "",
-            "section": "Workspaces",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "New column width",
-            "ctx": "",
-            "sub": "",
-            "section": "Scrolling layout",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "New windows",
-            "ctx": "",
-            "sub": "",
-            "section": "Scrolling layout",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Stack after this many columns",
-            "ctx": "",
-            "sub": "Once a workspace has this many, new windows stack; 0 for never",
-            "section": "Scrolling layout",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Focused column",
-            "ctx": "",
-            "sub": "Where the view puts the column you switch to",
-            "section": "Scrolling layout",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Always centre the focused column",
-            "ctx": "",
-            "sub": "",
-            "section": "Scrolling layout",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Scroll to the window under the pointer",
-            "ctx": "",
-            "sub": "After resting on it for a moment",
-            "section": "Scrolling layout",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Hover delay",
-            "ctx": "",
-            "sub": "Milliseconds",
-            "section": "Scrolling layout",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Peek at neighbours",
-            "ctx": "",
-            "sub": "Pixels of the columns beside the view that stay visible",
-            "section": "Scrolling layout",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Stretch columns to fill the screen",
-            "ctx": "",
-            "sub": "When they don't fill it by themselves",
-            "section": "Scrolling layout",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "A lone column fills the screen",
-            "ctx": "",
-            "sub": "",
-            "section": "Scrolling layout",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Scroll within columns",
-            "ctx": "",
-            "sub": "Windows in a column keep their own heights, and the column scrolls",
-            "section": "Scrolling layout",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Wrap around at the ends",
-            "ctx": "",
-            "sub": "Moving focus past the last column goes to the first",
-            "section": "Scrolling layout",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Column widths to cycle through",
-            "ctx": "",
-            "sub": "Fractions of the screen, e.g. 0.333,0.5,0.667,1",
-            "section": "Scrolling layout",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Overview size",
-            "ctx": "",
-            "sub": "",
-            "section": "Scrolling layout",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Window titles in the overview",
-            "ctx": "",
-            "sub": "",
-            "section": "Scrolling layout",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Add a rule for an open app",
-            "ctx": "",
-            "sub": "Open the app first",
-            "section": "App rules",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Show in fullscreen",
-            "ctx": "",
-            "sub": "Whether notifications appear over fullscreen apps",
-            "section": "Notifications",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Expire automatically",
-            "ctx": "",
-            "sub": "Dismiss notifications after their timeout",
-            "section": "Notifications",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Open expanded",
-            "ctx": "",
-            "sub": "Show notifications expanded by default",
-            "section": "Notifications",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Default timeout",
-            "ctx": "",
-            "sub": "Time before a notification dismisses (ms)",
-            "section": "Notifications",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Timeout over fullscreen apps",
-            "ctx": "",
-            "sub": "Shorter, so popups don't sit over a game or video (ms)",
-            "section": "Notifications",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Click to open",
-            "ctx": "",
-            "sub": "Clicking a notification does its main action, e.g. opens the message",
-            "section": "Notifications",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Group preview count",
-            "ctx": "",
-            "sub": "Notifications shown per group before collapsing",
-            "section": "Notifications",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Show in fullscreen",
-            "ctx": "",
-            "sub": "Whether toasts appear over fullscreen apps",
-            "section": "Toasts",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Visible toasts",
-            "ctx": "",
-            "sub": "Maximum number of toasts shown at once",
-            "section": "Toasts",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Charging changes",
-            "ctx": "",
-            "sub": "",
-            "section": "Toast events",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Game mode changes",
-            "ctx": "",
-            "sub": "",
-            "section": "Toast events",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Do not disturb changes",
-            "ctx": "",
-            "sub": "",
-            "section": "Toast events",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Audio output changes",
-            "ctx": "",
-            "sub": "",
-            "section": "Toast events",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Audio input changes",
-            "ctx": "",
-            "sub": "",
-            "section": "Toast events",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Caps lock changes",
-            "ctx": "",
-            "sub": "",
-            "section": "Toast events",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Num lock changes",
-            "ctx": "",
-            "sub": "",
-            "section": "Toast events",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Keyboard layout changes",
-            "ctx": "",
-            "sub": "",
-            "section": "Toast events",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Keyboard layout limit reached",
-            "ctx": "",
-            "sub": "",
-            "section": "Toast events",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "VPN changes",
-            "ctx": "",
-            "sub": "",
-            "section": "Toast events",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Now playing",
-            "ctx": "",
-            "sub": "",
-            "section": "Toast events",
-            "page": 14,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Set the time automatically",
-            "ctx": "",
-            "sub": "From the internet (NTP)",
-            "section": "Time",
-            "page": 15,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Time zone",
-            "ctx": "",
-            "sub": "",
-            "section": "Time",
-            "page": 15,
-            "path": [],
-            "trail": [],
-            "keywords": "timezone clock"
-        },
-        {
-            "label": "Clock format",
-            "ctx": "",
-            "sub": "How times are shown across the shell",
-            "section": "Time",
-            "page": 15,
-            "path": [],
-            "trail": [],
-            "keywords": "12 24 hour am pm"
-        },
-        {
-            "label": "Click again to empty the Trash",
-            "ctx": "",
-            "sub": "Deleted files can't be brought back",
-            "section": "Clean up",
-            "page": 16,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Clear thumbnails",
-            "ctx": "",
-            "sub": "",
-            "section": "Clean up",
-            "page": 16,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Clear AUR build files",
-            "ctx": "",
-            "sub": "Click again: packages are then rebuilt from scratch on their next update",
-            "section": "Clean up",
-            "page": 16,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Description",
-            "ctx": "",
-            "sub": "",
-            "section": "Make a snapshot",
-            "page": 17,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Make a snapshot now",
-            "ctx": "",
-            "sub": "Of the system drive, as it is right now",
-            "section": "Make a snapshot",
-            "page": 17,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Hourly snapshots",
-            "ctx": "",
-            "sub": "",
-            "section": "Automatic snapshots",
-            "page": 17,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Copy to the clipboard",
-            "ctx": "",
-            "sub": "Ready to paste anywhere",
-            "section": "After a screenshot",
-            "page": 18,
-            "path": [],
-            "trail": [],
-            "keywords": "screenshot clipboard"
-        },
-        {
-            "label": "Save to a folder",
-            "ctx": "",
-            "sub": "",
-            "section": "After a screenshot",
-            "page": 18,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Folder",
-            "ctx": "",
-            "sub": "",
-            "section": "After a screenshot",
-            "page": 18,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Notification",
-            "ctx": "",
-            "sub": "With Edit, Open and Show in folder",
-            "section": "After a screenshot",
-            "page": 18,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Open in the editor right away",
-            "ctx": "",
-            "sub": "Off: only from the notification's Edit",
-            "section": "After a screenshot",
-            "page": 18,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Editor",
-            "ctx": "",
-            "sub": "None installed (swappy or satty, for example)",
-            "section": "After a screenshot",
-            "page": 18,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Shutter sound",
-            "ctx": "",
-            "sub": "",
-            "section": "After a screenshot",
-            "page": 18,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Print key: the whole screen, as above",
-            "ctx": "",
-            "sub": "Off: the caelestia command's own screenshot",
-            "section": "Keys",
-            "page": 18,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Screenshot shortcuts",
-            "ctx": "",
-            "sub": "Super+Shift+S: an area (the screen frozen); change them in Keyboard shortcuts",
-            "section": "Keys",
-            "page": 18,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Quality",
-            "ctx": "",
-            "sub": "",
-            "section": "Screen recording",
-            "page": 18,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Video format",
-            "ctx": "",
-            "sub": "H.264 plays everywhere; HEVC and AV1 are smaller",
-            "section": "Screen recording",
-            "page": 18,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Show the pointer",
-            "ctx": "",
-            "sub": "",
-            "section": "Screen recording",
-            "page": 18,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Recordings folder",
-            "ctx": "",
-            "sub": "",
-            "section": "Screen recording",
-            "page": 18,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Start these apps at login",
-            "ctx": "",
-            "sub": "Apps that start themselves (e.g. Steam's \"Run at startup\") show up here too",
-            "section": "Start at login",
-            "page": 19,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Add an app",
-            "ctx": "",
-            "sub": "",
-            "section": "Add",
-            "page": 19,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Check again",
-            "ctx": "",
-            "sub": "",
-            "section": "System updates",
-            "page": 21,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Update everything",
-            "ctx": "",
-            "sub": "",
-            "section": "System updates",
-            "page": 21,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "What went wrong in the previous boot",
-            "ctx": "",
-            "sub": "Its errors, e.g. after a crash or a freeze",
-            "section": "",
-            "page": 23,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Boot",
-            "ctx": "",
-            "sub": "",
-            "section": "",
-            "page": 23,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Copy these lines",
-            "ctx": "",
-            "sub": "",
-            "section": "Reading…",
-            "page": 23,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Unknown program",
-            "ctx": "",
-            "sub": "",
-            "section": "Crash reports",
-            "page": 23,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Update plugins",
-            "ctx": "",
-            "sub": "Rebuild them for the running Hyprland (after a Hyprland update); opens a terminal",
-            "section": "Manage",
-            "page": 24,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Add a plugin",
-            "ctx": "",
-            "sub": "From a git repository; opens a terminal",
-            "section": "Manage",
-            "page": 24,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Text size in apps",
-            "ctx": "",
-            "sub": "",
-            "section": "Text",
-            "page": 25,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Text size in the shell",
-            "ctx": "",
-            "sub": "",
-            "section": "Text",
-            "page": 25,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "High contrast in apps",
-            "ctx": "",
-            "sub": "GTK apps draw with stronger borders and colours",
-            "section": "Text",
-            "page": 25,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Zoom",
-            "ctx": "",
-            "sub": "",
-            "section": "Seeing the screen",
-            "page": 25,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Colour filter",
-            "ctx": "",
-            "sub": "Changes the colours of the whole screen",
-            "section": "Seeing the screen",
-            "page": 25,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Bigger cursor",
-            "ctx": "",
-            "sub": "Cursor size, on Keyboard & mouse",
-            "section": "Seeing the screen",
-            "page": 25,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Animations",
-            "ctx": "",
-            "sub": "Off: windows, panels and apps change at once, without movement",
-            "section": "Motion",
-            "page": 25,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Shell animation speed",
-            "ctx": "",
-            "sub": "",
-            "section": "Motion",
-            "page": 25,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Key repeat",
-            "ctx": "",
-            "sub": "How soon and how fast a held key repeats",
-            "section": "Keyboard",
-            "page": 25,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Firewall",
-            "ctx": "",
-            "sub": "Applying…",
-            "section": "Security",
-            "page": 26,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Screen lock",
-            "ctx": "",
-            "sub": "When the screen locks by itself, on Power & sleep",
-            "section": "Security",
-            "page": 26,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Remember recently used files",
-            "ctx": "",
-            "sub": "Apps list them under Recent",
-            "section": "History",
-            "page": 26,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Clear recent files",
-            "ctx": "",
-            "sub": "",
-            "section": "History",
-            "page": 26,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Clear notification history",
-            "ctx": "",
-            "sub": "",
-            "section": "History",
-            "page": 26,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Clear clipboard history",
-            "ctx": "",
-            "sub": "",
-            "section": "History",
-            "page": 26,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Game mode",
-            "ctx": "",
-            "sub": "Turns off animations, blur, shadows, gaps and rounding, and allows tearing, until it's turned off",
-            "section": "Game mode",
-            "page": 27,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Allow screen tearing",
-            "ctx": "",
-            "sub": "Lower input lag for games that ask for it; per app under Workspaces & focus > App rules",
-            "section": "Performance",
-            "page": 27,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Keep the screen awake in fullscreen",
-            "ctx": "",
-            "sub": "No screen lock or sleep while a game or video is fullscreen",
-            "section": "Performance",
-            "page": 27,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Games open fullscreen",
-            "ctx": "",
-            "sub": "Needs the hyprscroller plugin (the scrolling layout)",
-            "section": "Performance",
-            "page": 27,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Variable refresh rate",
-            "ctx": "",
-            "sub": "FreeSync / G-Sync, on Display",
-            "section": "Performance",
-            "page": 27,
-            "path": [],
-            "trail": [],
-            "keywords": "vrr freesync gsync adaptive sync"
-        },
-        {
-            "label": "Notifications over fullscreen apps",
-            "ctx": "",
-            "sub": "On Notifications",
-            "section": "Performance",
-            "page": 27,
+            "page": 2,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -3020,7 +1376,7 @@ QtObject {
             "sub": "Enabled",
             "section": "",
             "opens": 1,
-            "page": 28,
+            "page": 3,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -3031,7 +1387,7 @@ QtObject {
             "sub": "Always visible",
             "section": "",
             "opens": 2,
-            "page": 28,
+            "page": 3,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -3042,7 +1398,7 @@ QtObject {
             "sub": "Enabled",
             "section": "",
             "opens": 3,
-            "page": 28,
+            "page": 3,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -3053,7 +1409,7 @@ QtObject {
             "sub": "Enabled",
             "section": "",
             "opens": 4,
-            "page": 28,
+            "page": 3,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -3064,7 +1420,7 @@ QtObject {
             "sub": "Enabled",
             "section": "",
             "opens": 5,
-            "page": 28,
+            "page": 3,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -3075,7 +1431,7 @@ QtObject {
             "sub": "Wallpaper background",
             "section": "",
             "opens": 11,
-            "page": 28,
+            "page": 3,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -3086,7 +1442,7 @@ QtObject {
             "sub": "Enabled",
             "section": "",
             "opens": 12,
-            "page": 28,
+            "page": 3,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -3097,7 +1453,127 @@ QtObject {
             "sub": "Enabled",
             "section": "",
             "opens": 13,
-            "page": 28,
+            "page": 3,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Notifications",
+            "ctx": "",
+            "sub": "Notifications, toasts, timeouts",
+            "section": "Notifications",
+            "page": 3,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Media refresh",
+            "ctx": "",
+            "sub": "How often the media position updates (ms)",
+            "section": "Polling",
+            "page": 3,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "System stats refresh",
+            "ctx": "",
+            "sub": "CPU, memory and GPU update interval (seconds)",
+            "section": "Polling",
+            "page": 3,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Wi-Fi rescan",
+            "ctx": "",
+            "sub": "How often available networks are rescanned (seconds)",
+            "section": "Polling",
+            "page": 3,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Lyrics backend",
+            "ctx": "",
+            "sub": "Source used to fetch synced lyrics",
+            "section": "Media & lyrics",
+            "page": 3,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Default player",
+            "ctx": "",
+            "sub": "Preferred media player when several are open",
+            "section": "Media & lyrics",
+            "page": 3,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Volume step",
+            "ctx": "",
+            "sub": "",
+            "section": "Input increments",
+            "page": 3,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Brightness step",
+            "ctx": "",
+            "sub": "",
+            "section": "Input increments",
+            "page": 3,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Max volume",
+            "ctx": "",
+            "sub": "",
+            "section": "Input increments",
+            "page": 3,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Visualiser bars",
+            "ctx": "",
+            "sub": "Number of bars in the audio visualisers",
+            "section": "Service tuning",
+            "page": 3,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Smart colour scheme",
+            "ctx": "",
+            "sub": "Derive theme mode and variant from the wallpaper",
+            "section": "Service tuning",
+            "page": 3,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "GPU",
+            "ctx": "",
+            "sub": "",
+            "section": "Service tuning",
+            "page": 3,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -3107,7 +1583,7 @@ QtObject {
             "ctx": "toggle label",
             "sub": "",
             "section": "General",
-            "page": 28,
+            "page": 3,
             "path": [
                 1
             ],
@@ -3121,7 +1597,7 @@ QtObject {
             "ctx": "",
             "sub": "Reveal when the cursor reaches the screen edge",
             "section": "General",
-            "page": 28,
+            "page": 3,
             "path": [
                 1
             ],
@@ -3135,7 +1611,7 @@ QtObject {
             "ctx": "",
             "sub": "Display seconds for the clock in the main panel",
             "section": "General",
-            "page": 28,
+            "page": 3,
             "path": [
                 1
             ],
@@ -3149,7 +1625,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Tabs",
-            "page": 28,
+            "page": 3,
             "path": [
                 1
             ],
@@ -3163,7 +1639,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Tabs",
-            "page": 28,
+            "page": 3,
             "path": [
                 1
             ],
@@ -3177,7 +1653,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Tabs",
-            "page": 28,
+            "page": 3,
             "path": [
                 1
             ],
@@ -3191,7 +1667,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Tabs",
-            "page": 28,
+            "page": 3,
             "path": [
                 1
             ],
@@ -3205,7 +1681,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Performance widgets",
-            "page": 28,
+            "page": 3,
             "path": [
                 1
             ],
@@ -3219,7 +1695,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Performance widgets",
-            "page": 28,
+            "page": 3,
             "path": [
                 1
             ],
@@ -3233,7 +1709,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Performance widgets",
-            "page": 28,
+            "page": 3,
             "path": [
                 1
             ],
@@ -3247,7 +1723,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Performance widgets",
-            "page": 28,
+            "page": 3,
             "path": [
                 1
             ],
@@ -3261,7 +1737,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Performance widgets",
-            "page": 28,
+            "page": 3,
             "path": [
                 1
             ],
@@ -3275,7 +1751,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Performance widgets",
-            "page": 28,
+            "page": 3,
             "path": [
                 1
             ],
@@ -3289,7 +1765,7 @@ QtObject {
             "ctx": "",
             "sub": "Pixels dragged before the dashboard opens",
             "section": "Behaviour",
-            "page": 28,
+            "page": 3,
             "path": [
                 1
             ],
@@ -3303,7 +1779,7 @@ QtObject {
             "ctx": "",
             "sub": "Keep the bar visible at all times",
             "section": "Behaviour",
-            "page": 28,
+            "page": 3,
             "path": [
                 2
             ],
@@ -3317,7 +1793,7 @@ QtObject {
             "ctx": "",
             "sub": "Reveal the bar when the cursor reaches the screen edge",
             "section": "Behaviour",
-            "page": 28,
+            "page": 3,
             "path": [
                 2
             ],
@@ -3331,7 +1807,7 @@ QtObject {
             "ctx": "",
             "sub": "Hovering an app on the taskbar shows its windows",
             "section": "Behaviour",
-            "page": 28,
+            "page": 3,
             "path": [
                 2
             ],
@@ -3345,7 +1821,7 @@ QtObject {
             "ctx": "",
             "sub": "Panels and the bar can open over a fullscreen window",
             "section": "Behaviour",
-            "page": 28,
+            "page": 3,
             "path": [
                 2
             ],
@@ -3359,7 +1835,7 @@ QtObject {
             "ctx": "",
             "sub": "Pixels dragged before the bar reveals",
             "section": "Behaviour",
-            "page": 28,
+            "page": 3,
             "path": [
                 2
             ],
@@ -3374,7 +1850,7 @@ QtObject {
             "sub": "Indicators, window icons",
             "section": "Components",
             "opens": 6,
-            "page": 28,
+            "page": 3,
             "path": [
                 2
             ],
@@ -3389,7 +1865,7 @@ QtObject {
             "sub": "Title display, popout",
             "section": "Components",
             "opens": 7,
-            "page": 28,
+            "page": 3,
             "path": [
                 2
             ],
@@ -3404,7 +1880,7 @@ QtObject {
             "sub": "System tray icons",
             "section": "Components",
             "opens": 8,
-            "page": 28,
+            "page": 3,
             "path": [
                 2
             ],
@@ -3419,7 +1895,7 @@ QtObject {
             "sub": "Visible indicators",
             "section": "Components",
             "opens": 9,
-            "page": 28,
+            "page": 3,
             "path": [
                 2
             ],
@@ -3434,7 +1910,7 @@ QtObject {
             "sub": "Date, icon, background",
             "section": "Components",
             "opens": 10,
-            "page": 28,
+            "page": 3,
             "path": [
                 2
             ],
@@ -3448,7 +1924,7 @@ QtObject {
             "ctx": "",
             "sub": "Scroll over the workspace indicator to switch workspaces",
             "section": "Scroll actions",
-            "page": 28,
+            "page": 3,
             "path": [
                 2
             ],
@@ -3462,7 +1938,7 @@ QtObject {
             "ctx": "",
             "sub": "Scroll on the top half of the bar to adjust volume",
             "section": "Scroll actions",
-            "page": 28,
+            "page": 3,
             "path": [
                 2
             ],
@@ -3476,7 +1952,7 @@ QtObject {
             "ctx": "",
             "sub": "Scroll on the bottom half of the bar to adjust brightness",
             "section": "Scroll actions",
-            "page": 28,
+            "page": 3,
             "path": [
                 2
             ],
@@ -3490,7 +1966,7 @@ QtObject {
             "ctx": "toggle label",
             "sub": "",
             "section": "General",
-            "page": 28,
+            "page": 3,
             "path": [
                 3
             ],
@@ -3504,7 +1980,7 @@ QtObject {
             "ctx": "",
             "sub": "Reveal when the cursor reaches the screen edge",
             "section": "General",
-            "page": 28,
+            "page": 3,
             "path": [
                 3
             ],
@@ -3518,7 +1994,7 @@ QtObject {
             "ctx": "",
             "sub": "Prefix used to run actions in the launcher",
             "section": "General",
-            "page": 28,
+            "page": 3,
             "path": [
                 3
             ],
@@ -3532,7 +2008,7 @@ QtObject {
             "ctx": "",
             "sub": "Starts the launcher's special searches",
             "section": "General",
-            "page": 28,
+            "page": 3,
             "path": [
                 3
             ],
@@ -3546,7 +2022,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Display",
-            "page": 28,
+            "page": 3,
             "path": [
                 3
             ],
@@ -3560,7 +2036,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Display",
-            "page": 28,
+            "page": 3,
             "path": [
                 3
             ],
@@ -3574,7 +2050,7 @@ QtObject {
             "ctx": "",
             "sub": "Pixels dragged before the launcher opens",
             "section": "Display",
-            "page": 28,
+            "page": 3,
             "path": [
                 3
             ],
@@ -3588,7 +2064,7 @@ QtObject {
             "ctx": "",
             "sub": "Navigate results with Ctrl+hjkl",
             "section": "Behaviour",
-            "page": 28,
+            "page": 3,
             "path": [
                 3
             ],
@@ -3602,7 +2078,7 @@ QtObject {
             "ctx": "",
             "sub": "Allow actions that shut down or log out",
             "section": "Behaviour",
-            "page": 28,
+            "page": 3,
             "path": [
                 3
             ],
@@ -3616,7 +2092,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Fuzzy search",
-            "page": 28,
+            "page": 3,
             "path": [
                 3
             ],
@@ -3630,7 +2106,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Fuzzy search",
-            "page": 28,
+            "page": 3,
             "path": [
                 3
             ],
@@ -3644,7 +2120,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Fuzzy search",
-            "page": 28,
+            "page": 3,
             "path": [
                 3
             ],
@@ -3658,7 +2134,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Fuzzy search",
-            "page": 28,
+            "page": 3,
             "path": [
                 3
             ],
@@ -3672,7 +2148,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Fuzzy search",
-            "page": 28,
+            "page": 3,
             "path": [
                 3
             ],
@@ -3686,7 +2162,7 @@ QtObject {
             "ctx": "toggle label",
             "sub": "",
             "section": "General",
-            "page": 28,
+            "page": 3,
             "path": [
                 4
             ],
@@ -3700,7 +2176,7 @@ QtObject {
             "ctx": "",
             "sub": "Reveal when the cursor reaches the screen edge",
             "section": "General",
-            "page": 28,
+            "page": 3,
             "path": [
                 4
             ],
@@ -3714,7 +2190,7 @@ QtObject {
             "ctx": "",
             "sub": "Pixels dragged before the sidebar opens",
             "section": "General",
-            "page": 28,
+            "page": 3,
             "path": [
                 4
             ],
@@ -3728,7 +2204,7 @@ QtObject {
             "ctx": "toggle label",
             "sub": "Show the utilities panel",
             "section": "General",
-            "page": 28,
+            "page": 3,
             "path": [
                 5
             ],
@@ -3742,7 +2218,7 @@ QtObject {
             "ctx": "",
             "sub": "Show the idle inhibitor card",
             "section": "Cards",
-            "page": 28,
+            "page": 3,
             "path": [
                 5
             ],
@@ -3756,7 +2232,7 @@ QtObject {
             "ctx": "",
             "sub": "Show the screen recorder card",
             "section": "Cards",
-            "page": 28,
+            "page": 3,
             "path": [
                 5
             ],
@@ -3770,7 +2246,7 @@ QtObject {
             "ctx": "",
             "sub": "Show the quick toggles card",
             "section": "Cards",
-            "page": 28,
+            "page": 3,
             "path": [
                 5
             ],
@@ -3784,7 +2260,7 @@ QtObject {
             "ctx": "",
             "sub": "Toggle wireless networking",
             "section": "Quick toggles",
-            "page": 28,
+            "page": 3,
             "path": [
                 5
             ],
@@ -3798,7 +2274,7 @@ QtObject {
             "ctx": "",
             "sub": "Toggle the Bluetooth adapter",
             "section": "Quick toggles",
-            "page": 28,
+            "page": 3,
             "path": [
                 5
             ],
@@ -3812,7 +2288,7 @@ QtObject {
             "ctx": "",
             "sub": "Mute or unmute the default source",
             "section": "Quick toggles",
-            "page": 28,
+            "page": 3,
             "path": [
                 5
             ],
@@ -3826,7 +2302,7 @@ QtObject {
             "ctx": "",
             "sub": "Open the settings window",
             "section": "Quick toggles",
-            "page": 28,
+            "page": 3,
             "path": [
                 5
             ],
@@ -3840,7 +2316,7 @@ QtObject {
             "ctx": "",
             "sub": "Toggle game mode",
             "section": "Quick toggles",
-            "page": 28,
+            "page": 3,
             "path": [
                 5
             ],
@@ -3854,7 +2330,7 @@ QtObject {
             "ctx": "",
             "sub": "Silence notifications",
             "section": "Quick toggles",
-            "page": 28,
+            "page": 3,
             "path": [
                 5
             ],
@@ -3868,7 +2344,7 @@ QtObject {
             "ctx": "",
             "sub": "Connect or disconnect the VPN",
             "section": "Quick toggles",
-            "page": 28,
+            "page": 3,
             "path": [
                 5
             ],
@@ -3882,7 +2358,7 @@ QtObject {
             "ctx": "bar workspaces",
             "sub": "Number of workspaces displayed",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 6
@@ -3898,7 +2374,7 @@ QtObject {
             "ctx": "bar workspaces",
             "sub": "",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 6
@@ -3914,7 +2390,7 @@ QtObject {
             "ctx": "bar workspaces",
             "sub": "",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 6
@@ -3930,7 +2406,7 @@ QtObject {
             "ctx": "bar workspaces",
             "sub": "",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 6
@@ -3946,7 +2422,7 @@ QtObject {
             "ctx": "bar workspaces",
             "sub": "Show workspaces that are inactive and empty",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 6
@@ -3962,7 +2438,7 @@ QtObject {
             "ctx": "bar workspaces",
             "sub": "Show icons of open windows on each workspace",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 6
@@ -3978,7 +2454,7 @@ QtObject {
             "ctx": "bar workspaces",
             "sub": "",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 6
@@ -3994,7 +2470,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 6
@@ -4010,7 +2486,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 6
@@ -4026,7 +2502,7 @@ QtObject {
             "ctx": "bar workspaces",
             "sub": "",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 6
@@ -4042,7 +2518,7 @@ QtObject {
             "ctx": "taskbar active window layout",
             "sub": "",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 7
@@ -4058,7 +2534,7 @@ QtObject {
             "ctx": "taskbar active window: swap the title and class order",
             "sub": "",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 7
@@ -4074,7 +2550,7 @@ QtObject {
             "ctx": "",
             "sub": "Only show the active window title while hovering",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 7
@@ -4090,7 +2566,7 @@ QtObject {
             "ctx": "",
             "sub": "Show a window details popout when hovering",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 7
@@ -4106,7 +2582,7 @@ QtObject {
             "ctx": "taskbar tray: draw a background behind the tray",
             "sub": "",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 8
@@ -4122,7 +2598,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 8
@@ -4138,7 +2614,7 @@ QtObject {
             "ctx": "taskbar tray layout",
             "sub": "",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 8
@@ -4154,7 +2630,7 @@ QtObject {
             "ctx": "",
             "sub": "Show the tray menu popout when hovering",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 8
@@ -4170,7 +2646,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Visible icons",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 9
@@ -4186,7 +2662,7 @@ QtObject {
             "ctx": "",
             "sub": "Show a details popout when hovering the status icons",
             "section": "Behaviour",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 9
@@ -4202,7 +2678,7 @@ QtObject {
             "ctx": "taskbar clock: draw a background behind the clock",
             "sub": "",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 10
@@ -4218,7 +2694,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 10
@@ -4234,7 +2710,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 10
@@ -4250,7 +2726,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "",
-            "page": 28,
+            "page": 3,
             "path": [
                 2,
                 10
@@ -4266,7 +2742,7 @@ QtObject {
             "ctx": "",
             "sub": "Otherwise a plain colour",
             "section": "Look",
-            "page": 28,
+            "page": 3,
             "path": [
                 11
             ],
@@ -4280,7 +2756,7 @@ QtObject {
             "ctx": "",
             "sub": "In the wallpaper's colours",
             "section": "Look",
-            "page": 28,
+            "page": 3,
             "path": [
                 11
             ],
@@ -4294,7 +2770,7 @@ QtObject {
             "ctx": "",
             "sub": "Nothing from them shows while locked",
             "section": "Look",
-            "page": 28,
+            "page": 3,
             "path": [
                 11
             ],
@@ -4308,7 +2784,7 @@ QtObject {
             "ctx": "",
             "sub": "Shut down, restart and sleep from the lock screen",
             "section": "Look",
-            "page": 28,
+            "page": 3,
             "path": [
                 11
             ],
@@ -4322,7 +2798,7 @@ QtObject {
             "ctx": "",
             "sub": "Fingerprint unlock needs fprintd and a fingerprint reader; face unlock needs Howdy and an infrared camera.",
             "section": "Unlocking",
-            "page": 28,
+            "page": 3,
             "path": [
                 11
             ],
@@ -4336,7 +2812,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Unlocking",
-            "page": 28,
+            "page": 3,
             "path": [
                 11
             ],
@@ -4350,7 +2826,7 @@ QtObject {
             "ctx": "",
             "sub": "Then it asks for the password",
             "section": "Unlocking",
-            "page": 28,
+            "page": 3,
             "path": [
                 11
             ],
@@ -4364,7 +2840,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Unlocking",
-            "page": 28,
+            "page": 3,
             "path": [
                 11
             ],
@@ -4378,7 +2854,7 @@ QtObject {
             "ctx": "",
             "sub": "Face unlock starts as soon as the screen comes on",
             "section": "Unlocking",
-            "page": 28,
+            "page": 3,
             "path": [
                 11
             ],
@@ -4392,7 +2868,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Unlocking",
-            "page": 28,
+            "page": 3,
             "path": [
                 11
             ],
@@ -4406,7 +2882,7 @@ QtObject {
             "ctx": "toggle label",
             "sub": "A slider at the screen edge when the volume or brightness changes",
             "section": "General",
-            "page": 28,
+            "page": 3,
             "path": [
                 12
             ],
@@ -4420,7 +2896,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "General",
-            "page": 28,
+            "page": 3,
             "path": [
                 12
             ],
@@ -4434,7 +2910,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "General",
-            "page": 28,
+            "page": 3,
             "path": [
                 12
             ],
@@ -4448,7 +2924,7 @@ QtObject {
             "ctx": "",
             "sub": "Milliseconds",
             "section": "General",
-            "page": 28,
+            "page": 3,
             "path": [
                 12
             ],
@@ -4462,7 +2938,7 @@ QtObject {
             "ctx": "toggle label",
             "sub": "Log out, shut down, sleep and restart, from the screen's right edge",
             "section": "General",
-            "page": 28,
+            "page": 3,
             "path": [
                 13
             ],
@@ -4476,7 +2952,7 @@ QtObject {
             "ctx": "",
             "sub": "Move between the buttons with J and K",
             "section": "General",
-            "page": 28,
+            "page": 3,
             "path": [
                 13
             ],
@@ -4490,7 +2966,7 @@ QtObject {
             "ctx": "",
             "sub": "Pixels dragged before the menu opens",
             "section": "General",
-            "page": 28,
+            "page": 3,
             "path": [
                 13
             ],
@@ -4500,11 +2976,875 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Brightness",
+            "ctx": "",
+            "sub": "",
+            "section": "Monitor",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": "backlight dim"
+        },
+        {
+            "label": "Brightness: this monitor doesn't answer over DDC/CI",
+            "ctx": "",
+            "sub": "Installing…",
+            "section": "Monitor",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Resolution",
+            "ctx": "",
+            "sub": "The first one is the screen's own",
+            "section": "Monitor",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": "screen size"
+        },
+        {
+            "label": "Refresh rate",
+            "ctx": "",
+            "sub": "How many times a second the picture updates",
+            "section": "Monitor",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Scale",
+            "ctx": "",
+            "sub": "Size of text, apps and the shell",
+            "section": "Monitor",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": "zoom size hidpi"
+        },
+        {
+            "label": "Orientation",
+            "ctx": "",
+            "sub": "",
+            "section": "Monitor",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Variable refresh rate",
+            "ctx": "",
+            "sub": "Matches the refresh rate to games to avoid tearing; some screens flicker with it",
+            "section": "Monitor",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": "vrr freesync gsync adaptive sync"
+        },
+        {
+            "label": "HDR",
+            "ctx": "",
+            "sub": "Brighter highlights and wider colours on HDR screens (experimental)",
+            "section": "Monitor",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Brightness of normal content in HDR",
+            "ctx": "",
+            "sub": "",
+            "section": "Monitor",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Colour profile",
+            "ctx": "",
+            "sub": "",
+            "section": "Monitor",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Night light",
+            "ctx": "",
+            "sub": "Warmer colours in the evening, easier on the eyes",
+            "section": "Night light",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": "blue light warm redshift"
+        },
+        {
+            "label": "Warmth",
+            "ctx": "",
+            "sub": "",
+            "section": "Night light",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "All day",
+            "ctx": "",
+            "sub": "Instead of only in the evening and at night",
+            "section": "Night light",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Turns on at",
+            "ctx": "",
+            "sub": "",
+            "section": "Night light",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Turns off at",
+            "ctx": "",
+            "sub": "",
+            "section": "Night light",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Output",
+            "ctx": "audio output",
+            "sub": "",
+            "section": "",
+            "page": 5,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Muted",
+            "ctx": "audio output muted",
+            "sub": "",
+            "section": "",
+            "page": 5,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Input",
+            "ctx": "audio input",
+            "sub": "",
+            "section": "",
+            "page": 5,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Muted",
+            "ctx": "audio input muted",
+            "sub": "",
+            "section": "",
+            "page": 5,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "App volumes",
+            "ctx": "",
+            "sub": "No apps playing audio",
+            "section": "",
+            "opens": 1,
+            "page": 5,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Notification sound",
+            "ctx": "",
+            "sub": "When a notification pops up (not quiet or low-priority ones)",
+            "section": "Sounds",
+            "page": 5,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Sound",
+            "ctx": "",
+            "sub": "",
+            "section": "Sounds",
+            "page": 5,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Sounds in apps",
+            "ctx": "",
+            "sub": "Event sounds of apps that play them (e.g. a click or an error)",
+            "section": "Sounds",
+            "page": 5,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Show in fullscreen",
+            "ctx": "",
+            "sub": "Whether notifications appear over fullscreen apps",
+            "section": "Notifications",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Expire automatically",
+            "ctx": "",
+            "sub": "Dismiss notifications after their timeout",
+            "section": "Notifications",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Open expanded",
+            "ctx": "",
+            "sub": "Show notifications expanded by default",
+            "section": "Notifications",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Default timeout",
+            "ctx": "",
+            "sub": "Time before a notification dismisses (ms)",
+            "section": "Notifications",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Timeout over fullscreen apps",
+            "ctx": "",
+            "sub": "Shorter, so popups don't sit over a game or video (ms)",
+            "section": "Notifications",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Click to open",
+            "ctx": "",
+            "sub": "Clicking a notification does its main action, e.g. opens the message",
+            "section": "Notifications",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Group preview count",
+            "ctx": "",
+            "sub": "Notifications shown per group before collapsing",
+            "section": "Notifications",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Show in fullscreen",
+            "ctx": "",
+            "sub": "Whether toasts appear over fullscreen apps",
+            "section": "Toasts",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Visible toasts",
+            "ctx": "",
+            "sub": "Maximum number of toasts shown at once",
+            "section": "Toasts",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Charging changes",
+            "ctx": "",
+            "sub": "",
+            "section": "Toast events",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Game mode changes",
+            "ctx": "",
+            "sub": "",
+            "section": "Toast events",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Do not disturb changes",
+            "ctx": "",
+            "sub": "",
+            "section": "Toast events",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Audio output changes",
+            "ctx": "",
+            "sub": "",
+            "section": "Toast events",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Audio input changes",
+            "ctx": "",
+            "sub": "",
+            "section": "Toast events",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Caps lock changes",
+            "ctx": "",
+            "sub": "",
+            "section": "Toast events",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Num lock changes",
+            "ctx": "",
+            "sub": "",
+            "section": "Toast events",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Keyboard layout changes",
+            "ctx": "",
+            "sub": "",
+            "section": "Toast events",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Keyboard layout limit reached",
+            "ctx": "",
+            "sub": "",
+            "section": "Toast events",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "VPN changes",
+            "ctx": "",
+            "sub": "",
+            "section": "Toast events",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Now playing",
+            "ctx": "",
+            "sub": "",
+            "section": "Toast events",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Lock the screen after",
+            "ctx": "",
+            "sub": "Time without input before the lock screen shows",
+            "section": "When idle",
+            "page": 7,
+            "path": [],
+            "trail": [],
+            "keywords": "screen lock timeout idle"
+        },
+        {
+            "label": "Turn off the screen after",
+            "ctx": "",
+            "sub": "It comes back on when you move the mouse or press a key",
+            "section": "When idle",
+            "page": 7,
+            "path": [],
+            "trail": [],
+            "keywords": "dpms monitor off blank"
+        },
+        {
+            "label": "Sleep after",
+            "ctx": "",
+            "sub": "The PC goes to sleep; press a key or the power button to wake it",
+            "section": "When idle",
+            "page": 7,
+            "path": [],
+            "trail": [],
+            "keywords": "suspend"
+        },
+        {
+            "label": "Lock before sleeping",
+            "ctx": "",
+            "sub": "Waking up shows the lock screen",
+            "section": "Sleep",
+            "page": 7,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Stay awake while audio plays",
+            "ctx": "",
+            "sub": "Music or a video playing keeps the screen on and the PC awake",
+            "section": "Sleep",
+            "page": 7,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Power mode",
+            "ctx": "",
+            "sub": "Trade speed against power use and heat",
+            "section": "Power mode",
+            "page": 7,
+            "path": [],
+            "trail": [],
+            "keywords": "performance power saver profile"
+        },
+        {
+            "label": "When the power button is pressed",
+            "ctx": "",
+            "sub": "Applying…",
+            "section": "Power button",
+            "page": 7,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Click again to empty the Trash",
+            "ctx": "",
+            "sub": "Deleted files can't be brought back",
+            "section": "Clean up",
+            "page": 8,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Clear thumbnails",
+            "ctx": "",
+            "sub": "",
+            "section": "Clean up",
+            "page": 8,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Clear AUR build files",
+            "ctx": "",
+            "sub": "Click again: packages are then rebuilt from scratch on their next update",
+            "section": "Clean up",
+            "page": 8,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Description",
+            "ctx": "",
+            "sub": "",
+            "section": "Make a snapshot",
+            "page": 8,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Make a snapshot now",
+            "ctx": "",
+            "sub": "Of the system drive, as it is right now",
+            "section": "Make a snapshot",
+            "page": 8,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Hourly snapshots",
+            "ctx": "",
+            "sub": "",
+            "section": "Automatic snapshots",
+            "page": 8,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Bluetooth",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Pair new device",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "opens": 2,
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Discoverable",
+            "ctx": "bluetooth setting",
+            "sub": "Allow nearby devices to find this one",
+            "section": "",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Pairable",
+            "ctx": "bluetooth setting",
+            "sub": "Allow nearby devices to pair with this one",
+            "section": "",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Layout",
+            "ctx": "",
+            "sub": "",
+            "section": "Keyboard",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": "keyboard language"
+        },
+        {
+            "label": "Second layout",
+            "ctx": "",
+            "sub": "",
+            "section": "Keyboard",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Switch layouts with",
+            "ctx": "",
+            "sub": "",
+            "section": "Keyboard",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Repeat delay",
+            "ctx": "",
+            "sub": "How long a key is held before it repeats (ms)",
+            "section": "Keyboard",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Repeat rate",
+            "ctx": "",
+            "sub": "Characters per second while a key repeats",
+            "section": "Keyboard",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Num Lock on at login",
+            "ctx": "",
+            "sub": "",
+            "section": "Keyboard",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Pointer speed",
+            "ctx": "",
+            "sub": "",
+            "section": "Mouse",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": "mouse sensitivity dpi"
+        },
+        {
+            "label": "Pointer acceleration",
+            "ctx": "",
+            "sub": "Faster movements go further. Off: the pointer moves exactly with the mouse (better for games)",
+            "section": "Mouse",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Natural scrolling",
+            "ctx": "",
+            "sub": "Content follows the wheel, like on a phone",
+            "section": "Mouse",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": "reverse scroll direction"
+        },
+        {
+            "label": "Scroll speed",
+            "ctx": "",
+            "sub": "",
+            "section": "Mouse",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Swap left and right buttons",
+            "ctx": "",
+            "sub": "For using the mouse with the left hand",
+            "section": "Mouse",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Tap to click",
+            "ctx": "",
+            "sub": "",
+            "section": "Touchpad",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Natural scrolling",
+            "ctx": "",
+            "sub": "",
+            "section": "Touchpad",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": "reverse scroll direction"
+        },
+        {
+            "label": "Turn off while typing",
+            "ctx": "",
+            "sub": "",
+            "section": "Touchpad",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Cursor style",
+            "ctx": "",
+            "sub": "",
+            "section": "Cursor",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Cursor size",
+            "ctx": "",
+            "sub": "",
+            "section": "Cursor",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Hide the cursor when idle",
+            "ctx": "",
+            "sub": "After the mouse hasn't moved for a while",
+            "section": "Cursor",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Wi-Fi",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 10,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Saved networks",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "opens": 6,
+            "page": 10,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Add network",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "opens": 2,
+            "page": 10,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "VPN",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 10,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Add provider",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 10,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Hidden network",
+            "ctx": "",
+            "sub": "Actively probe for a network that doesn't broadcast its name",
+            "section": "",
+            "page": 10,
+            "path": [
+                2
+            ],
+            "trail": [
+                "Add network"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Security",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 10,
+            "path": [
+                2
+            ],
+            "trail": [
+                "Add network"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "All networks",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 10,
+            "path": [
+                5
+            ],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Terminal",
             "ctx": "default app category",
             "sub": "",
             "section": "Default applications",
-            "page": 29,
+            "page": 11,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4514,7 +3854,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Default applications",
-            "page": 29,
+            "page": 11,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4524,7 +3864,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Default applications",
-            "page": 29,
+            "page": 11,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4534,7 +3874,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Default applications",
-            "page": 29,
+            "page": 11,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4544,7 +3884,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Default applications",
-            "page": 29,
+            "page": 11,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4554,7 +3894,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Default applications",
-            "page": 29,
+            "page": 11,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4564,7 +3904,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Open files with",
-            "page": 29,
+            "page": 11,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4574,7 +3914,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Open files with",
-            "page": 29,
+            "page": 11,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4584,7 +3924,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Open files with",
-            "page": 29,
+            "page": 11,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4594,7 +3934,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Open files with",
-            "page": 29,
+            "page": 11,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4604,7 +3944,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Open files with",
-            "page": 29,
+            "page": 11,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4614,7 +3954,7 @@ QtObject {
             "ctx": "default app category",
             "sub": "",
             "section": "Open files with",
-            "page": 29,
+            "page": 11,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4625,138 +3965,507 @@ QtObject {
             "sub": "Browse installed apps, set favourites and hidden",
             "section": "Library",
             "opens": 1,
-            "page": 29,
+            "page": 11,
             "path": [],
             "trail": [],
             "keywords": ""
         },
         {
-            "label": "Notifications",
+            "label": "Start these apps at login",
             "ctx": "",
-            "sub": "Notifications, toasts, timeouts",
-            "section": "Notifications",
-            "opens": 1,
-            "page": 30,
+            "sub": "Apps that start themselves (e.g. Steam's \"Run at startup\") show up here too",
+            "section": "Start at login",
+            "page": 11,
             "path": [],
             "trail": [],
             "keywords": ""
         },
         {
-            "label": "Media refresh",
-            "ctx": "",
-            "sub": "How often the media position updates (ms)",
-            "section": "Polling",
-            "page": 30,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "System stats refresh",
-            "ctx": "",
-            "sub": "CPU, memory and GPU update interval (seconds)",
-            "section": "Polling",
-            "page": 30,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Wi-Fi rescan",
-            "ctx": "",
-            "sub": "How often available networks are rescanned (seconds)",
-            "section": "Polling",
-            "page": 30,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Lyrics backend",
-            "ctx": "",
-            "sub": "Source used to fetch synced lyrics",
-            "section": "Media & lyrics",
-            "page": 30,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Default player",
-            "ctx": "",
-            "sub": "Preferred media player when several are open",
-            "section": "Media & lyrics",
-            "page": 30,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Volume step",
+            "label": "Add an app",
             "ctx": "",
             "sub": "",
-            "section": "Input increments",
-            "page": 30,
+            "section": "Add",
+            "page": 11,
             "path": [],
             "trail": [],
             "keywords": ""
         },
         {
-            "label": "Brightness step",
+            "label": "Check again",
             "ctx": "",
             "sub": "",
-            "section": "Input increments",
-            "page": 30,
+            "section": "System updates",
+            "page": 11,
             "path": [],
             "trail": [],
             "keywords": ""
         },
         {
-            "label": "Max volume",
+            "label": "Update everything",
             "ctx": "",
             "sub": "",
-            "section": "Input increments",
-            "page": 30,
+            "section": "System updates",
+            "page": 11,
             "path": [],
             "trail": [],
             "keywords": ""
         },
         {
-            "label": "Visualiser bars",
+            "label": "Focus follows the mouse",
             "ctx": "",
-            "sub": "Number of bars in the audio visualisers",
-            "section": "Service tuning",
-            "page": 30,
+            "sub": "In the scrolling layout: the window under the pointer gets the keyboard",
+            "section": "Focus",
+            "page": 12,
             "path": [],
             "trail": [],
             "keywords": ""
         },
         {
-            "label": "Smart colour scheme",
+            "label": "Focus follows the mouse in desktop mode",
             "ctx": "",
-            "sub": "Derive theme mode and variant from the wallpaper",
-            "section": "Service tuning",
-            "page": 30,
+            "sub": "Off: click a window to use it, like Windows",
+            "section": "Focus",
+            "page": 12,
             "path": [],
             "trail": [],
             "keywords": ""
         },
         {
-            "label": "GPU",
+            "label": "Bring windows forward when they ask",
+            "ctx": "",
+            "sub": "E.g. a link opened from another app focuses the browser",
+            "section": "Focus",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Move the pointer with the focus",
+            "ctx": "",
+            "sub": "When the keyboard switches windows, the pointer jumps to the new one",
+            "section": "Focus",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Go back with the same key",
+            "ctx": "",
+            "sub": "Pressing the shortcut of the workspace you're on goes to the one before",
+            "section": "Workspaces",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Open apps where they were started",
+            "ctx": "",
+            "sub": "An app that takes a while opens on the workspace it was started from",
+            "section": "Workspaces",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "New window over a fullscreen one",
             "ctx": "",
             "sub": "",
-            "section": "Service tuning",
-            "page": 30,
+            "section": "Workspaces",
+            "page": 12,
             "path": [],
             "trail": [],
             "keywords": ""
+        },
+        {
+            "label": "New column width",
+            "ctx": "",
+            "sub": "",
+            "section": "Scrolling layout",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "New windows",
+            "ctx": "",
+            "sub": "",
+            "section": "Scrolling layout",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Stack after this many columns",
+            "ctx": "",
+            "sub": "Once a workspace has this many, new windows stack; 0 for never",
+            "section": "Scrolling layout",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Focused column",
+            "ctx": "",
+            "sub": "Where the view puts the column you switch to",
+            "section": "Scrolling layout",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Always centre the focused column",
+            "ctx": "",
+            "sub": "",
+            "section": "Scrolling layout",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Scroll to the window under the pointer",
+            "ctx": "",
+            "sub": "After resting on it for a moment",
+            "section": "Scrolling layout",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Hover delay",
+            "ctx": "",
+            "sub": "Milliseconds",
+            "section": "Scrolling layout",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Peek at neighbours",
+            "ctx": "",
+            "sub": "Pixels of the columns beside the view that stay visible",
+            "section": "Scrolling layout",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Stretch columns to fill the screen",
+            "ctx": "",
+            "sub": "When they don't fill it by themselves",
+            "section": "Scrolling layout",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "A lone column fills the screen",
+            "ctx": "",
+            "sub": "",
+            "section": "Scrolling layout",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Scroll within columns",
+            "ctx": "",
+            "sub": "Windows in a column keep their own heights, and the column scrolls",
+            "section": "Scrolling layout",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Wrap around at the ends",
+            "ctx": "",
+            "sub": "Moving focus past the last column goes to the first",
+            "section": "Scrolling layout",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Column widths to cycle through",
+            "ctx": "",
+            "sub": "Fractions of the screen, e.g. 0.333,0.5,0.667,1",
+            "section": "Scrolling layout",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Overview size",
+            "ctx": "",
+            "sub": "",
+            "section": "Scrolling layout",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Window titles in the overview",
+            "ctx": "",
+            "sub": "",
+            "section": "Scrolling layout",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Add a rule for an open app",
+            "ctx": "",
+            "sub": "Open the app first",
+            "section": "App rules",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Copy to the clipboard",
+            "ctx": "",
+            "sub": "Ready to paste anywhere",
+            "section": "After a screenshot",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": "screenshot clipboard"
+        },
+        {
+            "label": "Save to a folder",
+            "ctx": "",
+            "sub": "",
+            "section": "After a screenshot",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Folder",
+            "ctx": "",
+            "sub": "",
+            "section": "After a screenshot",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Notification",
+            "ctx": "",
+            "sub": "With Edit, Open and Show in folder",
+            "section": "After a screenshot",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Open in the editor right away",
+            "ctx": "",
+            "sub": "Off: only from the notification's Edit",
+            "section": "After a screenshot",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Editor",
+            "ctx": "",
+            "sub": "None installed (swappy or satty, for example)",
+            "section": "After a screenshot",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Shutter sound",
+            "ctx": "",
+            "sub": "",
+            "section": "After a screenshot",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Print key: the whole screen, as above",
+            "ctx": "",
+            "sub": "Off: the caelestia command's own screenshot",
+            "section": "Keys",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Screenshot shortcuts",
+            "ctx": "",
+            "sub": "Super+Shift+S: an area (the screen frozen); change them in Keyboard shortcuts",
+            "section": "Keys",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Quality",
+            "ctx": "",
+            "sub": "",
+            "section": "Screen recording",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Video format",
+            "ctx": "",
+            "sub": "H.264 plays everywhere; HEVC and AV1 are smaller",
+            "section": "Screen recording",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Show the pointer",
+            "ctx": "",
+            "sub": "",
+            "section": "Screen recording",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Recordings folder",
+            "ctx": "",
+            "sub": "",
+            "section": "Screen recording",
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Change picture",
+            "ctx": "",
+            "sub": "Shown on the dashboard and the lock screen",
+            "section": "Profile",
+            "page": 13,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Remove picture",
+            "ctx": "",
+            "sub": "",
+            "section": "Profile",
+            "page": 13,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Full name",
+            "ctx": "",
+            "sub": "Asks for your password",
+            "section": "Profile",
+            "page": 13,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Change password",
+            "ctx": "",
+            "sub": "",
+            "section": "Sign-in",
+            "page": 13,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Add someone",
+            "ctx": "",
+            "sub": "",
+            "section": "Other people",
+            "page": 13,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Computer name",
+            "ctx": "",
+            "sub": "How it shows up on networks and Bluetooth; asks for your password",
+            "section": "This computer",
+            "page": 13,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Set the time automatically",
+            "ctx": "",
+            "sub": "From the internet (NTP)",
+            "section": "Time",
+            "page": 14,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Time zone",
+            "ctx": "",
+            "sub": "",
+            "section": "Time",
+            "page": 14,
+            "path": [],
+            "trail": [],
+            "keywords": "timezone clock"
+        },
+        {
+            "label": "Clock format",
+            "ctx": "",
+            "sub": "How times are shown across the shell",
+            "section": "Time",
+            "page": 14,
+            "path": [],
+            "trail": [],
+            "keywords": "12 24 hour am pm"
         },
         {
             "label": "UI language",
             "ctx": "",
             "sub": "The language used in the shell UI",
             "section": "Language",
-            "page": 31,
+            "page": 14,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4766,7 +4475,7 @@ QtObject {
             "ctx": "",
             "sub": "A city, or coordinates (lat,lon); empty to guess it from your connection",
             "section": "Weather",
-            "page": 31,
+            "page": 14,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4776,7 +4485,7 @@ QtObject {
             "ctx": "",
             "sub": "Units for weather temperatures",
             "section": "Units",
-            "page": 31,
+            "page": 14,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4786,7 +4495,7 @@ QtObject {
             "ctx": "",
             "sub": "Units for CPU and GPU temperatures",
             "section": "Units",
-            "page": 31,
+            "page": 14,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4796,27 +4505,287 @@ QtObject {
             "ctx": "",
             "sub": "Units for data sizes and network speeds",
             "section": "Units",
-            "page": 31,
+            "page": 14,
             "path": [],
             "trail": [],
             "keywords": ""
         },
         {
-            "label": "Clock format",
+            "label": "Text size in apps",
             "ctx": "",
-            "sub": "How times are shown across the shell",
-            "section": "Time & date",
-            "page": 31,
+            "sub": "",
+            "section": "Text",
+            "page": 15,
             "path": [],
             "trail": [],
-            "keywords": "12 24 hour am pm"
+            "keywords": ""
+        },
+        {
+            "label": "Text size in the shell",
+            "ctx": "",
+            "sub": "",
+            "section": "Text",
+            "page": 15,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "High contrast in apps",
+            "ctx": "",
+            "sub": "GTK apps draw with stronger borders and colours",
+            "section": "Text",
+            "page": 15,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Zoom",
+            "ctx": "",
+            "sub": "",
+            "section": "Seeing the screen",
+            "page": 15,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Colour filter",
+            "ctx": "",
+            "sub": "Changes the colours of the whole screen",
+            "section": "Seeing the screen",
+            "page": 15,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Bigger cursor",
+            "ctx": "",
+            "sub": "Cursor size, on Keyboard & mouse",
+            "section": "Seeing the screen",
+            "page": 15,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Animations",
+            "ctx": "",
+            "sub": "Off: windows, panels and apps change at once, without movement",
+            "section": "Motion",
+            "page": 15,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Shell animation speed",
+            "ctx": "",
+            "sub": "",
+            "section": "Motion",
+            "page": 15,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Key repeat",
+            "ctx": "",
+            "sub": "How soon and how fast a held key repeats",
+            "section": "Keyboard",
+            "page": 15,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Firewall",
+            "ctx": "",
+            "sub": "Applying…",
+            "section": "Security",
+            "page": 16,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Screen lock",
+            "ctx": "",
+            "sub": "When the screen locks by itself, on Power & sleep",
+            "section": "Security",
+            "page": 16,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Remember recently used files",
+            "ctx": "",
+            "sub": "Apps list them under Recent",
+            "section": "History",
+            "page": 16,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Clear recent files",
+            "ctx": "",
+            "sub": "",
+            "section": "History",
+            "page": 16,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Clear notification history",
+            "ctx": "",
+            "sub": "",
+            "section": "History",
+            "page": 16,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Clear clipboard history",
+            "ctx": "",
+            "sub": "",
+            "section": "History",
+            "page": 16,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Game mode",
+            "ctx": "",
+            "sub": "Turns off animations, blur, shadows, gaps and rounding, and allows tearing, until it's turned off",
+            "section": "Game mode",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Allow screen tearing",
+            "ctx": "",
+            "sub": "Lower input lag for games that ask for it; per app under Workspaces & focus > App rules",
+            "section": "Performance",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Keep the screen awake in fullscreen",
+            "ctx": "",
+            "sub": "No screen lock or sleep while a game or video is fullscreen",
+            "section": "Performance",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Games open fullscreen",
+            "ctx": "",
+            "sub": "Needs the hyprscroller plugin (the scrolling layout)",
+            "section": "Performance",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Variable refresh rate",
+            "ctx": "",
+            "sub": "FreeSync / G-Sync, on Display",
+            "section": "Performance",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": "vrr freesync gsync adaptive sync"
+        },
+        {
+            "label": "Notifications over fullscreen apps",
+            "ctx": "",
+            "sub": "On Notifications",
+            "section": "Performance",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "What went wrong in the previous boot",
+            "ctx": "",
+            "sub": "Its errors, e.g. after a crash or a freeze",
+            "section": "",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Boot",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Copy these lines",
+            "ctx": "",
+            "sub": "",
+            "section": "Reading…",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Unknown program",
+            "ctx": "",
+            "sub": "",
+            "section": "Crash reports",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Update plugins",
+            "ctx": "",
+            "sub": "Rebuild them for the running Hyprland (after a Hyprland update); opens a terminal",
+            "section": "Manage",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Add a plugin",
+            "ctx": "",
+            "sub": "From a git repository; opens a terminal",
+            "section": "Manage",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
         },
         {
             "label": "Hostname",
             "ctx": "",
             "sub": "",
             "section": "System",
-            "page": 32,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4826,7 +4795,7 @@ QtObject {
             "ctx": "system model name",
             "sub": "",
             "section": "System",
-            "page": 32,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4836,7 +4805,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "System",
-            "page": 32,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4846,7 +4815,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "System",
-            "page": 32,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4856,7 +4825,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "System",
-            "page": 32,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4866,7 +4835,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hardware",
-            "page": 32,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4876,7 +4845,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hardware",
-            "page": 32,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4886,7 +4855,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hardware",
-            "page": 32,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4896,7 +4865,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hardware",
-            "page": 32,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4906,7 +4875,7 @@ QtObject {
             "ctx": "the caelestia shell itself, not a unix shell",
             "sub": "",
             "section": "Software",
-            "page": 32,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4916,7 +4885,7 @@ QtObject {
             "ctx": "the caelestia command line tool",
             "sub": "",
             "section": "Software",
-            "page": 32,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -4926,7 +4895,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Plugins",
-            "page": 32,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""

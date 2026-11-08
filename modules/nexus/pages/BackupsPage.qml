@@ -221,7 +221,7 @@ PageBase {
                     onClicked: {
                         root.nState.selectedSnapperConfig = root.config;
                         root.nState.selectedSnapshot = snap.modelData.number;
-                        root.nState.openSubPage(1);
+                        root.nState.openSubPage(3); // Storage's snapshot page
                     }
                 }
 

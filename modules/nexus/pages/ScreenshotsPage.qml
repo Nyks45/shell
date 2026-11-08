@@ -142,7 +142,7 @@ PageBase {
             text: Tr.tr("Screenshot shortcuts")
             subtext: Tr.tr("Super+Shift+S: an area (the screen frozen); change them in Keyboard shortcuts")
             onClicked: root.nState.goTo({
-                page: PageRegistry.pages.findIndex(p => p.id === "shortcuts"),
+                page: PageRegistry.find("shortcuts"),
                 path: []
             })
         }

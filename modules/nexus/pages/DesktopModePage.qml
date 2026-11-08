@@ -65,7 +65,7 @@ PageBase {
             subtext: Tr.tr("Desktop mode, title bars, snapping, minimizing and hot corners come from hyprflow, a Hyprland plugin. It isn't loaded right now.")
             actionText: Tr.tr("Plugins")
             onAction: root.nState.goTo({
-                page: PageRegistry.pages.findIndex(p => p.id === "plugins"),
+                page: PageRegistry.find("plugins"),
                 path: []
             })
         }

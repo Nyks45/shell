@@ -12,6 +12,7 @@ import qs.modules.nexus.pages.apps
 import qs.modules.nexus.pages.audio
 import qs.modules.nexus.pages.bluetooth
 import qs.modules.nexus.pages.disks
+import qs.modules.nexus.pages.merged
 import qs.modules.nexus.pages.network
 import qs.modules.nexus.pages.panels
 import qs.modules.nexus.pages.services
@@ -23,7 +24,6 @@ QtObject {
     id: root
 
     readonly property list<Component> pageComps: [
-        // Appearance
         Component {
             // Wallpaper & style
             StackPage {
@@ -58,276 +58,26 @@ QtObject {
             }
         },
         Component {
-            // Fonts
+            // Fonts & themes
             StackPage {
                 Component {
-                    FontsPage {}
+                    FontsThemesPage {}
                 }
             }
         },
         Component {
-            // App appearance
+            // Windows (look + desktop mode)
             StackPage {
                 Component {
-                    AppAppearancePage {}
+                    WindowsDesktopPage {}
                 }
             }
         },
         Component {
-            // Windows
+            // Panels (+ shell services, folded)
             StackPage {
                 Component {
-                    WindowsPage {}
-                }
-            }
-        },
-        Component {
-            // Desktop mode
-            StackPage {
-                Component {
-                    DesktopModePage {}
-                }
-            }
-        },
-
-        // Connectivity
-        Component {
-            // Display
-            StackPage {
-                Component {
-                    DisplayPage {}
-                }
-            }
-        },
-        Component {
-            // Network
-            StackPage {
-                Component {
-                    NetworkPage {}
-                }
-                Component {
-                    EthernetDetailPage {}
-                }
-                Component {
-                    AddNetworkPage {}
-                }
-                Component {
-                    NetworkDetailPage {}
-                }
-                Component {
-                    AddVpnPage {}
-                }
-                Component {
-                    AllNetworksPage {}
-                }
-                Component {
-                    SavedNetworksPage {}
-                }
-            }
-        },
-        Component {
-            // Bluetooth
-            StackPage {
-                Component {
-                    BluetoothPage {}
-                }
-                Component {
-                    BtDeviceInfo {}
-                }
-                Component {
-                    BluetoothPairing {}
-                }
-            }
-        },
-        Component {
-            // Audio
-            StackPage {
-                Component {
-                    AudioPage {}
-                }
-                Component {
-                    AppVolumes {}
-                }
-            }
-        },
-        Component {
-            // Printers
-            StackPage {
-                Component {
-                    PrintersPage {}
-                }
-            }
-        },
-
-        // System
-        Component {
-            // Account: you and the others (0), another person's account (1)
-            StackPage {
-                Component {
-                    AccountPage {}
-                }
-                Component {
-                    UserPage {}
-                }
-            }
-        },
-        Component {
-            // Power & sleep
-            StackPage {
-                Component {
-                    PowerPage {}
-                }
-            }
-        },
-        Component {
-            // Keyboard & mouse
-            StackPage {
-                Component {
-                    InputPage {}
-                }
-            }
-        },
-        Component {
-            // Workspaces & focus
-            StackPage {
-                Component {
-                    MultitaskingPage {}
-                }
-            }
-        },
-        Component {
-            // Notifications
-            StackPage {
-                Component {
-                    NotificationsPage { isSubPage: false }
-                }
-            }
-        },
-        Component {
-            // Date & time
-            StackPage {
-                Component {
-                    DateTimePage {}
-                }
-            }
-        },
-        Component {
-            // Storage: the page with its drives (0), one partition (1), a drive's health details (2)
-            StackPage {
-                Component {
-                    StoragePage {}
-                }
-                Component {
-                    DiskPartitionPage {}
-                }
-                Component {
-                    DiskHealthPage {}
-                }
-            }
-        },
-        Component {
-            // Backups: the snapshots (0), one snapshot (1)
-            StackPage {
-                Component {
-                    BackupsPage {}
-                }
-                Component {
-                    SnapshotPage {}
-                }
-            }
-        },
-        Component {
-            // Screenshots & recording
-            StackPage {
-                Component {
-                    ScreenshotsPage {}
-                }
-            }
-        },
-        Component {
-            // Startup apps
-            StackPage {
-                Component {
-                    StartupPage {}
-                }
-            }
-        },
-        Component {
-            // Keyboard shortcuts
-            StackPage {
-                Component {
-                    ShortcutsPage {}
-                }
-            }
-        },
-        Component {
-            // Updates
-            StackPage {
-                Component {
-                    UpdatesPage {}
-                }
-            }
-        },
-        Component {
-            // System services: the list (0), one service or scheduled task (1)
-            StackPage {
-                Component {
-                    SystemServicesPage {}
-                }
-                Component {
-                    ServicePage {}
-                }
-            }
-        },
-        Component {
-            // Logs
-            StackPage {
-                Component {
-                    LogsPage {}
-                }
-            }
-        },
-        Component {
-            // Plugins
-            StackPage {
-                Component {
-                    PluginsPage {}
-                }
-            }
-        },
-
-        // Accessibility & privacy
-        Component {
-            // Accessibility
-            StackPage {
-                Component {
-                    AccessibilityPage {}
-                }
-            }
-        },
-        Component {
-            // Privacy & security
-            StackPage {
-                Component {
-                    PrivacyPage {}
-                }
-            }
-        },
-        Component {
-            // Gaming
-            StackPage {
-                Component {
-                    GamingPage {}
-                }
-            }
-        },
-
-        // Shell
-        Component {
-            // Panels
-            StackPage {
-                Component {
-                    PanelsPage {}
+                    PanelsAllPage {}
                 }
                 Component {
                     DashboardPanel {}
@@ -375,10 +125,102 @@ QtObject {
             }
         },
         Component {
-            // Apps
+            // Display
             StackPage {
                 Component {
-                    AppsPage {}
+                    DisplayPage {}
+                }
+            }
+        },
+        Component {
+            // Audio
+            StackPage {
+                Component {
+                    AudioPage {}
+                }
+                Component {
+                    AppVolumes {}
+                }
+            }
+        },
+        Component {
+            // Notifications
+            StackPage {
+                Component {
+                    NotificationsPage { isSubPage: false }
+                }
+            }
+        },
+        Component {
+            // Power & sleep
+            StackPage {
+                Component {
+                    PowerPage {}
+                }
+            }
+        },
+        Component {
+            // Storage: the page (drives, clean up, snapshots) (0), one partition (1), a drive's health (2), one snapshot (3)
+            StackPage {
+                Component {
+                    StorageAllPage {}
+                }
+                Component {
+                    DiskPartitionPage {}
+                }
+                Component {
+                    DiskHealthPage {}
+                }
+                Component {
+                    SnapshotPage {}
+                }
+            }
+        },
+        Component {
+            // Devices: Bluetooth + keyboard & mouse (0), a device (1), pairing (2)
+            StackPage {
+                Component {
+                    DevicesPage {}
+                }
+                Component {
+                    BtDeviceInfo {}
+                }
+                Component {
+                    BluetoothPairing {}
+                }
+            }
+        },
+        Component {
+            // Network
+            StackPage {
+                Component {
+                    NetworkPage {}
+                }
+                Component {
+                    EthernetDetailPage {}
+                }
+                Component {
+                    AddNetworkPage {}
+                }
+                Component {
+                    NetworkDetailPage {}
+                }
+                Component {
+                    AddVpnPage {}
+                }
+                Component {
+                    AllNetworksPage {}
+                }
+                Component {
+                    SavedNetworksPage {}
+                }
+            }
+        },
+        Component {
+            // Apps: updates, apps, startup apps (0), all apps (1), one app (2)
+            StackPage {
+                Component {
+                    AppsAllPage {}
                 }
                 Component {
                     AllApps {}
@@ -389,27 +231,69 @@ QtObject {
             }
         },
         Component {
-            // Services
+            // Workspaces & shortcuts (+ screenshots & recording)
             StackPage {
                 Component {
-                    ServicesPage {}
-                }
-                Component {
-                    NotificationsPage {}
+                    WorkspacesAllPage {}
                 }
             }
         },
         Component {
-            // Language & region
+            // Account: you and the others (0), another person's account (1)
             StackPage {
                 Component {
-                    LanguageAndRegion {}
+                    AccountPage {}
+                }
+                Component {
+                    UserPage {}
                 }
             }
         },
-
-        // About
         Component {
+            // Time & language
+            StackPage {
+                Component {
+                    TimeLanguagePage {}
+                }
+            }
+        },
+        Component {
+            // Accessibility
+            StackPage {
+                Component {
+                    AccessibilityPage {}
+                }
+            }
+        },
+        Component {
+            // Privacy & security
+            StackPage {
+                Component {
+                    PrivacyPage {}
+                }
+            }
+        },
+        Component {
+            // Gaming
+            StackPage {
+                Component {
+                    GamingPage {}
+                }
+            }
+        },
+        Component {
+            // System: services (+ logs, plugins, folded) (0), one service (1)
+            StackPage {
+                Component {
+                    SystemPage {}
+                }
+                Component {
+                    ServicePage {}
+                }
+            }
+        },
+        Component {
+            // About
             StackPage {
                 Component {
                     AboutPage {}

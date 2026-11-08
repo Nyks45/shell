@@ -43,22 +43,6 @@ PageBase {
         }
     ]
 
-    // Clock formats (there must be one for each value of the ClockFormat enum)
-    readonly property list<MenuItem> clockItems: [
-        MenuItem {
-            text: Tr.tr("Auto")
-            value: ClockFormat.Auto
-        },
-        MenuItem {
-            text: Tr.tr("12-hour")
-            value: ClockFormat.TwelveHour
-        },
-        MenuItem {
-            text: Tr.tr("24-hour")
-            value: ClockFormat.TwentyFourHour
-        }
-    ]
-
     title: Tr.tr("Language & region")
 
     ColumnLayout {
@@ -145,20 +129,6 @@ PageBase {
             menuItems: root.dataItems
             active: root.dataItems.find(i => i.value === GlobalConfig.services.dataUnits)
             onSelected: item => GlobalConfig.services.dataUnits = item.value
-        }
-
-        // Time & date
-        SectionHeader {
-            text: Tr.tr("Time & date")
-        }
-
-        SelectRow {
-            label: Tr.tr("Clock format")
-            subtext: Tr.tr("How times are shown across the shell")
-            menuOnTop: true
-            menuItems: root.clockItems
-            active: root.clockItems.find(i => i.value === GlobalConfig.services.clockFormat)
-            onSelected: item => GlobalConfig.services.clockFormat = item.value
         }
     }
 }

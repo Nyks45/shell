@@ -137,7 +137,7 @@ PageBase {
             subtext: Tr.tr("Window title bars come from hyprflow, which isn't loaded.")
             actionText: Tr.tr("Plugins")
             onAction: root.nState.goTo({
-                page: PageRegistry.pages.findIndex(p => p.id === "plugins"),
+                page: PageRegistry.find("plugins"),
                 path: []
             })
         }
