@@ -32,6 +32,7 @@ ROW_TYPES = {
 NEEDS_SELECTION = {
     "EthernetDetailPage", "NetworkDetailPage", "AddVpnPage", "BtDeviceInfo", "AppInfo", "WallpaperCategory",
     "LiveWallpaperInfo", "DiskPartitionPage", "DiskHealthPage", "SnapshotPage", "ServicePage", "UserPage",
+    "PackagePage",
 }
 # Extra words people search for, by label
 SYNONYMS = {

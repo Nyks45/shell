@@ -43,6 +43,10 @@ class ServiceConfig : public settings::ObjectNode {
             vmap({ { u"from"_s, u"com.github.th_ch.youtube_music"_s }, { u"to"_s, u"YT Music"_s } }),
         }))
     CONFIG_GLOBAL_ENUM_PROPERTY(LyricsBackend, lyricsBackend, LyricsBackend::Auto)
+    // Checks for system/AUR/Flatpak updates every this many hours (0 = never)
+    CONFIG_GLOBAL_PROPERTY(int, updateCheckHours, 6)
+    // A notification when updates are waiting (and when a restart is needed after them)
+    CONFIG_GLOBAL_PROPERTY(bool, updateNotify, true)
 };
 
 } // namespace caelestia::shell::config

@@ -18,6 +18,7 @@ Singleton {
     // Opened at a page (PageRegistry id) and sub-page path, e.g. ("wallpaper", [4])
     function createAt(pageId: string, path: var): void {
         const page = PageRegistry.find(pageId);
+        PageRegistry.pendingTab = PageRegistry.aliases[pageId] ? pageId : "";
         create(null, page < 0 ? {} : {
             startEntry: {
                 page,

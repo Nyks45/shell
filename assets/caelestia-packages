@@ -1,0 +1,605 @@
+#!/usr/bin/python3 -I
+"""Caelestia settings: apps and packages, read as JSON for the settings app
+(runs as the user; changes go through caelestia-admin, paru and flatpak).
+
+    caelestia-packages search QUERY             repos, AUR and Flathub at once
+    caelestia-packages info SOURCE NAME         one package (SOURCE: repo, aur, flatpak)
+    caelestia-packages installed                apps and packages installed (repo, AUR/local, Flatpak)
+    caelestia-packages popular                  the popular apps by category, with what's installed
+    caelestia-packages updates                  waiting updates (repo, AUR, Flatpak) and restart need
+    caelestia-packages news                     Arch Linux news (the latest)
+    caelestia-packages pacnew                   configuration files with an update waiting (.pacnew/.pacsave)
+    caelestia-packages pacdiff PATH             what the .pacnew changes (unified diff)
+    caelestia-packages versions NAME            older versions in the package cache (downgrade)
+    caelestia-packages holds                    packages kept back from updates (IgnorePkg)
+    caelestia-packages restart                  whether a restart is needed (kernel / driver updated)
+"""
+
+import concurrent.futures as cf
+import difflib
+import functools
+import glob
+import html
+import json
+import os
+import re
+import subprocess
+import sys
+import urllib.parse
+import urllib.request
+import gzip
+import xml.etree.ElementTree as ET
+
+import pyalpm
+
+AUR = "https://aur.archlinux.org/rpc/v5"
+UA = "caelestia-settings"
+ENV = dict(os.environ, LANG="C.UTF-8", LC_ALL="C.UTF-8")
+
+
+def out(obj):
+    json.dump(obj, sys.stdout)
+    sys.stdout.write("\n")
+
+
+def sh(*cmd, timeout=60):
+    try:
+        return subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                              env=ENV, timeout=timeout).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
+def fetch(url, timeout=10):
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read()
+
+
+# --- pacman ------------------------------------------------------------------
+
+def pacman_conf():
+    """[options] values and repository names from /etc/pacman.conf (with Include)."""
+    opts, repos, section = {}, [], None
+    try:
+        lines = open("/etc/pacman.conf").read().splitlines()
+    except OSError:
+        return opts, repos
+    for line in lines:
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            section = line[1:-1]
+            if section != "options":
+                repos.append(section)
+            continue
+        if section == "options" and "=" in line:
+            k, v = (x.strip() for x in line.split("=", 1))
+            opts[k] = (opts.get(k, "") + " " + v).strip() if k in ("IgnorePkg", "IgnoreGroup") else v
+    return opts, repos
+
+
+_handle = None
+
+
+def handle():
+    global _handle
+    if _handle is None:
+        opts, repos = pacman_conf()
+        _handle = pyalpm.Handle("/", opts.get("DBPath", "/var/lib/pacman/"))
+        for r in repos:
+            _handle.register_syncdb(r, 0)
+    return _handle
+
+
+def local():
+    return handle().get_localdb()
+
+
+def sync_pkg(name):
+    for db in handle().get_syncdbs():
+        p = db.get_pkg(name)
+        if p:
+            return p
+    return None
+
+
+def desktop_ids(pkg):
+    """The .desktop files a package installs: its launcher entries (an 'app')."""
+    return sorted({os.path.basename(f[0])[:-8] for f in pkg.files
+                   if f[0].startswith("usr/share/applications/") and f[0].endswith(".desktop")})
+
+
+# --- AppStream (archlinux-appstream-data): which repo packages are apps, their
+# names, summaries, icons and categories (like GNOME Software / Discover) ---
+
+SWCATALOG = "/usr/share/swcatalog/xml"
+CACHE = os.path.expanduser("~/.cache/caelestia/appstream-index.json")
+_apps = None
+
+
+def appstream():
+    """{pkgname: [{id, name, summary, icon, categories, keywords}]} (cached)"""
+    global _apps
+    if _apps is not None:
+        return _apps
+    files = sorted(glob.glob(f"{SWCATALOG}/*.xml.gz"))
+    stamp = [[f, os.path.getmtime(f)] for f in files]
+    try:
+        cached = json.load(open(CACHE))
+        if cached.get("stamp") == stamp:
+            _apps = cached["apps"]
+            return _apps
+    except (OSError, ValueError):
+        pass
+    apps = {}
+    for f in files:
+        try:
+            for _, el in ET.iterparse(gzip.open(f), events=("end",)):
+                if el.tag != "component":
+                    continue
+                if el.get("type") == "desktop-application":
+                    pkg = el.findtext("pkgname")
+                    names = [n for n in el.findall("name") if not n.get("{http://www.w3.org/XML/1998/namespace}lang")]
+                    sums = [n for n in el.findall("summary") if not n.get("{http://www.w3.org/XML/1998/namespace}lang")]
+                    stock = next((i.text for i in el.findall("icon") if i.get("type") == "stock"), "")
+                    if pkg and names:
+                        apps.setdefault(pkg, []).append({
+                            "id": (el.findtext("id") or "").removesuffix(".desktop"), "name": names[0].text or "",
+                            "summary": sums[0].text if sums else "", "icon": stock or "",
+                            "categories": [c.text for c in el.iter("category") if c.text],
+                            "keywords": [k.text for k in el.iter("keyword") if k.text and not k.get("{http://www.w3.org/XML/1998/namespace}lang")]})
+                el.clear()
+        except (OSError, ET.ParseError):
+            continue
+    _apps = apps
+    try:
+        os.makedirs(os.path.dirname(CACHE), exist_ok=True)
+        json.dump({"stamp": stamp, "apps": apps}, open(CACHE, "w"))
+    except OSError:
+        pass
+    return apps
+
+
+def app_of(name):
+    """The package's main app (the one named most like the package)."""
+    comps = appstream().get(name)
+    if not comps:
+        return None
+    n = re.sub(r"-(bin|git|desktop|studio)$", "", name.lower())
+    return next((c for c in comps if n in c["id"].lower()), comps[0])
+
+
+def repo_item(p, installed=None):
+    lp = installed if installed is not None else local().get_pkg(p.name)
+    d = {"source": "repo", "name": p.name, "version": p.version, "desc": p.desc or "",
+         "repo": p.db.name if p.db else "", "size": p.isize, "download": p.size,
+         "installed": bool(lp), "installedVersion": lp.version if lp else ""}
+    app = app_of(p.name)
+    if app:
+        d.update(title=app["name"], iconName=app["icon"], isApp=True, categories=app["categories"])
+        if app["summary"]:
+            d["desc"] = app["summary"]
+    return d
+
+
+def search_repo(q):
+    words = q.split()
+    if not words:
+        return []
+    found = {}
+    for db in handle().get_syncdbs():
+        for p in db.search(*[re.escape(w) for w in words]):
+            found.setdefault(p.name, p)
+    # Apps whose name, summary or keywords match (e.g. "video editor" -> kdenlive)
+    lw = [w.lower() for w in words]
+    for pkg, comps in appstream().items():
+        for c in comps:
+            text = " ".join([c["name"], c["summary"], " ".join(c["keywords"])]).lower()
+            if all(re.search(r"\b" + re.escape(w), text) for w in lw) and pkg not in found:
+                sp = sync_pkg(pkg)
+                if sp:
+                    found[pkg] = sp
+    ql = q.lower()
+
+    def rank(p):
+        n = p.name.lower()
+        app = app_of(p.name)
+        title = (app["name"] if app else "").lower()
+        whole = ql in re.split(r"[\s-]+", title) or ql in n.split("-")
+        return (n != ql and title != ql,               # exact package or app name
+                not app,                               # apps before plugins, libraries, themes
+                not whole,                             # a whole word ("OBS Studio" for obs)
+                not (n.startswith(ql) or title.startswith(ql)),
+                ql not in n and ql not in title,
+                len(n))
+    return [repo_item(p) for p in sorted(found.values(), key=rank)[:60]]
+
+
+# --- AUR -----------------------------------------------------------------------
+
+def aur_item(r):
+    lp = local().get_pkg(r["Name"])
+    return {"source": "aur", "name": r["Name"], "version": r.get("Version", ""), "desc": r.get("Description") or "",
+            "votes": r.get("NumVotes", 0), "popularity": r.get("Popularity", 0), "outOfDate": bool(r.get("OutOfDate")),
+            "maintainer": r.get("Maintainer") or "", "installed": bool(lp), "installedVersion": lp.version if lp else ""}
+
+
+def search_aur(q):
+    if len(q.strip()) < 2:
+        return []
+    data = json.loads(fetch(f"{AUR}/search/{urllib.parse.quote(q.strip())}?by=name-desc"))
+    res = data.get("results", [])
+    ql = q.lower()
+    res.sort(key=lambda r: (r["Name"].lower() != ql, -float(r.get("Popularity") or 0)))
+    return [aur_item(r) for r in res[:40]]
+
+
+def aur_info(names):
+    if not names:
+        return {}
+    out_ = {}
+    for i in range(0, len(names), 100):
+        qs = "&".join("arg[]=" + urllib.parse.quote(n) for n in names[i:i + 100])
+        for r in json.loads(fetch(f"{AUR}/info?{qs}")).get("results", []):
+            out_[r["Name"]] = r
+    return out_
+
+
+# --- Flatpak -------------------------------------------------------------------
+
+def flatpak_installed():
+    """{app id: {name, version, origin, size}}"""
+    apps = {}
+    for line in sh("flatpak", "list", "--app", "--columns=application,name,version,origin,size").splitlines():
+        f = line.split("\t")
+        if len(f) >= 4:
+            apps[f[0]] = {"name": f[1], "version": f[2], "origin": f[3], "size": f[4] if len(f) > 4 else ""}
+    return apps
+
+
+def flatpak_icon(app_id):
+    for base in ("/var/lib/flatpak/appstream", os.path.expanduser("~/.local/share/flatpak/appstream")):
+        for size in ("128x128", "64x64"):
+            for p in glob.glob(f"{base}/*/*/active/icons/{size}/{app_id}.png"):
+                return p
+    for base in ("/var/lib/flatpak/exports/share/icons/hicolor", os.path.expanduser("~/.local/share/flatpak/exports/share/icons/hicolor")):
+        for p in glob.glob(f"{base}/*/apps/{app_id}.*"):
+            return p
+    return ""
+
+
+def search_flatpak(q):
+    if not q.strip():
+        return []
+    inst = flatpak_installed()
+    res = []
+    for line in sh("flatpak", "search", "--columns=name,description,application,version,remotes", q).splitlines():
+        f = line.split("\t")
+        if len(f) < 5 or "." not in f[2]:
+            continue
+        res.append({"source": "flatpak", "name": f[0], "desc": f[1], "appId": f[2], "version": f[3],
+                    "remote": f[4].split(",")[0], "installed": f[2] in inst,
+                    "installedVersion": inst.get(f[2], {}).get("version", ""), "icon": flatpak_icon(f[2])})
+    return res[:40]
+
+
+# --- commands --------------------------------------------------------------------
+
+def c_search(args):
+    q = " ".join(args).strip()
+    result = {"repo": [], "aur": [], "flatpak": [], "errors": {}}
+    with cf.ThreadPoolExecutor(3) as ex:
+        futs = {ex.submit(search_repo, q): "repo", ex.submit(search_aur, q): "aur", ex.submit(search_flatpak, q): "flatpak"}
+        for fut in cf.as_completed(futs):
+            try:
+                result[futs[fut]] = fut.result()
+            except Exception as e:  # one source failing (offline AUR) doesn't hide the others
+                result["errors"][futs[fut]] = str(e)
+    out(result)
+
+
+def local_details(lp):
+    return {"installed": True, "installedVersion": lp.version, "installDate": lp.installdate,
+            "explicit": lp.reason == pyalpm.PKG_REASON_EXPLICIT, "requiredBy": lp.compute_requiredby(),
+            "apps": desktop_ids(lp), "size": lp.isize}
+
+
+def c_info(args):
+    source, name = args[0], args[1]
+    if source in ("repo", "aur", "local"):
+        lp = local().get_pkg(name)
+        sp = sync_pkg(name)
+        d = {"source": source, "name": name, "installed": False}
+        if sp:
+            d.update(source="repo", version=sp.version, desc=sp.desc or "", url=sp.url or "", licenses=sp.licenses,
+                     depends=sp.depends, optdepends=sp.optdepends, repo=sp.db.name, size=sp.isize, download=sp.size,
+                     packager=sp.packager, buildDate=sp.builddate)
+        elif source != "local":
+            try:
+                r = aur_info([name]).get(name)
+            except Exception as e:
+                r, d["error"] = None, str(e)
+            if r:
+                d.update(source="aur", version=r.get("Version", ""), desc=r.get("Description") or "", url=r.get("URL") or "",
+                         licenses=r.get("License") or [], depends=r.get("Depends") or [], optdepends=r.get("OptDepends") or [],
+                         makedepends=r.get("MakeDepends") or [], votes=r.get("NumVotes", 0), popularity=r.get("Popularity", 0),
+                         maintainer=r.get("Maintainer") or "", outOfDate=bool(r.get("OutOfDate")),
+                         lastModified=r.get("LastModified", 0), aurPage=f"https://aur.archlinux.org/packages/{name}")
+        app = app_of(name)
+        if app:
+            d.update(title=app["name"], iconName=app["icon"], isApp=True, summary=app["summary"],
+                     categories=app["categories"])
+        if lp:
+            if not sp and not d.get("version"):
+                d.update(source="local", version=lp.version, desc=lp.desc or "", url=lp.url or "", licenses=lp.licenses,
+                         depends=lp.depends, optdepends=lp.optdepends)
+            d.update(local_details(lp))
+            d["held"] = name in pacman_conf()[0].get("IgnorePkg", "").split()
+        out(d)
+    elif source == "flatpak":
+        inst = flatpak_installed()
+        d = {"source": "flatpak", "appId": name, "installed": name in inst, "icon": flatpak_icon(name)}
+        text = sh("flatpak", "info", name) if name in inst else sh("flatpak", "remote-info", "flathub", name)
+        for line in text.splitlines():
+            if ":" in line:
+                k, v = (x.strip() for x in line.split(":", 1))
+                key = {"ID": "id", "Version": "version", "License": "license", "Origin": "origin",
+                       "Installed": "installedSize", "Download": "downloadSize", "Runtime": "runtime",
+                       "Date": "date", "Subject": "subject"}.get(k)
+                if key:
+                    d[key] = v
+        head = [l for l in text.splitlines() if l.strip()][:1]
+        if head and " - " in head[0]:
+            d["name"], d["desc"] = (x.strip() for x in head[0].split(" - ", 1))
+        if name in inst:
+            d["installedVersion"] = inst[name]["version"]
+            d.setdefault("name", inst[name]["name"])
+        out(d)
+    else:
+        sys.exit("source: repo, aur or flatpak")
+
+
+def c_installed(args):
+    opts = pacman_conf()[0]
+    held = set(opts.get("IgnorePkg", "").split())
+    pkgs = []
+    synced = set()
+    for db in handle().get_syncdbs():
+        synced.update(p.name for p in db.pkgcache)
+    total = 0
+    for lp in local().pkgcache:
+        total += 1
+        foreign = lp.name not in synced
+        if lp.reason != pyalpm.PKG_REASON_EXPLICIT and not foreign:
+            continue
+        pkgs.append({"source": "aur" if foreign else "repo", "name": lp.name, "version": lp.version, "desc": lp.desc or "",
+                     "size": lp.isize, "installDate": lp.installdate, "explicit": lp.reason == pyalpm.PKG_REASON_EXPLICIT,
+                     "apps": desktop_ids(lp), "held": lp.name in held})
+    for app_id, a in flatpak_installed().items():
+        pkgs.append({"source": "flatpak", "name": a["name"], "appId": app_id, "version": a["version"], "desc": "",
+                     "sizeText": a["size"], "apps": [app_id], "icon": flatpak_icon(app_id)})
+    out({"packages": pkgs, "totalPackages": total})
+
+
+# Popular apps by category: the curated list (CachyOS Package Installer's job).
+# A repo package when Arch has it, else Flathub, else the AUR.
+POPULAR = [
+    ("Browsers", "language", [("repo", "firefox"), ("repo", "chromium"), ("repo", "vivaldi"), ("aur", "zen-browser-bin"),
+                              ("aur", "brave-bin"), ("aur", "google-chrome"), ("repo", "torbrowser-launcher")]),
+    ("Communication", "forum", [("repo", "discord"), ("repo", "telegram-desktop"), ("repo", "signal-desktop"),
+                                ("repo", "thunderbird"), ("repo", "element-desktop"), ("flatpak", "com.slack.Slack"),
+                                ("flatpak", "us.zoom.Zoom"), ("aur", "teams-for-linux-bin")]),
+    ("Office & writing", "description", [("repo", "libreoffice-fresh"), ("flatpak", "org.onlyoffice.desktopeditors"),
+                                         ("repo", "obsidian"), ("repo", "okular"), ("repo", "xournalpp"),
+                                         ("repo", "calibre"), ("repo", "gnome-calculator")]),
+    ("Music & video", "play_circle", [("repo", "vlc"), ("repo", "mpv"), ("flatpak", "com.spotify.Client"), ("repo", "strawberry"),
+                                      ("repo", "obs-studio"), ("repo", "kdenlive"), ("repo", "audacity"), ("repo", "handbrake")]),
+    ("Graphics & 3D", "brush", [("repo", "gimp"), ("repo", "krita"), ("repo", "inkscape"), ("repo", "blender"),
+                                ("repo", "darktable"), ("repo", "pinta")]),
+    ("Games", "sports_esports", [("repo", "steam"), ("repo", "lutris"), ("aur", "heroic-games-launcher-bin"),
+                                 ("repo", "prismlauncher"), ("repo", "retroarch"), ("flatpak", "com.usebottles.bottles"),
+                                 ("repo", "gamemode"), ("repo", "mangohud")]),
+    ("Development", "code", [("repo", "code"), ("repo", "zed"), ("repo", "neovim"), ("repo", "docker"), ("repo", "podman"),
+                             ("flatpak", "io.podman_desktop.PodmanDesktop"), ("repo", "dbeaver"), ("aur", "visual-studio-code-bin")]),
+    ("Utilities", "build", [("repo", "keepassxc"), ("flatpak", "com.bitwarden.desktop"), ("repo", "qbittorrent"),
+                            ("flatpak", "org.localsend.localsend_app"), ("repo", "syncthing"), ("repo", "flameshot"),
+                            ("repo", "filezilla"), ("repo", "virt-manager")]),
+]
+
+
+def c_popular(args):
+    fl = flatpak_installed()
+    aur_names = [n for _, _, items in POPULAR for s, n in items if s == "aur"]
+    try:
+        aur = aur_info(aur_names)
+    except Exception:
+        aur = {}
+    # Flathub names/descriptions, asked in parallel (each is a flatpak call)
+    def remote_info(name):
+        for line in [l for l in sh("flatpak", "remote-info", "--cached", "flathub", name, timeout=10).splitlines() if l.strip()][:1]:
+            if " - " in line:
+                n, d = (x.strip() for x in line.split(" - ", 1))
+                return name, {"name": n, "desc": d}
+        return name, {}
+    fl_names = [n for _, _, items in POPULAR for s, n in items if s == "flatpak"]
+    with cf.ThreadPoolExecutor(8) as ex:
+        fl_info = dict(ex.map(remote_info, fl_names))
+    cats = []
+    for title, icon, items in POPULAR:
+        entries = []
+        for source, name in items:
+            if source == "repo":
+                p = sync_pkg(name)
+                if p:
+                    entries.append(repo_item(p))
+            elif source == "aur":
+                r = aur.get(name)
+                lp = local().get_pkg(name)
+                if r:
+                    entries.append(aur_item(r))
+                elif lp:
+                    entries.append({"source": "aur", "name": name, "version": lp.version, "desc": lp.desc or "",
+                                    "installed": True, "installedVersion": lp.version})
+            else:
+                info = fl_info.get(name, {})
+                entries.append({"source": "flatpak", "appId": name, "name": info.get("name") or fl.get(name, {}).get("name") or name.split(".")[-1],
+                                "desc": info.get("desc", ""), "installed": name in fl, "icon": flatpak_icon(name),
+                                "installedVersion": fl.get(name, {}).get("version", "")})
+        cats.append({"title": title, "icon": icon, "items": entries})
+    out(cats)
+
+
+def restart_needed():
+    """Running kernel's modules gone (a kernel update) or the NVIDIA driver changed under it."""
+    reasons = []
+    rel = os.uname().release
+    if not os.path.isdir(f"/usr/lib/modules/{rel}"):
+        reasons.append("kernel")
+    try:
+        loaded = re.search(r"Kernel Module(?: for x86_64)?\s+([\d.]+)", open("/proc/driver/nvidia/version").read())
+        lp = local().get_pkg("nvidia-utils")
+        if loaded and lp and not lp.version.startswith(loaded.group(1)):
+            reasons.append("nvidia")
+    except OSError:
+        pass
+    return reasons
+
+
+def c_restart(args):
+    out({"reasons": restart_needed()})
+
+
+def parse_updates(text):
+    res = []
+    for line in text.splitlines():
+        m = re.match(r"^(\S+)\s+(\S+)\s+->\s+(\S+)", line)
+        if m:
+            res.append({"name": m.group(1), "from": m.group(2), "to": m.group(3)})
+    return res
+
+
+def c_updates(args):
+    result = {"repo": [], "aur": [], "flatpak": [], "errors": {}, "restart": restart_needed(),
+              "held": pacman_conf()[0].get("IgnorePkg", "").split()}
+
+    def repo():
+        return parse_updates(sh("checkupdates", timeout=120))
+
+    def aur():
+        return parse_updates(sh("paru", "-Qua", timeout=120)) if os.path.exists("/usr/bin/paru") else []
+
+    def flat():
+        inst = flatpak_installed()
+        res = []
+        for line in sh("flatpak", "remote-ls", "--updates", "--columns=application,version", timeout=120).splitlines():
+            f = line.split("\t")
+            if f and f[0]:
+                res.append({"name": inst.get(f[0], {}).get("name") or f[0], "appId": f[0],
+                            "from": inst.get(f[0], {}).get("version", ""), "to": f[1] if len(f) > 1 else ""})
+        return res
+
+    with cf.ThreadPoolExecutor(3) as ex:
+        futs = {ex.submit(repo): "repo", ex.submit(aur): "aur", ex.submit(flat): "flatpak"}
+        for fut in cf.as_completed(futs):
+            try:
+                result[futs[fut]] = fut.result()
+            except Exception as e:
+                result["errors"][futs[fut]] = str(e)
+    out(result)
+
+
+def c_news(args):
+    items = []
+    try:
+        root = ET.fromstring(fetch("https://archlinux.org/feeds/news/"))
+        for it in root.iter("item"):
+            desc = re.sub(r"<[^>]+>", " ", html.unescape(it.findtext("description") or ""))
+            items.append({"title": it.findtext("title") or "", "link": it.findtext("link") or "",
+                          "date": it.findtext("pubDate") or "", "summary": re.sub(r"\s+", " ", desc).strip()[:400]})
+    except Exception as e:
+        out({"items": [], "error": str(e)})
+        return
+    out({"items": items[:8]})
+
+
+def c_pacnew(args):
+    found = []
+    for dirpath, dirs, files in os.walk("/etc", onerror=lambda e: None):
+        for f in files:
+            if f.endswith((".pacnew", ".pacsave")):
+                p = os.path.join(dirpath, f)
+                orig = p.rsplit(".", 1)[0]
+                try:
+                    mtime = os.stat(p).st_mtime
+                except OSError:
+                    mtime = 0
+                found.append({"path": p, "original": orig, "kind": p.rsplit(".", 1)[1],
+                              "originalExists": os.path.exists(orig), "date": int(mtime),
+                              "readable": os.access(p, os.R_OK) and (not os.path.exists(orig) or os.access(orig, os.R_OK))})
+    found.sort(key=lambda x: -x["date"])
+    out(found)
+
+
+def c_pacdiff(args):
+    p = os.path.realpath(args[0])
+    if not p.startswith("/etc/") or not p.endswith((".pacnew", ".pacsave")):
+        sys.exit("not a .pacnew/.pacsave under /etc")
+    orig = p.rsplit(".", 1)[0]
+    try:
+        new = open(p, errors="replace").read().splitlines()
+        old = open(orig, errors="replace").read().splitlines() if os.path.exists(orig) else []
+    except OSError as e:
+        out({"error": str(e)})
+        return
+    diff = list(difflib.unified_diff(old, new, orig, p, lineterm="", n=2))
+    out({"diff": "\n".join(diff[:800]), "truncated": len(diff) > 800})
+
+
+def cache_dirs():
+    return pacman_conf()[0].get("CacheDir", "/var/cache/pacman/pkg/").split()
+
+
+def c_versions(args):
+    name = args[0]
+    lp = local().get_pkg(name)
+    vers = []
+    for d in cache_dirs():
+        for f in glob.glob(os.path.join(d, f"{glob.escape(name)}-*.pkg.tar.*")):
+            base = os.path.basename(f)
+            if base.endswith(".sig"):
+                continue
+            stem = re.sub(r"\.pkg\.tar\.\w+$", "", base)
+            parts = stem.rsplit("-", 3)
+            if len(parts) == 4 and parts[0] == name:
+                ver = f"{parts[1]}-{parts[2]}"
+                vers.append({"version": ver, "file": f, "current": bool(lp and lp.version == ver),
+                             "date": int(os.stat(f).st_mtime)})
+    vers.sort(key=functools.cmp_to_key(lambda a, b: pyalpm.vercmp(b["version"], a["version"])))
+    out({"installed": lp.version if lp else "", "versions": vers})
+
+
+def c_holds(args):
+    opts = pacman_conf()[0]
+    out({"packages": opts.get("IgnorePkg", "").split(), "groups": opts.get("IgnoreGroup", "").split()})
+
+
+COMMANDS = {"search": c_search, "info": c_info, "installed": c_installed, "popular": c_popular, "updates": c_updates,
+            "news": c_news, "pacnew": c_pacnew, "pacdiff": c_pacdiff, "versions": c_versions, "holds": c_holds,
+            "restart": c_restart}
+
+
+def main(argv):
+    if not argv or argv[0] not in COMMANDS:
+        print(__doc__, file=sys.stderr)
+        return 2
+    try:
+        return COMMANDS[argv[0]](argv[1:]) or 0
+    except IndexError:
+        print(f"usage: see caelestia-packages --help ({argv[0]})", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

@@ -96,9 +96,126 @@ def act_install(args):
 
 
 def act_upgrade(args):
-    """upgrade: every repository package (pacman -Syu)."""
-    need(args, 0, "upgrade")
-    run("pacman", "-Syu", "--noconfirm")
+    """upgrade [--ignore PKG...]: every repository package (pacman -Syu), but
+    the ones named after --ignore (pacman's own way to keep some back)."""
+    ignore = []
+    if args:
+        if args[0] != "--ignore":
+            raise Refused("usage: upgrade [--ignore PKG...]")
+        ignore = check_pkgs(args[1:])
+    run("pacman", "-Syu", "--noconfirm", *(["--ignore", ",".join(ignore)] if ignore else []))
+
+
+# Never removed from the settings (they'd leave the system unbootable or
+# without the shell): refused when a removal would take any of them
+PROTECTED = re.compile(r"^(base|base-devel|linux(-[a-z0-9-]+)?|linux-firmware.*|systemd|systemd-libs|glibc|pacman|"
+                       r"sudo|polkit|filesystem|bash|coreutils|util-linux|grub|refind|efibootmgr|mkinitcpio|dracut|"
+                       r"networkmanager|hyprland|quickshell(-git)?|caelestia-shell.*|caelestia-cli|mesa|nvidia.*|"
+                       r"lib32-nvidia.*|xdg-desktop-portal.*|pipewire|wireplumber|dbus|dbus-broker.*|openssl|"
+                       r"cachyos-keyring|archlinux-keyring|btrfs-progs|snapper)$")
+
+
+def act_remove(args):
+    """remove [--keep-deps] PKG...: uninstall packages (with the dependencies
+    nothing else needs, unless --keep-deps); refuses a removal that would take
+    an essential package along."""
+    keep = args[:1] == ["--keep-deps"]
+    names = check_pkgs(args[1:] if keep else args)
+    flags = "-R" if keep else "-Rs"
+    # What the removal would take, before anything happens
+    plan = subprocess.run(["pacman", flags + "p", "--print-format", "%n", "--", *names], text=True,
+                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if plan.returncode != 0:
+        print(plan.stdout, flush=True)
+        raise SystemExit(plan.returncode)
+    taken = plan.stdout.split()
+    bad = [n for n in taken if PROTECTED.match(n)]
+    if bad:
+        raise Refused("this would remove essential packages: " + ", ".join(bad))
+    print("Removing: " + " ".join(taken), flush=True)
+    run("pacman", flags, "--noconfirm", "--", *names)
+
+
+def cache_dirs():
+    dirs = []
+    for line in open("/etc/pacman.conf"):
+        line = line.split("#", 1)[0].strip()
+        if line.startswith("CacheDir") and "=" in line:
+            dirs += line.split("=", 1)[1].split()
+    return [os.path.realpath(d) for d in (dirs or ["/var/cache/pacman/pkg"])]
+
+
+PKGFILE = re.compile(r"^[a-z0-9@_+][a-z0-9@._+-]*-[^-/]+-[^-/]+-(x86_64(_v[234])?|any)\.pkg\.tar\.(zst|xz)$")
+
+
+def act_downgrade(args):
+    """downgrade FILE: install an older version from the package cache (only a
+    package file that is in the cache)."""
+    need(args, 1, "downgrade FILE")
+    path = os.path.realpath(args[0])
+    if os.path.dirname(path) not in cache_dirs() or not PKGFILE.match(os.path.basename(path)) or not os.path.isfile(path):
+        raise Refused("not a package file in the package cache")
+    run("pacman", "-U", "--noconfirm", "--", path)
+
+
+def set_ignore(pkg, hold, path="/etc/pacman.conf"):
+    """IgnorePkg in pacman.conf's [options]: add or drop one package (the
+    first IgnorePkg line, commented or not, becomes the one line)."""
+    lines = open(path).read().split("\n")
+    try:
+        start = next(i for i, l in enumerate(lines) if l.strip() == "[options]")
+    except StopIteration:
+        raise Refused("no [options] section in pacman.conf")
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].strip().startswith("[")), len(lines))
+    names, first = [], None
+    for i in range(start + 1, end):
+        m = re.match(r"^\s*(#?)\s*IgnorePkg\s*=(.*)$", lines[i])
+        if m:
+            first = i if first is None else first
+            if not m.group(1):
+                names += m.group(2).split()
+            lines[i] = None
+    names = [n for n in dict.fromkeys(names) if n != pkg] + ([pkg] if hold else [])
+    new = ("IgnorePkg   = " + " ".join(names)) if names else "#IgnorePkg   ="
+    if first is not None:
+        lines[first] = new
+    else:
+        lines.insert(end, new)
+    if not os.path.exists(path + ".caelestia-bak"):
+        run("cp", "-a", path, path + ".caelestia-bak")
+    write_file(path, "\n".join(l for l in lines if l is not None))
+
+
+def act_hold(args):
+    """hold PKG: keep it at its version (left out of updates)."""
+    need(args, 1, "hold PKG")
+    set_ignore(check_pkgs(args)[0], True)
+
+
+def act_unhold(args):
+    """unhold PKG: update it again."""
+    need(args, 1, "unhold PKG")
+    set_ignore(check_pkgs(args)[0], False)
+
+
+def act_pacnew(args):
+    """pacnew PATH keep-new|keep-old: a configuration file an update brought
+    (.pacnew) or kept (.pacsave): use it (the current one is saved as
+    .caelestia-old) or keep the current one (it is deleted)."""
+    need(args, 2, "pacnew PATH keep-new|keep-old")
+    path = args[0]
+    if (os.path.realpath(path) != path or not path.startswith("/etc/") or not path.endswith((".pacnew", ".pacsave"))
+            or not os.path.isfile(path)):
+        raise Refused("not a .pacnew/.pacsave file under /etc")
+    orig = path.rsplit(".", 1)[0]
+    if args[1] == "keep-new":
+        if os.path.exists(orig):
+            run("cp", "-a", orig, orig + ".caelestia-old")
+        run("mv", "-f", path, orig)
+    elif args[1] == "keep-old":
+        run("rm", "-f", path)
+    else:
+        raise Refused("keep-new or keep-old")
 
 
 def act_remove_orphans(args):
@@ -363,6 +480,11 @@ ACTIONS = {
     "power-key": act_power_key,
     "install": act_install,
     "upgrade": act_upgrade,
+    "remove": act_remove,
+    "downgrade": act_downgrade,
+    "hold": act_hold,
+    "unhold": act_unhold,
+    "pacnew": act_pacnew,
     "remove-orphans": act_remove_orphans,
     "clean-package-cache": act_clean_package_cache,
     "journal-vacuum": act_journal_vacuum,

@@ -184,6 +184,9 @@ QtObject {
             input: "devices",
             startup: "apps",
             updates: "apps",
+            getapps: "apps",
+            installed: "apps",
+            defaultapps: "apps",
             multitasking: "workspaces",
             shortcuts: "workspaces",
             screenshots: "workspaces",
@@ -193,6 +196,10 @@ QtObject {
             logs: "system",
             plugins: "system"
         })
+
+    // A tab to show when a page opens at a former id (createAt "updates" ->
+    // Apps, Updates tab): taken by that page's PartTabs (see TabPart.key)
+    property string pendingTab
 
     // A page's index by its id (or a former id)
     function find(id: string): int {

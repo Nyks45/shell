@@ -217,7 +217,8 @@ QtObject {
             }
         },
         Component {
-            // Apps: updates, apps, startup apps (0), all apps (1), one app (2)
+            // Apps: installed, get apps, updates, defaults, startup (0), all
+            // apps (1), one app's launcher settings (2), one package (3)
             StackPage {
                 Component {
                     AppsAllPage {}
@@ -227,6 +228,9 @@ QtObject {
                 }
                 Component {
                     AppInfo {}
+                }
+                Component {
+                    PackagePage {}
                 }
             }
         },

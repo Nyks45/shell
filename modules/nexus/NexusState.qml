@@ -34,6 +34,8 @@ QtObject {
     property string logUnit
     // Account: the other person's account being looked at
     property string selectedUser
+    // Settings › Apps: the package a page shows ({ source, name, title })
+    property var selectedPackage: null
     property bool networkDetailsFromSaved
 
     signal close

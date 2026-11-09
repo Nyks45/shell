@@ -8,8 +8,10 @@ import qs.modules.nexus.common
 import qs.modules.nexus.pages
 import qs.modules.nexus.pages.apps
 
-// Apps: default apps and favourites, apps that start at login, updates; one at a time (tabs).
-// The parts are the former pages, embedded (PageBase.embedded).
+// Apps: what's installed, getting apps (repositories, AUR, Flathub), updates,
+// default apps, apps that start at login; one at a time (tabs). The parts are
+// pages of their own, embedded (PageBase.embedded); each tab's key is its
+// former page id (opening Settings at "updates" shows that tab).
 PageBase {
     id: root
 
@@ -22,15 +24,53 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         PartTabs {
-            parts: [appsPart, startupPart, updatesPart]
+            parts: [installedPart, getPart, updatesPart, defaultsPart, startupPart]
         }
 
         TabPart {
-            id: appsPart
+            id: installedPart
 
-            title: Tr.tr("Apps")
-            icon: "apps"
-            summary: Tr.tr("Default apps, favourites, all installed apps")
+            key: "installed"
+            title: Tr.tr("Installed")
+
+            InstalledPage {
+                embedded: true
+                nState: root.nState
+                hostFlickable: root.flickable
+            }
+        }
+
+        TabPart {
+            id: getPart
+
+            key: "getapps"
+            title: Tr.tr("Get apps")
+
+            GetAppsPage {
+                embedded: true
+                nState: root.nState
+                hostFlickable: root.flickable
+            }
+        }
+
+        TabPart {
+            id: updatesPart
+
+            key: "updates"
+            title: Tr.tr("Updates")
+
+            UpdatesPage {
+                embedded: true
+                nState: root.nState
+                hostFlickable: root.flickable
+            }
+        }
+
+        TabPart {
+            id: defaultsPart
+
+            key: "defaultapps"
+            title: Tr.tr("Default apps")
 
             AppsPage {
                 embedded: true
@@ -42,25 +82,10 @@ PageBase {
         TabPart {
             id: startupPart
 
+            key: "startup"
             title: Tr.tr("Startup")
-            icon: "rocket_launch"
-            summary: Tr.tr("Apps that start when you log in")
 
             StartupPage {
-                embedded: true
-                nState: root.nState
-                hostFlickable: root.flickable
-            }
-        }
-
-        TabPart {
-            id: updatesPart
-
-            title: Tr.tr("Updates")
-            icon: "system_update"
-            summary: Tr.tr("System and app updates")
-
-            UpdatesPage {
                 embedded: true
                 nState: root.nState
                 hostFlickable: root.flickable

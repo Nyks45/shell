@@ -34,6 +34,8 @@ ShellRoot {
         LiveWallpaper;
         // The session's polkit agent (password prompts)
         Polkit;
+        // Checks for updates every few hours and notifies (Settings › Apps)
+        Packages;
 
         if (GlobalConfig.utilities.vpn.enabled)
             VPN;

@@ -3840,6 +3840,46 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Restart to finish updating",
+            "ctx": "",
+            "sub": "A new kernel is installed; the running one has no drivers to load any more.",
+            "section": "",
+            "page": 11,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Check again",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 11,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Check for updates",
+            "ctx": "",
+            "sub": "",
+            "section": "Automatic checks",
+            "page": 11,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Notify me",
+            "ctx": "",
+            "sub": "When updates are waiting, and when a restart is needed after one",
+            "section": "Automatic checks",
+            "page": 11,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Terminal",
             "ctx": "default app category",
             "sub": "",
@@ -3985,26 +4025,6 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Add",
-            "page": 11,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Check again",
-            "ctx": "",
-            "sub": "",
-            "section": "System updates",
-            "page": 11,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Update everything",
-            "ctx": "",
-            "sub": "",
-            "section": "System updates",
             "page": 11,
             "path": [],
             "trail": [],
