@@ -41,7 +41,33 @@ PageBase {
         PartTabs {
             id: tabs
 
-            parts: [servicesPart, logsPart, pluginsPart]
+            parts: [bootPart, kernelsPart, servicesPart, logsPart, pluginsPart]
+        }
+
+        TabPart {
+            id: bootPart
+
+            key: "boot"
+            title: Tr.tr("Boot menu")
+
+            BootPage {
+                embedded: true
+                nState: root.nState
+                hostFlickable: root.flickable
+            }
+        }
+
+        TabPart {
+            id: kernelsPart
+
+            key: "kernels"
+            title: Tr.tr("Kernels")
+
+            KernelsPage {
+                embedded: true
+                nState: root.nState
+                hostFlickable: root.flickable
+            }
         }
 
         TabPart {

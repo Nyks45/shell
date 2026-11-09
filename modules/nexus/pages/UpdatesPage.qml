@@ -94,6 +94,7 @@ PageBase {
     }
 
     function loadExtras(): void {
+        pacnewOpen = null;
         newsProc.running = true;
         pacnewProc.running = true;
     }
@@ -227,122 +228,124 @@ PageBase {
             font: Tokens.font.label.small
         }
 
+        // The files (sibling rows), then the opened one's difference and choices
         Repeater {
             model: root.pacnew
 
-            ColumnLayout {
-                id: pn
+        RowButton {
+            required property var modelData
 
-                required property var modelData
+            Layout.fillWidth: true
+            icon: "difference"
+            text: modelData.original
+            subtext: (modelData.kind === "replaced" ? Tr.tr("Replaced by the new one on %1; yours is saved").arg(Qt.formatDate(new Date(modelData.date * 1000), "d MMM yyyy")) : modelData.kind === "pacsave" ? Tr.tr("Saved when its package was removed") : Tr.tr("New version from %1").arg(Qt.formatDate(new Date(modelData.date * 1000), "d MMM yyyy"))) + (root.pacnewOpen?.path === modelData.path ? "" : " · " + Tr.tr("tap to see the difference"))
+            trailingIcon: root.pacnewOpen?.path === modelData.path ? "expand_less" : "expand_more"
+            onClicked: {
+                if (root.pacnewOpen?.path === modelData.path) {
+                    root.pacnewOpen = null;
+                    return;
+                }
+                root.pacnewOpen = modelData;
+                root.pacnewInfo = null;
+                root.pacnewConfirm = false;
+                root.pacnewDiff = Tr.tr("Reading…");
+                diffProc.command = [Packages.helper, "pacdiff", modelData.path];
+                diffProc.running = true;
+            }
+        }
 
+        }
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.topMargin: Tokens.spacing.small
+            visible: !!root.pacnewOpen
+            spacing: Tokens.spacing.extraSmall / 2
+
+            StyledRect {
                 Layout.fillWidth: true
-                spacing: Tokens.spacing.extraSmall / 2
+                visible: true
+                implicitHeight: Math.min(diffText.implicitHeight + Tokens.padding.medium * 2, 360)
+                radius: Tokens.rounding.small
+                color: Colours.tPalette.m3surfaceContainerHigh
+                clip: true
 
-                RowButton {
-                    Layout.fillWidth: true
-                    icon: "difference"
-                    text: pn.modelData.original
-                    subtext: (pn.modelData.kind === "replaced" ? Tr.tr("Replaced by the new one on %1; yours is saved").arg(Qt.formatDate(new Date(pn.modelData.date * 1000), "d MMM yyyy")) : pn.modelData.kind === "pacsave" ? Tr.tr("Saved when its package was removed") : Tr.tr("New version from %1").arg(Qt.formatDate(new Date(pn.modelData.date * 1000), "d MMM yyyy"))) + (root.pacnewOpen?.path === pn.modelData.path ? "" : " · " + Tr.tr("tap to see the difference"))
-                    trailingIcon: root.pacnewOpen?.path === pn.modelData.path ? "expand_less" : "expand_more"
+                StyledFlickable {
+                    anchors.fill: parent
+                    anchors.margins: Tokens.padding.medium
+                    contentHeight: diffText.implicitHeight
+                    contentWidth: width
+
+                    StyledText {
+                        id: diffText
+
+                        width: parent.width
+                        text: root.pacnewDiff || Tr.tr("No difference")
+                        wrapMode: Text.WrapAnywhere
+                        font: Tokens.font.mono.small
+                        textFormat: Text.PlainText
+                    }
+                }
+            }
+
+            // What using the new one would cost: your settings it doesn't have
+            StyledText {
+                Layout.fillWidth: true
+                Layout.leftMargin: Tokens.padding.small
+                Layout.topMargin: Tokens.spacing.small
+                visible: !!root.pacnewInfo && root.pacnewOpen?.kind === "pacnew"
+                readonly property var lost: root.pacnewInfo?.lost ?? []
+                readonly property var added: root.pacnewInfo?.added ?? []
+                text: (root.pacnewInfo?.critical ? Tr.tr("This file keeps your system working the way it's set up. Keep yours unless you're sure.") + "\n" : "") + (lost.length > 0 ? Tr.tr("Using the new one loses %1 of your settings: %2").arg(lost.length).arg(lost.slice(0, 10).join(" · ") + (lost.length > 10 ? " …" : "")) : Tr.tr("The new one keeps all your settings.")) + (added.length > 0 ? "\n" + Tr.tr("New in it: %1").arg(added.slice(0, 10).join(" · ")) : "")
+                wrapMode: Text.WordWrap
+                color: lost.length > 0 || root.pacnewInfo?.critical ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
+                font: Tokens.font.label.small
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.topMargin: Tokens.spacing.small
+                Layout.bottomMargin: Tokens.spacing.small
+                visible: true
+                spacing: Tokens.spacing.small
+
+                // A replaced file: put yours back (or keep the new one: forget yours)
+                TextButton {
+                    visible: root.pacnewOpen?.kind === "replaced"
+                    text: Tr.tr("Put mine back")
+                    type: TextButton.Filled
+                    onClicked: Admin.run("pacnew-undo", [root.pacnewOpen?.path], Tr.tr("Put your %1 back").arg(root.pacnewOpen?.original), () => root.loadExtras())
+                }
+
+                TextButton {
+                    visible: root.pacnewOpen?.kind === "replaced"
+                    text: Tr.tr("Keep the new one")
+                    type: TextButton.Tonal
+                    onClicked: Admin.run("pacnew-undo", [root.pacnewOpen?.path, "--forget"], Tr.tr("Keep the new %1").arg(root.pacnewOpen?.original), () => root.loadExtras())
+                }
+
+                // Keeping yours is the safe choice: first
+                TextButton {
+                    visible: root.pacnewOpen?.kind !== "replaced"
+                    text: root.pacnewOpen?.kind === "pacsave" ? Tr.tr("Delete it") : Tr.tr("Keep mine")
+                    type: TextButton.Filled
+                    onClicked: Admin.run("pacnew", [root.pacnewOpen?.path, "keep-old"], Tr.tr("Keep your %1").arg(root.pacnewOpen?.original), () => root.loadExtras())
+                }
+
+                TextButton {
+                    visible: root.pacnewOpen?.kind !== "replaced"
+                    readonly property bool risky: root.pacnewOpen?.kind === "pacnew" && ((root.pacnewInfo?.lost ?? []).length > 0 || !!root.pacnewInfo?.critical)
+
+                    enabled: !!root.pacnewInfo || root.pacnewOpen?.kind === "pacsave"
+                    text: root.pacnewOpen?.kind === "pacsave" ? Tr.tr("Put it back") : risky && root.pacnewConfirm ? Tr.tr("Yes, use the new one and lose those") : Tr.tr("Use the new one")
+                    type: TextButton.Tonal
                     onClicked: {
-                        if (root.pacnewOpen?.path === pn.modelData.path) {
-                            root.pacnewOpen = null;
+                        if (risky && !root.pacnewConfirm) {
+                            root.pacnewConfirm = true;
                             return;
                         }
-                        root.pacnewOpen = pn.modelData;
-                        root.pacnewInfo = null;
                         root.pacnewConfirm = false;
-                        root.pacnewDiff = Tr.tr("Reading…");
-                        diffProc.command = [Packages.helper, "pacdiff", pn.modelData.path];
-                        diffProc.running = true;
-                    }
-                }
-
-                StyledRect {
-                    Layout.fillWidth: true
-                    visible: root.pacnewOpen?.path === pn.modelData.path
-                    implicitHeight: Math.min(diffText.implicitHeight + Tokens.padding.medium * 2, 360)
-                    radius: Tokens.rounding.small
-                    color: Colours.tPalette.m3surfaceContainerHigh
-                    clip: true
-
-                    StyledFlickable {
-                        anchors.fill: parent
-                        anchors.margins: Tokens.padding.medium
-                        contentHeight: diffText.implicitHeight
-                        contentWidth: width
-
-                        StyledText {
-                            id: diffText
-
-                            width: parent.width
-                            text: root.pacnewDiff || Tr.tr("No difference")
-                            wrapMode: Text.WrapAnywhere
-                            font: Tokens.font.mono.small
-                            textFormat: Text.PlainText
-                        }
-                    }
-                }
-
-                // What using the new one would cost: your settings it doesn't have
-                StyledText {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: Tokens.padding.small
-                    Layout.topMargin: Tokens.spacing.small
-                    visible: root.pacnewOpen?.path === pn.modelData.path && !!root.pacnewInfo && pn.modelData.kind === "pacnew"
-                    readonly property var lost: root.pacnewInfo?.lost ?? []
-                    readonly property var added: root.pacnewInfo?.added ?? []
-                    text: (root.pacnewInfo?.critical ? Tr.tr("This file keeps your system working the way it's set up. Keep yours unless you're sure.") + "\n" : "") + (lost.length > 0 ? Tr.tr("Using the new one loses %1 of your settings: %2").arg(lost.length).arg(lost.slice(0, 10).join(" · ") + (lost.length > 10 ? " …" : "")) : Tr.tr("The new one keeps all your settings.")) + (added.length > 0 ? "\n" + Tr.tr("New in it: %1").arg(added.slice(0, 10).join(" · ")) : "")
-                    wrapMode: Text.WordWrap
-                    color: lost.length > 0 || root.pacnewInfo?.critical ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
-                    font: Tokens.font.label.small
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.topMargin: Tokens.spacing.small
-                    Layout.bottomMargin: Tokens.spacing.small
-                    visible: root.pacnewOpen?.path === pn.modelData.path
-                    spacing: Tokens.spacing.small
-
-                    // A replaced file: put yours back (or keep the new one: forget yours)
-                    TextButton {
-                        visible: pn.modelData.kind === "replaced"
-                        text: Tr.tr("Put mine back")
-                        type: TextButton.Filled
-                        onClicked: Admin.run("pacnew-undo", [pn.modelData.path], Tr.tr("Put your %1 back").arg(pn.modelData.original), () => root.loadExtras())
-                    }
-
-                    TextButton {
-                        visible: pn.modelData.kind === "replaced"
-                        text: Tr.tr("Keep the new one")
-                        type: TextButton.Tonal
-                        onClicked: Admin.run("pacnew-undo", [pn.modelData.path, "--forget"], Tr.tr("Keep the new %1").arg(pn.modelData.original), () => root.loadExtras())
-                    }
-
-                    // Keeping yours is the safe choice: first
-                    TextButton {
-                        visible: pn.modelData.kind !== "replaced"
-                        text: pn.modelData.kind === "pacsave" ? Tr.tr("Delete it") : Tr.tr("Keep mine")
-                        type: TextButton.Filled
-                        onClicked: Admin.run("pacnew", [pn.modelData.path, "keep-old"], Tr.tr("Keep your %1").arg(pn.modelData.original), () => root.loadExtras())
-                    }
-
-                    TextButton {
-                        visible: pn.modelData.kind !== "replaced"
-                        readonly property bool risky: pn.modelData.kind === "pacnew" && ((root.pacnewInfo?.lost ?? []).length > 0 || !!root.pacnewInfo?.critical)
-
-                        enabled: !!root.pacnewInfo || pn.modelData.kind === "pacsave"
-                        text: pn.modelData.kind === "pacsave" ? Tr.tr("Put it back") : risky && root.pacnewConfirm ? Tr.tr("Yes, use the new one and lose those") : Tr.tr("Use the new one")
-                        type: TextButton.Tonal
-                        onClicked: {
-                            if (risky && !root.pacnewConfirm) {
-                                root.pacnewConfirm = true;
-                                return;
-                            }
-                            root.pacnewConfirm = false;
-                            Admin.run("pacnew", [pn.modelData.path, "keep-new"], Tr.tr("Use the new %1").arg(pn.modelData.original), () => root.loadExtras());
-                        }
+                        Admin.run("pacnew", [root.pacnewOpen?.path, "keep-new"], Tr.tr("Use the new %1").arg(root.pacnewOpen?.original), () => root.loadExtras());
                     }
                 }
             }

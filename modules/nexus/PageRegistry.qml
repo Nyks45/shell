@@ -159,8 +159,8 @@ QtObject {
             id: "system",
             label: Tr.tr("System"),
             icon: "settings_applications",
-            description: Tr.tr("Services, logs, plugins"),
-            keywords: "systemd service services daemon unit start stop restart enable disable mask boot startup timer timers scheduled task cron failed journal journalctl log logs error errors warnings previous crash crashes coredump bug report dmesg hyprpm plugins hyprland system",
+            description: Tr.tr("Boot menu, kernels, services, logs"),
+            keywords: "refind boot menu bootloader grub theme kernel kernels linux-cachyos lts secure boot sbctl uefi bios firmware fwupd windows dual boot timeout systemd service services daemon unit start stop restart enable disable mask boot startup timer timers scheduled task cron failed journal journalctl log logs error errors warnings previous crash crashes coredump bug report dmesg hyprpm plugins hyprland system",
             category: "advanced"
         },
         {
@@ -194,7 +194,9 @@ QtObject {
             language: "time",
             systemd: "system",
             logs: "system",
-            plugins: "system"
+            plugins: "system",
+            boot: "system",
+            kernels: "system"
         })
 
     // A tab to show when a page opens at a former id (createAt "updates" ->

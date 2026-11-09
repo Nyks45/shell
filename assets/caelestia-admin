@@ -12,6 +12,7 @@ can't be used to run anything else.
 to stdout, errors to stderr; exit 2 = refused (bad action or argument).
 """
 
+import json
 import os
 import pwd
 import re
@@ -609,12 +610,8 @@ def act_boot_setup(args):
     act_boot_kernels([])
 
 
-def act_boot_set(args):
-    """boot-set KEY [VALUE...]: one menu setting (timeout, default_selection,
-    big_icon_size, small_icon_size, showtools, hideui, resolution)."""
-    if not args:
-        raise Refused("boot-set KEY VALUE")
-    key, vals = args[0], args[1:]
+def boot_value(key, vals, lines):
+    """A menu setting's value as written in refind.conf, checked."""
     if key == "timeout":
         need(vals, 1, "boot-set timeout SECONDS")
         if not re.fullmatch(r"-1|[0-9]{1,3}", vals[0]) or int(vals[0]) > 600:
@@ -627,7 +624,7 @@ def act_boot_set(args):
         value = vals[0]
     elif key == "default_selection":
         need(vals, 1, "boot-set default_selection ENTRY|+")
-        names = {m.group(1) for l in refind_lines() if (m := re.match(r'^\s*menuentry\s+"([^"]+)"', l))}
+        names = {m.group(1) for l in lines if (m := re.match(r'^\s*menuentry\s+"([^"]+)"', l))}
         if vals[0] != "+" and vals[0] not in names:
             raise Refused("not a boot menu entry")
         value = vals[0] if vals[0] == "+" else f'"{vals[0]}"'
@@ -646,7 +643,16 @@ def act_boot_set(args):
         value = vals[0].replace("x", " ")
     else:
         raise Refused(f"unknown setting {key!r}")
-    refind_write(set_directive(refind_lines(), key, value))
+    return value
+
+
+def act_boot_set(args):
+    """boot-set KEY [VALUE...]: one menu setting (timeout, default_selection,
+    big_icon_size, small_icon_size, showtools, hideui, resolution)."""
+    if not args:
+        raise Refused("boot-set KEY VALUE")
+    lines = refind_lines()
+    refind_write(set_directive(lines, args[0], boot_value(args[0], args[1:], lines)))
 
 
 FLAVOURS = ("mocha", "macchiato", "frappe", "latte")
@@ -762,6 +768,200 @@ def act_boot_kernels(args):
     refind_write(lines)
 
 
+
+def entry_block(lines, name):
+    """(start, end) line indexes of the top-level menuentry NAME (end = its closing brace)."""
+    for i, l in enumerate(lines):
+        m = re.match(r'^\s*menuentry\s+"?([^"{]+?)"?\s*\{\s*$', l)
+        if m and m.group(1).strip() == name:
+            depth = 0
+            for j in range(i, len(lines)):
+                bare = "" if lines[j].strip().startswith("#") else lines[j].strip()
+                depth += bare.endswith("{") - (bare == "}")
+                if depth == 0:
+                    return i, j
+    return None
+
+
+def entry_set(lines, name, key, value):
+    """KEY VALUE inside the entry's own level (not in submenus); value None removes it."""
+    blk = entry_block(lines, name)
+    if not blk:
+        raise Refused(f"no boot menu entry {name!r}")
+    i, j = blk
+    depth = 0
+    for k in range(i, j):
+        bare = "" if lines[k].strip().startswith("#") else lines[k].strip()
+        if depth == 1 and (bare == key or bare.startswith(key + " ")):
+            if value is None:
+                del lines[k]
+            else:
+                lines[k] = f"    {key} {value}".rstrip() if value != "" else f"    {key}"
+            return lines
+        depth += bare.endswith("{") - (bare == "}")
+    if value is not None:
+        lines.insert(i + 1, f"    {key} {value}".rstrip() if value != "" else f"    {key}")
+    return lines
+
+
+# Marks an entry hidden from Settings (rEFInd's own sample entries are disabled too)
+HIDDEN_MARK = "    # hidden in Settings (show it again in Settings › System › Boot menu)"
+ICON_NAME = re.compile(r"^[A-Za-z0-9_.+-]+\.png$")
+
+
+def entry_icon(lines, name, spec, user_home):
+    """theme:FILE (the theme's icons folder), stock:FILE (rEFInd's icons),
+    local:FILE (themes/local), or file:PATH (your picture, copied as PNG)."""
+    kind, _, val = spec.partition(":")
+    if kind == "file":
+        path = os.path.realpath(val)
+        if not path.startswith(user_home + "/") or not os.path.isfile(path) or os.path.getsize(path) > 8 * 1024 * 1024:
+            raise Refused("an icon picture (up to 8 MB) in your home folder")
+        safe = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_") or "entry"
+        dst = f"{REFIND}/themes/local/icon_{safe}.png"
+        if not DRY:
+            from PIL import Image
+            img = Image.open(path)
+            img.load()
+            img = img.convert("RGBA")
+            img.thumbnail((512, 512))
+            img.save(dst + ".tmp", "PNG")
+            os.replace(dst + ".tmp", dst)
+        print(f"$ icon {path} -> {dst}", flush=True)
+        rel = f"/EFI/refind/themes/local/icon_{safe}.png"
+    else:
+        if not ICON_NAME.match(val):
+            raise Refused("not an icon file name")
+        lines_text = "\n".join(lines)
+        flavour = (re.search(r"themes/catppuccin/(\w+)\.conf", lines_text) or [None, "mocha"])[1]
+        base = {"theme": f"/EFI/refind/themes/catppuccin/assets/{flavour}/icons", "stock": "/EFI/refind/icons",
+                "local": "/EFI/refind/themes/local"}.get(kind)
+        if not base:
+            raise Refused("icon: theme:, stock:, local: or file:")
+        if not DRY and not os.path.exists("/boot" + base + "/" + val):
+            raise Refused(f"no icon {val} there")
+        rel = f"{base}/{val}"
+    return entry_set(lines, name, "icon", rel)
+
+
+def act_boot_apply(args):
+    """boot-apply: the settings' draft of the boot menu, all at once (JSON on
+    stdin: set, theme, background, entries [{name, newName, icon, visible}],
+    order, options), written once."""
+    need(args, 0, "boot-apply  (JSON on stdin)")
+    try:
+        d = json.loads(sys.stdin.read() or "{}")
+    except ValueError:
+        raise Refused("not JSON")
+    user = caller()
+    home = pwd.getpwnam(user).pw_dir
+    lines = refind_lines()
+    # Menu settings (each checked like boot-set)
+    # entry renames first, so a default_selection can name the new name
+    for key, val in (d.get("set") or {}).items():
+        if key == "default_selection":
+            continue
+        vals = val if isinstance(val, list) else [str(val)]
+        lines = set_directive(lines, key, boot_value(key, vals, lines))
+    if d.get("theme"):
+        if d["theme"] not in FLAVOURS:
+            raise Refused("unknown flavour")
+        lines = [re.sub(r"(themes/catppuccin/(?:assets/)?)(mocha|macchiato|frappe|latte)(\.conf|/)", rf"\g<1>{d['theme']}\3", l)
+                 for l in lines]
+    if d.get("background"):
+        bg = d["background"]
+        if bg == "--theme":
+            flavour = (re.search(r"themes/catppuccin/(\w+)\.conf", "\n".join(lines)) or [None, "mocha"])[1]
+            lines = set_directive(lines, "banner", f"themes/catppuccin/assets/{flavour}/background.png")
+        else:
+            path = os.path.realpath(bg)
+            if not path.startswith(home + "/") or not os.path.isfile(path) or os.path.getsize(path) > 40 * 1024 * 1024:
+                raise Refused("a picture (up to 40 MB) in your home folder")
+            dst = REFIND + "/themes/local/background.png"
+            if not DRY:
+                if os.path.exists(dst) and not os.path.exists(dst + ".caelestia-orig"):
+                    run("cp", "-a", dst, dst + ".caelestia-orig")
+                from PIL import Image
+                img = Image.open(path)
+                img.load()
+                img.convert("RGB").save(dst + ".tmp", "PNG")
+                os.replace(dst + ".tmp", dst)
+            print(f"$ background {path} -> {dst}", flush=True)
+            lines = set_directive(lines, "banner", "themes/local/background.png")
+    renames = {}
+    for e in d.get("entries") or []:
+        name = e.get("name", "")
+        if not entry_block(lines, name):
+            raise Refused(f"no boot menu entry {name!r}")
+        if e.get("icon"):
+            lines = entry_icon(lines, name, e["icon"], home)
+        if "visible" in e:
+            lines = entry_set(lines, name, "disabled", None if e["visible"] else "")
+            i, j = entry_block(lines, name)
+            marks = [k for k in range(i, j) if lines[k].strip() == HIDDEN_MARK.strip()]
+            for k in reversed(marks):
+                del lines[k]
+            if not e["visible"]:
+                lines.insert(i + 1, HIDDEN_MARK)
+        new = (e.get("newName") or "").strip()
+        if new and new != name:
+            if not re.fullmatch(r"[A-Za-z0-9 ._()+-]{1,40}", new):
+                raise Refused("a name: letters, numbers, spaces, . _ ( ) + -")
+            i, _ = entry_block(lines, name)
+            lines[i] = re.sub(r'menuentry\s+"?[^"{]+?"?\s*\{', f'menuentry "{new}" {{', lines[i])
+            renames[name] = new
+    if "default_selection" in (d.get("set") or {}):
+        lines = set_directive(lines, "default_selection", boot_value("default_selection", [str(d["set"]["default_selection"])], lines))
+    elif renames:
+        for i, l in top_level(lines):
+            m = re.match(r'^\s*default_selection\s+"?([^"]+)"?\s*$', l)
+            if m and m.group(1) in renames:
+                lines[i] = f'default_selection "{renames[m.group(1)]}"'
+    order = d.get("order") or []
+    if order:
+        blocks = []
+        for name in order:
+            blk = entry_block(lines, renames.get(name, name))
+            if not blk:
+                raise Refused(f"no boot menu entry {name!r}")
+            blocks.append(blk)
+        # Each entry with the comment lines right above it, in the new order,
+        # where the first of them was; one blank line between them
+        spans = []
+        for a, b in blocks:
+            while a > 0 and lines[a - 1].strip().startswith("#"):
+                a -= 1
+            spans.append((a, b))
+        texts = [lines[a:b + 1] for a, b in spans]
+        at = min(a for a, _ in spans)
+        for a, b in sorted(spans, reverse=True):
+            end = b + 1
+            while end < len(lines) and not lines[end].strip() and a > 0 and not lines[a - 1].strip():
+                end += 1  # the blank lines after it go with it (no gaps left behind)
+            del lines[a:end]
+        at = min(at, len(lines))
+        new = []
+        for t in texts:
+            new += t + [""]
+        lines[at:at] = new
+    if d.get("options"):
+        opts = d["options"]
+        if not all(OPTION.match(o) for o in opts) or not any(o.startswith("root=") for o in opts) or "rw" not in opts:
+            raise Refused("options: root= and rw must stay; letters, numbers and = , . : / @ + - only")
+        name = renames.get("CachyOS", "CachyOS")
+        blk = entry_block(lines, name)
+        if blk:
+            i, j = blk
+            for k in range(i + 1, j):
+                bare = lines[k].strip()
+                if bare.startswith(("submenuentry", "#")):
+                    break
+                if bare.startswith("options"):
+                    lines[k] = '    options  "' + " ".join(opts) + '"'
+                    break
+    refind_write(lines)
+
+
 def act_efi_bootnext(args):
     """efi-bootnext NNNN: start this UEFI entry once at the next boot."""
     need(args, 1, "efi-bootnext NNNN")
@@ -800,6 +1000,17 @@ def act_kernel_install(args):
     if not KERNEL.match(args[0]) or args[0].endswith(("-headers", "-docs")):
         raise Refused("not a kernel package name")
     run("pacman", "-S", "--needed", "--noconfirm", "--", *kernel_pkgs(args[0]))
+    # Secure Boot with sbctl: sign the new kernel and remember it (sbctl's
+    # pacman hook re-signs it on updates); unsigned it wouldn't start
+    kernel = f"/boot/vmlinuz-{args[0]}"
+    if os.path.exists("/usr/bin/sbctl") and os.path.exists(kernel):
+        status = subprocess.run(["sbctl", "status", "--json"], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout
+        try:
+            installed = json.loads(status).get("installed", False)
+        except ValueError:
+            installed = False
+        if installed:
+            run("sbctl", "sign", "-s", kernel)
     act_boot_kernels([])
 
 
@@ -833,6 +1044,7 @@ ACTIONS = {
     "boot-export": act_boot_export,
     "boot-setup": act_boot_setup,
     "boot-set": act_boot_set,
+    "boot-apply": act_boot_apply,
     "boot-theme": act_boot_theme,
     "boot-background": act_boot_background,
     "boot-options": act_boot_options,

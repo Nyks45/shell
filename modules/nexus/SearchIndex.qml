@@ -4741,6 +4741,136 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "See and change your boot menu here",
+            "ctx": "",
+            "sub": "Once: lets the settings read the boot menu (it's only readable by the system), keeps that copy current, and adds new kernels to the menu",
+            "section": "",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Set up",
+            "ctx": "",
+            "sub": "Asks for your password",
+            "section": "",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Background: the theme's own",
+            "ctx": "",
+            "sub": "In use",
+            "section": "Look",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Entry icon size",
+            "ctx": "",
+            "sub": "Pixels",
+            "section": "Look",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Tool icon size",
+            "ctx": "",
+            "sub": "Pixels",
+            "section": "Look",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Name",
+            "ctx": "",
+            "sub": "",
+            "section": "Entries",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Show it in the menu",
+            "ctx": "",
+            "sub": "",
+            "section": "Entries",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Countdown",
+            "ctx": "",
+            "sub": "Waits until you choose",
+            "section": "Starting",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "All options",
+            "ctx": "",
+            "sub": "root=, rw and rootflags= must stay",
+            "section": "Linux start options",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Restart into Windows",
+            "ctx": "",
+            "sub": "",
+            "section": "Firmware",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Secure Boot",
+            "ctx": "",
+            "sub": "Kernels installed here are signed for it (sbctl)",
+            "section": "Firmware",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "UEFI boot order",
+            "ctx": "",
+            "sub": "",
+            "section": "Firmware",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Firmware updates",
+            "ctx": "",
+            "sub": "Updates for the motherboard, SSD and devices (fwupd): install it",
+            "section": "Firmware",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "What went wrong in the previous boot",
             "ctx": "",
             "sub": "Its errors, e.g. after a crash or a freeze",

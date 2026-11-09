@@ -288,6 +288,8 @@ def parse_refind(path, state, entries, depth=0):
             while i < len(lines) and lvl > 0:
                 l = lines[i].strip()
                 i += 1
+                if l.startswith("# hidden in Settings"):
+                    e["hiddenBySettings"] = True
                 if l.startswith("# BEGIN caelestia-kernels"):
                     in_kern = True
                 elif l.startswith("# END caelestia-kernels"):
@@ -312,14 +314,19 @@ def parse_refind(path, state, entries, depth=0):
                         e[k] = v
                     elif k == "options":
                         e["options"] = v.strip('"')
-            if not e["disabled"]:
+            if not e["disabled"] or e.get("hiddenBySettings"):
                 e["iconFile"] = esp_path(e["icon"]) if e.get("icon") else ""
+                e["hidden"] = e["disabled"]
                 entries.append(e)
             continue
         k, _, v = bare.partition(" ")
         v = v.strip()
         if k == "include":
             parse_refind(os.path.join(BOOT_EXPORT, REFIND_REL, v), state, entries, depth + 1)
+        elif k == "showtools" and depth > 0:
+            # rEFInd 0.14 adds an included file's tools to the list instead of
+            # replacing it (seen: the theme's "shutdown" shows twice)
+            state["_includedTools"] = state.get("_includedTools", []) + [w for w in re.split(r"[\s,]+", v) if w]
         else:
             state[k] = v
             state.setdefault("_from", {})[k] = os.path.relpath(path, BOOT_EXPORT)
@@ -327,28 +334,61 @@ def parse_refind(path, state, entries, depth=0):
 
 def c_boot(args):
     conf = os.path.join(BOOT_EXPORT, REFIND_REL, "refind.conf")
+    # set up: the watcher keeping this copy current and the kernels hook (boot-setup)
+    setup = os.path.exists("/etc/systemd/system/caelestia-boot-export.path") and \
+        os.path.exists("/etc/pacman.d/hooks/caelestia-refind-kernels.hook")
     if not os.path.exists(conf):
-        print(json.dumps({"exported": False}))
+        print(json.dumps({"exported": False, "setup": setup}))
         return
     state, entries = {}, []
     parse_refind(conf, state, entries)
     words = lambda v: [w for w in re.split(r"[\s,]+", v or "") if w]
     flavour = next((m.group(1) for l in open(conf) if (m := re.match(r"^\s*include\s+themes/catppuccin/(\w+)\.conf", l))), "")
     icons_dir = state.get("icons_dir", "icons")
+    # The tools shown: the main file's showtools, or rEFInd's defaults (those
+    # it finds: no shell, memtest, gdisk or fwupd tool on this ESP; Windows
+    # recovery when Windows is there) followed by any from included files
+    if "showtools" in state:
+        tool_list = words(state["showtools"])
+    else:
+        has_windows = any("Microsoft" in (e.get("loader") or "") for e in entries)
+        tool_list = (["windows_recovery"] if has_windows else []) + ["about", "hidden_tags", "shutdown", "reboot", "firmware"]
+    tool_list += state.get("_includedTools", [])
     tools = []
-    for t in words(state.get("showtools", "shell,memtest,gdisk,mok_tool,about,hidden_tags,shutdown,reboot,firmware,fwupdate")):
+    for t in tool_list:
         name = TOOL_ICONS.get(t, "")
         icon = esp_path(f"{icons_dir}/{name}.png") or esp_path(f"icons/{name}.png") if name else ""
         tools.append({"tool": t, "iconFile": icon})
     main = next((e for e in entries if e["name"] == "CachyOS"), None)
-    out = {"exported": True, "exportedAt": int(os.path.getmtime(conf)),
+    out = {"exported": True, "setup": setup, "exportedAt": int(os.path.getmtime(conf)),
            "timeout": int(state.get("timeout", "20") or 20), "defaultSelection": state.get("default_selection", "").strip('"'),
            "flavour": flavour, "banner": esp_path(state.get("banner", "")) if state.get("banner") else "",
            "bannerScale": state.get("banner_scale", "noscale"), "selectionBig": esp_path(state.get("selection_big", "")) if state.get("selection_big") else "",
            "selectionSmall": esp_path(state.get("selection_small", "")) if state.get("selection_small") else "",
            "bigIconSize": int(state.get("big_icon_size", "128")), "smallIconSize": int(state.get("small_icon_size", "48")),
            "hideui": words(state.get("hideui", "")), "showtools": tools, "resolution": state.get("resolution", ""),
+           "toolsByDefault": "showtools" not in state,
            "entries": entries, "options": (main or {}).get("options", "")}
+    # Everything a draft can show: each flavour's background, selection
+    # images and icons; rEFInd's own icons; your own (themes/local)
+    base = os.path.join(BOOT_EXPORT, REFIND_REL)
+    flavours = {}
+    for d in sorted(glob.glob(f"{base}/themes/catppuccin/assets/*/")):
+        name = os.path.basename(d.rstrip("/"))
+        flavours[name] = {"background": d + "background.png", "selectionBig": d + "selection_big.png",
+                          "selectionSmall": d + "selection_small.png", "iconsDir": d + "icons",
+                          "icons": sorted(os.path.basename(f) for f in glob.glob(d + "icons/*.png"))}
+    out["flavours"] = flavours
+    out["stockIcons"] = sorted(os.path.basename(f) for f in glob.glob(f"{base}/icons/os_*.png"))
+    out["stockDir"] = f"{base}/icons"
+    out["localIcons"] = sorted(os.path.basename(f) for f in glob.glob(f"{base}/themes/local/*.png") if not f.endswith("background.png"))
+    out["localDir"] = f"{base}/themes/local"
+    out["localBackground"] = f"{base}/themes/local/background.png" if os.path.exists(f"{base}/themes/local/background.png") else ""
+    for e in entries:
+        icon = (e.get("icon") or "").replace("\\", "/")
+        m = re.search(r"/themes/catppuccin/assets/[^/]+/icons/([^/]+)$", icon)
+        e["iconSpec"] = f"theme:{m.group(1)}" if m else f"stock:{os.path.basename(icon)}" if "/EFI/refind/icons/" in icon \
+            else f"local:{os.path.basename(icon)}" if "/themes/local/" in icon else ""
     print(json.dumps(out))
 
 
