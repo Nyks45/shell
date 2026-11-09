@@ -1,0 +1,11 @@
+[Unit]
+Description=Caelestia settings: lighting (OpenRGB's server, no window; localhost only)
+Documentation=man:openrgb(1)
+
+[Service]
+ExecStart=/usr/bin/openrgb --server --noautoconnect --server-host 127.0.0.1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

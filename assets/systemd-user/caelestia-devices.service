@@ -1,0 +1,12 @@
+[Unit]
+Description=Caelestia settings: keep the lighting and the mouse set (at login and on reconnect)
+After=caelestia-openrgb.service
+Wants=caelestia-openrgb.service
+
+[Service]
+ExecStart=/usr/lib/caelestia/caelestia-devices keep
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

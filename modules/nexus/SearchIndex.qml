@@ -3748,6 +3748,96 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Turn on lighting control",
+            "ctx": "",
+            "sub": "Starts a small background service that talks to the lighting (OpenRGB, no window)",
+            "section": "",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Follow the colour scheme",
+            "ctx": "",
+            "sub": "Every device takes the accent colour, and changes with the wallpaper",
+            "section": "All lighting",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "A colour per zone",
+            "ctx": "",
+            "sub": "",
+            "section": "All lighting",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Brightness",
+            "ctx": "",
+            "sub": "",
+            "section": "All lighting",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": "backlight dim"
+        },
+        {
+            "label": "Speed",
+            "ctx": "",
+            "sub": "",
+            "section": "All lighting",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Processor",
+            "ctx": "",
+            "sub": "",
+            "section": "Temperatures",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Graphics card",
+            "ctx": "",
+            "sub": "",
+            "section": "Temperatures",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Speed",
+            "ctx": "",
+            "sub": "Automatic: the card's own curve",
+            "section": "Temperatures",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Speed",
+            "ctx": "",
+            "sub": "",
+            "section": "Temperatures",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Wi-Fi",
             "ctx": "",
             "sub": "",

@@ -12,6 +12,7 @@ import qs.components.containers
 import qs.components.controls
 import qs.services
 import qs.modules.nexus.common
+import qs.modules.nexus.pages.devices
 
 // Keyboard (layouts, repeat), mouse, touchpad and cursor: Hyprland's input
 // options, saved through HyprSettings.
@@ -183,6 +184,9 @@ PageBase {
             checked: HyprSettings.value("input:left_handed", false)
             onToggled: HyprSettings.setOption("input:left_handed", checked)
         }
+
+        // A Logitech gaming mouse's own settings (DPI, report rate, battery)
+        GamingMouse {}
 
         // Touchpad
         SectionHeader {

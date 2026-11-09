@@ -77,7 +77,8 @@ if("shell" IN_LIST ENABLE_MODULES)
 
     # The settings' root helper (named actions only) and its polkit action: the
     # shell's own password prompt, remembered for a few minutes
-    install(PROGRAMS assets/caelestia-admin assets/caelestia-set-password assets/caelestia-disks assets/caelestia-system assets/caelestia-packages assets/caelestia-gaming DESTINATION "${INSTALL_LIBDIR}")
+    install(PROGRAMS assets/caelestia-admin assets/caelestia-set-password assets/caelestia-disks assets/caelestia-system assets/caelestia-packages assets/caelestia-gaming assets/caelestia-devices assets/caelestia-fans DESTINATION "${INSTALL_LIBDIR}")
+    install(FILES assets/systemd-user/caelestia-openrgb.service assets/systemd-user/caelestia-devices.service DESTINATION "lib/systemd/user")
     install(FILES assets/org.caelestia.shell.admin.policy DESTINATION "${CMAKE_INSTALL_DATADIR}/polkit-1/actions")
 
     # The settings app (Nexus) in app launchers

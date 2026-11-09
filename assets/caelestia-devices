@@ -1,0 +1,539 @@
+#!/usr/bin/python3 -I
+"""Caelestia settings: lighting, fans and the gaming mouse (runs as the user; JSON out).
+
+    caelestia-devices lighting             RGB devices (OpenRGB's server), their modes, and the saved choices
+    caelestia-devices lighting-set         change one device (JSON on stdin: {device, mode, colors|color, brightness, speed})
+    caelestia-devices lighting-restore     apply the saved choices (at login: the keyboard forgets its colours)
+    caelestia-devices mouse                the Logitech mouse (Solaar): DPI, report rate, onboard profile, battery
+    caelestia-devices mouse-set KEY VALUE  profile on|off, dpi N, rate 1ms|... (saved; applied again on reconnect)
+    caelestia-devices fans                 fans (board and graphics card), temperatures, the fan settings
+    caelestia-devices keep                 stay running: restore lighting and the mouse at login and on reconnect
+
+Lighting goes through OpenRGB's SDK server (caelestia-openrgb.service, localhost:6742), so a change
+is instant; board modes that the board can keep are saved on it. Fans are changed by the root fan
+service (caelestia-admin fans-apply writes /etc/caelestia/fans.json); this only reads them.
+"""
+
+import ctypes
+import glob
+import json
+import os
+import re
+import socket
+import struct
+import subprocess
+import sys
+import time
+
+HOME = os.path.expanduser("~")
+CONFIG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.join(HOME, ".config"), "caelestia")
+LIGHTING = os.path.join(CONFIG, "lighting.json")
+MOUSE = os.path.join(CONFIG, "mouse.json")
+FANS_CONF = "/etc/caelestia/fans.json"
+
+
+def out(obj):
+    json.dump(obj, sys.stdout)
+    sys.stdout.write("\n")
+
+
+def sh(*cmd, timeout=30):
+    try:
+        return subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=timeout).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
+def load_json(path, default):
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return default
+
+
+def save_json(path, data):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f, indent=2)
+    os.replace(tmp, path)
+
+
+# --- OpenRGB SDK (protocol 3: brightness per mode) -----------------------------------
+
+MODE_HAS_SPEED, MODE_HAS_BRIGHTNESS, MODE_PER_LED, MODE_SPECIFIC, MODE_RANDOM, MODE_MANUAL_SAVE = 1, 16, 32, 64, 128, 256
+COLOR_NONE, COLOR_PER_LED, COLOR_MODE_SPECIFIC, COLOR_RANDOM = 0, 1, 2, 3
+
+
+class SDK:
+    PROTO = 3
+
+    def __init__(self, timeout=3):
+        self.s = socket.create_connection(("127.0.0.1", 6742), timeout=timeout)
+        self.send(0, 50, b"Caelestia Settings\x00")
+        self.send(0, 40, struct.pack("<I", self.PROTO))
+        self.proto = min(self.PROTO, struct.unpack("<I", self.recv()[2])[0])
+
+    def send(self, dev, cmd, data=b""):
+        self.s.sendall(b"ORGB" + struct.pack("<III", dev, cmd, len(data)) + data)
+
+    def recvn(self, n):
+        b = b""
+        while len(b) < n:
+            c = self.s.recv(n - len(b))
+            if not c:
+                raise ConnectionError("OpenRGB closed the connection")
+            b += c
+        return b
+
+    def recv(self):
+        h = self.recvn(16)
+        if h[:4] != b"ORGB":
+            raise ConnectionError("not OpenRGB")
+        dev, cmd, size = struct.unpack("<III", h[4:])
+        return dev, cmd, self.recvn(size)
+
+    def count(self):
+        self.send(0, 0)
+        return struct.unpack("<I", self.recv()[2])[0]
+
+    def controller(self, i):
+        self.send(i, 1, struct.pack("<I", self.proto))
+        c = Parser(self.recv()[2], self.proto).controller()
+        c["index"] = i
+        return c
+
+    def controllers(self):
+        return [self.controller(i) for i in range(self.count())]
+
+    def mode_bytes(self, m):
+        def s(x):
+            b = x.encode() + b"\x00"
+            return struct.pack("<H", len(b)) + b
+        d = s(m["name"]) + struct.pack("<iIII", m["value"], m["flags"], m["speedMin"], m["speedMax"])
+        if self.proto >= 3:
+            d += struct.pack("<II", m["brightnessMin"], m["brightnessMax"])
+        d += struct.pack("<III", m["colorsMin"], m["colorsMax"], m["speed"])
+        if self.proto >= 3:
+            d += struct.pack("<I", m["brightness"])
+        d += struct.pack("<II", m["direction"], m["colorMode"])
+        d += struct.pack("<H", len(m["colors"])) + b"".join(rgb(c) for c in m["colors"])
+        return d
+
+    def update_mode(self, dev, m, save=False):
+        body = struct.pack("<i", m["index"]) + self.mode_bytes(m)
+        self.send(dev, 1102 if save else 1101, struct.pack("<I", len(body) + 4) + body)
+
+    def update_leds(self, dev, colors):
+        body = struct.pack("<H", len(colors)) + b"".join(rgb(c) for c in colors)
+        self.send(dev, 1050, struct.pack("<I", len(body) + 4) + body)
+
+
+def rgb(hexstr):
+    h = hexstr.lstrip("#")
+    return bytes([int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), 0])
+
+
+class Parser:
+    def __init__(self, d, proto):
+        self.d, self.p, self.v = d, 0, proto
+
+    def u32(self):
+        x = struct.unpack_from("<I", self.d, self.p)[0]
+        self.p += 4
+        return x
+
+    def i32(self):
+        x = struct.unpack_from("<i", self.d, self.p)[0]
+        self.p += 4
+        return x
+
+    def u16(self):
+        x = struct.unpack_from("<H", self.d, self.p)[0]
+        self.p += 2
+        return x
+
+    def s(self):
+        n = self.u16()
+        x = self.d[self.p:self.p + n].rstrip(b"\x00").decode("utf-8", "replace")
+        self.p += n
+        return x
+
+    def color(self):
+        r, g, b, _ = self.d[self.p:self.p + 4]
+        self.p += 4
+        return f"{r:02x}{g:02x}{b:02x}"
+
+    def controller(self):
+        c = {}
+        self.u32()
+        c["type"] = self.i32()
+        c["name"] = self.s()
+        c["vendor"] = self.s() if self.v >= 1 else ""
+        c["description"], c["version"], c["serial"], c["location"] = self.s(), self.s(), self.s(), self.s()
+        nm = self.u16()
+        c["activeMode"] = self.i32()
+        c["modes"] = []
+        for i in range(nm):
+            m = {"index": i, "name": self.s(), "value": self.i32(), "flags": self.u32(), "speedMin": self.u32(), "speedMax": self.u32()}
+            if self.v >= 3:
+                m["brightnessMin"], m["brightnessMax"] = self.u32(), self.u32()
+            else:
+                m["brightnessMin"], m["brightnessMax"] = 0, 0
+            m["colorsMin"], m["colorsMax"], m["speed"] = self.u32(), self.u32(), self.u32()
+            m["brightness"] = self.u32() if self.v >= 3 else 0
+            m["direction"], m["colorMode"] = self.u32(), self.u32()
+            m["colors"] = [self.color() for _ in range(self.u16())]
+            c["modes"].append(m)
+        c["zones"] = []
+        for _ in range(self.u16()):
+            z = {"name": self.s(), "type": self.i32(), "ledsMin": self.u32(), "ledsMax": self.u32(), "leds": self.u32()}
+            if self.u16():
+                h, w = self.u32(), self.u32()
+                self.p += 4 * h * w
+            c["zones"].append(z)
+        c["leds"] = []
+        for _ in range(self.u16()):
+            c["leds"].append(self.s())
+            self.u32()
+        c["colors"] = [self.color() for _ in range(self.u16())]
+        return c
+
+
+def device_id(c):
+    """Stable across restarts (indexes aren't): name and serial, else the name."""
+    return f"{c['name']}|{c['serial']}" if c.get("serial") else c["name"]
+
+
+TYPES = {0: "motherboard", 1: "memory", 2: "graphics card", 3: "cooler", 4: "led strip", 5: "keyboard", 6: "mouse",
+         7: "mouse mat", 8: "headset", 9: "headset stand", 10: "gamepad", 11: "light", 12: "speaker", 13: "virtual",
+         14: "storage", 15: "case", 16: "microphone", 17: "accessory", 18: "keypad"}
+
+
+def connect(wait=0):
+    end = time.time() + wait
+    while True:
+        try:
+            return SDK()
+        except OSError:
+            if time.time() >= end:
+                return None
+            time.sleep(1)
+
+
+def server_state():
+    active = sh("systemctl", "--user", "is-active", "caelestia-openrgb.service").strip() == "active"
+    enabled = sh("systemctl", "--user", "is-enabled", "caelestia-openrgb.service").strip() == "enabled"
+    return active, enabled
+
+
+def c_lighting(args):
+    active, enabled = server_state()
+    saved = load_json(LIGHTING, {})
+    sdk = connect(wait=8 if active else 0)
+    devices = []
+    if sdk:
+        for c in sdk.controllers():
+            did = device_id(c)
+            st = saved.get("devices", {}).get(did, {})
+            modes = [{"name": m["name"], "flags": m["flags"], "colorMode": m["colorMode"],
+                      "speed": m["flags"] & MODE_HAS_SPEED != 0, "brightness": m["flags"] & MODE_HAS_BRIGHTNESS != 0,
+                      "perLed": m["colorMode"] == COLOR_PER_LED or m["flags"] & MODE_PER_LED != 0,
+                      "colors": m["colorMode"] == COLOR_MODE_SPECIFIC, "colorsMax": m["colorsMax"],
+                      "saves": m["flags"] & MODE_MANUAL_SAVE != 0} for m in c["modes"]]
+            devices.append({"id": did, "name": c["name"], "type": TYPES.get(c["type"], "device"), "vendor": c["vendor"],
+                            "mode": c["modes"][c["activeMode"]]["name"] if 0 <= c["activeMode"] < len(c["modes"]) else "",
+                            "modes": modes, "zones": [z for z in c["zones"] if z["leds"] > 0],
+                            "emptyZones": [z["name"] for z in c["zones"] if z["leds"] == 0],
+                            "leds": c["leds"], "colors": c["colors"], "saved": st})
+    out({"server": sdk is not None, "service": active, "enabled": enabled, "installed": os.path.exists("/usr/bin/openrgb"),
+         "devices": devices, "followAccent": saved.get("followAccent", False)})
+
+
+def apply(sdk, c, st):
+    """Set a device to a saved choice: {mode, colors [per LED], color, brightness 0-100, speed 0-100}."""
+    m = next((x for x in c["modes"] if x["name"] == st.get("mode")), None)
+    if m is None:
+        raise SystemExit(f"{c['name']} has no mode {st.get('mode')}")
+    m = dict(m)
+    if m["flags"] & MODE_HAS_BRIGHTNESS and "brightness" in st:
+        m["brightness"] = round(m["brightnessMin"] + (m["brightnessMax"] - m["brightnessMin"]) * max(0, min(100, st["brightness"])) / 100)
+    if m["flags"] & MODE_HAS_SPEED and "speed" in st:
+        lo, hi = m["speedMin"], m["speedMax"]
+        m["speed"] = round(lo + (hi - lo) * max(0, min(100, st["speed"])) / 100)
+    colors = st.get("colors") or ([st["color"]] if st.get("color") else [])
+    if m["colorMode"] == COLOR_MODE_SPECIFIC and colors:
+        n = max(m["colorsMin"], min(m["colorsMax"], len(colors))) or 1
+        m["colors"] = (colors + colors[-1:] * n)[:n]
+        m["colorMode"] = COLOR_MODE_SPECIFIC
+    elif m["colorMode"] == COLOR_RANDOM and colors and m["flags"] & MODE_PER_LED:
+        m["colorMode"] = COLOR_PER_LED
+    sdk.update_mode(c["index"], m)
+    if m["colorMode"] == COLOR_PER_LED and colors and c["leds"]:
+        leds = (colors + colors[-1:] * len(c["leds"]))[:len(c["leds"])]
+        sdk.update_leds(c["index"], leds)
+    if m["flags"] & MODE_MANUAL_SAVE:
+        time.sleep(0.1)
+        sdk.update_mode(c["index"], m, save=True)
+
+
+HEX = re.compile(r"^#?[0-9a-fA-F]{6}$")
+
+
+def c_lighting_set(args):
+    req = json.load(sys.stdin)
+    sdk = connect(wait=3)
+    if not sdk:
+        sys.exit("the lighting service isn't running")
+    saved = load_json(LIGHTING, {})
+    if "followAccent" in req:
+        saved["followAccent"] = bool(req["followAccent"])
+    targets = [c for c in sdk.controllers() if req.get("device") in (None, "*", device_id(c))]
+    if req.get("device") not in (None, "*") and not targets:
+        sys.exit("no such lighting device")
+    for c in targets if ("mode" in req or "color" in req or "colors" in req) else []:
+        st = dict(saved.get("devices", {}).get(device_id(c), {}))
+        for k in ("mode", "brightness", "speed"):
+            if k in req:
+                st[k] = req[k]
+        if "colors" in req:
+            if not all(HEX.match(x) for x in req["colors"]):
+                sys.exit("not a colour")
+            st["colors"] = [x.lstrip("#").lower() for x in req["colors"]]
+            st.pop("color", None)
+        elif "color" in req:
+            if not HEX.match(req["color"]):
+                sys.exit("not a colour")
+            st["color"] = req["color"].lstrip("#").lower()
+            st.pop("colors", None)
+        if "mode" not in st:
+            # A colour for "all devices": the mode that takes colours for every LED
+            st["mode"] = next((m["name"] for m in c["modes"] if m["name"].lower() == "static" and m["colorMode"] == COLOR_PER_LED),
+                              next((m["name"] for m in c["modes"] if m["colorMode"] == COLOR_PER_LED), c["modes"][0]["name"]))
+        if req.get("device") in (None, "*"):
+            # All devices: one colour, each in its static/direct mode
+            st["mode"] = next((m["name"] for m in c["modes"] if m["name"].lower() == "static" and m["colorMode"] == COLOR_PER_LED),
+                              next((m["name"] for m in c["modes"] if m["colorMode"] == COLOR_PER_LED), st["mode"]))
+        apply(sdk, c, st)
+        saved.setdefault("devices", {})[device_id(c)] = st
+    save_json(LIGHTING, saved)
+    print("Saved", flush=True)
+
+
+def c_lighting_restore(args):
+    saved = load_json(LIGHTING, {})
+    if not saved.get("devices"):
+        return
+    sdk = connect(wait=int(args[0]) if args else 30)
+    if not sdk:
+        sys.exit("the lighting service isn't running")
+    for c in sdk.controllers():
+        st = saved["devices"].get(device_id(c))
+        if st:
+            try:
+                apply(sdk, c, st)
+            except (SystemExit, OSError, struct.error) as e:
+                print(f"{c['name']}: {e}", file=sys.stderr)
+
+
+# --- the Logitech mouse (Solaar) -------------------------------------------------------
+
+RATES = ["8ms", "4ms", "2ms", "1ms", "500us", "250us", "125us"]
+
+
+def solaar(*args, timeout=40):
+    return sh("solaar", *args, timeout=timeout)
+
+
+def mouse_info():
+    """Logitech mice: name and battery from the kernel (hidpp_battery: always right, even while the
+    mouse sleeps), DPI / report rate / onboard profile from `solaar config` (its key = value lines)."""
+    mice = []
+    for ps in sorted(glob.glob("/sys/class/power_supply/hidpp_battery_*")):
+        name = (read(os.path.join(ps, "model_name")) or "").strip()
+        if not name:
+            continue
+        cap, status = read(os.path.join(ps, "capacity")), read(os.path.join(ps, "status")) or ""
+        m = {"name": name, "battery": int(cap) if cap and cap.isdigit() else None,
+             "charging": status in ("Charging", "Full"), "awake": False}
+        text = solaar("config", name)
+        for line in text.splitlines():
+            if (x := re.match(r"^onboard_profiles = (.+)$", line)):
+                m["profile"], m["awake"] = x.group(1).strip(), True
+            elif (x := re.match(r"^report_rate(?:_extended)? = (\w+)$", line)):
+                m["rate"] = x.group(1)
+            elif (x := re.match(r"^dpi(?:_extended)? = \{?X?:?\s*(\d+)", line)):
+                m["dpi"], m["awake"] = int(x.group(1)), True
+        if m["awake"] or "dpi" in text:
+            mice.append(m)
+        elif m["battery"] is not None:
+            mice.append(m)  # asleep: shown with its battery only
+    return mice
+
+
+def c_mouse(args):
+    if not os.path.exists("/usr/bin/solaar"):
+        out({"installed": False, "mice": []})
+        return
+    mice = mouse_info()
+    saved = load_json(MOUSE, {})
+    for m in mice:
+        m["rates"] = RATES
+        m["saved"] = saved.get(m["name"], {})
+        m["host"] = m.get("profile", "") == "Disabled"
+    out({"installed": True, "mice": mice})
+
+
+def mouse_apply(name, st):
+    if "profile" in st:
+        solaar("config", name, "onboard_profiles", "Disabled" if st["profile"] == "off" else "Profile 1")
+    if st.get("profile") == "off":
+        if "dpi" in st:
+            solaar("config", name, "dpi_extended", f"{{X:{st['dpi']}, Y:{st['dpi']}, LOD:HIGH}}")
+        if "rate" in st:
+            solaar("config", name, "report_rate_extended", st["rate"])
+
+
+def c_mouse_set(args):
+    key, val = args[0], args[1]
+    mice = mouse_info()
+    if not mice:
+        sys.exit("no Logitech mouse found (is it on?)")
+    name = mice[0]["name"]
+    saved = load_json(MOUSE, {})
+    st = saved.setdefault(name, {})
+    if key == "profile" and val in ("on", "off"):
+        st["profile"] = val
+    elif key == "dpi" and val.isdigit() and 100 <= int(val) <= 44000:
+        st["dpi"] = int(val)
+    elif key == "rate" and val in RATES:
+        st["rate"] = val
+    else:
+        sys.exit("not a mouse setting")
+    if key != "profile":
+        st["profile"] = "off"  # DPI and rate only take effect without the onboard profile
+    mouse_apply(name, st)
+    save_json(MOUSE, saved)
+    print("Saved", flush=True)
+
+
+# --- fans ------------------------------------------------------------------------------
+
+def hwmon(name):
+    for h in glob.glob("/sys/class/hwmon/hwmon*"):
+        try:
+            if open(os.path.join(h, "name")).read().strip() == name:
+                return h
+        except OSError:
+            pass
+    return None
+
+
+def read(path, default=None):
+    try:
+        return open(path).read().strip()
+    except OSError:
+        return default
+
+
+def cpu_temp():
+    h = hwmon("k10temp") or hwmon("coretemp")
+    if not h:
+        return None
+    for f in sorted(glob.glob(os.path.join(h, "temp*_label"))):
+        if read(f) in ("Tctl", "Package id 0"):
+            v = read(f.replace("_label", "_input"))
+            return int(v) / 1000 if v else None
+    v = read(os.path.join(h, "temp1_input"))
+    return int(v) / 1000 if v else None
+
+
+def nvml():
+    try:
+        n = ctypes.CDLL("libnvidia-ml.so.1")
+        if n.nvmlInit_v2() != 0:
+            return None, None
+        h = ctypes.c_void_p()
+        if n.nvmlDeviceGetHandleByIndex_v2(0, ctypes.byref(h)) != 0:
+            return None, None
+        return n, h
+    except OSError:
+        return None, None
+
+
+def c_fans(args):
+    board = []
+    h = hwmon("nct6687")
+    writable = False
+    if h:
+        writable = os.access(os.path.join(h, "pwm1"), os.F_OK) and bool(os.stat(os.path.join(h, "pwm1")).st_mode & 0o200)
+        for f in sorted(glob.glob(os.path.join(h, "fan*_input")), key=lambda p: int(re.search(r"fan(\d+)", p).group(1))):
+            i = re.search(r"fan(\d+)_input", f).group(1)
+            pwm = read(os.path.join(h, f"pwm{i}"))
+            board.append({"id": f"board:{i}", "label": read(os.path.join(h, f"fan{i}_label"), f"Fan {i}"),
+                          "rpm": int(read(f, "0") or 0), "percent": round(int(pwm) * 100 / 255) if pwm and pwm.isdigit() else None,
+                          "auto": read(os.path.join(h, f"pwm{i}_enable"), "2") != "1", "controllable": pwm is not None})
+    gpu, gtemp = [], None
+    n, dev = nvml()
+    if n:
+        cnt, t = ctypes.c_uint(), ctypes.c_uint()
+        if n.nvmlDeviceGetTemperature(dev, 0, ctypes.byref(t)) == 0:
+            gtemp = t.value
+        mn, mx = ctypes.c_uint(), ctypes.c_uint()
+        n.nvmlDeviceGetMinMaxFanSpeed(dev, ctypes.byref(mn), ctypes.byref(mx))
+        if n.nvmlDeviceGetNumFans(dev, ctypes.byref(cnt)) == 0:
+            for i in range(cnt.value):
+                s, pol = ctypes.c_uint(), ctypes.c_uint()
+                n.nvmlDeviceGetFanSpeed_v2(dev, i, ctypes.byref(s))
+                n.nvmlDeviceGetFanControlPolicy_v2(dev, i, ctypes.byref(pol))
+                gpu.append({"id": f"gpu:{i}", "label": f"Graphics card fan {i + 1}", "percent": s.value, "auto": pol.value == 0,
+                            "min": mn.value, "max": mx.value, "controllable": True})
+    active = sh("systemctl", "is-active", "caelestia-fans.service").strip() == "active"
+    out({"board": board, "boardWritable": writable, "boardDriver": "nct6687" if h else "", "gpu": gpu,
+         "temps": {"cpu": cpu_temp(), "gpu": gtemp}, "config": load_json(FANS_CONF, {"fans": {}}), "service": active})
+
+
+# --- keep: at login and on reconnect ----------------------------------------------------
+
+def c_keep(args):
+    """Restore the lighting (once OpenRGB's server is up) and the mouse; then again whenever a
+    USB input device comes back (the keyboard re-plugged, the mouse waking or reconnecting)."""
+    def restore(what):
+        if what in ("all", "lighting") and load_json(LIGHTING, {}).get("devices"):
+            subprocess.run([sys.argv[0], "lighting-restore", "40"], stdout=subprocess.DEVNULL)
+        if what in ("all", "mouse"):
+            saved = load_json(MOUSE, {})
+            for m in mouse_info():
+                if saved.get(m["name"], {}).get("profile") == "off":
+                    mouse_apply(m["name"], saved[m["name"]])
+    restore("all")
+    mon = subprocess.Popen(["udevadm", "monitor", "--udev", "--subsystem-match=hidraw"], text=True, stdout=subprocess.PIPE)
+    last = 0
+    for line in mon.stdout:
+        if " add " not in line:
+            continue
+        if time.time() - last < 3:  # one device adds several hidraw nodes
+            continue
+        time.sleep(2)
+        last = time.time()
+        restore("all")
+
+
+COMMANDS = {"lighting": c_lighting, "lighting-set": c_lighting_set, "lighting-restore": c_lighting_restore,
+            "mouse": c_mouse, "mouse-set": c_mouse_set, "fans": c_fans, "keep": c_keep}
+
+
+def main(argv):
+    if not argv or argv[0] not in COMMANDS:
+        print(__doc__, file=sys.stderr)
+        return 2
+    try:
+        return COMMANDS[argv[0]](argv[1:]) or 0
+    except IndexError:
+        print("usage: see caelestia-devices --help", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

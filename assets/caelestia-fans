@@ -1,0 +1,258 @@
+#!/usr/bin/python3 -I
+"""Caelestia settings: the fan service (root; caelestia-fans.service).
+
+Follows /etc/caelestia/fans.json (written by caelestia-admin fans-apply):
+
+    {"fans": {"board:1": {"mode": "curve", "source": "cpu", "curve": [[40, 30], [60, 45], [75, 70], [85, 100]]},
+              "board:3": {"mode": "fixed", "percent": 40},
+              "gpu":     {"mode": "curve", "source": "gpu", "curve": [[50, 30], [70, 60], [80, 100]]}}}
+
+mode auto = the board's own curve (BIOS) / the graphics card's own; fixed = a percentage; curve =
+percent by temperature (cpu: the processor's Tctl, gpu: the card's). Board fans go through the
+nct6687 driver (hwmon pwmN / pwmN_enable); its fan_control_watchdog lease is refreshed every round,
+so if this stops without cleaning up the board takes its fans back by itself. The card's fans go
+through NVML. Safety: 100 % when a curve's temperature can't be read, or the CPU reaches 95 °C /
+the card 90 °C. On stop everything returns to automatic.
+"""
+
+import ctypes
+import glob
+import json
+import os
+import re
+import signal
+import sys
+import time
+
+CONF = os.environ.get("CAELESTIA_FANS_CONF") or "/etc/caelestia/fans.json"
+INTERVAL = 2
+LEASE = 15
+STEP_DOWN = 3  # percent per round when slowing down (no sudden drops)
+
+
+def log(*a):
+    print(*a, flush=True)
+
+
+def read(path):
+    try:
+        with open(path) as f:
+            return f.read().strip()
+    except OSError:
+        return None
+
+
+def write(path, value):
+    try:
+        with open(path, "w") as f:
+            f.write(str(value))
+        return True
+    except OSError as e:
+        log(f"write {path}: {e}")
+        return False
+
+
+def hwmon(name):
+    for h in glob.glob("/sys/class/hwmon/hwmon*"):
+        if read(os.path.join(h, "name")) == name:
+            return h
+    return None
+
+
+def cpu_temp():
+    h = hwmon("k10temp") or hwmon("coretemp")
+    if not h:
+        return None
+    for f in sorted(glob.glob(os.path.join(h, "temp*_label"))):
+        if read(f) in ("Tctl", "Package id 0"):
+            v = read(f.replace("_label", "_input"))
+            return int(v) / 1000 if v else None
+    v = read(os.path.join(h, "temp1_input"))
+    return int(v) / 1000 if v else None
+
+
+class GPU:
+    def __init__(self):
+        self.n = self.dev = None
+        self.fans = 0
+        self.lo, self.hi = 30, 100
+        try:
+            n = ctypes.CDLL("libnvidia-ml.so.1")
+            if n.nvmlInit_v2() != 0:
+                return
+            dev = ctypes.c_void_p()
+            if n.nvmlDeviceGetHandleByIndex_v2(0, ctypes.byref(dev)) != 0:
+                return
+            cnt, lo, hi = ctypes.c_uint(), ctypes.c_uint(), ctypes.c_uint()
+            n.nvmlDeviceGetNumFans(dev, ctypes.byref(cnt))
+            if n.nvmlDeviceGetMinMaxFanSpeed(dev, ctypes.byref(lo), ctypes.byref(hi)) == 0:
+                self.lo, self.hi = lo.value, hi.value
+            self.n, self.dev, self.fans = n, dev, cnt.value
+        except OSError:
+            pass
+
+    def temp(self):
+        if not self.n:
+            return None
+        t = ctypes.c_uint()
+        return t.value if self.n.nvmlDeviceGetTemperature(self.dev, 0, ctypes.byref(t)) == 0 else None
+
+    def set(self, pct):
+        pct = max(self.lo, min(self.hi, round(pct)))
+        for i in range(self.fans):
+            rc = self.n.nvmlDeviceSetFanSpeed_v2(self.dev, i, pct)
+            if rc != 0:
+                log(f"gpu fan {i}: NVML error {rc}")
+
+    def auto(self):
+        for i in range(self.fans):
+            self.n.nvmlDeviceSetDefaultFanSpeed_v2(self.dev, i)
+
+
+def interp(curve, t):
+    pts = sorted((float(a), float(b)) for a, b in curve)
+    if not pts:
+        return 100
+    if t <= pts[0][0]:
+        return pts[0][1]
+    for (t0, p0), (t1, p1) in zip(pts, pts[1:]):
+        if t <= t1:
+            return p0 + (p1 - p0) * (t - t0) / (t1 - t0) if t1 > t0 else p1
+    return pts[-1][1]
+
+
+class Service:
+    def __init__(self):
+        self.board = hwmon("nct6687")
+        # NVML (~30 MB) only once the card's fans are set here
+        self._gpu = None
+        self.conf, self.mtime = {}, 0
+        self.current = {}      # fan id -> percent last set
+        self.manual = set()    # board channels under our control
+        self.gpu_manual = False
+        self.last_assert = 0
+
+    @property
+    def gpu(self):
+        if self._gpu is None:
+            self._gpu = GPU()
+        return self._gpu
+
+    def gpu_wanted(self):
+        return self._gpu is not None or self.conf.get("gpu", {}).get("mode", "auto") != "auto"
+
+    def load(self):
+        m = os.path.getmtime(CONF) if os.path.exists(CONF) else 0
+        if m != self.mtime:
+            self.mtime = m
+            try:
+                with open(CONF) as f:
+                    self.conf = json.load(f).get("fans", {})
+            except (OSError, ValueError) as e:
+                log(f"{CONF}: {e}; keeping the last settings")
+            log("settings:", json.dumps(self.conf))
+            self.current.clear()
+
+    def target(self, c, temps):
+        if c.get("mode") == "fixed":
+            return float(c.get("percent", 100))
+        if c.get("mode") == "curve":
+            t = temps.get(c.get("source", "cpu"))
+            return 100.0 if t is None else interp(c.get("curve", []), t)
+        return None
+
+    def smooth(self, fid, pct):
+        cur = self.current.get(fid)
+        if cur is not None and pct < cur:
+            pct = max(pct, cur - STEP_DOWN)
+        return max(0.0, min(100.0, pct))
+
+    def round(self):
+        self.load()
+        uses_gpu = self.gpu_wanted() or any(c.get("source") == "gpu" for c in self.conf.values() if c.get("mode") == "curve")
+        temps = {"cpu": cpu_temp(), "gpu": self.gpu.temp() if uses_gpu else None}
+        hot_cpu = temps["cpu"] is not None and temps["cpu"] >= 95
+        hot_gpu = temps["gpu"] is not None and temps["gpu"] >= 90
+        reassert = time.time() - self.last_assert > 30
+        if reassert:
+            self.last_assert = time.time()
+
+        if self.board:
+            for fid, c in self.conf.items():
+                m = re.fullmatch(r"board:(\d)", fid)
+                if not m:
+                    continue
+                ch = m.group(1)
+                pct = self.target(c, temps)
+                if pct is None:
+                    if ch in self.manual:
+                        write(f"{self.board}/pwm{ch}_enable", 2)
+                        self.manual.discard(ch)
+                        self.current.pop(fid, None)
+                    continue
+                pct = 100.0 if hot_cpu else self.smooth(fid, pct)
+                if ch not in self.manual or reassert:
+                    if write(f"{self.board}/pwm{ch}_enable", 1):
+                        self.manual.add(ch)
+                if fid not in self.current or abs(self.current[fid] - pct) >= 1 or reassert:
+                    write(f"{self.board}/pwm{ch}", round(pct * 255 / 100))
+                    self.current[fid] = pct
+            # Channels no longer in the settings: back to the board
+            for ch in list(self.manual):
+                if f"board:{ch}" not in self.conf or self.conf[f"board:{ch}"].get("mode") in (None, "auto"):
+                    write(f"{self.board}/pwm{ch}_enable", 2)
+                    self.manual.discard(ch)
+            write(f"{self.board}/fan_control_watchdog", LEASE if self.manual else 0)
+
+        if self.gpu_wanted() and self.gpu.n:
+            c = self.conf.get("gpu", {})
+            pct = self.target(c, temps)
+            if pct is None:
+                if self.gpu_manual:
+                    self.gpu.auto()
+                    self.gpu_manual = False
+                    self.current.pop("gpu", None)
+            else:
+                pct = 100.0 if hot_gpu else self.smooth("gpu", pct)
+                if not self.gpu_manual or abs(self.current.get("gpu", -10) - pct) >= 1 or reassert:
+                    self.gpu.set(pct)
+                    self.gpu_manual = True
+                    self.current["gpu"] = pct
+
+    def restore(self):
+        for ch in list(self.manual):
+            write(f"{self.board}/pwm{ch}_enable", 2)
+        self.manual.clear()
+        if self.board:
+            write(f"{self.board}/fan_control_watchdog", 0)
+        if self._gpu is not None and self._gpu.n and self.gpu_manual:
+            self.gpu.auto()
+            self.gpu_manual = False
+        log("fans back to automatic")
+
+
+def main():
+    if os.geteuid() != 0:
+        sys.exit("caelestia-fans runs as root (caelestia-fans.service)")
+    s = Service()
+    log(f"board: {s.board or 'none'}")
+
+    def stop(*_):
+        s.restore()
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, stop)
+    try:
+        while True:
+            try:
+                s.round()
+            except Exception as e:  # never leave fans stuck: log, go on next round
+                log(f"round failed: {e}")
+            time.sleep(INTERVAL)
+    finally:
+        s.restore()
+
+
+if __name__ == "__main__":
+    main()

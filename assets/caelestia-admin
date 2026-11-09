@@ -1117,6 +1117,63 @@ def act_ananicy(args):
     run("systemctl", "enable" if args[0] == "on" else "disable", "--now", "ananicy-cpp.service")
 
 
+FANS_CONF = "/etc/caelestia/fans.json"
+FANS_UNIT = "/etc/systemd/system/caelestia-fans.service"
+FANS_BIN = "/usr/lib/caelestia/caelestia-fans"
+
+
+def act_fans_apply(args):
+    """fans-apply (JSON on stdin): the fan settings, {"fans": {"board:N"|"gpu": {mode: auto|fixed|curve,
+    percent, source: cpu|gpu, curve: [[temp, percent], ...]}}}; the fan service follows them (started
+    when a fan isn't automatic, stopped otherwise: then every fan is automatic again)."""
+    try:
+        d = json.loads(sys.stdin.read() or "{}")
+    except ValueError:
+        raise Refused("not JSON")
+    fans = d.get("fans")
+    if not isinstance(fans, dict) or len(fans) > 12:
+        raise Refused("fans: an object")
+    clean = {}
+    for fid, c in fans.items():
+        if not re.fullmatch(r"board:[1-8]|gpu", fid) or not isinstance(c, dict):
+            raise Refused(f"not a fan: {fid}")
+        mode = c.get("mode")
+        # The CPU fan and the pump never stop
+        floor = 20 if fid in ("board:1", "board:2") else 0
+        if mode == "auto":
+            clean[fid] = {"mode": "auto"}
+        elif mode == "fixed":
+            pct = c.get("percent")
+            if not isinstance(pct, (int, float)) or not floor <= pct <= 100:
+                raise Refused(f"{fid}: percent {floor}-100")
+            clean[fid] = {"mode": "fixed", "percent": round(pct)}
+        elif mode == "curve":
+            pts, src = c.get("curve"), c.get("source")
+            if src not in ("cpu", "gpu") or not isinstance(pts, list) or not 2 <= len(pts) <= 8:
+                raise Refused(f"{fid}: a curve of 2-8 points from cpu or gpu")
+            ok = []
+            for pt in pts:
+                if (not isinstance(pt, list) or len(pt) != 2 or not all(isinstance(x, (int, float)) for x in pt)
+                        or not 20 <= pt[0] <= 105 or not floor <= pt[1] <= 100):
+                    raise Refused(f"{fid}: points [temperature 20-105, percent {floor}-100]")
+                ok.append([round(pt[0]), round(pt[1])])
+            clean[fid] = {"mode": "curve", "source": src, "curve": sorted(ok)}
+        else:
+            raise Refused(f"{fid}: mode auto, fixed or curve")
+    write_file(FANS_CONF, json.dumps({"fans": clean}, indent=2) + "\n")
+    if any(c["mode"] != "auto" for c in clean.values()):
+        write_file(FANS_UNIT, "[Unit]\nDescription=Caelestia settings: fan curves\nAfter=systemd-modules-load.service\n\n"
+                              f"[Service]\nExecStart={FANS_BIN}\nRestart=on-failure\nRestartSec=3\n\n"
+                              "[Install]\nWantedBy=multi-user.target\n")
+        run("systemctl", "daemon-reload")
+        run("systemctl", "enable", "caelestia-fans.service")
+        if subprocess.run(["systemctl", "is-active", "--quiet", "caelestia-fans.service"]).returncode != 0:
+            run("systemctl", "start", "caelestia-fans.service")
+        # (running: it reads the file again by itself)
+    elif os.path.exists(FANS_UNIT):
+        run("systemctl", "disable", "--now", "caelestia-fans.service", check=False)
+
+
 ACTIONS = {
     "power-key": act_power_key,
     "install": act_install,
@@ -1142,6 +1199,7 @@ ACTIONS = {
     "gpu-persistence": act_gpu_persistence,
     "scx": act_scx,
     "ananicy": act_ananicy,
+    "fans-apply": act_fans_apply,
     "remove-orphans": act_remove_orphans,
     "clean-package-cache": act_clean_package_cache,
     "journal-vacuum": act_journal_vacuum,
