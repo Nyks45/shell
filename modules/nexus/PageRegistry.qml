@@ -151,8 +151,8 @@ QtObject {
             id: "gaming",
             label: Tr.tr("Gaming"),
             icon: "sports_esports",
-            description: Tr.tr("Graphics card, Proton, overlay, scheduler"),
-            keywords: "games gaming game mode tearing fullscreen performance nvidia nvidia-settings graphics card gpu power limit persistence driver dlss reflex smooth motion frame generation hdr ntsync shader cache proton proton-ge protonplus wine lutris heroic steam launch options compatibility tool mangohud goverlay overlay fps counter frame limit scheduler sched-ext scx scx_lavd bpfland ananicy cpu",
+            description: Tr.tr("Games, graphics card, Proton, overlay"),
+            keywords: "library my games per game faugus add game launch options games gaming game mode tearing fullscreen performance nvidia nvidia-settings graphics card gpu power limit persistence driver dlss reflex smooth motion frame generation hdr ntsync shader cache proton proton-ge protonplus wine lutris heroic steam launch options compatibility tool mangohud goverlay overlay fps counter frame limit scheduler sched-ext scx scx_lavd bpfland ananicy cpu",
             category: "you"
         },
         {
@@ -197,6 +197,7 @@ QtObject {
             plugins: "system",
             boot: "system",
             kernels: "system",
+            library: "gaming",
             gpu: "gaming",
             games: "gaming",
             proton: "gaming",

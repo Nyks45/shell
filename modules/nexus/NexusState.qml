@@ -36,6 +36,8 @@ QtObject {
     property string selectedUser
     // Settings › Apps: the package a page shows ({ source, name, title })
     property var selectedPackage: null
+    // Settings › Gaming: the game a page shows (a Games key, "steam:1086940")
+    property string selectedGame
     property bool networkDetailsFromSaved
 
     signal close

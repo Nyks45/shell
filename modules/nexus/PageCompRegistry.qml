@@ -279,10 +279,13 @@ QtObject {
             }
         },
         Component {
-            // Gaming
+            // Gaming (0), one game (1)
             StackPage {
                 Component {
                     GamingPage {}
+                }
+                Component {
+                    GamePage {}
                 }
             }
         },

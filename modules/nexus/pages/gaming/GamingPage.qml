@@ -6,7 +6,8 @@ import Caelestia.Config
 import Caelestia.I18n
 import qs.modules.nexus.common
 
-// Gaming: the overview (game mode, tearing…), the graphics card, options for
+// Gaming: the overview (game mode, tearing…), the games of every launcher
+// (each with its own settings: GamePage), the graphics card, options for
 // every game, Proton versions, the overlay and the CPU scheduler; one at a
 // time. The parts are pages, embedded (PageBase.embedded).
 PageBase {
@@ -21,7 +22,7 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         PartTabs {
-            parts: [overviewPart, gpuPart, gamesPart, protonPart, overlayPart, schedulerPart]
+            parts: [overviewPart, libraryPart, gpuPart, gamesPart, protonPart, overlayPart, schedulerPart]
         }
 
         TabPart {
@@ -31,6 +32,19 @@ PageBase {
             title: Tr.tr("Overview")
 
             GamingOverview {
+                embedded: true
+                nState: root.nState
+                hostFlickable: root.flickable
+            }
+        }
+
+        TabPart {
+            id: libraryPart
+
+            key: "library"
+            title: Tr.tr("Library")
+
+            LibraryPage {
                 embedded: true
                 nState: root.nState
                 hostFlickable: root.flickable
@@ -54,7 +68,7 @@ PageBase {
             id: gamesPart
 
             key: "games"
-            title: Tr.tr("Games")
+            title: Tr.tr("Game options")
 
             GameOptionsPage {
                 embedded: true

@@ -12,6 +12,11 @@
     caelestia-gaming mangohud                  the overlay's settings (~/.config/MangoHud/MangoHud.conf)
     caelestia-gaming mangohud-set              write them (JSON on stdin: {option: value|true})
     caelestia-gaming scx                       CPU scheduler: running one, available ones, loader config, ananicy
+    caelestia-gaming library                   every launcher's games (Steam, Lutris, Faugus, Heroic) and their settings
+    caelestia-gaming library-stamp             changes when a launcher's games change (to refresh the list)
+    caelestia-gaming game-set                  one game's Proton, options, overlay (JSON on stdin)
+    caelestia-gaming game-add                  add a game to Steam (non-Steam game), Faugus or Lutris (JSON on stdin)
+    caelestia-gaming game-remove KEY           take an added game off its launcher's list (files kept)
 """
 
 import glob
@@ -19,7 +24,12 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import shutil
+import sqlite3
+import struct
+import zlib
+import time
 import subprocess
 import sys
 import tarfile
@@ -475,9 +485,994 @@ def c_scx(args):
          "gamemode": shutil.which("gamemoderun") is not None})
 
 
+# --- games: every launcher's library, per-game settings ---------------------------------
+#
+# Each game's own settings live where its launcher keeps them (so the launcher
+# shows the same): Steam: Proton in config.vdf CompatToolMapping, options and
+# wrappers in the user's localconfig.vdf LaunchOptions ("KEY=1 mangohud
+# %command%"); Lutris: games/<configpath>.yml (wine.version, system.env,
+# system.mangohud, system.prefix_command); Faugus: games.json (runner,
+# launch_arguments, mangohud); Heroic: GamesConfig/<app>.json (wineVersion,
+# enviromentOptions, showMangohud, wrapperOptions). Only the options the page
+# offers (ENV_KEYS) and its two wrappers are changed; anything else is kept.
+# Steam, Faugus and Heroic rewrite their files from memory: changed only while
+# they're closed.
+
+PERF = "game-performance"
+VDF_TOK = re.compile(r'\s*(?://[^\n]*\n\s*)*(?:"((?:[^"\\]|\\.)*)"|([{}]))')
+
+
+def vdf_load(text):
+    """Steam's text VDF as [[key, value or [children]]], strings raw (as written)."""
+    pos = 0
+
+    def parse(depth):
+        nonlocal pos
+        items = []
+        while True:
+            m = VDF_TOK.match(text, pos)
+            if not m:
+                if depth:
+                    raise ValueError("unterminated block")
+                return items
+            if m.group(2) == "}":
+                pos = m.end()
+                return items
+            if m.group(2) == "{":
+                raise ValueError("unexpected {")
+            key = m.group(1)
+            pos = m.end()
+            m2 = VDF_TOK.match(text, pos)
+            if not m2:
+                raise ValueError("no value for " + key)
+            pos = m2.end()
+            if m2.group(2) == "{":
+                items.append([key, parse(depth + 1)])
+            elif m2.group(1) is not None:
+                items.append([key, m2.group(1)])
+            else:
+                raise ValueError("unexpected }")
+    return parse(0)
+
+
+def vdf_dump(items, depth=0):
+    """Back to text, as Steam writes it (a file read and written unchanged is byte-identical)."""
+    ind = "\t" * depth
+    res = []
+    for k, v in items:
+        if isinstance(v, list):
+            res.append(f'{ind}"{k}"\n{ind}{{\n{vdf_dump(v, depth + 1)}{ind}}}\n')
+        else:
+            res.append(f'{ind}"{k}"\t\t"{v}"\n')
+    return "".join(res)
+
+
+def vdf_find(items, *keys, create=False):
+    for key in keys:
+        node = next((v for k, v in items if k.lower() == key.lower() and isinstance(v, list)), None)
+        if node is None:
+            if not create:
+                return None
+            node = []
+            items.append([key, node])
+        items = node
+    return items
+
+
+def vdf_get(items, key, default=""):
+    v = next((v for k, v in items if k.lower() == key.lower() and not isinstance(v, list)), None)
+    return default if v is None else v.replace('\\"', '"').replace("\\\\", "\\")
+
+
+def vdf_set(items, key, value):
+    raw = value.replace("\\", "\\\\").replace('"', '\\"')
+    for it in items:
+        if it[0].lower() == key.lower() and not isinstance(it[1], list):
+            it[1] = raw
+            return
+    items.append([key, raw])
+
+
+def vdf_read(path):
+    return vdf_load(open(path, encoding="utf-8", errors="surrogateescape").read())
+
+
+def vdf_write(path, items):
+    shutil.copy2(path, path + ".caelestia-bak")
+    tmp = path + ".caelestia-tmp"
+    with open(tmp, "w", encoding="utf-8", errors="surrogateescape") as f:
+        f.write(vdf_dump(items))
+    os.replace(tmp, path)
+
+
+SHELL_WORD = re.compile(r"""(?:[^\s'"\\]+|'[^']*'|"(?:[^"\\]|\\.)*"|\\.)+""")
+
+
+def shell_words(text):
+    """[(raw, value)]: each word as written and as the shell reads it."""
+    res = []
+    for m in SHELL_WORD.finditer(text):
+        raw = m.group(0)
+        try:
+            val = shlex.split(raw)[0] if raw else ""
+        except (ValueError, IndexError):
+            val = raw
+        res.append((raw, val))
+    return res
+
+
+def split_launch(opts):
+    """Launch options -> (env [(k, v, raw)], wrappers [(raw, value)], after): "K=1 mangohud %command% -dx11".
+    Words are kept as written (a rewrite changes only what the page changed)."""
+    if "%command%" in opts:
+        before, after = opts.split("%command%", 1)
+    else:
+        before, after = "", opts
+    env, wrappers = [], []
+    for raw, val in shell_words(before):
+        m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$", val, re.S)
+        if m and not wrappers:
+            env.append((m.group(1), m.group(2), raw))
+        else:
+            wrappers.append((raw, val))
+    return env, wrappers, after.strip()
+
+
+def join_launch(env, wrappers, after):
+    if not env and not wrappers:
+        return after
+    parts = [raw if raw else f"{k}={shlex.quote(v)}" for k, v, raw in env] + [raw for raw, _ in wrappers] + ["%command%"]
+    return " ".join(parts + ([after] if after else []))
+
+
+def apply_env(pairs, changes):
+    """pairs [(k, v, raw)] with changes {K: value or None (remove)}: order kept, new ones last;
+    a changed one loses its raw text (written anew)."""
+    res = []
+    for k, v, raw in pairs:
+        if k in changes:
+            if changes[k] is not None:
+                res.append((k, changes[k], "" if changes[k] != v else raw))
+        else:
+            res.append((k, v, raw))
+    have = {k for k, _, _ in pairs}
+    res += [(k, v, "") for k, v in changes.items() if k not in have and v is not None]
+    return res
+
+
+def check_changes(req):
+    env = req.get("env") or {}
+    for k, v in env.items():
+        if k not in ENV_KEYS:
+            sys.exit(f"not an option here: {k}")
+        if v is not None and not VALUE.match(str(v)):
+            sys.exit("not allowed in a value")
+    proton = req.get("proton")
+    if proton is not None and not re.fullmatch(r"[A-Za-z0-9 ._()+/-]{0,200}", proton):
+        sys.exit("not a version name")
+    return {k: (None if v is None else str(v)) for k, v in env.items()}, proton
+
+
+def running(*names):
+    for n in names:
+        if sh("pgrep", "-x", n).strip():
+            return True
+    return False
+
+
+def faugus_running():
+    for p in sh("pgrep", "-a", "python3").splitlines():
+        if re.search(r"-m faugus\.(launcher|tray_only)\b", p) or p.rstrip().endswith("/faugus-launcher"):
+            return True
+    return bool(sh("pgrep", "-x", "faugus-launcher").strip())
+
+
+def file_mtime(p):
+    try:
+        return os.stat(p).st_mtime
+    except OSError:
+        return 0
+
+
+# Steam ------------------------------------------------------------------------------
+
+STEAM_TOOLS = {"228980"}  # Steamworks Common Redistributables
+
+
+def steam_libraries():
+    libs = [STEAM_ROOT]
+    try:
+        for k, v in vdf_find(vdf_read(os.path.join(STEAM_ROOT, "steamapps/libraryfolders.vdf")), "libraryfolders") or []:
+            if isinstance(v, list):
+                p = vdf_get(v, "path")
+                if p and os.path.realpath(p) not in [os.path.realpath(x) for x in libs]:
+                    libs.append(p)
+    except (OSError, ValueError):
+        pass
+    return [l for l in libs if os.path.isdir(os.path.join(l, "steamapps"))]
+
+
+def steam_user():
+    """userdata/<account id> of the last signed-in user."""
+    try:
+        users = vdf_find(vdf_read(os.path.join(STEAM_ROOT, "config/loginusers.vdf")), "users") or []
+        best = next((k for k, v in users if isinstance(v, list) and vdf_get(v, "MostRecent") == "1"), users[0][0] if users else None)
+        if best:
+            d = os.path.join(STEAM_ROOT, "userdata", str(int(best) - 76561197960265728))
+            if os.path.isdir(d):
+                return d
+    except (OSError, ValueError, IndexError):
+        pass
+    dirs = [d for d in glob.glob(os.path.join(STEAM_ROOT, "userdata/*")) if os.path.basename(d).isdigit() and os.path.basename(d) != "0"]
+    return max(dirs, key=file_mtime) if dirs else None
+
+
+def steam_official(name):
+    """Valve's Proton builds by their internal name (CompatToolMapping)."""
+    if name == "Proton Experimental":
+        return "proton_experimental"
+    if name == "Proton Hotfix":
+        return "proton_hotfix"
+    m = re.fullmatch(r"Proton (\d+)\.\d+", name)
+    return f"proton_{m.group(1)}" if m else None
+
+
+def steam_manifests():
+    for lib in steam_libraries():
+        for f in glob.glob(os.path.join(lib, "steamapps/appmanifest_*.acf")):
+            try:
+                st = vdf_find(vdf_read(f), "AppState")
+            except (OSError, ValueError):
+                continue
+            if st:
+                yield lib, st
+
+
+def steam_cover(appid):
+    base = os.path.join(STEAM_ROOT, "appcache/librarycache", appid)
+    for pat in ("library_600x900.jpg", "*/library_600x900.jpg", "library_capsule.jpg", "*/library_capsule.jpg",
+                "header.jpg", "*/header.jpg"):
+        hit = sorted(glob.glob(os.path.join(base, pat)))
+        if hit:
+            return hit[0]
+    old = os.path.join(STEAM_ROOT, f"appcache/librarycache/{appid}_library_600x900.jpg")
+    return old if os.path.exists(old) else ""
+
+
+# Steam's non-Steam games (userdata/<user>/config/shortcuts.vdf): binary VDF.
+# 0x00 map, 0x01 string, 0x02 int32, 0x08 end; strings are NUL-terminated.
+
+def bvdf_load(data):
+    pos = 0
+
+    def cstr():
+        nonlocal pos
+        end = data.index(b"\x00", pos)
+        v = data[pos:end].decode("utf-8", "surrogateescape")
+        pos = end + 1
+        return v
+
+    def parse():
+        nonlocal pos
+        items = []
+        while True:
+            t = data[pos]
+            pos += 1
+            if t == 0x08:
+                return items
+            key = cstr()
+            if t == 0x00:
+                items.append([key, parse()])
+            elif t == 0x01:
+                items.append([key, cstr()])
+            elif t == 0x02:
+                items.append([key, ("i32", struct.unpack_from("<i", data, pos)[0])])
+                pos += 4
+            else:
+                raise ValueError(f"unknown value type {t}")
+    items = parse() if data else []
+    return items
+
+
+def bvdf_dump(items):
+    out_ = bytearray()
+    for k, v in items:
+        kb = k.encode("utf-8", "surrogateescape") + b"\x00"
+        if isinstance(v, list):
+            out_ += b"\x00" + kb + bvdf_dump(v)
+        elif isinstance(v, tuple):
+            out_ += b"\x02" + kb + struct.pack("<i", v[1])
+        else:
+            out_ += b"\x01" + kb + v.encode("utf-8", "surrogateescape") + b"\x00"
+    return bytes(out_ + b"\x08")
+
+
+def shortcuts_path(user):
+    return os.path.join(user, "config/shortcuts.vdf")
+
+
+def shortcuts_load(user):
+    p = shortcuts_path(user)
+    if not os.path.exists(p):
+        return [["shortcuts", []]]
+    # The file: \x00shortcuts\x00 <entries> \x08 (the map's end) \x08 (the file's end)
+    items = bvdf_load(open(p, "rb").read())
+    return items if items else [["shortcuts", []]]
+
+
+def shortcuts_save(user, items):
+    p = shortcuts_path(user)
+    if os.path.exists(p):
+        shutil.copy2(p, p + ".caelestia-bak")
+    tmp = p + ".caelestia-tmp"
+    with open(tmp, "wb") as f:
+        f.write(bvdf_dump(items))
+    os.replace(tmp, p)
+
+
+def sc_get(entry, key, default=""):
+    v = next((v for k, v in entry if k.lower() == key.lower()), None)
+    if v is None:
+        return default
+    return v[1] if isinstance(v, tuple) else v
+
+
+def sc_set(entry, key, value):
+    for it in entry:
+        if it[0].lower() == key.lower():
+            it[1] = value
+            return
+    entry.append([key, value])
+
+
+def sc_appid(entry):
+    return sc_get(entry, "appid", 0) & 0xFFFFFFFF
+
+
+WINDOWS_EXE = re.compile(r"\.(exe|bat|msi|lnk)\"?$", re.I)
+
+
+def steam_shortcut_games(user, mapping):
+    games = []
+    try:
+        sc = vdf_find_b(shortcuts_load(user))
+    except (OSError, ValueError, IndexError, struct.error):
+        return games
+    for _, entry in sc:
+        if not isinstance(entry, list):
+            continue
+        appid = str(sc_appid(entry))
+        exe = sc_get(entry, "Exe")
+        env, wrappers, after = split_launch(sc_get(entry, "LaunchOptions"))
+        cover = next((c for ext in ("png", "jpg") for c in [os.path.join(user, f"config/grid/{appid}p.{ext}")] if os.path.exists(c)), "")
+        windows = bool(WINDOWS_EXE.search(exe.strip()))
+        games.append({"key": f"steam:{appid}", "launcher": "steam", "id": appid, "title": sc_get(entry, "AppName") or exe,
+                      "cover": cover, "proton": mapping.get(appid, "") if windows else None,
+                      "env": {k: v for k, v, _ in env if k in ENV_KEYS},
+                      "otherEnv": [raw for k, _, raw in env if k not in ENV_KEYS],
+                      "mangohud": "mangohud" in [v for _, v in wrappers], "perf": PERF in [v for _, v in wrappers],
+                      "wrappers": [raw for raw, v in wrappers if v not in ("mangohud", PERF)], "args": after,
+                      "launchOptions": sc_get(entry, "LaunchOptions"), "size": 0,
+                      "lastPlayed": sc_get(entry, "LastPlayTime", 0) or 0, "state": "installed", "shortcut": True,
+                      "path": exe.strip('"'),
+                      "play": ["steam", f"steam://rungameid/{(int(appid) << 32) | 0x02000000}"], "removable": True})
+    return games
+
+
+def vdf_find_b(items):
+    """The list of shortcuts in a loaded shortcuts.vdf."""
+    node = next((v for k, v in items if k.lower() == "shortcuts" and isinstance(v, list)), None)
+    if node is None:
+        node = []
+        items.append(["shortcuts", node])
+    return node
+
+
+def steam_games():
+    games, choices = [], [["", "Steam's default"]]
+    mapping = {}
+    try:
+        m = vdf_find(vdf_read(os.path.join(STEAM_ROOT, "config/config.vdf")),
+                     "InstallConfigStore", "Software", "Valve", "Steam", "CompatToolMapping") or []
+        mapping = {k: vdf_get(v, "name") for k, v in m if isinstance(v, list)}
+    except (OSError, ValueError):
+        pass
+    apps = {}
+    user = steam_user()
+    if user:
+        try:
+            a = vdf_find(vdf_read(os.path.join(user, "config/localconfig.vdf")),
+                         "UserLocalConfigStore", "Software", "Valve", "Steam", "apps") or []
+            apps = {k: v for k, v in a if isinstance(v, list)}
+        except (OSError, ValueError):
+            pass
+    for d in sorted(glob.glob(os.path.join(TARGETS["steam"], "*")) + glob.glob(os.path.join(SYSTEM_STEAM, "*"))):
+        if os.path.isdir(d):
+            choices.append([vdf_name(d), vdf_name(d)])
+    for lib, st in steam_manifests():
+        appid, name = vdf_get(st, "appid"), vdf_get(st, "name")
+        installdir = vdf_get(st, "installdir")
+        if appid in STEAM_TOOLS or os.path.exists(os.path.join(lib, "steamapps/common", installdir, "toolmanifest.vdf")):
+            off = steam_official(name)
+            if off:
+                choices.append([off, name])
+            continue
+        if name.startswith("Steam Linux Runtime"):
+            continue
+        app = apps.get(appid, [])
+        opts = vdf_get(app, "LaunchOptions")
+        env, wrappers, after = split_launch(opts)
+        flags = int(vdf_get(st, "StateFlags", "0") or 0)
+        games.append({"key": f"steam:{appid}", "launcher": "steam", "id": appid, "title": name,
+                      "cover": steam_cover(appid), "proton": mapping.get(appid, ""),
+                      "env": {k: v for k, v, _ in env if k in ENV_KEYS},
+                      "otherEnv": [raw for k, _, raw in env if k not in ENV_KEYS],
+                      "mangohud": "mangohud" in [v for _, v in wrappers], "perf": PERF in [v for _, v in wrappers],
+                      "wrappers": [raw for raw, v in wrappers if v not in ("mangohud", PERF)], "args": after,
+                      "launchOptions": opts, "size": int(vdf_get(st, "SizeOnDisk", "0") or 0),
+                      "lastPlayed": int(vdf_get(app, "LastPlayed", "0") or vdf_get(st, "LastPlayed", "0") or 0),
+                      "state": "installed" if flags == 4 else "updating",
+                      "path": os.path.join(lib, "steamapps/common", installdir),
+                      "play": ["steam", f"steam://rungameid/{appid}"], "removable": False})
+    if user:
+        games += steam_shortcut_games(user, mapping)
+    return games, {"installed": os.path.isdir(STEAM_ROOT), "running": running("steam"), "choices": choices,
+                   "default": steam_default()[0], "perf": True, "user": bool(user)}
+
+
+def steam_set(appid, req):
+    env_changes, proton = check_changes(req)
+    if running("steam"):
+        sys.exit("close Steam first (it rewrites its settings when it quits)")
+    if proton is not None:
+        p = os.path.join(STEAM_ROOT, "config/config.vdf")
+        t = vdf_read(p)
+        m = vdf_find(t, "InstallConfigStore", "Software", "Valve", "Steam", "CompatToolMapping", create=True)
+        entry = next((v for k, v in m if k == appid and isinstance(v, list)), None)
+        if not proton:
+            m[:] = [it for it in m if it[0] != appid]
+        elif entry is not None:
+            vdf_set(entry, "name", proton)
+        else:
+            m.append([appid, [["name", proton], ["config", ""], ["priority", "250"]]])
+        vdf_write(p, t)
+    if env_changes or "mangohud" in req or "perf" in req:
+        user = steam_user()
+        if not user:
+            sys.exit("no Steam user found (sign in to Steam once)")
+        items = shortcuts_load(user)
+        entry = next((e for _, e in vdf_find_b(items) if isinstance(e, list) and str(sc_appid(e)) == appid), None)
+        if entry is not None:  # a non-Steam game: its own launch options
+            env, wrappers, after = split_launch(sc_get(entry, "LaunchOptions"))
+            env = apply_env(env, env_changes)
+            for name, key in (("mangohud", "mangohud"), (PERF, "perf")):
+                if key in req:
+                    wrappers = [w for w in wrappers if w[1] != name]
+                    if req[key]:
+                        wrappers.insert(0, (name, name))
+            sc_set(entry, "LaunchOptions", join_launch(env, wrappers, after))
+            shortcuts_save(user, items)
+            return
+        p = os.path.join(user, "config/localconfig.vdf")
+        t = vdf_read(p)
+        app = vdf_find(t, "UserLocalConfigStore", "Software", "Valve", "Steam", "apps", appid, create=True)
+        env, wrappers, after = split_launch(vdf_get(app, "LaunchOptions"))
+        env = apply_env(env, env_changes)
+        for name, key in (("mangohud", "mangohud"), (PERF, "perf")):
+            if key in req:
+                wrappers = [w for w in wrappers if w[1] != name]
+                if req[key]:
+                    wrappers.insert(0, (name, name))
+        vdf_set(app, "LaunchOptions", join_launch(env, wrappers, after))
+        vdf_write(p, t)
+
+
+# Lutris -----------------------------------------------------------------------------
+
+LUTRIS_DATA = os.path.join(HOME, ".local/share/lutris")
+
+
+def lutris_yaml():
+    try:
+        import yaml
+        return yaml
+    except ImportError:
+        return None
+
+
+def lutris_config_path(configpath):
+    for base in (os.path.join(LUTRIS_DATA, "games"), os.path.join(HOME, ".config/lutris/games")):
+        p = os.path.join(base, configpath + ".yml")
+        if os.path.exists(p):
+            return p
+    return os.path.join(LUTRIS_DATA, "games", configpath + ".yml")
+
+
+def lutris_choices():
+    ch = [["", "Lutris's default"]]
+    for d in sorted(glob.glob(os.path.join(TARGETS["lutris"], "*"))):
+        if os.path.isdir(d):
+            ch.append([os.path.basename(d), os.path.basename(d)])
+    for d in sorted(glob.glob(os.path.join(TARGETS["steam"], "*")) + glob.glob(os.path.join(SYSTEM_STEAM, "*"))):
+        if os.path.isdir(d) and os.path.basename(d) not in [c[0] for c in ch]:
+            ch.append([os.path.basename(d), os.path.basename(d)])
+    return ch
+
+
+def lutris_games():
+    db = os.path.join(LUTRIS_DATA, "pga.db")
+    yaml = lutris_yaml()
+    info = {"installed": os.path.exists(db) and yaml is not None, "running": running("lutris"),
+            "choices": lutris_choices(), "perf": True}
+    if not info["installed"]:
+        return [], info
+    games = []
+    try:
+        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=2)
+        rows = con.execute("SELECT id, name, slug, runner, configpath, directory, lastplayed, playtime "
+                           "FROM games WHERE installed = 1").fetchall()
+        con.close()
+    except sqlite3.Error:
+        return [], info
+    for gid, name, slug, runner, configpath, directory, lastplayed, playtime in rows:
+        cfg = {}
+        if configpath:
+            try:
+                cfg = yaml.safe_load(open(lutris_config_path(configpath))) or {}
+            except (OSError, yaml.YAMLError):
+                cfg = {}
+        system = cfg.get("system") or {}
+        env = system.get("env") or {}
+        cover = next((c for c in (os.path.join(LUTRIS_DATA, "coverart", f"{slug}.jpg"),
+                                  os.path.join(LUTRIS_DATA, "banners", f"{slug}.jpg")) if os.path.exists(c)), "")
+        games.append({"key": f"lutris:{gid}", "launcher": "lutris", "id": str(gid), "title": name, "cover": cover,
+                      "runner": runner or "", "proton": (cfg.get("wine") or {}).get("version", "") if runner == "wine" else None,
+                      "env": {k: str(v) for k, v in env.items() if k in ENV_KEYS},
+                      "otherEnv": [f"{k}={v}" for k, v in env.items() if k not in ENV_KEYS],
+                      "mangohud": bool(system.get("mangohud")), "perf": system.get("prefix_command") == PERF,
+                      "args": str((cfg.get("game") or {}).get("args", "") or ""),
+                      "lastPlayed": int(lastplayed or 0), "state": "installed", "path": directory or "",
+                      "play": ["lutris", f"lutris:rungameid/{gid}"], "removable": True})
+    return games, info
+
+
+def lutris_write(path, cfg):
+    yaml = lutris_yaml()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(yaml.safe_dump(cfg, default_flow_style=False))
+    os.replace(tmp, path)
+
+
+def lutris_set(gid, req):
+    env_changes, proton = check_changes(req)
+    yaml = lutris_yaml()
+    con = sqlite3.connect(os.path.join(LUTRIS_DATA, "pga.db"), timeout=5)
+    row = con.execute("SELECT configpath, runner FROM games WHERE id = ?", (int(gid),)).fetchone()
+    con.close()
+    if not row or not row[0]:
+        sys.exit("no such Lutris game")
+    path = lutris_config_path(row[0])
+    cfg = (yaml.safe_load(open(path)) if os.path.exists(path) else {}) or {}
+    system = cfg.setdefault("system", {}) or {}
+    cfg["system"] = system
+    if env_changes:
+        env = dict(system.get("env") or {})
+        for k, v in env_changes.items():
+            if v is None:
+                env.pop(k, None)
+            else:
+                env[k] = v
+        system["env"] = env
+    if "mangohud" in req:
+        if req["mangohud"]:
+            system["mangohud"] = True
+        else:
+            system.pop("mangohud", None)
+    if "perf" in req:
+        if req["perf"]:
+            system["prefix_command"] = PERF
+        elif system.get("prefix_command") == PERF:
+            system.pop("prefix_command")
+    if proton is not None:
+        if row[1] != "wine":
+            sys.exit("this game doesn't run with Wine/Proton")
+        wine = cfg.setdefault("wine", {}) or {}
+        cfg["wine"] = wine
+        if proton:
+            wine["version"] = proton
+        else:
+            wine.pop("version", None)
+    lutris_write(path, cfg)
+
+
+# Faugus -----------------------------------------------------------------------------
+
+FAUGUS_GAMES = os.path.join(os.environ.get("XDG_DATA_HOME") or os.path.join(HOME, ".local/share"), "faugus-launcher/games.json")
+FAUGUS_CONFIG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.join(HOME, ".config"), "faugus-launcher/config.json")
+FAUGUS_FIELDS = ["gameid", "title", "path", "prefix", "launch_arguments", "game_arguments", "mangohud", "gamemode",
+                 "sdl_enabled", "runner", "addapp_enabled", "addapp", "addapp_bat", "addapp_delay", "addapp_first", "cover",
+                 "lossless_enabled", "lossless_multiplier", "lossless_flow", "lossless_performance", "lossless_hdr",
+                 "lossless_present", "playtime", "hidden", "no_sleep", "category", "icon", "steamgriddb_id", "pre_launch",
+                 "post_launch", "steam_user", "disable_umu", "runtime", "last_played", "discord_rpc"]
+
+
+def faugus_choices():
+    ch = []
+    if glob.glob(os.path.join(SYSTEM_STEAM, "proton-cachyos*")):
+        ch.append(["Proton-CachyOS (System)", "Proton-CachyOS (system package)"])
+    for d in sorted(glob.glob(os.path.join(TARGETS["steam"], "*"))):
+        if os.path.isdir(d):
+            ch.append([os.path.basename(d), os.path.basename(d)])
+    ch.append(["Linux-Native", "Linux game (no Proton)"])
+    return ch
+
+
+def faugus_load():
+    try:
+        g = json.load(open(FAUGUS_GAMES))
+        return g if isinstance(g, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def faugus_save(games):
+    os.makedirs(os.path.dirname(FAUGUS_GAMES), exist_ok=True)
+    if os.path.exists(FAUGUS_GAMES):
+        shutil.copy2(FAUGUS_GAMES, FAUGUS_GAMES + ".caelestia-bak")
+    tmp = FAUGUS_GAMES + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(games, f, indent=4, ensure_ascii=False)
+    os.replace(tmp, FAUGUS_GAMES)
+
+
+def faugus_split(args):
+    env, rest = [], []
+    for raw, val in [w for line in (args or "").splitlines() for w in shell_words(line)]:
+        m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$", val, re.S)
+        (env.append((m.group(1), m.group(2), raw)) if m else rest.append(raw))
+    return env, rest
+
+
+def faugus_games():
+    cfg = {}
+    try:
+        cfg = json.load(open(FAUGUS_CONFIG))
+    except (OSError, ValueError):
+        pass
+    info = {"installed": bool(shutil.which("faugus-launcher")), "running": faugus_running(), "choices": faugus_choices(),
+            "default": cfg.get("default-runner", ""), "perf": False}
+    games = []
+    for g in faugus_load():
+        if not isinstance(g, dict) or not g.get("gameid"):
+            continue
+        env, rest = faugus_split(g.get("launch_arguments", ""))
+        cover = g.get("cover") or g.get("icon") or ""
+        games.append({"key": f"faugus:{g['gameid']}", "launcher": "faugus", "id": g["gameid"], "title": g.get("title", g["gameid"]),
+                      "cover": cover if cover and os.path.exists(os.path.expanduser(cover)) else "",
+                      "proton": g.get("runner", ""), "env": {k: v for k, v, _ in env if k in ENV_KEYS},
+                      "otherEnv": [raw for k, _, raw in env if k not in ENV_KEYS] + rest,
+                      "mangohud": bool(g.get("mangohud")), "perf": None, "args": g.get("game_arguments", ""),
+                      "lastPlayed": int(g.get("last_played") or 0) if str(g.get("last_played") or "0").isdigit() else 0,
+                      "state": "hidden" if g.get("hidden") else "installed", "path": g.get("path", ""),
+                      "play": ["faugus-launcher", "--game", g["gameid"]], "removable": True})
+    return games, info
+
+
+def faugus_set(gid, req):
+    env_changes, proton = check_changes(req)
+    if faugus_running():
+        sys.exit("close Faugus first (it rewrites its game list from memory)")
+    games = faugus_load()
+    g = next((x for x in games if isinstance(x, dict) and x.get("gameid") == gid), None)
+    if not g:
+        sys.exit("no such Faugus game")
+    if env_changes:
+        env, rest = faugus_split(g.get("launch_arguments", ""))
+        env = apply_env(env, env_changes)
+        g["launch_arguments"] = " ".join([raw or f"{k}={shlex.quote(v)}" for k, v, raw in env] + rest)
+    if "mangohud" in req:
+        g["mangohud"] = True if req["mangohud"] else ""
+    if proton is not None:
+        g["runner"] = proton
+    faugus_save(games)
+
+
+# Heroic -----------------------------------------------------------------------------
+
+def heroic_dir():
+    for d in (os.path.join(HOME, ".config/heroic"), os.path.join(HOME, ".var/app/com.heroicgameslauncher.hgl/config/heroic")):
+        if os.path.isdir(d):
+            return d
+    return None
+
+
+def heroic_choices():
+    ch = [["", "Heroic's default"]]
+    for base in (TARGETS["heroic"], TARGETS["steam"], SYSTEM_STEAM):
+        for d in sorted(glob.glob(os.path.join(base, "*"))):
+            if os.path.exists(os.path.join(d, "proton")) and d not in [c[0] for c in ch]:
+                ch.append([d, os.path.basename(d)])
+    return ch
+
+
+def heroic_games():
+    base = heroic_dir()
+    info = {"installed": base is not None, "running": running("heroic"), "choices": heroic_choices(), "perf": True}
+    if not base:
+        return [], info
+    found = []  # (runner, appName, title, path)
+    try:
+        for app, v in json.load(open(os.path.join(base, "legendaryConfig/legendary/installed.json"))).items():
+            if not v.get("is_dlc"):
+                found.append(("legendary", app, v.get("title", app), v.get("install_path", "")))
+    except (OSError, ValueError, AttributeError):
+        pass
+    try:
+        titles = {}
+        try:
+            for gm in json.load(open(os.path.join(base, "store_cache/gog_library.json"))).get("games", []):
+                titles[str(gm.get("app_name"))] = gm.get("title")
+        except (OSError, ValueError):
+            pass
+        for v in json.load(open(os.path.join(base, "gog_store/installed.json"))).get("installed", []):
+            app = str(v.get("appName"))
+            found.append(("gog", app, titles.get(app) or os.path.basename(v.get("install_path", "")) or app, v.get("install_path", "")))
+    except (OSError, ValueError, AttributeError):
+        pass
+    try:
+        for v in json.load(open(os.path.join(base, "sideload_apps/library.json"))).get("games", []):
+            if v.get("is_installed", True):
+                found.append(("sideload", v.get("app_name"), v.get("title", v.get("app_name")), v.get("folder_name", "")))
+    except (OSError, ValueError, AttributeError):
+        pass
+    games = []
+    for runner, app, title, path in found:
+        if not app:
+            continue
+        cfg = {}
+        try:
+            cfg = json.load(open(os.path.join(base, "GamesConfig", f"{app}.json"))).get(app, {})
+        except (OSError, ValueError, AttributeError):
+            pass
+        env = {e.get("key"): str(e.get("value", "")) for e in cfg.get("enviromentOptions", []) if isinstance(e, dict)}
+        wv = cfg.get("wineVersion") or {}
+        wrappers = [w.get("exe") for w in cfg.get("wrapperOptions", []) if isinstance(w, dict)]
+        games.append({"key": f"heroic:{app}", "launcher": "heroic", "id": app, "title": title, "cover": "",
+                      "proton": os.path.dirname(wv.get("bin", "")) if wv.get("type") == "proton" else "",
+                      "env": {k: v for k, v in env.items() if k in ENV_KEYS},
+                      "otherEnv": [f"{k}={v}" for k, v in env.items() if k not in ENV_KEYS],
+                      "mangohud": bool(cfg.get("showMangohud")), "perf": PERF in wrappers, "args": cfg.get("launcherArgs", ""),
+                      "lastPlayed": 0, "state": "installed", "path": path, "runner": runner,
+                      "play": ["xdg-open", f"heroic://launch?appName={app}&runner={runner}"], "removable": False})
+    return games, info
+
+
+def heroic_set(app, req):
+    env_changes, proton = check_changes(req)
+    if running("heroic"):
+        sys.exit("close Heroic first (it keeps its settings in memory)")
+    base = heroic_dir()
+    if not base or not re.fullmatch(r"[A-Za-z0-9_.-]+", app):
+        sys.exit("no such Heroic game")
+    p = os.path.join(base, "GamesConfig", f"{app}.json")
+    data = json.load(open(p)) if os.path.exists(p) else {}
+    cfg = data.setdefault(app, {})
+    if env_changes:
+        envs = [e for e in cfg.get("enviromentOptions", []) if isinstance(e, dict)]
+        pairs = apply_env([(e.get("key"), str(e.get("value", "")), "") for e in envs], env_changes)
+        cfg["enviromentOptions"] = [{"key": k, "value": v} for k, v, _ in pairs]
+    if "mangohud" in req:
+        cfg["showMangohud"] = bool(req["mangohud"])
+    if "perf" in req:
+        wr = [w for w in cfg.get("wrapperOptions", []) if isinstance(w, dict) and w.get("exe") != PERF]
+        cfg["wrapperOptions"] = ([{"exe": PERF, "args": ""}] if req["perf"] else []) + wr
+    if proton is not None:
+        if proton:
+            if not os.path.exists(os.path.join(proton, "proton")):
+                sys.exit("not a Proton folder")
+            cfg["wineVersion"] = {"bin": os.path.join(proton, "proton"), "name": f"Proton - {os.path.basename(proton)}", "type": "proton"}
+        else:
+            cfg.pop("wineVersion", None)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    if os.path.exists(p):
+        shutil.copy2(p, p + ".caelestia-bak")
+    tmp = p + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f, indent=2)
+    os.replace(tmp, p)
+
+
+# All --------------------------------------------------------------------------------
+
+LAUNCHERS = {"steam": (steam_games, steam_set), "lutris": (lutris_games, lutris_set),
+             "faugus": (faugus_games, faugus_set), "heroic": (heroic_games, heroic_set)}
+
+
+def c_library(args):
+    games, launchers = [], {}
+    for name, (read, _) in LAUNCHERS.items():
+        try:
+            g, info = read()
+        except Exception as e:  # one launcher's odd file mustn't hide the others
+            g, info = [], {"installed": False, "error": str(e)}
+        games += g
+        launchers[name] = info
+    games.sort(key=lambda g: (-g.get("lastPlayed", 0), g["title"].lower()))
+    out({"games": games, "launchers": launchers, "stamp": stamp()})
+
+
+def stamp():
+    """mtimes of what changes when a game is added, removed or changed in a launcher
+    (a folder's mtime changes when a file is added or removed in it)."""
+    paths = [os.path.join(STEAM_ROOT, "config/config.vdf"), os.path.join(LUTRIS_DATA, "pga.db"),
+             os.path.join(LUTRIS_DATA, "games"), FAUGUS_GAMES, os.path.dirname(FAUGUS_GAMES)]
+    paths += [os.path.join(l, "steamapps") for l in steam_libraries()]
+    paths += glob.glob(os.path.join(STEAM_ROOT, "userdata/*/config/localconfig.vdf"))
+    hd = heroic_dir()
+    if hd:
+        paths += [os.path.join(hd, f) for f in ("legendaryConfig/legendary/installed.json", "gog_store/installed.json",
+                                                 "sideload_apps/library.json", "GamesConfig")]
+    # and which launchers are open (their games' settings can't change meanwhile)
+    open_now = [running("steam"), running("lutris"), faugus_running(), running("heroic")]
+    return hashlib.sha1(repr([(p, file_mtime(p)) for p in paths] + open_now).encode()).hexdigest()[:16]
+
+
+def c_library_stamp(args):
+    print(stamp())
+
+
+def c_game_set(args):
+    req = json.load(sys.stdin)
+    launcher, _, gid = str(req.get("key", "")).partition(":")
+    if launcher not in LAUNCHERS or not gid:
+        sys.exit("unknown game")
+    LAUNCHERS[launcher][1](gid, req)
+    print(f"Saved {req['key']}", flush=True)
+
+
+def c_game_add(args):
+    """{launcher: steam|faugus|lutris, title, exe, proton, args}: a Windows game (or a Linux one)."""
+    req = json.load(sys.stdin)
+    title, exe = str(req.get("title", "")).strip(), os.path.expanduser(str(req.get("exe", "")))
+    launcher, proton, gargs = req.get("launcher"), str(req.get("proton", "")), str(req.get("args", ""))
+    if not title or len(title) > 200 or "\n" in title:
+        sys.exit("a name is needed")
+    if not os.path.isfile(exe):
+        sys.exit("the game's program wasn't found")
+    if not re.fullmatch(r"[A-Za-z0-9 ._()+/-]{0,200}", proton) or "\n" in gargs:
+        sys.exit("not a version name")
+    slug = re.sub(r"\s+", "-", re.sub(r"[^\w\s-]", "", title.strip().lower())) or "game"
+    if launcher == "faugus":
+        if faugus_running():
+            sys.exit("close Faugus first (it rewrites its game list from memory)")
+        games = faugus_load()
+        ids = {g.get("gameid") for g in games if isinstance(g, dict)}
+        gid, n = slug, 2
+        while gid in ids:
+            gid, n = f"{slug}-{n}", n + 1
+        cfg = {}
+        try:
+            cfg = json.load(open(FAUGUS_CONFIG))
+        except (OSError, ValueError):
+            pass
+        prefix_base = os.path.expanduser(cfg.get("default-prefix") or os.path.join(HOME, "Faugus"))
+        g = {f: "" for f in FAUGUS_FIELDS}
+        g.update({"gameid": gid, "title": title, "path": exe, "prefix": os.path.join(prefix_base, gid),
+                  "game_arguments": gargs,
+                  "runner": (proton or cfg.get("default-runner", "")) if WINDOWS_EXE.search(exe) else "Linux-Native",
+                  "playtime": 0, "hidden": False, "no_sleep": False, "category": False})
+        games.append(g)
+        faugus_save(games)
+        print(f"Added {title} to Faugus", flush=True)
+    elif launcher == "steam":
+        if running("steam"):
+            sys.exit("close Steam first (it rewrites its settings when it quits)")
+        user = steam_user()
+        if not user:
+            sys.exit("no Steam user found (sign in to Steam once)")
+        items = shortcuts_load(user)
+        sc = vdf_find_b(items)
+        exe_q = f'"{exe}"'
+        # Steam's own id for a shortcut: crc32 of exe and name, top bit set
+        appid = (zlib.crc32((exe_q + title).encode()) & 0xFFFFFFFF) | 0x80000000
+        if any(isinstance(e, list) and sc_appid(e) == appid for _, e in sc):
+            sys.exit("it's in Steam already")
+        signed = appid - (1 << 32)
+        entry = [["appid", ("i32", signed)], ["AppName", title], ["Exe", exe_q],
+                 ["StartDir", f'"{os.path.dirname(exe)}/"'], ["icon", ""], ["ShortcutPath", ""], ["LaunchOptions", gargs],
+                 ["IsHidden", ("i32", 0)], ["AllowDesktopConfig", ("i32", 1)], ["AllowOverlay", ("i32", 1)],
+                 ["OpenVR", ("i32", 0)], ["Devkit", ("i32", 0)], ["DevkitGameID", ""], ["DevkitOverrideAppID", ("i32", 0)],
+                 ["LastPlayTime", ("i32", 0)], ["FlatpakAppID", ""], ["tags", []]]
+        idx = max([int(k) for k, _ in sc if k.isdigit()] + [-1]) + 1
+        sc.append([str(idx), entry])
+        shortcuts_save(user, items)
+        # A Windows program needs Proton chosen for it (Steam's default doesn't cover shortcuts)
+        if WINDOWS_EXE.search(exe):
+            name = proton or steam_default()[0] or "proton_experimental"
+            p = os.path.join(STEAM_ROOT, "config/config.vdf")
+            t = vdf_read(p)
+            m = vdf_find(t, "InstallConfigStore", "Software", "Valve", "Steam", "CompatToolMapping", create=True)
+            m.append([str(appid), [["name", name], ["config", ""], ["priority", "250"]]])
+            vdf_write(p, t)
+        print(f"Added {title} to Steam", flush=True)
+    elif launcher == "lutris":
+        yaml = lutris_yaml()
+        db = os.path.join(LUTRIS_DATA, "pga.db")
+        if not yaml or not os.path.exists(db):
+            sys.exit("Lutris isn't set up (open it once)")
+        now = int(time.time())
+        configpath = f"{slug}-{now}"
+        prefix = os.path.join(HOME, "Games", slug)
+        windows = bool(WINDOWS_EXE.search(exe))
+        cfg = {"game": {"exe": exe, "prefix": prefix} if windows else {"exe": exe}, "system": {}}
+        if windows:
+            cfg["wine"] = {"version": proton} if proton else {}
+        if gargs:
+            cfg["game"]["args"] = gargs
+        lutris_write(os.path.join(LUTRIS_DATA, "games", configpath + ".yml"), cfg)
+        con = sqlite3.connect(db, timeout=5)
+        con.execute("INSERT INTO games (name, sortname, slug, installer_slug, parent_slug, platform, runner, executable, "
+                    "directory, updated, lastplayed, installed, installed_at, year, configpath, has_custom_banner, "
+                    "has_custom_icon, has_custom_coverart_big, playtime, service, service_id) "
+                    "VALUES (?, '', ?, '', '', ?, ?, '', ?, ?, 0, 1, ?, NULL, ?, 0, 0, 0, 0, '', '')",
+                    (title, slug, "Windows" if windows else "Linux", "wine" if windows else "linux",
+                     prefix if windows else os.path.dirname(exe), time.strftime("%Y-%m-%d %H:%M:%S"), now, configpath))
+        con.commit()
+        con.close()
+        print(f"Added {title} to Lutris", flush=True)
+    else:
+        sys.exit("games can be added to Steam, Faugus or Lutris")
+
+
+def c_game_remove(args):
+    launcher, _, gid = args[0].partition(":")
+    if launcher == "faugus":
+        if faugus_running():
+            sys.exit("close Faugus first (it rewrites its game list from memory)")
+        games = faugus_load()
+        left = [g for g in games if not (isinstance(g, dict) and g.get("gameid") == gid)]
+        if len(left) == len(games):
+            sys.exit("no such Faugus game")
+        faugus_save(left)
+    elif launcher == "lutris":
+        con = sqlite3.connect(os.path.join(LUTRIS_DATA, "pga.db"), timeout=5)
+        n = con.execute("UPDATE games SET installed = 0 WHERE id = ?", (int(gid),)).rowcount
+        con.commit()
+        con.close()
+        if not n:
+            sys.exit("no such Lutris game")
+    elif launcher == "steam":
+        if running("steam"):
+            sys.exit("close Steam first (it rewrites its settings when it quits)")
+        user = steam_user()
+        items = shortcuts_load(user) if user else [["shortcuts", []]]
+        sc = vdf_find_b(items)
+        left = [it for it in sc if not (isinstance(it[1], list) and str(sc_appid(it[1])) == gid)]
+        if len(left) == len(sc):
+            sys.exit("only games added to Steam (non-Steam games) can be taken off here")
+        # Renumbered 0, 1, ... as Steam writes them
+        sc[:] = [[str(i), e] for i, (_, e) in enumerate(left)]
+        shortcuts_save(user, items)
+        p = os.path.join(STEAM_ROOT, "config/config.vdf")
+        try:
+            t = vdf_read(p)
+            m = vdf_find(t, "InstallConfigStore", "Software", "Valve", "Steam", "CompatToolMapping")
+            if m is not None and any(k == gid for k, _ in m):
+                m[:] = [it for it in m if it[0] != gid]
+                vdf_write(p, t)
+        except (OSError, ValueError):
+            pass
+    else:
+        sys.exit("only games added to Steam, Faugus or Lutris can be taken off here")
+    print(f"Removed {args[0]} from the list", flush=True)
+
+
 COMMANDS = {"gpu": c_gpu, "env": c_env, "env-set": c_env_set, "tools": c_tools, "releases": c_releases,
             "install": c_install, "remove": c_remove, "set-default": c_set_default, "mangohud": c_mangohud,
-            "mangohud-set": c_mangohud_set, "scx": c_scx}
+            "mangohud-set": c_mangohud_set, "scx": c_scx, "library": c_library,
+            "library-stamp": c_library_stamp, "game-set": c_game_set, "game-add": c_game_add, "game-remove": c_game_remove}
 
 
 def main(argv):

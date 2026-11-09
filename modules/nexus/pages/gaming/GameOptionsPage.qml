@@ -46,7 +46,7 @@ PageBase {
         return o[4] ? v === undefined || v !== o[3] : v === o[3];
     }
 
-    title: Tr.tr("Games")
+    title: Tr.tr("Game options")
 
     Component.onCompleted: load()
 

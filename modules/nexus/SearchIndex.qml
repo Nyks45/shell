@@ -4741,6 +4741,36 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Add a game",
+            "ctx": "",
+            "sub": "A game's program (a Windows .exe runs with Proton): added to Steam, Faugus or Lutris",
+            "section": "Add a game",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Choose its program",
+            "ctx": "",
+            "sub": "The game's .exe (or its installer, to install it first)",
+            "section": "Add a game",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Name",
+            "ctx": "",
+            "sub": "",
+            "section": "Add a game",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Temperature",
             "ctx": "",
             "sub": "",
