@@ -91,7 +91,7 @@ ColumnLayout {
 
             StyledText {
                 Layout.fillWidth: true
-                text: root.mouse?.host ? Tr.tr("Set here: the DPI and report rate below") : Tr.tr("Its own profile: what G HUB saved on it (DPI %1, %2)").arg(root.mouse?.dpi ?? "").arg(root.rateNames[root.mouse?.rate] ?? "")
+                text: root.mouse?.host ? Tr.tr("Set here: the DPI and report rate below") : Tr.tr("Its own profile: what G HUB saved on it (DPI, report rate, buttons)")
                 wrapMode: Text.WordWrap
                 font: Tokens.font.body.small
             }

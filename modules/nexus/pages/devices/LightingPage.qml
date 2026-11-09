@@ -26,6 +26,42 @@ PageBase {
     readonly property string accent: Colours.palette.m3primary.toString().slice(1, 7)
     // Changes waiting to be sent (sliders move continuously)
     property var pending: null
+    // The devices' ids: replaced only when devices come or go, so a refresh (after
+    // each change) updates the rows in place instead of rebuilding them (a slider
+    // being dragged, a zone list opened)
+    property var deviceIds: []
+    // Devices showing a colour per zone
+    property var perZone: ({})
+    onInfoChanged: {
+        const ids = (info?.devices ?? []).map(d => d.id);
+        if (JSON.stringify(ids) !== JSON.stringify(deviceIds))
+            deviceIds = ids;
+    }
+
+    // Shown at once, before the device answers
+    function applyLocal(change: var): void {
+        if (!info?.devices)
+            return;
+        const inf = JSON.parse(JSON.stringify(info));
+        if ("followAccent" in change)
+            inf.followAccent = change.followAccent;
+        for (const d of inf.devices) {
+            if (change.device !== "*" && change.device !== d.id)
+                continue;
+            const s = d.saved = d.saved ?? {};
+            for (const k of ["mode", "brightness", "speed"])
+                if (k in change)
+                    s[k] = change[k];
+            if ("colors" in change) {
+                s.colors = change.colors;
+                delete s.color;
+            } else if ("color" in change) {
+                s.color = change.color;
+                delete s.colors;
+            }
+        }
+        info = inf;
+    }
 
     function load(): void {
         if (!proc.running)
@@ -33,6 +69,7 @@ PageBase {
     }
 
     function set(change: var): void {
+        applyLocal(change);
         pending = Object.assign(pending ?? {}, change);
         sendTimer.restart();
     }
@@ -167,27 +204,39 @@ PageBase {
 
         // Each device
         Repeater {
-            model: root.info?.devices ?? []
+            model: root.deviceIds
 
             ColumnLayout {
                 id: dev
 
-                required property var modelData
+                required property string modelData
+                readonly property var d: root.info?.devices?.find(x => x.id === modelData) ?? {
+                    id: modelData,
+                    name: "",
+                    type: "",
+                    modes: [],
+                    zones: [],
+                    leds: [],
+                    colors: [],
+                    emptyZones: [],
+                    saved: {},
+                    mode: ""
+                }
 
-                readonly property var mode: modelData.modes.find(m => m.name === (modelData.saved.mode ?? modelData.mode)) ?? null
+                readonly property var mode: d.modes.find(m => m.name === (d.saved.mode ?? d.mode)) ?? null
                 readonly property bool takesColour: !!mode && (mode.perLed || mode.colors)
-                readonly property real brightness: modelData.saved.brightness ?? 100
-                readonly property real speed: modelData.saved.speed ?? 50
+                readonly property real brightness: d.saved.brightness ?? 100
+                readonly property real speed: d.saved.speed ?? 50
                 // Colours per LED, as saved (or one colour for all)
                 readonly property var ledColours: {
-                    const n = modelData.leds.length;
-                    const s = modelData.saved.colors ?? (modelData.saved.color ? [modelData.saved.color] : modelData.colors);
+                    const n = d.leds.length;
+                    const s = d.saved.colors ?? (d.saved.color ? [d.saved.color] : d.colors);
                     const out = [];
                     for (let i = 0; i < n; i++)
                         out.push(s[Math.min(i, s.length - 1)] ?? "ffffff");
                     return out;
                 }
-                property bool perZone
+                readonly property bool perZone: !!root.perZone[modelData]
 
                 Layout.fillWidth: true
                 spacing: Tokens.spacing.extraSmall / 2
@@ -195,24 +244,24 @@ PageBase {
                 function zoneStart(zi: int): int {
                     let s = 0;
                     for (let i = 0; i < zi; i++)
-                        s += modelData.zones[i].leds;
+                        s += d.zones[i].leds;
                     return s;
                 }
 
                 function setZone(zi: int, c: string): void {
                     const cols = ledColours.slice();
                     const s = zoneStart(zi);
-                    for (let i = 0; i < modelData.zones[zi].leds; i++)
+                    for (let i = 0; i < d.zones[zi].leds; i++)
                         cols[s + i] = c;
                     root.set({
-                        device: modelData.id,
-                        mode: mode?.perLed ? mode.name : (modelData.modes.find(m => m.perLed)?.name ?? mode?.name),
+                        device: d.id,
+                        mode: mode?.perLed ? mode.name : (d.modes.find(m => m.perLed)?.name ?? mode?.name),
                         colors: cols
                     });
                 }
 
                 SectionHeader {
-                    text: `${dev.modelData.name} · ${dev.modelData.type}`
+                    text: `${dev.d.name} · ${dev.d.type}`
                 }
 
                 Flow {
@@ -222,7 +271,7 @@ PageBase {
 
                     Repeater {
                         // "Direct" is the same as Static here (colours set by software)
-                        model: dev.modelData.modes.filter(m => m.name !== "Direct" || !dev.modelData.modes.some(x => x.name === "Static"))
+                        model: dev.d.modes.filter(m => m.name !== "Direct" || !dev.d.modes.some(x => x.name === "Static"))
 
                         TextButton {
                             required property var modelData
@@ -233,7 +282,7 @@ PageBase {
                             checked: dev.mode?.name === modelData.name
                             type: TextButton.Tonal
                             onClicked: root.set({
-                                device: dev.modelData.id,
+                                device: dev.d.id,
                                 mode: modelData.name
                             })
                         }
@@ -264,7 +313,7 @@ PageBase {
                             withAccent: true
                             current: dev.ledColours[0] ?? ""
                             onPicked: c => root.set({
-                                device: dev.modelData.id,
+                                device: dev.d.id,
                                 color: c
                             })
                         }
@@ -273,19 +322,23 @@ PageBase {
 
                 // A colour per zone (headers, the board's own LEDs, the keyboard's parts)
                 ToggleRow {
-                    visible: dev.takesColour && dev.mode?.perLed && (dev.modelData.zones.length > 1 || dev.modelData.leds.length > 1)
-                    text: dev.modelData.zones.length > 1 ? Tr.tr("A colour per zone") : Tr.tr("A colour per part")
+                    visible: dev.takesColour && dev.mode?.perLed && (dev.d.zones.length > 1 || dev.d.leds.length > 1)
+                    text: dev.d.zones.length > 1 ? Tr.tr("A colour per zone") : Tr.tr("A colour per part")
                     checked: dev.perZone
-                    onToggled: dev.perZone = checked
+                    onToggled: {
+                        const z = Object.assign({}, root.perZone);
+                        z[dev.modelData] = checked;
+                        root.perZone = z;
+                    }
                 }
 
                 Repeater {
                     // Zones, or, for a one-zone device (the keyboard), its parts
-                    model: !dev.perZone ? [] : dev.modelData.zones.length > 1 ? dev.modelData.zones.map((z, i) => ({
+                    model: !dev.perZone ? [] : dev.d.zones.length > 1 ? dev.d.zones.map((z, i) => ({
                                 name: z.name,
                                 zone: i,
                                 led: -1
-                            })) : dev.modelData.leds.map((l, i) => ({
+                            })) : dev.d.leds.map((l, i) => ({
                                 name: Tr.tr("Part %1").arg(i + 1),
                                 zone: -1,
                                 led: i
@@ -327,7 +380,7 @@ PageBase {
                                         const cols = dev.ledColours.slice();
                                         cols[zr.modelData.led] = c;
                                         root.set({
-                                            device: dev.modelData.id,
+                                            device: dev.d.id,
                                             colors: cols
                                         });
                                     }
@@ -344,7 +397,7 @@ PageBase {
                     valueLabel: `${Math.round(dev.brightness)}%`
                     value: dev.brightness / 100
                     onMoved: v => root.set({
-                        device: dev.modelData.id,
+                        device: dev.d.id,
                         mode: dev.mode.name,
                         brightness: Math.round(v * 100)
                     })
@@ -357,7 +410,7 @@ PageBase {
                     valueLabel: `${Math.round(dev.speed)}%`
                     value: dev.speed / 100
                     onMoved: v => root.set({
-                        device: dev.modelData.id,
+                        device: dev.d.id,
                         mode: dev.mode.name,
                         speed: Math.round(v * 100)
                     })
@@ -367,8 +420,8 @@ PageBase {
                     Layout.fillWidth: true
                     Layout.leftMargin: Tokens.padding.small
                     Layout.topMargin: Tokens.spacing.small
-                    visible: dev.modelData.emptyZones.length > 0
-                    text: Tr.tr("Nothing known on %1").arg(dev.modelData.emptyZones.join(", "))
+                    visible: dev.d.emptyZones.length > 0
+                    text: Tr.tr("Nothing known on %1").arg(dev.d.emptyZones.join(", "))
                     wrapMode: Text.WordWrap
                     color: Colours.palette.m3outline
                     font: Tokens.font.label.small

@@ -364,34 +364,77 @@ def hidpp(fd, dev, feat, fn, params=b"", wait=1.0):
     return None
 
 
-def wireless_rate():
-    """The report rate the mouse uses now. Solaar reads it without the connection type and so
-    always gets the wired one (1 ms): ask feature 0x8061 getReportRate(1 = wireless) instead."""
-    for h in sorted(glob.glob("/sys/class/hidraw/hidraw*")):
-        if "Receiver" not in (read(os.path.join(h, "device/uevent")) or ""):
-            continue
-        try:
-            fd = os.open(f"/dev/{os.path.basename(h)}", os.O_RDWR | os.O_NONBLOCK)
-        except OSError:
-            continue
-        try:
+class Mouse:
+    """A Logitech mouse behind its receiver, spoken to over HID++ 2.0 directly (milliseconds; each
+    Solaar run takes ~1.5 s): 0x2202 DPI, 0x8061 report rate, 0x8100 onboard profiles."""
+
+    def __init__(self):
+        self.fd = self.dev = None
+        self.idx = {}
+        for h in sorted(glob.glob("/sys/class/hidraw/hidraw*")):
+            if "Receiver" not in (read(os.path.join(h, "device/uevent")) or ""):
+                continue
+            try:
+                fd = os.open(f"/dev/{os.path.basename(h)}", os.O_RDWR | os.O_NONBLOCK)
+            except OSError:
+                continue
             for dev in range(1, 7):
-                r = hidpp(fd, dev, 0x00, 0x00, b"\x80\x61", wait=0.4)  # root: getFeature(0x8061)
-                if not r or not r[4]:
-                    continue
-                g = hidpp(fd, dev, r[4], 0x20, b"\x01")
-                if g and g[4] < len(RATES):
-                    return RATES[g[4]]
-        except OSError:
-            pass
-        finally:
+                try:
+                    r = hidpp(fd, dev, 0x00, 0x00, b"\x22\x02", wait=0.3)  # root: getFeature(0x2202)
+                except OSError:
+                    r = None
+                if r and r[4]:
+                    self.fd, self.dev, self.idx[0x2202] = fd, dev, r[4]
+                    for fid in (0x8061, 0x8100):
+                        x = hidpp(fd, dev, 0x00, 0x00, bytes([fid >> 8, fid & 0xFF]), wait=0.4)
+                        if x and x[4]:
+                            self.idx[fid] = x[4]
+                    return
             os.close(fd)
-    return None
+
+    def req(self, fid, fn, params=b""):
+        if self.fd is None or fid not in self.idx:
+            return None
+        r = hidpp(self.fd, self.dev, self.idx[fid], fn, params)
+        return r[4:] if r else None
+
+    def state(self):
+        st = {}
+        d = self.req(0x2202, 0x50, b"\x00")
+        if d:
+            st["dpi"], st["lod"] = int.from_bytes(d[1:3], "big"), d[9]
+        # Solaar reads this without the connection type: always the wired rate. 1 = wireless.
+        r = self.req(0x8061, 0x20, b"\x01")
+        if r and r[0] < len(RATES):
+            st["rate"] = RATES[r[0]]
+        p = self.req(0x8100, 0x20)
+        if p:
+            st["profile"] = "Profile 1" if p[0] == 0x01 else "Disabled"
+        return st
+
+    def set_profile(self, on):
+        if on:
+            self.req(0x8100, 0x10, b"\x01")
+            self.req(0x8100, 0x30, b"\x00\x01")
+        else:
+            self.req(0x8100, 0x10, b"\x02")
+
+    def set_dpi(self, dpi):
+        d = self.req(0x2202, 0x50, b"\x00")
+        lod = d[9] if d else 2
+        self.req(0x2202, 0x60, bytes([0, dpi >> 8, dpi & 0xFF, dpi >> 8, dpi & 0xFF, lod]))
+
+    def set_rate(self, rate):
+        self.req(0x8061, 0x30, bytes([RATES.index(rate)]))
+
+    def close(self):
+        if self.fd is not None:
+            os.close(self.fd)
 
 
 def mouse_info():
-    """Logitech mice: name and battery from the kernel (hidpp_battery: always right, even while the
-    mouse sleeps), DPI / report rate / onboard profile from `solaar config` (its key = value lines)."""
+    """Logitech mice: name and battery from the kernel (hidpp_battery: right even while the mouse
+    sleeps), DPI / report rate / onboard profile over HID++ (Solaar's config as a fallback)."""
     mice = []
     for ps in sorted(glob.glob("/sys/class/power_supply/hidpp_battery_*")):
         name = (read(os.path.join(ps, "model_name")) or "").strip()
@@ -400,27 +443,23 @@ def mouse_info():
         cap, status = read(os.path.join(ps, "capacity")), read(os.path.join(ps, "status")) or ""
         m = {"name": name, "battery": int(cap) if cap and cap.isdigit() else None,
              "charging": status in ("Charging", "Full"), "awake": False}
-        text = solaar("config", name)
-        for line in text.splitlines():
-            if (x := re.match(r"^onboard_profiles = (.+)$", line)):
-                m["profile"], m["awake"] = x.group(1).strip(), True
-            elif (x := re.match(r"^report_rate(?:_extended)? = (\w+)$", line)):
-                m["rate"] = x.group(1)
-            elif (x := re.match(r"^dpi(?:_extended)? = \{?X?:?\s*(\d+)", line)):
-                m["dpi"], m["awake"] = int(x.group(1)), True
-        if m["awake"]:
-            m["rate"] = wireless_rate() or m.get("rate")
-        if m["awake"] or "dpi" in text:
-            mice.append(m)
-        elif m["battery"] is not None:
-            mice.append(m)  # asleep: shown with its battery only
+        mo = Mouse()
+        st = mo.state()
+        mo.close()
+        if st.get("dpi"):
+            m.update(st)
+            m["awake"] = True
+        else:
+            for line in solaar("config", name).splitlines():
+                if (x := re.match(r"^onboard_profiles = (.+)$", line)):
+                    m["profile"], m["awake"] = x.group(1).strip(), True
+                elif (x := re.match(r"^dpi(?:_extended)? = \{?X?:?\s*(\d+)", line)):
+                    m["dpi"], m["awake"] = int(x.group(1)), True
+        mice.append(m)
     return mice
 
 
 def c_mouse(args):
-    if not os.path.exists("/usr/bin/solaar"):
-        out({"installed": False, "mice": []})
-        return
     mice = mouse_info()
     saved = load_json(MOUSE, {})
     for m in mice:
@@ -430,24 +469,44 @@ def c_mouse(args):
     out({"installed": True, "mice": mice})
 
 
-def mouse_apply(name, st):
-    if "profile" in st:
-        solaar("config", name, "onboard_profiles", "Disabled" if st["profile"] == "off" else "Profile 1")
-    if st.get("profile") == "off":
-        if "dpi" in st:
-            # A keyed setting: X and Y each
-            solaar("config", name, "dpi_extended", "X", str(st["dpi"]))
-            solaar("config", name, "dpi_extended", "Y", str(st["dpi"]))
-        if "rate" in st:
-            solaar("config", name, "report_rate_extended", st["rate"])
+def mouse_apply(name, st, only=None):
+    """Apply saved settings (all of them, or only the one just changed)."""
+    mo = Mouse()
+    if mo.fd is None:
+        mo.close()
+        # Not reachable directly: Solaar
+        if "profile" in st and only in (None, "profile"):
+            solaar("config", name, "onboard_profiles", "Disabled" if st["profile"] == "off" else "Profile 1")
+        if st.get("profile") == "off":
+            if "dpi" in st and only in (None, "dpi"):
+                solaar("config", name, "dpi_extended", "X", str(st["dpi"]))
+                solaar("config", name, "dpi_extended", "Y", str(st["dpi"]))
+            if "rate" in st and only in (None, "rate"):
+                solaar("config", name, "report_rate_extended", st["rate"])
+        return
+    try:
+        if "profile" in st and only in (None, "profile", "dpi", "rate"):
+            cur = mo.state().get("profile")
+            want = "Disabled" if st["profile"] == "off" else "Profile 1"
+            if cur != want:
+                mo.set_profile(st["profile"] != "off")
+        if st.get("profile") == "off":
+            if "dpi" in st and only in (None, "dpi", "profile"):
+                mo.set_dpi(st["dpi"])
+            if "rate" in st and only in (None, "rate", "profile"):
+                mo.set_rate(st["rate"])
+    finally:
+        mo.close()
 
 
 def c_mouse_set(args):
     key, val = args[0], args[1]
-    mice = mouse_info()
-    if not mice:
+    # The name from the kernel (instant; no Solaar run)
+    names = [(read(os.path.join(p, "model_name")) or "").strip() for p in sorted(glob.glob("/sys/class/power_supply/hidpp_battery_*"))]
+    names = [n for n in names if n]
+    if not names:
         sys.exit("no Logitech mouse found (is it on?)")
-    name = mice[0]["name"]
+    name = names[0]
     saved = load_json(MOUSE, {})
     st = saved.setdefault(name, {})
     if key == "profile" and val in ("on", "off"):
@@ -460,7 +519,7 @@ def c_mouse_set(args):
         sys.exit("not a mouse setting")
     if key != "profile":
         st["profile"] = "off"  # DPI and rate only take effect without the onboard profile
-    mouse_apply(name, st)
+    mouse_apply(name, st, only=key)
     save_json(MOUSE, saved)
     print("Saved", flush=True)
 
