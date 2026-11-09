@@ -41,6 +41,26 @@ Variants {
 
             anchors.fill: parent
 
+            // The live wallpaper's last frame while its renderer loads (after
+            // the shell starts it: LiveStartFrame), faded out once it draws
+            Image {
+                anchors.fill: parent
+                visible: opacity > 0
+                opacity: LiveStartFrame.showing ? 1 : 0
+                source: LiveStartFrame.frame && (LiveStartFrame.showing || opacity > 0) ? `file://${LiveStartFrame.frame}` : ""
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                cache: false
+                sourceSize.width: win.screen?.width ?? 2560
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 450
+                        easing.type: Easing.OutCubic
+                    }
+                }
+            }
+
             Loader {
                 id: wallpaper
 

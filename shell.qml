@@ -32,6 +32,9 @@ ShellRoot {
         // Reads the live wallpaper library and settings (importing the old
         // GUI's on first run): the login script uses that settings file
         LiveWallpaper;
+        // Login order: the shell first, then it starts the live wallpaper
+        // (showing its last frame until the renderer draws)
+        LiveStartFrame;
         // The session's polkit agent (password prompts)
         Polkit;
         // Checks for updates every few hours and notifies (Settings › Apps)

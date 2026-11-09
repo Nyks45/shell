@@ -142,8 +142,10 @@ screens = {k: v for k, v in screens.items() if v}
 if not screens:
     sys.exit(0)
 walls = list(screens.values())
-# The first line: a wallpaper folder (for the saved frame and the colours), or "-"
-args = [walls[0] if walls else "-"]
+# The first lines: a wallpaper folder (for the saved frame and the colours) or
+# "-", the assets folder chosen in the settings or "-", paused (1/0): read here
+# once instead of a python run each in start()
+args = [walls[0] if walls else "-", c.get("assetsDir") or "-", "1" if c.get("paused") else "0"]
 # Process-wide options: the first shown wallpaper's own values win
 o0 = overrides.get(walls[0]) if walls else {}
 o0 = o0 or {}
@@ -203,20 +205,24 @@ EOF
 start() {
     # The assets folder: the settings app's choice, else its own library's,
     # else Steam's Wallpaper Engine
-    local assets
-    assets="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("assetsDir") or "")' "$SETTINGS" 2>/dev/null || true)"
+    local assets="" paused=0 dir="" gui=() cfg=()
+    mapfile -t cfg < <(config_args)
+    [[ -f "$SETTINGS" ]] || mapfile -t gui < <(gui_args)
+    if (( ${#cfg[@]} )); then
+        [[ "${cfg[1]}" != "-" ]] && assets="${cfg[1]}"
+        paused="${cfg[2]}"
+    fi
     [[ -d "$assets" ]] || assets="$LIB/assets"
     [[ -d "$assets" ]] || assets="$WE/assets"
     [[ -d "$assets" ]] || die "No Wallpaper Engine assets: get them in Settings > Wallpaper > Live"
-    local args=(--assets-dir "$assets" --layer background) dir="" gui=() cfg=()
-    mapfile -t cfg < <(config_args)
-    [[ -f "$SETTINGS" ]] || mapfile -t gui < <(gui_args)
+    local args=(--assets-dir "$assets" --layer background)
 
     if (( ${#cfg[@]} )); then
-        # The settings app's choices (first line: the wallpaper folder)
+        # The settings app's choices (first lines: the wallpaper folder, the
+        # assets folder, paused; then the renderer's arguments)
         dir="${cfg[0]}"
         [[ "$dir" == "-" ]] && dir=""
-        args+=("${cfg[@]:1}")
+        args+=("${cfg[@]:3}")
     elif [[ -f "$SETTINGS" ]]; then
         # Turned off in the settings app: nothing to start
         stop
@@ -239,8 +245,10 @@ start() {
 
     # The renderer also saves one full-size frame once it has drawn a few (named per
     # wallpaper: the shell caches images by path).
-    local frame="$STATE/frame-$(basename "$dir").png"
-    rm -f "$STATE"/frame-*.png
+    local frame="$STATE/frame-$(basename "$dir").png" f
+    # Other wallpapers' frames go; this one stays until the renderer replaces
+    # it (the shell shows it while the renderer loads: LiveStartFrame)
+    for f in "$STATE"/frame-*.png; do [[ "$f" == "$frame" ]] || rm -f "$f"; done
     args+=(--screenshot "$frame")
 
     # Not a process-group leader in the background, so setsid execs in place:
@@ -251,7 +259,7 @@ start() {
 
     # Paused in the settings (it survives restarts and logins): pause again
     # once the first frames are drawn (the lock screen's frame is saved)
-    if [[ "$(python3 -c 'import json,sys; print(bool(json.load(open(sys.argv[1])).get("paused")))' "$SETTINGS" 2>/dev/null)" == True ]]; then
+    if [[ "$paused" == 1 ]]; then
         ( sleep 3; signal STOP ) > /dev/null 2>&1 < /dev/null &
         disown
     fi
