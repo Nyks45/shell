@@ -416,6 +416,20 @@ PageBase {
                     })
                 }
 
+                // Recent MSI boards: their ARGB headers are driven by the Nuvoton chip, which
+                // nothing on Linux can set yet (OpenRGB #5661/#5135); tested here: a direct
+                // write to the board's USB lighting controller didn't reach the lights
+                StyledText {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Tokens.padding.small
+                    Layout.topMargin: Tokens.spacing.small
+                    visible: dev.d.type === "motherboard" && dev.d.vendor === "MSI"
+                    text: Tr.tr("On this board the ARGB headers can't be set from Linux yet: if your lights don't change, choose an effect in MSI Center on Windows (the board keeps it).")
+                    wrapMode: Text.WordWrap
+                    color: Colours.palette.m3tertiary
+                    font: Tokens.font.label.small
+                }
+
                 StyledText {
                     Layout.fillWidth: true
                     Layout.leftMargin: Tokens.padding.small
