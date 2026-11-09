@@ -346,6 +346,49 @@ def solaar(*args, timeout=40):
     return sh("solaar", *args, timeout=timeout)
 
 
+def hidpp(fd, dev, feat, fn, params=b"", wait=1.0):
+    """One HID++ 2.0 request (long report) and its answer, or None."""
+    import select
+    sw = 0x0C
+    msg = bytes([0x11, dev, feat, (fn & 0xF0) | sw]) + params
+    os.write(fd, msg + bytes(20 - len(msg)))
+    end = time.time() + wait
+    while time.time() < end:
+        if not select.select([fd], [], [], 0.2)[0]:
+            continue
+        d = os.read(fd, 64)
+        if len(d) >= 5 and d[1] == dev and d[2] == 0xFF and d[3] == feat:
+            return None  # an error reply
+        if len(d) >= 4 and d[1] == dev and d[2] == feat and (d[3] & 0x0F) == sw:
+            return d
+    return None
+
+
+def wireless_rate():
+    """The report rate the mouse uses now. Solaar reads it without the connection type and so
+    always gets the wired one (1 ms): ask feature 0x8061 getReportRate(1 = wireless) instead."""
+    for h in sorted(glob.glob("/sys/class/hidraw/hidraw*")):
+        if "Receiver" not in (read(os.path.join(h, "device/uevent")) or ""):
+            continue
+        try:
+            fd = os.open(f"/dev/{os.path.basename(h)}", os.O_RDWR | os.O_NONBLOCK)
+        except OSError:
+            continue
+        try:
+            for dev in range(1, 7):
+                r = hidpp(fd, dev, 0x00, 0x00, b"\x80\x61", wait=0.4)  # root: getFeature(0x8061)
+                if not r or not r[4]:
+                    continue
+                g = hidpp(fd, dev, r[4], 0x20, b"\x01")
+                if g and g[4] < len(RATES):
+                    return RATES[g[4]]
+        except OSError:
+            pass
+        finally:
+            os.close(fd)
+    return None
+
+
 def mouse_info():
     """Logitech mice: name and battery from the kernel (hidpp_battery: always right, even while the
     mouse sleeps), DPI / report rate / onboard profile from `solaar config` (its key = value lines)."""
@@ -365,6 +408,8 @@ def mouse_info():
                 m["rate"] = x.group(1)
             elif (x := re.match(r"^dpi(?:_extended)? = \{?X?:?\s*(\d+)", line)):
                 m["dpi"], m["awake"] = int(x.group(1)), True
+        if m["awake"]:
+            m["rate"] = wireless_rate() or m.get("rate")
         if m["awake"] or "dpi" in text:
             mice.append(m)
         elif m["battery"] is not None:
@@ -390,7 +435,9 @@ def mouse_apply(name, st):
         solaar("config", name, "onboard_profiles", "Disabled" if st["profile"] == "off" else "Profile 1")
     if st.get("profile") == "off":
         if "dpi" in st:
-            solaar("config", name, "dpi_extended", f"{{X:{st['dpi']}, Y:{st['dpi']}, LOD:HIGH}}")
+            # A keyed setting: X and Y each
+            solaar("config", name, "dpi_extended", "X", str(st["dpi"]))
+            solaar("config", name, "dpi_extended", "Y", str(st["dpi"]))
         if "rate" in st:
             solaar("config", name, "report_rate_extended", st["rate"])
 
