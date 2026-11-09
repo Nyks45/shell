@@ -22,7 +22,7 @@ PageBase {
 
     property var info: null
     readonly property string helper: `${Paths.libdir}/caelestia-devices`
-    readonly property var swatches: ["ffffff", "ffd8a8", "ff2020", "ff7a00", "ffd000", "30e030", "00d0d0", "2060ff", "9040ff", "ff40b0", "000000"]
+    readonly property var swatches: ["ffffff", "ffd8a8", "ff0000", "ff7a00", "ffd000", "30e030", "00d0d0", "2060ff", "9040ff", "ff40b0", "000000"]
     readonly property string accent: Colours.palette.m3primary.toString().slice(1, 7)
     // Changes waiting to be sent (sliders move continuously)
     property var pending: null
@@ -99,7 +99,8 @@ PageBase {
         Timer {
             id: sendTimer
 
-            interval: 250
+            // The board saves each change in its own memory: not on every slider step
+            interval: 500
             onTriggered: root.send()
         }
 
@@ -414,20 +415,6 @@ PageBase {
                         mode: dev.mode.name,
                         speed: Math.round(v * 100)
                     })
-                }
-
-                // Recent MSI boards: their ARGB headers are driven by the Nuvoton chip, which
-                // nothing on Linux can set yet (OpenRGB #5661/#5135); tested here: a direct
-                // write to the board's USB lighting controller didn't reach the lights
-                StyledText {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: Tokens.padding.small
-                    Layout.topMargin: Tokens.spacing.small
-                    visible: dev.d.type === "motherboard" && dev.d.vendor === "MSI"
-                    text: Tr.tr("On this board the ARGB headers can't be set from Linux yet: if your lights don't change, choose an effect in MSI Center on Windows (the board keeps it).")
-                    wrapMode: Text.WordWrap
-                    color: Colours.palette.m3tertiary
-                    font: Tokens.font.label.small
                 }
 
                 StyledText {

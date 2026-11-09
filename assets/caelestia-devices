@@ -228,6 +228,109 @@ def server_state():
     return active, enabled
 
 
+# --- MSI Mystic Light (185-byte boards) ------------------------------------------------
+#
+# On these boards OpenRGB's writes don't change the lights (its Static mode doesn't touch the
+# board's packet, and the board only acts on a packet sent with the save flag), so the board is
+# written here directly: feature report 0x52, 185 bytes, zones of 10 bytes (effect, colour,
+# speed+brightness, colour 2, colour flags, padding; the two ARGB headers one byte more: their
+# LED count), the last byte = save. Layout and flags from OpenRGB (MSIMotherboardCommon.h).
+# Tested on the PRO B650M-B (MS-7E28): with save the ARGB header follows, without it nothing.
+
+MSI_MODES = {"Static": 1, "Breathing": 2, "Flashing": 3, "Double flashing": 4, "Lightning": 5, "Meteor": 7,
+             "Color ring": 15, "Planetary": 16, "Double meteor": 17, "Energy": 18, "Blink": 19, "Clock": 20,
+             "Color pulse": 21, "Color shift": 22, "Color wave": 23, "Marquee": 24, "Rainbow": 25,
+             "Rainbow wave": 26, "Visor": 27, "Rainbow flashing": 29, "Color ring double flashing": 35,
+             "Stack": 36, "Fire": 38, "Lava": 39, "Off": 0}
+# Effects whose colours the board makes up itself (no colour to pick)
+MSI_RAINBOW = {"Color ring", "Planetary", "Double meteor", "Energy", "Clock", "Rainbow", "Rainbow wave",
+               "Rainbow flashing", "Color ring double flashing", "Stack", "Fire", "Lava", "Visor"}
+MSI_NO_SPEED = {"Static", "Off"}
+# The board's headers (packet offset, name)
+MSI_ZONES = [(31, "ARGB 1 (JARGB_V2_1)"), (42, "ARGB 2 (JARGB_V2_2)"), (1, "RGB (JRGB1)")]
+MSI_OTHER = [11, 21] + list(range(74, 174, 10))  # pipes and onboard LEDs: follow the first header
+
+
+def msi_path():
+    """The board's Mystic Light HID node, by its USB id (OpenRGB's location can be stale)."""
+    for h in sorted(glob.glob("/sys/class/hidraw/hidraw*")):
+        if "HID_ID=0003:00000DB0:00000076" in (read(os.path.join(h, "device/uevent")) or "").upper():
+            return f"/dev/{os.path.basename(h)}"
+    return None
+
+
+def msi_ioctl(write, n):
+    return (3 << 30) | (n << 16) | (ord("H") << 8) | (0x06 if write else 0x07)
+
+
+def msi_read(path):
+    import fcntl
+    fd = os.open(path, os.O_RDWR)
+    try:
+        b = bytearray(185)
+        b[0] = 0x52
+        fcntl.ioctl(fd, msi_ioctl(False, 185), b, True)
+        return b
+    finally:
+        os.close(fd)
+
+
+def msi_write(path, b):
+    import fcntl
+    fd = os.open(path, os.O_RDWR)
+    try:
+        fcntl.ioctl(fd, msi_ioctl(True, 185), bytes(b))
+    finally:
+        os.close(fd)
+
+
+def msi_state(path):
+    b = msi_read(path)
+    code = b[31]
+    mode = next((k for k, v in MSI_MODES.items() if v == code), "Rainbow wave")
+    sb = b[35]
+    return {"mode": mode, "brightness": round(((sb & 0x7C) >> 2) * 10), "speed": round((sb & 0x03) * 50),
+            "colors": [b[off + 1:off + 4].hex() for off, _ in MSI_ZONES]}
+
+
+def msi_device(c):
+    """The board as the page shows it: its real headers and MSI's effects."""
+    path = msi_path()
+    if not path:
+        raise OSError("no Mystic Light device")
+    st = msi_state(path)
+    modes = [{"name": k, "flags": 0, "colorMode": 0 if k in MSI_RAINBOW else 1, "speed": k not in MSI_NO_SPEED,
+              "brightness": k != "Off", "perLed": k not in MSI_RAINBOW and k != "Off", "colors": False,
+              "colorsMax": 0, "saves": True} for k in MSI_MODES]
+    return {"id": device_id(c), "name": c["name"], "type": "motherboard", "vendor": "MSI", "msi": path,
+            "mode": st["mode"], "modes": modes, "zones": [{"name": n, "leds": 1} for _, n in MSI_ZONES],
+            "emptyZones": [], "leds": [n for _, n in MSI_ZONES], "colors": st["colors"],
+            "saved": {"mode": st["mode"], "brightness": st["brightness"], "speed": st["speed"], "colors": st["colors"]}}
+
+
+def msi_apply(path, st):
+    b = msi_read(path)
+    mode = st.get("mode") or "Static"
+    code = MSI_MODES.get(mode, 1)
+    bright = max(0, min(10, round(st.get("brightness", 100) / 10)))
+    speed = max(0, min(2, round(st.get("speed", 50) / 50)))
+    colors = st.get("colors") or ([st["color"]] if st.get("color") else [])
+    def put(off, col):
+        # Only these fields: the rest of each zone (sync flags, padding) stays as the board has it
+        b[off] = code
+        b[off + 1:off + 4] = bytes.fromhex(col)
+        b[off + 4] = (b[off + 4] & 0x80) | ((bright << 2) & 0x7C) | (speed & 0x03)
+        b[off + 8] = (b[off + 8] & 0x7F) | (0 if mode in MSI_RAINBOW else 0x80)
+
+    for i, (off, _) in enumerate(MSI_ZONES):
+        put(off, colors[min(i, len(colors) - 1)] if colors else b[off + 1:off + 4].hex())
+    # Pipes and onboard LEDs (if the board has them): like the first header
+    for off in MSI_OTHER:
+        put(off, colors[0] if colors else b[off + 1:off + 4].hex())
+    b[184] = 1  # save: the board acts on it only then (and keeps it)
+    msi_write(path, b)
+
+
 def c_lighting(args):
     active, enabled = server_state()
     saved = load_json(LIGHTING, {})
@@ -236,6 +339,12 @@ def c_lighting(args):
     if sdk:
         for c in sdk.controllers():
             did = device_id(c)
+            if c["vendor"] == "MSI" and c["type"] == 0 and "185" in c["description"]:
+                try:
+                    devices.append(msi_device(c))
+                    continue
+                except OSError:
+                    pass
             st = saved.get("devices", {}).get(did, {})
             modes = [{"name": m["name"], "flags": m["flags"], "colorMode": m["colorMode"],
                       "speed": m["flags"] & MODE_HAS_SPEED != 0, "brightness": m["flags"] & MODE_HAS_BRIGHTNESS != 0,
@@ -311,6 +420,17 @@ def c_lighting_set(args):
             # A colour for "all devices": the mode that takes colours for every LED
             st["mode"] = next((m["name"] for m in c["modes"] if m["name"].lower() == "static" and m["colorMode"] == COLOR_PER_LED),
                               next((m["name"] for m in c["modes"] if m["colorMode"] == COLOR_PER_LED), c["modes"][0]["name"]))
+        if c["vendor"] == "MSI" and c["type"] == 0 and "185" in c["description"]:
+            path = msi_path()
+            if not path:
+                sys.exit("the board's lighting device wasn't found")
+            if req.get("device") in (None, "*"):
+                st["mode"] = "Static"
+            elif st.get("mode") not in MSI_MODES:
+                st["mode"] = msi_state(path)["mode"]
+            msi_apply(path, st)
+            saved.setdefault("devices", {})[device_id(c)] = st
+            continue
         if req.get("device") in (None, "*"):
             # All devices: one colour, each in its static/direct mode
             st["mode"] = next((m["name"] for m in c["modes"] if m["name"].lower() == "static" and m["colorMode"] == COLOR_PER_LED),
@@ -330,6 +450,8 @@ def c_lighting_restore(args):
         sys.exit("the lighting service isn't running")
     for c in sdk.controllers():
         st = saved["devices"].get(device_id(c))
+        if c["vendor"] == "MSI" and c["type"] == 0 and "185" in c["description"]:
+            continue  # saved on the board itself
         if st:
             try:
                 apply(sdk, c, st)
