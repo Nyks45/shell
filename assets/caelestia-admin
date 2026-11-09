@@ -1031,6 +1031,92 @@ def act_kernel_remove(args):
     act_boot_kernels([])
 
 
+
+# --- gaming -------------------------------------------------------------------------
+
+def gpu_limits():
+    q = subprocess.run(["nvidia-smi", "--query-gpu=power.min_limit,power.max_limit,power.default_limit",
+                        "--format=csv,noheader,nounits"], text=True, stdout=subprocess.PIPE).stdout.split("\n")[0]
+    lo, hi, default = (float(x) for x in q.split(","))
+    return lo, hi, default
+
+
+GPU_UNIT = "/etc/systemd/system/caelestia-gpu-power.service"
+
+
+def act_gpu_power(args):
+    """gpu-power WATTS|default: the graphics card's power limit, now and at
+    every start (nvidia-smi forgets it: a small boot service sets it again)."""
+    need(args, 1, "gpu-power WATTS|default")
+    lo, hi, default = gpu_limits()
+    if args[0] == "default":
+        run("nvidia-smi", "-pl", str(int(default)))
+        if os.path.exists(GPU_UNIT):
+            run("systemctl", "disable", "caelestia-gpu-power.service", check=False)
+            run("rm", "-f", GPU_UNIT)
+            run("systemctl", "daemon-reload")
+        return
+    if not re.fullmatch(r"[0-9]{2,4}", args[0]) or not lo <= int(args[0]) <= hi:
+        raise Refused(f"between {int(lo)} and {int(hi)} W")
+    run("nvidia-smi", "-pl", args[0])
+    write_file(GPU_UNIT, "[Unit]\nDescription=Caelestia settings: the graphics card's power limit\n"
+                         "After=nvidia-persistenced.service\n\n[Service]\nType=oneshot\n"
+                         f"ExecStart=/usr/bin/nvidia-smi -pl {args[0]}\n\n[Install]\nWantedBy=multi-user.target\n")
+    run("systemctl", "daemon-reload")
+    run("systemctl", "enable", "caelestia-gpu-power.service")
+
+
+def act_gpu_persistence(args):
+    """gpu-persistence on|off: keep the driver set up between uses (nvidia-persistenced)."""
+    need(args, 1, "gpu-persistence on|off")
+    if args[0] not in ("on", "off"):
+        raise Refused("on or off")
+    run("systemctl", "enable" if args[0] == "on" else "disable", "--now", "nvidia-persistenced.service")
+
+
+SCX_MODES = ("Auto", "Gaming", "LowLatency", "PowerSave", "Server")
+
+
+def act_scx(args):
+    """scx SCHEDULER MODE | off: the CPU scheduler (sched-ext through
+    scx_loader): written as the default in /etc/scx_loader/config.toml and
+    started; off stops the loader (the kernel's own scheduler again)."""
+    if args == ["off"]:
+        run("systemctl", "disable", "--now", "scx_loader.service", check=False)
+        return
+    need(args, 2, "scx SCHEDULER MODE | off")
+    sched, mode = args
+    if not re.fullmatch(r"scx_[a-z0-9_]+", sched) or not os.path.exists(f"/usr/bin/{sched}"):
+        raise Refused("not an installed scheduler")
+    if mode not in SCX_MODES:
+        raise Refused("mode: " + ", ".join(SCX_MODES))
+    path = "/etc/scx_loader/config.toml"
+    if os.path.exists(path):
+        text = open(path).read()
+    elif os.path.exists("/usr/share/scx_loader/config.toml"):
+        text = open("/usr/share/scx_loader/config.toml").read()
+    else:
+        text = ""
+    for key, val in (("default_sched", sched), ("default_mode", mode)):
+        if re.search(rf"^\s*{key}\s*=", text, re.M):
+            text = re.sub(rf"^\s*{key}\s*=.*$", f'{key} = "{val}"', text, count=1, flags=re.M)
+        else:
+            text = f'{key} = "{val}"\n' + text
+    write_file(path, text)
+    if subprocess.run(["systemctl", "is-active", "--quiet", "scx.service"]).returncode == 0:
+        run("systemctl", "disable", "--now", "scx.service")  # the old service: not together with the loader
+    run("systemctl", "enable", "scx_loader.service")
+    run("systemctl", "restart", "scx_loader.service")
+
+
+def act_ananicy(args):
+    """ananicy on|off: ananicy-cpp (process priorities by rules)."""
+    need(args, 1, "ananicy on|off")
+    if args[0] not in ("on", "off"):
+        raise Refused("on or off")
+    run("systemctl", "enable" if args[0] == "on" else "disable", "--now", "ananicy-cpp.service")
+
+
 ACTIONS = {
     "power-key": act_power_key,
     "install": act_install,
@@ -1052,6 +1138,10 @@ ACTIONS = {
     "efi-bootnext": act_efi_bootnext,
     "kernel-install": act_kernel_install,
     "kernel-remove": act_kernel_remove,
+    "gpu-power": act_gpu_power,
+    "gpu-persistence": act_gpu_persistence,
+    "scx": act_scx,
+    "ananicy": act_ananicy,
     "remove-orphans": act_remove_orphans,
     "clean-package-cache": act_clean_package_cache,
     "journal-vacuum": act_journal_vacuum,

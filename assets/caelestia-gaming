@@ -1,0 +1,495 @@
+#!/usr/bin/python3 -I
+"""Caelestia settings: gaming (runs as the user; JSON out).
+
+    caelestia-gaming gpu                       the graphics card now (nvidia-smi) and its settings
+    caelestia-gaming env                       the games' options in environment.d (the gaming file)
+    caelestia-gaming env-set KEY VALUE|--unset one option (only the known ones)
+    caelestia-gaming tools                     installed Proton/Wine versions per launcher, and the defaults
+    caelestia-gaming releases SOURCE           versions to install (proton-ge, proton-cachyos, proton-em, dwproton, wine-tkg)
+    caelestia-gaming install SOURCE TAG TARGET [--latest]   download, check, unpack (TARGET: steam, lutris, heroic)
+    caelestia-gaming remove TARGET NAME        delete an installed version (yours, not the system's)
+    caelestia-gaming set-default TARGET NAME   the launcher's default (Steam only while Steam is closed)
+    caelestia-gaming mangohud                  the overlay's settings (~/.config/MangoHud/MangoHud.conf)
+    caelestia-gaming mangohud-set              write them (JSON on stdin: {option: value|true})
+    caelestia-gaming scx                       CPU scheduler: running one, available ones, loader config, ananicy
+"""
+
+import glob
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+import urllib.request
+
+HOME = os.path.expanduser("~")
+ENVD = os.path.join(HOME, ".config/environment.d")
+UA = "caelestia-settings"
+
+
+def out(obj):
+    json.dump(obj, sys.stdout)
+    sys.stdout.write("\n")
+
+
+def sh(*cmd, timeout=20):
+    try:
+        return subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=timeout).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
+def fetch(url, timeout=20):
+    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/vnd.github+json"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read()
+
+
+def du(path):
+    total = 0
+    for dirpath, dirs, files in os.walk(path):
+        for f in files:
+            try:
+                total += os.lstat(os.path.join(dirpath, f)).st_size
+            except OSError:
+                pass
+    return total
+
+
+# --- graphics card ---------------------------------------------------------------
+
+GPU_FIELDS = ["name", "driver_version", "temperature.gpu", "fan.speed", "power.draw", "power.limit", "power.min_limit",
+              "power.max_limit", "power.default_limit", "clocks.gr", "clocks.mem", "clocks.max.gr", "clocks.max.mem",
+              "utilization.gpu", "memory.used", "memory.total", "persistence_mode", "pstate"]
+
+
+def c_gpu(args):
+    line = sh("nvidia-smi", "--query-gpu=" + ",".join(GPU_FIELDS), "--format=csv,noheader,nounits").strip().split("\n")[0]
+    vals = [v.strip() for v in line.split(",")] if line else []
+    if len(vals) != len(GPU_FIELDS):
+        out({"nvidia": False})
+        return
+    d = {"nvidia": True}
+    for k, v in zip(GPU_FIELDS, vals):
+        key = re.sub(r"[._](\w)", lambda m: m.group(1).upper(), k)
+        try:
+            d[key] = float(v) if re.fullmatch(r"-?[\d.]+", v) else v
+        except ValueError:
+            d[key] = v
+
+    def param(mod, p):
+        try:
+            return open(f"/sys/module/{mod}/parameters/{p}").read().strip()
+        except OSError:
+            return ""
+    d["modeset"] = param("nvidia_drm", "modeset")
+    d["fbdev"] = param("nvidia_drm", "fbdev")
+    d["openModules"] = "Open Kernel Module" in (open("/proc/driver/nvidia/version").read() if os.path.exists("/proc/driver/nvidia/version") else "")
+    d["persistenced"] = sh("systemctl", "is-enabled", "nvidia-persistenced.service").strip() == "enabled"
+    d["powerUnit"] = os.path.exists("/etc/systemd/system/caelestia-gpu-power.service")
+    out(d)
+
+
+# --- games' options (environment.d) ----------------------------------------------------
+
+# The options the page offers (anything else in the file is kept as it is)
+ENV_KEYS = {
+    "__GL_SHADER_DISK_CACHE_SIZE", "__GL_SHADER_DISK_CACHE_SKIP_CLEANUP", "__GL_THREADED_OPTIMIZATIONS",
+    "__GL_SHARPEN_ENABLE", "__GL_SHARPEN_VALUE", "__GL_SHOW_GRAPHICS_OSD", "NVPRESENT_ENABLE_SMOOTH_MOTION",
+    "NVPRESENT_QUEUE_FAMILY", "PROTON_DLSS_UPGRADE", "PROTON_DLSS_INDICATOR", "DXVK_NVAPI_VKREFLEX",
+    "DXVK_NVAPI_DRS_SETTINGS", "PROTON_NVIDIA_LIBS", "DXVK_HDR", "PROTON_NO_NTSYNC", "PROTON_ENABLE_WAYLAND",
+    "PROTON_USE_PIPEWIRE", "PROTON_LOCAL_SHADER_CACHE", "PROTON_PREFER_SDL", "PROTON_NO_WM_DECORATION",
+    "PROTON_LOG", "PROTON_LOG_DIR", "MANGOHUD", "PROTON_DXVK_LOWLATENCY", "PROTON_VKD3D_LOWLATENCY"}
+
+
+def env_file():
+    """The environment.d file already holding game options, else gaming.conf."""
+    best = os.path.join(ENVD, "gaming.conf")
+    for f in sorted(glob.glob(os.path.join(ENVD, "*.conf"))):
+        try:
+            text = open(f).read()
+        except OSError:
+            continue
+        if any(re.search(rf"^\s*{k}=", text, re.M) for k in ENV_KEYS):
+            return f
+    return best
+
+
+def read_env(path):
+    vals = {}
+    try:
+        for line in open(path):
+            m = re.match(r"^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)$", line)
+            if m:
+                vals[m.group(1)] = m.group(2).strip().strip('"')
+    except OSError:
+        pass
+    return vals
+
+
+def c_env(args):
+    path = env_file()
+    out({"file": path, "exists": os.path.exists(path), "values": read_env(path)})
+
+
+VALUE = re.compile(r"^[A-Za-z0-9_.,=:/@+ -]{0,400}$")
+
+
+def c_env_set(args):
+    key, val = args[0], args[1]
+    if key not in ENV_KEYS:
+        sys.exit(f"not an option here: {key}")
+    if val != "--unset" and not VALUE.match(val):
+        sys.exit("not allowed in a value")
+    path = env_file()
+    os.makedirs(ENVD, exist_ok=True)
+    lines = open(path).read().split("\n") if os.path.exists(path) else [
+        "# Games: options for Proton, DXVK and the NVIDIA driver (Settings › Gaming; applies after logging in again)"]
+    lines = [l for l in lines if not re.match(rf"^\s*{key}=", l)]
+    if val != "--unset":
+        while lines and not lines[-1].strip():
+            lines.pop()
+        lines.append(f"{key}={val}")
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        f.write("\n".join(lines).rstrip("\n") + "\n")
+    os.replace(tmp, path)
+    out({"file": path, "values": read_env(path)})
+
+
+# --- Proton / Wine versions -----------------------------------------------------------
+
+STEAM_ROOT = os.path.realpath(os.path.join(HOME, ".steam/root")) if os.path.exists(os.path.join(HOME, ".steam/root")) \
+    else os.path.join(HOME, ".local/share/Steam")
+TARGETS = {
+    "steam": os.path.join(STEAM_ROOT, "compatibilitytools.d"),
+    "lutris": os.path.join(HOME, ".local/share/lutris/runners/wine"),
+    "heroic": os.path.join(HOME, ".config/heroic/tools/proton"),
+}
+SYSTEM_STEAM = "/usr/share/steam/compatibilitytools.d"
+SOURCES = {
+    "proton-ge": {"repo": "GloriousEggroll/proton-ge-custom", "asset": r"^GE-Proton[\d.-]+-x86_64\.tar\.gz$|^GE-Proton[\d.-]+\.tar\.gz$",
+                  "sum": ".sha512sum", "latest": "Proton-GE Latest", "title": "Proton-GE"},
+    "proton-cachyos": {"repo": "CachyOS/proton-cachyos", "asset": r"^proton-cachyos-.*-x86_64_v3\.tar\.xz$",
+                       "fallback": r"^proton-cachyos-.*-x86_64\.tar\.xz$", "sum": ".sha512sum",
+                       "latest": "Proton-CachyOS Latest", "title": "Proton-CachyOS"},
+    "proton-em": {"repo": "BananaWorks07/Proton", "asset": r"^proton-EM-.*\.tar\.xz$", "sum": ".sha256sum",
+                  "latest": "Proton-EM Latest", "title": "Proton-EM"},
+    "dwproton": {"repo": "dawn-winery/dwproton-mirror", "asset": r"^dwproton-.*-x86_64\.tar\.xz$", "sum": ".sha512sum",
+                 "latest": "DW-Proton Latest", "title": "DW-Proton"},
+    "wine-tkg": {"repo": "Kron4ek/Wine-Builds", "asset": r"^wine-[\d.]+-staging-tkg-amd64-wow64\.tar\.xz$",
+                 "sums": "sha256sums.txt", "title": "Wine Staging TkG"},
+}
+# The tool kinds each launcher takes
+ACCEPTS = {"steam": {"proton-ge", "proton-cachyos", "proton-em", "dwproton"},
+           "heroic": {"proton-ge", "proton-cachyos", "proton-em", "dwproton"},
+           "lutris": {"proton-ge", "proton-cachyos", "proton-em", "dwproton", "wine-tkg"}}
+
+
+def vdf_name(d):
+    """The tool's internal name (what launchers select) from compatibilitytool.vdf, else the folder."""
+    try:
+        m = re.search(r'"compat_tools"\s*\{\s*"([^"]+)"', open(os.path.join(d, "compatibilitytool.vdf")).read())
+        return m.group(1) if m else os.path.basename(d)
+    except OSError:
+        return os.path.basename(d)
+
+
+def steam_default():
+    """config.vdf CompatToolMapping: "0" (all games) and per-game names."""
+    try:
+        t = open(os.path.join(STEAM_ROOT, "config/config.vdf"), errors="replace").read()
+    except OSError:
+        return "", {}
+    i = t.find('"CompatToolMapping"')
+    if i < 0:
+        return "", {}
+    block = t[i:t.find('"Tools"', i) if '"Tools"' in t[i:] else i + 20000]
+    games = dict(re.findall(r'"(\d+)"\s*\{\s*"name"\s*"([^"]*)"', block))
+    return games.pop("0", ""), games
+
+
+def c_tools(args):
+    tools = []
+    for target, base in TARGETS.items():
+        for d in sorted(glob.glob(os.path.join(base, "*"))):
+            if os.path.isdir(d):
+                tools.append({"target": target, "dir": os.path.basename(d), "name": vdf_name(d) if target != "lutris" else os.path.basename(d),
+                              "size": du(d), "latest": os.path.basename(d).endswith(" Latest"), "system": False})
+    for d in sorted(glob.glob(os.path.join(SYSTEM_STEAM, "*"))):
+        tools.append({"target": "steam", "dir": os.path.basename(d), "name": vdf_name(d), "size": 0, "latest": False, "system": True})
+    default, games = steam_default()
+    faugus = {}
+    try:
+        faugus = json.load(open(os.path.join(HOME, ".config/faugus-launcher/config.json")))
+    except (OSError, ValueError):
+        pass
+    out({"tools": tools, "targets": {k: os.path.isdir(v) or (k == "steam" and os.path.isdir(STEAM_ROOT)) for k, v in TARGETS.items()},
+         "steamDefault": default, "steamGames": len(games), "steamRunning": bool(sh("pgrep", "-x", "steam").strip()),
+         "faugusDefault": faugus.get("default-runner", ""), "accepts": {k: sorted(v) for k, v in ACCEPTS.items()}})
+
+
+def c_releases(args):
+    src = SOURCES.get(args[0])
+    if not src:
+        sys.exit("unknown source")
+    rels = json.loads(fetch(f"https://api.github.com/repos/{src['repo']}/releases?per_page=8"))
+    res = []
+    for r in rels:
+        assets = r.get("assets", [])
+        a = next((x for x in assets if re.match(src["asset"], x["name"])), None) or \
+            (next((x for x in assets if re.match(src.get("fallback", "^$"), x["name"])), None) if src.get("fallback") else None)
+        if a:
+            res.append({"tag": r["tag_name"], "date": r.get("published_at", "")[:10], "asset": a["name"], "size": a["size"]})
+    out({"source": args[0], "title": src["title"], "latest": src.get("latest", ""), "releases": res})
+
+
+def safe_extract(tar, dest):
+    base = os.path.realpath(dest)
+    for m in tar.getmembers():
+        p = os.path.realpath(os.path.join(dest, m.name))
+        if not (p == base or p.startswith(base + os.sep)) or m.isdev():
+            raise SystemExit(f"refusing an unsafe archive entry: {m.name}")
+    # the "tar" filter also refuses links to absolute paths or outside dest
+    tar.extractall(dest, filter="tar")
+
+
+def set_vdf_name(d, name):
+    """Rename the tool (internal and shown name) so a "Latest" copy keeps one stable name."""
+    p = os.path.join(d, "compatibilitytool.vdf")
+    try:
+        t = open(p).read()
+    except OSError:
+        return
+    t = re.sub(r'("compat_tools"\s*\{\s*)"[^"]+"', rf'\1"{name}"', t, count=1)
+    t = re.sub(r'("display_name"\s*)"[^"]+"', rf'\1"{name}"', t, count=1)
+    open(p, "w").write(t)
+
+
+def c_install(args):
+    source, tag, target = args[0], args[1], args[2]
+    latest = "--latest" in args
+    src = SOURCES.get(source)
+    if not src or target not in TARGETS or source not in ACCEPTS[target]:
+        sys.exit("that tool doesn't go into that launcher")
+    rel = json.loads(fetch(f"https://api.github.com/repos/{src['repo']}/releases/tags/{tag}"))
+    assets = {a["name"]: a for a in rel.get("assets", [])}
+    name = next((n for n in assets if re.match(src["asset"], n)), None) or \
+        next((n for n in assets if src.get("fallback") and re.match(src["fallback"], n)), None)
+    if not name:
+        sys.exit("no download for this system in that release")
+    dest = TARGETS[target]
+    os.makedirs(dest, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="caelestia-tool-", dir=os.path.join(HOME, ".cache")) as tmp:
+        arch = os.path.join(tmp, name)
+        print(f"Downloading {name} ({assets[name]['size'] // 1048576} MB)", flush=True)
+        req = urllib.request.Request(assets[name]["browser_download_url"], headers={"User-Agent": UA})
+        h512, h256 = hashlib.sha512(), hashlib.sha256()
+        with urllib.request.urlopen(req, timeout=60) as r, open(arch, "wb") as f:
+            done, total, step = 0, assets[name]["size"], 0
+            while chunk := r.read(1 << 20):
+                f.write(chunk)
+                h512.update(chunk)
+                h256.update(chunk)
+                done += len(chunk)
+                if done * 10 // max(total, 1) > step:
+                    step = done * 10 // max(total, 1)
+                    print(f"Downloaded {done * 100 // max(total, 1)}%", flush=True)
+        # Checksum: the release's own sum file
+        want = None
+        sumname = name.rsplit(".tar", 1)[0] + src["sum"] if src.get("sum") else src.get("sums")
+        if sumname in assets:
+            text = fetch(assets[sumname]["browser_download_url"]).decode(errors="replace")
+            for line in text.splitlines():
+                parts = line.split()
+                if parts and (len(parts) == 1 or parts[-1].lstrip("*").endswith(name)):
+                    want = parts[0].lower()
+                    break
+        if not want:
+            sys.exit("no checksum published for it: not installed")
+        got = h512.hexdigest() if len(want) == 128 else h256.hexdigest()
+        if got != want:
+            sys.exit("the download doesn't match its checksum: not installed")
+        print("Checksum OK; unpacking", flush=True)
+        unpack = os.path.join(tmp, "x")
+        os.makedirs(unpack)
+        with tarfile.open(arch) as t:
+            safe_extract(t, unpack)
+        tops = os.listdir(unpack)
+        if len(tops) != 1 or not os.path.isdir(os.path.join(unpack, tops[0])):
+            sys.exit("unexpected archive layout")
+        top = os.path.join(unpack, tops[0])
+        final = os.path.join(dest, src["latest"] if latest and src.get("latest") else tops[0])
+        if latest and src.get("latest"):
+            set_vdf_name(top, src["latest"])
+        if os.path.exists(final):
+            shutil.rmtree(final)
+        shutil.move(top, final)
+    print(f"Installed {os.path.basename(final)} for {target}", flush=True)
+
+
+def c_remove(args):
+    target, name = args[0], args[1]
+    base = TARGETS.get(target)
+    if not base or "/" in name or name in ("", ".", ".."):
+        sys.exit("not an installed version")
+    path = os.path.join(base, name)
+    if not os.path.isdir(path) or os.path.realpath(path) != path:
+        sys.exit("not an installed version")
+    if target == "steam":
+        users = steam_users(path, name)
+        if users:
+            sys.exit(f"Steam uses it ({', '.join(users)}): choose another for those in Steam first")
+    shutil.rmtree(path)
+    print(f"Removed {name}", flush=True)
+
+
+def steam_users(path, dirname):
+    """What in Steam's settings uses this tool (its default, games by app id)."""
+    names = {dirname}
+    try:
+        m = re.search(r'"compat_tools"\s*\{\s*"([^"]+)"', open(os.path.join(path, "compatibilitytool.vdf"), errors="replace").read())
+        if m:
+            names.add(m.group(1))
+    except OSError:
+        pass
+    try:
+        t = open(os.path.join(STEAM_ROOT, "config/config.vdf"), errors="replace").read()
+    except OSError:
+        return []
+    i = t.find('"CompatToolMapping"')
+    if i < 0:
+        return []
+    users = []
+    for m in re.finditer(r'"(\d+)"\s*\{\s*"name"\s*"([^"]*)"', t[i:i + 200000]):
+        if m.group(2) in names:
+            users.append("its default" if m.group(1) == "0" else f"game {m.group(1)}")
+    return users
+
+
+def c_set_default(args):
+    target, name = args[0], args[1]
+    if not re.fullmatch(r"[A-Za-z0-9 ._()+-]{1,80}", name):
+        sys.exit("not a tool name")
+    if target == "steam":
+        if sh("pgrep", "-x", "steam").strip():
+            sys.exit("close Steam first (it rewrites its settings when it exits)")
+        p = os.path.join(STEAM_ROOT, "config/config.vdf")
+        t = open(p, errors="replace").read()
+        i = t.find('"CompatToolMapping"')
+        if i < 0:
+            sys.exit("Steam hasn't set up its compatibility settings yet (choose one in Steam once)")
+        m = re.compile(r'("0"\s*\{\s*"name"\s*)"[^"]*"').search(t, i)
+        if not m:
+            sys.exit("Steam has no default compatibility tool set yet (choose one in Steam once)")
+        t = t[:m.start()] + m.group(1) + f'"{name}"' + t[m.end():]
+        shutil.copy2(p, p + ".caelestia-bak")
+        open(p, "w").write(t)
+    elif target == "faugus":
+        p = os.path.join(HOME, ".config/faugus-launcher/config.json")
+        d = json.load(open(p))
+        d["default-runner"] = name
+        json.dump(d, open(p, "w"), indent=4)
+    else:
+        sys.exit("that launcher's default is chosen in the launcher")
+    print(f"Default for {target}: {name}", flush=True)
+
+
+# --- MangoHud ----------------------------------------------------------------------------
+
+MANGO = os.path.join(HOME, ".config/MangoHud/MangoHud.conf")
+MANGO_KEY = re.compile(r"^[a-z_0-9]+$")
+# Shown unless turned off explicitly (MangoHud's defaults): off is written as =0
+MANGO_DEFAULT_ON = {"fps", "frame_timing", "cpu_stats", "gpu_stats", "text_outline"}
+
+
+def c_mangohud(args):
+    opts = {}
+    try:
+        for line in open(MANGO):
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            k, _, v = line.partition("=")
+            k, v = k.strip(), v.strip()
+            opts[k] = (False if v == "0" and k in MANGO_DEFAULT_ON else v) if _ else True
+    except OSError:
+        pass
+    out({"file": MANGO, "exists": os.path.exists(MANGO), "options": opts})
+
+
+def c_mangohud_set(args):
+    opts = json.loads(sys.stdin.read() or "{}")
+    lines = ["# MangoHud: written by Settings › Gaming › Overlay (other options you add are kept)"]
+    for k, v in opts.items():
+        if not MANGO_KEY.match(k):
+            sys.exit(f"not an option name: {k}")
+        if v is True:
+            lines.append(k)
+        elif v is False or v is None:
+            if k in MANGO_DEFAULT_ON and v is False:
+                lines.append(f"{k}=0")
+            continue
+        else:
+            v = str(v)
+            if "\n" in v or len(v) > 200:
+                sys.exit("not allowed in a value")
+            lines.append(f"{k}={v}")
+    os.makedirs(os.path.dirname(MANGO), exist_ok=True)
+    tmp = MANGO + ".tmp"
+    open(tmp, "w").write("\n".join(lines) + "\n")
+    os.replace(tmp, MANGO)
+    c_mangohud([])
+
+
+# --- CPU scheduler (sched-ext) ---------------------------------------------------------------
+
+def c_scx(args):
+    # The loader is D-Bus activated (running doesn't mean set up): enabled =
+    # starts the configured scheduler at boot
+    enabled = sh("systemctl", "is-enabled", "scx_loader.service").strip() == "enabled"
+    active = sh("systemctl", "is-active", "scx_loader.service").strip() == "active"
+    current = sh("scxctl", "get").strip() if active else ""
+    # "supported schedulers: ["beerland", ...]" (scxctl list), else what's installed
+    names = re.findall(r'"([a-z0-9_]+)"', sh("scxctl", "list")) if active else []
+    avail = sorted("scx_" + n if not n.startswith("scx_") else n for n in names) or \
+        sorted(os.path.basename(p) for p in glob.glob("/usr/bin/scx_*") if os.path.basename(p) not in ("scx_loader",))
+    conf = {}
+    for p in ("/etc/scx_loader/config.toml", "/etc/scx_loader.toml"):
+        if os.path.exists(p):
+            for line in open(p):
+                m = re.match(r'^\s*(default_sched|default_mode)\s*=\s*"([^"]*)"', line)
+                if m:
+                    conf[m.group(1)] = m.group(2)
+            break
+    try:
+        state = open("/sys/kernel/sched_ext/state").read().strip()
+    except OSError:
+        state = "unsupported"
+    out({"loader": enabled, "loaderActive": active, "current": current, "available": avail, "config": conf, "kernelState": state,
+         "ananicy": sh("systemctl", "is-active", "ananicy-cpp.service").strip() == "active",
+         "gamemode": shutil.which("gamemoderun") is not None})
+
+
+COMMANDS = {"gpu": c_gpu, "env": c_env, "env-set": c_env_set, "tools": c_tools, "releases": c_releases,
+            "install": c_install, "remove": c_remove, "set-default": c_set_default, "mangohud": c_mangohud,
+            "mangohud-set": c_mangohud_set, "scx": c_scx}
+
+
+def main(argv):
+    if not argv or argv[0] not in COMMANDS:
+        print(__doc__, file=sys.stderr)
+        return 2
+    try:
+        return COMMANDS[argv[0]](argv[1:]) or 0
+    except IndexError:
+        print(f"usage: see caelestia-gaming --help ({argv[0]})", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

@@ -19,6 +19,7 @@ Singleton {
     function createAt(pageId: string, path: var): void {
         const page = PageRegistry.find(pageId);
         PageRegistry.pendingTab = PageRegistry.aliases[pageId] ? pageId : "";
+        PageRegistry.pendingTabAt = Date.now();
         create(null, page < 0 ? {} : {
             startEntry: {
                 page,

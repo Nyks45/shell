@@ -4741,7 +4741,187 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "See and change your boot menu here",
+            "label": "Temperature",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Power",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Load",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Video memory",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Fan",
+            "ctx": "",
+            "sub": "Automatic (fan control isn't possible on Wayland with NVIDIA's driver)",
+            "section": "",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Power limit",
+            "ctx": "",
+            "sub": "",
+            "section": "Power",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Persistence mode",
+            "ctx": "",
+            "sub": "Keeps the driver ready between uses: games and apps start using the card a little faster (nvidia-persistenced)",
+            "section": "Power",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Driver version",
+            "ctx": "",
+            "sub": "Open kernel modules",
+            "section": "Driver",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Display support",
+            "ctx": "",
+            "sub": "",
+            "section": "Driver",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Sharpening strength",
+            "ctx": "",
+            "sub": "Percent (default 50)",
+            "section": "",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Never clean the shader cache",
+            "ctx": "",
+            "sub": "The driver doesn't shrink it when it grows past the size",
+            "section": "",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Text size",
+            "ctx": "",
+            "sub": "",
+            "section": "Where and how",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Background",
+            "ctx": "",
+            "sub": "Percent of opacity",
+            "section": "Where and how",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "In one line",
+            "ctx": "",
+            "sub": "",
+            "section": "Where and how",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Rounded corners",
+            "ctx": "",
+            "sub": "",
+            "section": "Where and how",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "In every Vulkan game",
+            "ctx": "",
+            "sub": "",
+            "section": "Games",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "The kernel's own (EEVDF)",
+            "ctx": "",
+            "sub": "Good for most use; nothing extra runs",
+            "section": "Scheduler",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Automatic priorities (ananicy-cpp)",
+            "ctx": "",
+            "sub": "Gives known apps and games higher or lower priority by rules. Turn off if a game stutters with a scheduler above, and don't use it together with GameMode",
+            "section": "Priorities",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Keep this preview current",
             "ctx": "",
             "sub": "Once: lets the settings read the boot menu (it's only readable by the system), keeps that copy current, and adds new kernels to the menu",
             "section": "",

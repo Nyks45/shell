@@ -12,6 +12,7 @@ import qs.modules.nexus.pages.apps
 import qs.modules.nexus.pages.audio
 import qs.modules.nexus.pages.bluetooth
 import qs.modules.nexus.pages.disks
+import qs.modules.nexus.pages.gaming
 import qs.modules.nexus.pages.merged
 import qs.modules.nexus.pages.network
 import qs.modules.nexus.pages.panels

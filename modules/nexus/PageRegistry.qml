@@ -151,8 +151,8 @@ QtObject {
             id: "gaming",
             label: Tr.tr("Gaming"),
             icon: "sports_esports",
-            description: Tr.tr("Game mode, tearing"),
-            keywords: "games gaming game mode tearing fullscreen performance",
+            description: Tr.tr("Graphics card, Proton, overlay, scheduler"),
+            keywords: "games gaming game mode tearing fullscreen performance nvidia nvidia-settings graphics card gpu power limit persistence driver dlss reflex smooth motion frame generation hdr ntsync shader cache proton proton-ge protonplus wine lutris heroic steam launch options compatibility tool mangohud goverlay overlay fps counter frame limit scheduler sched-ext scx scx_lavd bpfland ananicy cpu",
             category: "you"
         },
         {
@@ -196,12 +196,20 @@ QtObject {
             logs: "system",
             plugins: "system",
             boot: "system",
-            kernels: "system"
+            kernels: "system",
+            gpu: "gaming",
+            games: "gaming",
+            proton: "gaming",
+            overlay: "gaming",
+            scheduler: "gaming"
         })
 
     // A tab to show when a page opens at a former id (createAt "updates" ->
-    // Apps, Updates tab): taken by that page's PartTabs (see TabPart.key)
+    // Apps, Updates tab): taken by that page's PartTabs (see TabPart.key).
+    // Kept for the opening (a window can build its page more than once):
+    // only within a few seconds of pendingTabAt.
     property string pendingTab
+    property real pendingTabAt
 
     // A page's index by its id (or a former id)
     function find(id: string): int {

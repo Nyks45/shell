@@ -24,9 +24,9 @@ ColumnLayout {
 
     Component.onCompleted: {
         // Opened at a former page id: that tab
-        const wanted = PageRegistry.pendingTab ? parts.find(p => p.key === PageRegistry.pendingTab) : null;
+        const pending = PageRegistry.pendingTab && Date.now() - PageRegistry.pendingTabAt < 3000;
+        const wanted = pending ? parts.find(p => p.key === PageRegistry.pendingTab) : null;
         if (wanted) {
-            PageRegistry.pendingTab = "";
             show(wanted);
         } else if (!chosen && parts.length > 0) {
             show(parts[0]);
@@ -44,10 +44,10 @@ ColumnLayout {
             TextButton {
                 required property Item modelData
 
-                text: modelData.title
+                text: modelData?.title ?? ""
                 isToggle: true
                 followChecked: true
-                checked: modelData.open
+                checked: !!modelData?.open
                 type: TextButton.Tonal
                 onClicked: root.show(modelData)
             }
