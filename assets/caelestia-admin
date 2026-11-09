@@ -218,6 +218,24 @@ def act_pacnew(args):
         raise Refused("keep-new or keep-old")
 
 
+def act_pacnew_undo(args):
+    """pacnew-undo PATH.caelestia-old: put back your file that "use the new
+    one" replaced (the new one is kept as .pacnew again)."""
+    if not 1 <= len(args) <= 2:
+        raise Refused("usage: pacnew-undo PATH.caelestia-old [--forget]")
+    path = args[0]
+    if os.path.realpath(path) != path or not path.startswith("/etc/") or not path.endswith(".caelestia-old") \
+            or not os.path.isfile(path):
+        raise Refused("not a saved file under /etc")
+    orig = path[:-len(".caelestia-old")]
+    if len(args) > 1 and args[1] == "--forget":  # keep the new one: your saved copy goes
+        run("rm", "-f", path)
+        return
+    if os.path.exists(orig):
+        run("cp", "-a", orig, orig + ".pacnew")
+    run("mv", "-f", path, orig)
+
+
 def act_remove_orphans(args):
     """remove-orphans: packages installed as dependencies that nothing needs."""
     need(args, 0, "remove-orphans")
@@ -476,6 +494,332 @@ def act_group_member(args):
         raise Refused("add or remove")
 
 
+# --- boot (rEFInd on the ESP) ------------------------------------------------
+
+REFIND = "/boot/EFI/refind"
+REFIND_CONF = REFIND + "/refind.conf"
+BOOT_EXPORT = "/var/lib/caelestia/boot"
+KERN_BEGIN = "    # BEGIN caelestia-kernels (other kernels, managed by Settings › System › Kernels)"
+KERN_END = "    # END caelestia-kernels"
+
+
+def refind_lines():
+    return open(REFIND_CONF).read().split("\n")
+
+
+def refind_write(lines):
+    """refind.conf, checked (braces balance) and atomic, the previous one kept."""
+    text = "\n".join(lines)
+    depth = 0
+    for line in lines:
+        bare = "" if line.strip().startswith("#") else line.strip()
+        depth += bare.endswith("{") - (bare == "}")
+        if depth < 0:
+            raise Refused("refusing to write an unbalanced refind.conf")
+    if depth:
+        raise Refused("refusing to write an unbalanced refind.conf")
+    if not DRY:
+        run("cp", "-a", REFIND_CONF, REFIND_CONF + ".caelestia-prev")
+    write_file(REFIND_CONF, text)
+    if not DRY:
+        boot_export()
+
+
+def top_level(lines):
+    """(index, line) of lines outside menuentry braces."""
+    depth = 0
+    for i, line in enumerate(lines):
+        bare = "" if line.strip().startswith("#") else line.strip()
+        if depth == 0:
+            yield i, line
+        depth += bare.endswith("{") - (bare == "}")
+
+
+def set_directive(lines, key, value):
+    """KEY VALUE at the top level: the last active one replaced, else added
+    after the theme's include (and the overrides right after it)."""
+    new = f"{key} {value}".rstrip()
+    found = [i for i, l in top_level(lines) if re.match(rf"^\s*{key}(\s|$)", l)]
+    if found:
+        lines[found[-1]] = new
+        return lines
+    inc = [i for i, l in top_level(lines) if re.match(r"^\s*include\s+themes/", l)]
+    at = inc[-1] + 1 if inc else len(lines)
+    while at < len(lines) and lines[at].strip() and not lines[at].strip().startswith(("menuentry", "include")):
+        at += 1
+    lines.insert(at, new)
+    return lines
+
+
+TOOLS = {"shutdown", "reboot", "firmware", "about", "exit", "hidden_tags", "memtest", "shell", "gdisk", "netboot",
+         "mok_tool", "bootorder", "csr_rotate", "fwupdate", "install", "apple_recovery", "windows_recovery"}
+HIDEUI = {"singleuser", "hints", "arrows", "label", "badges", "safemode", "hwtest", "banner", "editor"}
+
+
+def act_boot_export(args):
+    """boot-export: a readable copy of rEFInd's settings and images (the ESP is
+    root-only) for the settings' preview, in /var/lib/caelestia/boot."""
+    boot_export()
+
+
+def boot_export():
+    if DRY:
+        print(f"$ export {REFIND} -> {BOOT_EXPORT}", flush=True)
+        return
+    tmp = BOOT_EXPORT + ".new"
+    subprocess.run(["rm", "-rf", tmp])
+    for dirpath, dirs, files in os.walk(REFIND):
+        for f in files:
+            if not f.lower().endswith((".conf", ".png", ".jpg", ".jpeg", ".bmp", ".icns")):
+                continue
+            src = os.path.join(dirpath, f)
+            if os.path.getsize(src) > 32 * 1024 * 1024:
+                continue
+            dst = os.path.join(tmp, os.path.relpath(src, "/boot"))
+            os.makedirs(os.path.dirname(dst), mode=0o755, exist_ok=True)
+            with open(src, "rb") as a, open(dst, "wb") as b:
+                b.write(a.read())
+            os.chmod(dst, 0o644)
+    for dirpath, dirs, files in os.walk(tmp):
+        os.chmod(dirpath, 0o755)
+    os.makedirs(os.path.dirname(BOOT_EXPORT), mode=0o755, exist_ok=True)
+    subprocess.run(["rm", "-rf", BOOT_EXPORT])
+    os.replace(tmp, BOOT_EXPORT)
+    print("Exported the boot menu for the preview", flush=True)
+
+
+def act_boot_setup(args):
+    """boot-setup: keeps the preview's copy current (a path unit watching
+    rEFInd's files) and the boot menu's kernel list (a pacman hook)."""
+    me = os.path.realpath(__file__)
+    write_file("/etc/systemd/system/caelestia-boot-export.service",
+               "[Unit]\nDescription=Caelestia settings: copy of the boot menu for its preview\n\n"
+               f"[Service]\nType=oneshot\nExecStart={me} boot-export\n")
+    write_file("/etc/systemd/system/caelestia-boot-export.path",
+               "[Unit]\nDescription=Caelestia settings: boot menu changes\n\n"
+               f"[Path]\nPathChanged={REFIND_CONF}\nPathChanged={REFIND}/themes/local\n\n"
+               "[Install]\nWantedBy=multi-user.target\n")
+    write_file("/etc/pacman.d/hooks/caelestia-refind-kernels.hook",
+               "[Trigger]\nOperation = Install\nOperation = Remove\nOperation = Upgrade\nType = Path\n"
+               "Target = usr/lib/modules/*/vmlinuz\n\n[Action]\n"
+               "Description = Updating the boot menu's kernel list (Caelestia settings)\n"
+               f"When = PostTransaction\nExec = {me} boot-kernels\n")
+    run("systemctl", "daemon-reload")
+    run("systemctl", "enable", "--now", "caelestia-boot-export.path")
+    act_boot_kernels([])
+
+
+def act_boot_set(args):
+    """boot-set KEY [VALUE...]: one menu setting (timeout, default_selection,
+    big_icon_size, small_icon_size, showtools, hideui, resolution)."""
+    if not args:
+        raise Refused("boot-set KEY VALUE")
+    key, vals = args[0], args[1:]
+    if key == "timeout":
+        need(vals, 1, "boot-set timeout SECONDS")
+        if not re.fullmatch(r"-1|[0-9]{1,3}", vals[0]) or int(vals[0]) > 600:
+            raise Refused("timeout: -1 to 600")
+        value = vals[0]
+    elif key in ("big_icon_size", "small_icon_size"):
+        need(vals, 1, f"boot-set {key} PIXELS")
+        if not re.fullmatch(r"[0-9]{2,3}", vals[0]) or not 32 <= int(vals[0]) <= 512:
+            raise Refused("icon size: 32 to 512")
+        value = vals[0]
+    elif key == "default_selection":
+        need(vals, 1, "boot-set default_selection ENTRY|+")
+        names = {m.group(1) for l in refind_lines() if (m := re.match(r'^\s*menuentry\s+"([^"]+)"', l))}
+        if vals[0] != "+" and vals[0] not in names:
+            raise Refused("not a boot menu entry")
+        value = vals[0] if vals[0] == "+" else f'"{vals[0]}"'
+    elif key == "showtools":
+        if any(v not in TOOLS for v in vals):
+            raise Refused("unknown tool")
+        value = ",".join(vals)
+    elif key == "hideui":
+        if any(v not in HIDEUI for v in vals):
+            raise Refused("unknown hideui item")
+        value = ",".join(vals)
+    elif key == "resolution":
+        need(vals, 1, "boot-set resolution max|WIDTHxHEIGHT")
+        if not re.fullmatch(r"max|[0-9]{3,4}\s?[0-9]{3,4}", vals[0].replace("x", " ")):
+            raise Refused("max or WIDTHxHEIGHT")
+        value = vals[0].replace("x", " ")
+    else:
+        raise Refused(f"unknown setting {key!r}")
+    refind_write(set_directive(refind_lines(), key, value))
+
+
+FLAVOURS = ("mocha", "macchiato", "frappe", "latte")
+
+
+def act_boot_theme(args):
+    """boot-theme FLAVOUR: the Catppuccin flavour (mocha, macchiato, frappe, latte)."""
+    need(args, 1, "boot-theme " + "|".join(FLAVOURS))
+    if args[0] not in FLAVOURS:
+        raise Refused("unknown flavour")
+    lines = refind_lines()
+    for i, l in enumerate(lines):
+        lines[i] = re.sub(r"(themes/catppuccin/(?:assets/)?)(mocha|macchiato|frappe|latte)(\.conf|/)", rf"\g<1>{args[0]}\3", l)
+    refind_write(lines)
+
+
+def act_boot_background(args):
+    """boot-background FILE|--theme: a picture of yours as the menu's
+    background (copied to the ESP as PNG), or the theme's own."""
+    need(args, 1, "boot-background FILE|--theme")
+    lines = refind_lines()
+    if args[0] == "--theme":
+        flavour = next((m.group(1) for l in lines if (m := re.search(r"themes/catppuccin/(\w+)\.conf", l))), "mocha")
+        refind_write(set_directive(lines, "banner", f"themes/catppuccin/assets/{flavour}/background.png"))
+        return
+    user = caller()
+    home = pwd.getpwnam(user).pw_dir
+    path = os.path.realpath(args[0])
+    if not path.startswith(home + "/") or not os.path.isfile(path) or os.path.getsize(path) > 40 * 1024 * 1024:
+        raise Refused("a picture (up to 40 MB) in your home folder")
+    dst = REFIND + "/themes/local/background.png"
+    if not DRY:
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        if os.path.exists(dst) and not os.path.exists(dst + ".caelestia-orig"):
+            run("cp", "-a", dst, dst + ".caelestia-orig")
+        # Read as the user (their file), written by us as PNG (rEFInd reads PNG/BMP)
+        from PIL import Image
+        img = Image.open(path)
+        img.load()
+        img.convert("RGB").save(dst + ".tmp", "PNG")
+        os.replace(dst + ".tmp", dst)
+    print(f"$ background {path} -> {dst}", flush=True)
+    refind_write(set_directive(lines, "banner", "themes/local/background.png"))
+
+
+OPTION = re.compile(r"^[A-Za-z0-9_.,=:/@+-]+$")
+
+
+def act_boot_options(args):
+    """boot-options OPTION...: the Linux command line of the main CachyOS
+    entry (root=, rw and rootflags= must stay)."""
+    for o in args:
+        if not OPTION.match(o):
+            raise Refused(f"not allowed in an option: {o!r}")
+    if not any(o.startswith("root=") for o in args) or "rw" not in args:
+        raise Refused("root= and rw must stay")
+    lines = refind_lines()
+    entry = next((i for i, l in enumerate(lines) if re.match(r'^\s*menuentry\s+"CachyOS"', l)), None)
+    if entry is None:
+        raise Refused("no CachyOS entry in refind.conf")
+    for i in range(entry + 1, len(lines)):
+        bare = lines[i].strip()
+        if bare.startswith("submenuentry") or bare == "}":
+            break
+        if bare.startswith("options"):
+            lines[i] = '    options  "' + " ".join(args) + '"'
+            refind_write(lines)
+            return
+    raise Refused("no options line in the CachyOS entry")
+
+
+def act_boot_kernels(args):
+    """boot-kernels: every installed kernel besides the main one as a submenu
+    of the CachyOS entry (rEFInd only shows the entries written in it)."""
+    lines = refind_lines()
+    # drop the old block
+    out, skip = [], False
+    for l in lines:
+        if l.strip() == KERN_BEGIN.strip():
+            skip = True
+            continue
+        if skip and l.strip() == KERN_END.strip():
+            skip = False
+            continue
+        if not skip:
+            out.append(l)
+    lines = out
+    entry = next((i for i, l in enumerate(lines) if re.match(r'^\s*menuentry\s+"CachyOS"', l)), None)
+    if entry is None:
+        raise Refused("no CachyOS entry in refind.conf")
+    main = None
+    at = None
+    for i in range(entry + 1, len(lines)):
+        bare = lines[i].strip()
+        m = re.match(r"^loader\s+/?vmlinuz-(\S+)", bare)
+        if m:
+            main = m.group(1)
+        if bare.startswith("options"):
+            at = i + 1
+        if bare.startswith(("submenuentry", "#")) or bare == "}":
+            break
+    if at is None:
+        raise Refused("no options line in the CachyOS entry")
+    kernels = sorted(f[len("vmlinuz-"):] for f in os.listdir("/boot") if f.startswith("vmlinuz-"))
+    block = []
+    for k in kernels:
+        if k == main or not os.path.exists(f"/boot/initramfs-{k}.img"):
+            continue
+        block += [f'    submenuentry "Kernel {k}" {{', f"        loader /vmlinuz-{k}", f"        initrd /initramfs-{k}.img", "    }"]
+    if block:
+        lines[at:at] = [KERN_BEGIN, *block, KERN_END]
+    print("Kernels in the boot menu: " + ", ".join([main or "?"] + [k for k in kernels if k != main]), flush=True)
+    refind_write(lines)
+
+
+def act_efi_bootnext(args):
+    """efi-bootnext NNNN: start this UEFI entry once at the next boot."""
+    need(args, 1, "efi-bootnext NNNN")
+    if not re.fullmatch(r"[0-9A-Fa-f]{4}", args[0]):
+        raise Refused("a 4-digit boot entry number")
+    run("efibootmgr", "-n", args[0])
+
+
+KERNEL = re.compile(r"^linux(-[a-z0-9]+)*$")
+
+
+def kernel_pkgs(name):
+    """The kernel, its headers and its NVIDIA modules (when they exist and NVIDIA is used)."""
+    pkgs = [name]
+    for extra in (name + "-headers", name + "-nvidia-open", name + "-nvidia"):
+        if subprocess.run(["pacman", "-Si", extra], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0 \
+                or subprocess.run(["pacman", "-Qi", extra], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
+            if "nvidia" in extra and not os.path.exists("/proc/driver/nvidia"):
+                continue
+            if extra.endswith("-nvidia") and any(p.endswith("-nvidia-open") for p in pkgs):
+                continue
+            pkgs.append(extra)
+    return pkgs
+
+
+def running_kernel():
+    try:
+        return open(f"/usr/lib/modules/{os.uname().release}/pkgbase").read().strip()
+    except OSError:
+        return ""
+
+
+def act_kernel_install(args):
+    """kernel-install NAME: a kernel with its headers (and NVIDIA modules), added to the boot menu."""
+    need(args, 1, "kernel-install NAME")
+    if not KERNEL.match(args[0]) or args[0].endswith(("-headers", "-docs")):
+        raise Refused("not a kernel package name")
+    run("pacman", "-S", "--needed", "--noconfirm", "--", *kernel_pkgs(args[0]))
+    act_boot_kernels([])
+
+
+def act_kernel_remove(args):
+    """kernel-remove NAME: never the running one or the last one."""
+    need(args, 1, "kernel-remove NAME")
+    name = args[0]
+    if not KERNEL.match(name):
+        raise Refused("not a kernel package name")
+    if name == running_kernel():
+        raise Refused("that's the kernel running now")
+    installed = [f[len("vmlinuz-"):] for f in os.listdir("/boot") if f.startswith("vmlinuz-")]
+    if len(installed) <= 1:
+        raise Refused("it's the only kernel")
+    pkgs = [p for p in kernel_pkgs(name) if subprocess.run(["pacman", "-Qi", p], stdout=subprocess.DEVNULL,
+                                                           stderr=subprocess.DEVNULL).returncode == 0]
+    run("pacman", "-Rs", "--noconfirm", "--", *pkgs)
+    act_boot_kernels([])
+
+
 ACTIONS = {
     "power-key": act_power_key,
     "install": act_install,
@@ -485,6 +829,17 @@ ACTIONS = {
     "hold": act_hold,
     "unhold": act_unhold,
     "pacnew": act_pacnew,
+    "pacnew-undo": act_pacnew_undo,
+    "boot-export": act_boot_export,
+    "boot-setup": act_boot_setup,
+    "boot-set": act_boot_set,
+    "boot-theme": act_boot_theme,
+    "boot-background": act_boot_background,
+    "boot-options": act_boot_options,
+    "boot-kernels": act_boot_kernels,
+    "efi-bootnext": act_efi_bootnext,
+    "kernel-install": act_kernel_install,
+    "kernel-remove": act_kernel_remove,
     "remove-orphans": act_remove_orphans,
     "clean-package-cache": act_clean_package_cache,
     "journal-vacuum": act_journal_vacuum,

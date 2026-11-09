@@ -14,12 +14,16 @@ users, read as JSON for the settings app (runs as the user).
     caelestia-system user-delete NAME [--remove-files]
     caelestia-system user-type NAME admin|standard
     caelestia-system user-password NAME      (password on stdin)
+    caelestia-system boot                    the boot menu (rEFInd) as it shows, for the preview
+    caelestia-system kernels                 installed kernels and the ones to install
+    caelestia-system firmware                UEFI boot entries, Secure Boot, firmware updates
 
 Changes go through AccountsService, which asks polkit (the shell's prompt);
 starting/stopping services is plain systemctl (polkit too); group
 memberships go through the root helper (caelestia-admin group-member).
 """
 
+import glob
 import grp
 import json
 import os
@@ -247,9 +251,176 @@ def c_user_password(args):
              (hashed(sys.stdin.readline().rstrip("\n")), ""))
 
 
+# --- boot ----------------------------------------------------------------------
+
+BOOT_EXPORT = "/var/lib/caelestia/boot"
+REFIND_REL = "EFI/refind"
+TOOL_ICONS = {"shutdown": "func_shutdown", "reboot": "func_reset", "firmware": "func_firmware", "about": "func_about",
+              "exit": "func_exit", "hidden_tags": "func_hidden", "memtest": "tool_memtest", "shell": "tool_shell",
+              "gdisk": "tool_part", "netboot": "tool_netboot", "mok_tool": "tool_mok_tool", "bootorder": "func_bootorder",
+              "windows_recovery": "tool_windows_rescue", "apple_recovery": "tool_apple_rescue", "fwupdate": "tool_fwupdate",
+              "csr_rotate": "func_csr_rotate", "install": "func_install"}
+
+
+def esp_path(p):
+    """A path in refind.conf (from the ESP root, or relative to rEFInd's folder) in the readable copy."""
+    p = p.strip().strip('"').replace("\\", "/")
+    full = os.path.join(BOOT_EXPORT, p.lstrip("/")) if p.startswith("/") or p.upper().startswith("EFI/") else \
+        os.path.join(BOOT_EXPORT, REFIND_REL, p)
+    return full if os.path.exists(full) else ""
+
+
+def parse_refind(path, state, entries, depth=0):
+    """Directives in file order (an include in place), menu entries."""
+    if depth > 4 or not os.path.exists(path):
+        return
+    lines = open(path, errors="replace").read().split("\n")
+    i = 0
+    while i < len(lines):
+        bare = lines[i].strip()
+        i += 1
+        if not bare or bare.startswith("#"):
+            continue
+        m = re.match(r'^menuentry\s+"?([^"{]+?)"?\s*\{$', bare)
+        if m:
+            e = {"name": m.group(1).strip(), "submenus": [], "disabled": False, "kernels": []}
+            lvl, in_kern = 1, False
+            while i < len(lines) and lvl > 0:
+                l = lines[i].strip()
+                i += 1
+                if l.startswith("# BEGIN caelestia-kernels"):
+                    in_kern = True
+                elif l.startswith("# END caelestia-kernels"):
+                    in_kern = False
+                if not l or l.startswith("#"):
+                    continue
+                if l.endswith("{"):
+                    lvl += 1
+                    sm = re.match(r'^submenuentry\s+"([^"]+)"', l)
+                    if sm:
+                        (e["kernels"] if in_kern else e["submenus"]).append(sm.group(1))
+                    continue
+                if l == "}":
+                    lvl -= 1
+                    continue
+                if lvl == 1:
+                    k, _, v = l.partition(" ")
+                    v = v.strip()
+                    if k == "disabled":
+                        e["disabled"] = True
+                    elif k in ("icon", "loader", "volume", "initrd"):
+                        e[k] = v
+                    elif k == "options":
+                        e["options"] = v.strip('"')
+            if not e["disabled"]:
+                e["iconFile"] = esp_path(e["icon"]) if e.get("icon") else ""
+                entries.append(e)
+            continue
+        k, _, v = bare.partition(" ")
+        v = v.strip()
+        if k == "include":
+            parse_refind(os.path.join(BOOT_EXPORT, REFIND_REL, v), state, entries, depth + 1)
+        else:
+            state[k] = v
+            state.setdefault("_from", {})[k] = os.path.relpath(path, BOOT_EXPORT)
+
+
+def c_boot(args):
+    conf = os.path.join(BOOT_EXPORT, REFIND_REL, "refind.conf")
+    if not os.path.exists(conf):
+        print(json.dumps({"exported": False}))
+        return
+    state, entries = {}, []
+    parse_refind(conf, state, entries)
+    words = lambda v: [w for w in re.split(r"[\s,]+", v or "") if w]
+    flavour = next((m.group(1) for l in open(conf) if (m := re.match(r"^\s*include\s+themes/catppuccin/(\w+)\.conf", l))), "")
+    icons_dir = state.get("icons_dir", "icons")
+    tools = []
+    for t in words(state.get("showtools", "shell,memtest,gdisk,mok_tool,about,hidden_tags,shutdown,reboot,firmware,fwupdate")):
+        name = TOOL_ICONS.get(t, "")
+        icon = esp_path(f"{icons_dir}/{name}.png") or esp_path(f"icons/{name}.png") if name else ""
+        tools.append({"tool": t, "iconFile": icon})
+    main = next((e for e in entries if e["name"] == "CachyOS"), None)
+    out = {"exported": True, "exportedAt": int(os.path.getmtime(conf)),
+           "timeout": int(state.get("timeout", "20") or 20), "defaultSelection": state.get("default_selection", "").strip('"'),
+           "flavour": flavour, "banner": esp_path(state.get("banner", "")) if state.get("banner") else "",
+           "bannerScale": state.get("banner_scale", "noscale"), "selectionBig": esp_path(state.get("selection_big", "")) if state.get("selection_big") else "",
+           "selectionSmall": esp_path(state.get("selection_small", "")) if state.get("selection_small") else "",
+           "bigIconSize": int(state.get("big_icon_size", "128")), "smallIconSize": int(state.get("small_icon_size", "48")),
+           "hideui": words(state.get("hideui", "")), "showtools": tools, "resolution": state.get("resolution", ""),
+           "entries": entries, "options": (main or {}).get("options", "")}
+    print(json.dumps(out))
+
+
+def pacman_q(name):
+    r = subprocess.run(["pacman", "-Q", name], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.split()
+    return r[1] if len(r) == 2 else ""
+
+
+def c_kernels(args):
+    running_rel = os.uname().release
+    installed = []
+    for d in sorted(glob.glob("/usr/lib/modules/*/pkgbase")):
+        base = open(d).read().strip()
+        rel = d.split("/")[4]
+        installed.append({"name": base, "version": pacman_q(base), "release": rel, "running": rel == running_rel,
+                          "headers": bool(pacman_q(base + "-headers")),
+                          "nvidia": pacman_q(base + "-nvidia-open") and base + "-nvidia-open" or pacman_q(base + "-nvidia") and base + "-nvidia" or ""})
+    names = {k["name"] for k in installed}
+    avail = []
+    listing = subprocess.run(["pacman", "-Sl"], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.split("\n")
+    pkgs = {}
+    for line in listing:
+        f = line.split()
+        if len(f) >= 3:
+            pkgs.setdefault(f[1], (f[0], f[2]))
+    for n, (repo, ver) in sorted(pkgs.items()):
+        if re.fullmatch(r"linux(-[a-z0-9]+)*", n) and n + "-headers" in pkgs and not re.search(r"-(headers|docs|api|firmware|tools|nvidia.*|zfs|lts-headers)$", n):
+            avail.append({"name": n, "version": ver, "repo": repo, "installed": n in names})
+    descs = {}
+    if avail:
+        info = subprocess.run(["pacman", "-Si", *[a["name"] for a in avail]], text=True, stdout=subprocess.PIPE,
+                              stderr=subprocess.DEVNULL).stdout
+        cur = None
+        for line in info.split("\n"):
+            if line.startswith("Name"):
+                cur = line.split(":", 1)[1].strip()
+            elif line.startswith("Description") and cur:
+                descs.setdefault(cur, line.split(":", 1)[1].strip())
+    for a in avail:
+        a["desc"] = descs.get(a["name"], "")
+    print(json.dumps({"installed": installed, "available": avail}))
+
+
+def c_firmware(args):
+    out = {"bootCurrent": "", "bootNext": "", "order": [], "entries": []}
+    for line in subprocess.run(["efibootmgr"], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.split("\n"):
+        if line.startswith("BootCurrent:"):
+            out["bootCurrent"] = line.split(":", 1)[1].strip()
+        elif line.startswith("BootNext:"):
+            out["bootNext"] = line.split(":", 1)[1].strip()
+        elif line.startswith("BootOrder:"):
+            out["order"] = line.split(":", 1)[1].strip().split(",")
+        else:
+            m = re.match(r"^Boot([0-9A-Fa-f]{4})(\*?)\s+(.+?)\t", line + "\t")
+            if m:
+                out["entries"].append({"num": m.group(1), "active": m.group(2) == "*", "label": m.group(3).strip()})
+
+    def efivar(name):
+        try:
+            return open(glob.glob(f"/sys/firmware/efi/efivars/{name}-*")[0], "rb").read()[-1]
+        except (OSError, IndexError):
+            return None
+    out["secureBoot"] = efivar("SecureBoot")
+    out["setupMode"] = efivar("SetupMode")
+    out["fwupd"] = os.path.exists("/usr/bin/fwupdmgr")
+    print(json.dumps(out))
+
+
 COMMANDS = {"units": c_units, "unit": c_unit, "timers": c_timers, "logs": c_logs, "boots": c_boots,
             "crashes": c_crashes, "crash": c_crash, "users": c_users, "user-add": c_user_add,
-            "user-delete": c_user_delete, "user-type": c_user_type, "user-password": c_user_password}
+            "user-delete": c_user_delete, "user-type": c_user_type, "user-password": c_user_password,
+            "boot": c_boot, "kernels": c_kernels, "firmware": c_firmware}
 
 
 def main(argv):

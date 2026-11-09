@@ -528,6 +528,18 @@ def c_pacnew(args):
     found = []
     for dirpath, dirs, files in os.walk("/etc", onerror=lambda e: None):
         for f in files:
+            if f.endswith(".caelestia-old"):
+                p = os.path.join(dirpath, f)
+                orig = p[:-len(".caelestia-old")]
+                try:
+                    same = open(p, "rb").read() == open(orig, "rb").read()
+                except OSError:
+                    same = False
+                if not same:  # still different from what's in use: it can be put back
+                    # when it was replaced: the copy's change time (cp -a keeps its old modification time)
+                    found.append({"path": p, "original": orig, "kind": "replaced", "originalExists": os.path.exists(orig),
+                                  "date": int(os.stat(p).st_ctime), "readable": os.access(p, os.R_OK)})
+                continue
             if f.endswith((".pacnew", ".pacsave")):
                 p = os.path.join(dirpath, f)
                 orig = p.rsplit(".", 1)[0]
@@ -544,9 +556,9 @@ def c_pacnew(args):
 
 def c_pacdiff(args):
     p = os.path.realpath(args[0])
-    if not p.startswith("/etc/") or not p.endswith((".pacnew", ".pacsave")):
+    if not p.startswith("/etc/") or not p.endswith((".pacnew", ".pacsave", ".caelestia-old")):
         sys.exit("not a .pacnew/.pacsave under /etc")
-    orig = p.rsplit(".", 1)[0]
+    orig = p[:-len(".caelestia-old")] if p.endswith(".caelestia-old") else p.rsplit(".", 1)[0]
     try:
         new = open(p, errors="replace").read().splitlines()
         old = open(orig, errors="replace").read().splitlines() if os.path.exists(orig) else []
@@ -554,7 +566,18 @@ def c_pacdiff(args):
         out({"error": str(e)})
         return
     diff = list(difflib.unified_diff(old, new, orig, p, lineterm="", n=2))
-    out({"diff": "\n".join(diff[:800]), "truncated": len(diff) > 800})
+    # Your settings the new file doesn't have (lost by "use the new one"),
+    # and settings only the new one has; comments and blank lines left out
+    def settings(lines):
+        return [l.strip() for l in lines if l.strip() and not l.strip().startswith(("#", ";"))]
+    mine, theirs = settings(old), settings(new)
+    lost = [l for l in mine if l not in theirs]
+    added = [l for l in theirs if l not in mine]
+    # Files the system can't work without as configured (a default loses repos, mounts, sudo...)
+    critical = os.path.basename(orig) in ("pacman.conf", "fstab", "sudoers", "passwd", "group", "shadow", "gshadow",
+                                          "crypttab", "mkinitcpio.conf", "locale.gen", "hosts", "makepkg.conf")
+    out({"diff": "\n".join(diff[:800]), "truncated": len(diff) > 800, "lost": lost[:200], "added": added[:200],
+         "critical": critical})
 
 
 def cache_dirs():
