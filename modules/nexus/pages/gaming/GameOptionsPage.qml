@@ -21,9 +21,13 @@ PageBase {
     id: root
 
     property var env: null
+    property var mfg: null
     readonly property var values: env?.values ?? {}
     property var wrappers: ["game-performance"]
     property bool changed
+    readonly property string mfgFetchWhat: Tr.tr("Download MFG Unlocker")
+    readonly property bool mfgFetching: Admin.jobs.some(j => j.what === mfgFetchWhat)
+    readonly property var mfgModes: [["follow", Tr.tr("Follow game")], ["2", "2x"], ["3", "3x"], ["4", "4x"]]
 
     // [key, title, what it does / catch, "on" value, default-on (the key turns it off)]
     readonly property var nvidiaOptions: [["NVPRESENT_ENABLE_SMOOTH_MOTION", Tr.tr("Smooth Motion"), Tr.tr("The driver adds generated frames (RTX 40 and newer; 64-bit DX11/DX12/Vulkan games). A little more input lag, artefacts in fast motion; not with DLSS frame generation; use the game's own frame cap"), "1"], ["DXVK_NVAPI_VKREFLEX", Tr.tr("NVIDIA Reflex"), Tr.tr("Lower input lag in games that support Reflex"), "1"], ["PROTON_DLSS_UPGRADE", Tr.tr("Newest DLSS"), Tr.tr("Games using DLSS get its newest version (downloaded once)"), "1"], ["PROTON_DLSS_INDICATOR", Tr.tr("DLSS indicator"), Tr.tr("Shows which DLSS version and preset a game uses (bottom left)"), "1"], ["PROTON_NVIDIA_LIBS", Tr.tr("CUDA and PhysX for games"), Tr.tr("For games using PhysX, CUDA or NVENC; only when a game needs it"), "1"], ["__GL_THREADED_OPTIMIZATIONS", Tr.tr("Threaded optimisations (OpenGL)"), Tr.tr("Can raise frame rates in OpenGL games; some run worse"), "1"], ["__GL_SHARPEN_ENABLE", Tr.tr("Image sharpening"), Tr.tr("The driver sharpens every OpenGL and Vulkan game"), "1"]]
@@ -33,7 +37,11 @@ PageBase {
     readonly property string launchLine: [...wrappers.filter(w => w !== "gamescope"), ...(wrappers.includes("gamescope") ? ["gamescope", "--"] : []), "%command%"].join(" ")
 
     function load(): void {
-        proc.running = true;
+        if (!proc.running)
+            proc.running = true;
+        if (!mfgProc.running)
+            mfgProc.running = true;
+        Games.check();
     }
 
     function setVar(key: string, value: string): void {
@@ -134,6 +142,152 @@ PageBase {
         }
 
         SectionHeader {
+            text: Tr.tr("DLSS Multi Frame Generation (MFG Unlocker)")
+        }
+
+        ConnectedRect {
+            Layout.fillWidth: true
+            implicitHeight: mfgHeaderL.implicitHeight + Tokens.padding.medium * 2
+
+            RowLayout {
+                id: mfgHeaderL
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Tokens.padding.largeIncreased
+                anchors.rightMargin: Tokens.padding.largeIncreased
+                spacing: Tokens.spacing.medium
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: root.mfg?.tag ? Tr.tr("MFG Unlocker %1").arg(root.mfg.tag) : Tr.tr("MFG Unlocker")
+                        font: Tokens.font.body.small
+                    }
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: root.mfg?.tag ? Tr.tr("Press Backspace in-game for its menu. Only for games that already have DLSS Frame Generation; never use with anti-cheat.") : Tr.tr("Not downloaded yet — unlocks 3x/4x frame generation in games with DLSS FG (never use with anti-cheat).")
+                        wrapMode: Text.WordWrap
+                        color: Colours.palette.m3onSurfaceVariant
+                        font: Tokens.font.label.small
+                    }
+                }
+
+                TextButton {
+                    enabled: !root.mfgFetching
+                    text: root.mfgFetching ? Tr.tr("Downloading…") : root.mfg?.tag ? Tr.tr("Update") : Tr.tr("Download")
+                    type: root.mfg?.tag ? TextButton.Tonal : TextButton.Filled
+                    onClicked: Admin.exec([`${Paths.libdir}/caelestia-gaming`, "mfg-fetch"], root.mfgFetchWhat, () => root.load())
+                }
+            }
+        }
+
+        Flow {
+            Layout.fillWidth: true
+            Layout.topMargin: Tokens.spacing.small
+            visible: !!root.mfg?.tag
+            spacing: Tokens.spacing.small
+
+            Repeater {
+                model: root.mfgModes
+
+                TextButton {
+                    required property var modelData
+
+                    text: modelData[1]
+                    isToggle: true
+                    followChecked: true
+                    checked: (root.mfg?.mode ?? "follow") === modelData[0]
+                    type: TextButton.Tonal
+                    onClicked: Admin.exec([`${Paths.libdir}/caelestia-gaming`, "mfg-mode", modelData[0]], Tr.tr("Set MFG Unlocker multiplier"), () => root.load())
+                }
+            }
+        }
+
+        Repeater {
+            model: root.mfg?.games ?? []
+
+            ConnectedRect {
+                id: mfgGame
+
+                required property var modelData
+                readonly property bool hasAnticheat: (modelData.anticheat ?? []).length > 0
+                readonly property bool launcherBlocked: Games.blocked(modelData.launcher)
+                readonly property string setWhat: modelData.installed ? Tr.tr("Remove MFG Unlocker from %1").arg(modelData.title) : Tr.tr("Install MFG Unlocker in %1").arg(modelData.title)
+                readonly property bool busy: Admin.jobs.some(j => j.what === mfgGame.setWhat)
+
+                Layout.fillWidth: true
+                implicitHeight: mfgGameL.implicitHeight + Tokens.padding.medium * 2
+
+                RowLayout {
+                    id: mfgGameL
+
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: Tokens.padding.largeIncreased
+                    anchors.rightMargin: Tokens.padding.largeIncreased
+                    spacing: Tokens.spacing.medium
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: mfgGame.modelData.title
+                            font: Tokens.font.body.small
+                            elide: Text.ElideRight
+                        }
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: {
+                                if (mfgGame.hasAnticheat)
+                                    return Tr.tr("Anti-cheat detected (%1): blocked for safety").arg(mfgGame.modelData.anticheat.join(", "));
+                                const parts = [Games.launcherNames[mfgGame.modelData.launcher] ?? mfgGame.modelData.launcher];
+                                if (mfgGame.modelData.fgVersion)
+                                    parts.push(`DLSS FG ${mfgGame.modelData.fgVersion}`);
+                                if (mfgGame.modelData.installed && mfgGame.modelData.name)
+                                    parts.push(Tr.tr("Using %1").arg(mfgGame.modelData.name));
+                                if (mfgGame.launcherBlocked)
+                                    parts.push(Tr.tr("close %1 first").arg(Games.launcherNames[mfgGame.modelData.launcher] ?? mfgGame.modelData.launcher));
+                                return parts.join(" · ");
+                            }
+                            wrapMode: Text.WordWrap
+                            color: mfgGame.hasAnticheat || mfgGame.launcherBlocked ? Colours.palette.m3error : mfgGame.modelData.installed ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
+                            font: Tokens.font.label.small
+                        }
+                    }
+
+                    TextButton {
+                        enabled: !!root.mfg?.tag && !mfgGame.hasAnticheat && !mfgGame.launcherBlocked && !mfgGame.busy
+                        text: mfgGame.busy ? Tr.tr("Working…") : mfgGame.modelData.installed ? Tr.tr("Remove") : Tr.tr("Install")
+                        type: mfgGame.modelData.installed ? TextButton.Tonal : TextButton.Filled
+                        onClicked: Admin.exec([`${Paths.libdir}/caelestia-gaming`, "mfg-set", mfgGame.modelData.key, mfgGame.modelData.installed ? "off" : "on"], mfgGame.setWhat, () => {
+                            root.load();
+                            Games.load();
+                        })
+                    }
+                }
+            }
+        }
+
+        StyledText {
+            Layout.fillWidth: true
+            Layout.leftMargin: Tokens.padding.small
+            visible: !!root.mfg && (root.mfg.games ?? []).length === 0
+            text: Tr.tr("No installed games with DLSS Frame Generation found.")
+            color: Colours.palette.m3onSurfaceVariant
+            font: Tokens.font.body.small
+        }
+
+        SectionHeader {
             text: "Proton"
         }
 
@@ -192,6 +346,19 @@ PageBase {
                 onStreamFinished: {
                     try {
                         root.env = JSON.parse(text);
+                    } catch (e) {}
+                }
+            }
+        }
+
+        Process {
+            id: mfgProc
+
+            command: [`${Paths.libdir}/caelestia-gaming`, "mfg"]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    try {
+                        root.mfg = JSON.parse(text);
                     } catch (e) {}
                 }
             }
