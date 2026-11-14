@@ -1535,11 +1535,13 @@ def pe_version(path):
         data = open(path, "rb").read()
     except OSError:
         return ""
-    i = data.find(struct.pack("<I", 0xFEEF04BD))
-    if i < 0 or i + 16 > len(data):
-        return ""
-    ms, ls = struct.unpack_from("<II", data, i + 8)
-    return f"{ms >> 16}.{ms & 0xFFFF}.{ls >> 16}.{ls & 0xFFFF}"
+    sig, i = struct.pack("<II", 0xFEEF04BD, 0x00010000), -1  # signature + structure version 1.0
+    while (i := data.find(sig, i + 1)) >= 0:  # the signature alone also occurs in code
+        if i + 16 <= len(data):
+            ms, ls = struct.unpack_from("<II", data, i + 8)
+            if ms:
+                return f"{ms >> 16}.{ms & 0xFFFF}.{ls >> 16}.{ls & 0xFFFF}"
+    return ""
 
 
 def walk(root, depth=7):

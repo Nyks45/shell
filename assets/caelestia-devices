@@ -88,11 +88,16 @@ class SDK:
         return b
 
     def recv(self):
-        h = self.recvn(16)
-        if h[:4] != b"ORGB":
-            raise ConnectionError("not OpenRGB")
-        dev, cmd, size = struct.unpack("<III", h[4:])
-        return dev, cmd, self.recvn(size)
+        """The next answer. The server also sends notices on its own (100: the device list changed,
+        which it does several times while it detects devices): those aren't answers, skip them."""
+        while True:
+            h = self.recvn(16)
+            if h[:4] != b"ORGB":
+                raise ConnectionError("not OpenRGB")
+            dev, cmd, size = struct.unpack("<III", h[4:])
+            data = self.recvn(size)
+            if not 100 <= cmd < 150:
+                return dev, cmd, data
 
     def count(self):
         self.send(0, 0)
@@ -448,7 +453,20 @@ def c_lighting_restore(args):
     sdk = connect(wait=int(args[0]) if args else 30)
     if not sdk:
         sys.exit("the lighting service isn't running")
-    for c in sdk.controllers():
+    # The server answers before it has found the devices (detection takes ~8 s after it starts):
+    # wait until every saved device is listed, or the list has stopped growing for 6 s.
+    end, cs, stable = time.time() + (int(args[0]) if args else 30), [], 0
+    while True:
+        try:
+            now = sdk.controllers()
+        except (OSError, struct.error, IndexError):
+            now = []
+        stable = stable + 1 if now and len(now) == len(cs) else 0
+        cs = now
+        if set(saved["devices"]) <= {device_id(c) for c in cs} or stable >= 6 or time.time() >= end:
+            break
+        time.sleep(1)
+    for c in cs:
         st = saved["devices"].get(device_id(c))
         if c["vendor"] == "MSI" and c["type"] == 0 and "185" in c["description"]:
             continue  # saved on the board itself
@@ -725,27 +743,56 @@ def c_fans(args):
 # --- keep: at login and on reconnect ----------------------------------------------------
 
 def c_keep(args):
-    """Restore the lighting (once OpenRGB's server is up) and the mouse; then again whenever a
-    USB input device comes back (the keyboard re-plugged, the mouse waking or reconnecting)."""
-    def restore(what):
-        if what in ("all", "lighting") and load_json(LIGHTING, {}).get("devices"):
+    """Restore the lighting (once OpenRGB has found the devices) and the mouse; then again when a
+    USB input device comes back (the keyboard re-plugged) and each time the mouse connects.
+    A wireless mouse connects seconds after login and again whenever it wakes or is switched on,
+    without a new hidraw node: the kernel's hidpp battery going online says so. The mouse is
+    applied until it answers with the saved mode (it may not answer right after connecting)."""
+    import select
+
+    def lighting():
+        if load_json(LIGHTING, {}).get("devices"):
             subprocess.run([sys.argv[0], "lighting-restore", "40"], stdout=subprocess.DEVNULL)
-        if what in ("all", "mouse"):
-            saved = load_json(MOUSE, {})
-            for m in mouse_info():
-                if saved.get(m["name"], {}).get("profile") == "off":
-                    mouse_apply(m["name"], saved[m["name"]])
-    restore("all")
-    mon = subprocess.Popen(["udevadm", "monitor", "--udev", "--subsystem-match=hidraw"], text=True, stdout=subprocess.PIPE)
-    last = 0
-    for line in mon.stdout:
-        if " add " not in line:
-            continue
-        if time.time() - last < 3:  # one device adds several hidraw nodes
-            continue
-        time.sleep(2)
-        last = time.time()
-        restore("all")
+
+    def mouse():
+        """True when nothing is left to do: no mouse to keep set, or it answers in the saved mode."""
+        saved = load_json(MOUSE, {})
+        want = False
+        for m in mouse_info():
+            if saved.get(m["name"], {}).get("profile") == "off":
+                want = True
+                mouse_apply(m["name"], saved[m["name"]])
+        if not want:
+            return True
+        mo = Mouse()
+        st = mo.state()
+        mo.close()
+        return st.get("profile") == "Disabled"
+
+    def online():
+        return {p for p in glob.glob("/sys/class/power_supply/hidpp_battery_*") if (read(os.path.join(p, "online")) or "").strip() == "1"}
+
+    mon = subprocess.Popen(["udevadm", "monitor", "--udev", "--subsystem-match=hidraw"], stdout=subprocess.PIPE)
+    fd = mon.stdout.fileno()
+    lighting()
+    seen, retry, last = set(), 0, time.time()
+    while True:
+        if select.select([fd], [], [], 3)[0]:
+            data = os.read(fd, 65536)
+            if not data:
+                return 1  # udevadm went away: let systemd start this again
+            if b" add " in data and time.time() - last >= 3:  # one device adds several hidraw nodes
+                time.sleep(2)
+                last = time.time()
+                lighting()
+                seen = set()  # and the mouse again
+        now = online()
+        if now - seen and time.time() >= retry:
+            if mouse():
+                seen = now
+            else:
+                retry = time.time() + 10
+        seen &= now  # one that went offline is applied again when it's back
 
 
 COMMANDS = {"lighting": c_lighting, "lighting-set": c_lighting_set, "lighting-restore": c_lighting_restore,
