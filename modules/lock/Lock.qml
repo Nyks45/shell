@@ -15,6 +15,14 @@ Scope {
     readonly property string bootSentinel: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/caelestia-boot-" + (Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") || "default")
     readonly property bool startLocked: Quickshell.env("CAELESTIA_BOOT_LOCK") === "1" && !CUtils.fileExists(bootSentinel)
     property bool bootLockActive: startLocked
+    property bool bootCursorRestored: false
+
+    function revealBootCursor(): void {
+        if (bootCursorRestored)
+            return;
+        bootCursorRestored = true;
+        Quickshell.execDetached(["hyprctl", "eval", "hl.config({ cursor = { invisible = false } })"]);
+    }
 
     function runBootAutostart(): void {
         const sentinel = root.bootSentinel;
@@ -61,6 +69,7 @@ PY
             lock: lock
             pam: pam
             bootLock: root.bootLockActive
+            onFirstFrameDrawn: root.revealBootCursor()
         }
     }
 

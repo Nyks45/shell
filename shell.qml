@@ -8,26 +8,32 @@ import QtQuick
 import Quickshell
 import Caelestia.Config
 import qs.services
-import qs.modules.areapicker
-import qs.modules.background
-import qs.modules.drawers
+import qs.modules
 import qs.modules.lock
-import qs.modules.nexus
-import qs.modules.polkit
-import qs.daemons
 
 ShellRoot {
     id: root
 
-    property bool desktopReady: !lock.startLocked
+    property bool desktopReady: !lockController.startLocked
 
     settings.watchFiles: true
 
+    function loadDesktop(): void {
+        if (!desktopReady || desktopLoader.active || desktopLoader.loading)
+            return;
+        if (lockController.startLocked)
+            desktopLoader.activeAsync = true;
+        else
+            desktopLoader.active = true;
+    }
+
+    onDesktopReadyChanged: loadDesktop()
+
     Connections {
-        target: lock.lock
+        target: lockController.lock
 
         function onSecureChanged(): void {
-            if (lock.lock.secure && !root.desktopReady)
+            if (lockController.lock.secure && !root.desktopReady)
                 bootDesktopDelay.restart();
         }
     }
@@ -41,38 +47,24 @@ ShellRoot {
 
     Timer {
         interval: 2200
-        running: lock.startLocked && !root.desktopReady
+        running: lockController.startLocked && !root.desktopReady
         onTriggered: root.desktopReady = true
     }
 
     Component.onCompleted: {
-        // Critical singletons needed on Frame 0
-        Notifs;
-        Brightness;
-        LiveStartFrame;
-        Polkit;
+        // Non-boot sessions instantiate desktop modules right away; boot-lock starts Lock first.
+        if (desktopReady)
+            loadDesktop();
     }
 
     Timer {
-        interval: 200
+        interval: 50
         running: true
         onTriggered: {
-            Players;
-            HyprSettings;
-            LiveWallpaper;
-            Weather.reload();
-            Packages;
-            if (GlobalConfig.utilities.vpn.enabled)
-                VPN;
-        }
-    }
-
-    Timer {
-        interval: 550
-        running: true
-        onTriggered: {
-            // Pre-warm the default Settings landing page in idle time so opening Settings is instant
-            PageCompRegistry.subComp("WallpaperAndStyle.qml");
+            Notifs;
+            Brightness;
+            LiveStartFrame;
+            Polkit;
         }
     }
 
@@ -86,28 +78,16 @@ ShellRoot {
         value: root
     }
 
-    // Modules (Lock first; defer Background/Drawers on boot-lock until WlSessionLock secures)
+    // Lock first so cold-boot --locked-cmd renders Frame 0 before instantiating desktop modules
     Lock {
-        id: lock
+        id: lockController
     }
-    Loader {
-        active: root.desktopReady
-        sourceComponent: Background {}
-    }
-    Loader {
-        active: root.desktopReady
-        sourceComponent: Drawers {}
-    }
-    AreaPicker {}
-    PolkitOverlay {}
 
-    // Daemons
-    Shortcuts {}
-    BatteryMonitor {}
-    GameMode {}
-    LiveWallpaperKeys {}
-    IdleInhibit {}
-    IdleMonitors {
-        lock: lock
+    LazyLoader {
+        id: desktopLoader
+
+        DesktopShell {
+            lock: lockController
+        }
     }
 }

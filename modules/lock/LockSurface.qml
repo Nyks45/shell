@@ -11,6 +11,8 @@ WlSessionLockSurface {
     required property Pam pam
     property bool bootLock: false
 
+    signal firstFrameDrawn()
+
     readonly property alias unlocking: scene.closing
 
     contentItem.Config.screen: screen ? screen.name : ""
@@ -35,6 +37,7 @@ WlSessionLockSurface {
         screen: root.screen
         bootLock: root.bootLock
         onUnlocked: root.lock.locked = false
+        onFirstFrameDrawn: root.firstFrameDrawn()
     }
 
     Component.onCompleted: scene.forceActiveFocus()
