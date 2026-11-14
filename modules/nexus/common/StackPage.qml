@@ -9,6 +9,7 @@ StackView {
 
     required property NexusState nState
     default property list<Component> pages
+    property var pageSpecs: []
     readonly property int animMovement: Tokens.padding.extraExtraLarge * 2
 
     function openSubPage(idx: int, immediate: bool): void {
@@ -17,10 +18,22 @@ StackView {
             push(page, {
                 nState
             }, immediate ? StackView.Immediate : StackView.PushTransition);
-        } else {
-            console.warn(logCat, "Attempted to open invalid sub-page index", idx);
-            nState.closeSubPage();
+            return;
         }
+        const spec = pageSpecs[idx];
+        if (spec) {
+            const relPath = Array.isArray(spec) ? spec[0] : spec;
+            const extraProps = Array.isArray(spec) ? spec[1] : null;
+            const comp = PageCompRegistry.subComp(relPath);
+            if (comp) {
+                push(comp, Object.assign({
+                    nState
+                }, extraProps ?? {}), immediate ? StackView.Immediate : StackView.PushTransition);
+                return;
+            }
+        }
+        console.warn(logCat, "Attempted to open invalid sub-page index", idx);
+        nState.closeSubPage();
     }
 
     clip: busy

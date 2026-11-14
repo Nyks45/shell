@@ -26,6 +26,15 @@ Item {
     Loader {
         id: content
 
+        function ensureSource(): void {
+            if (active && !source.toString())
+                setSource(Qt.resolvedUrl("Content.qml"), {
+                    implicitWidth: Qt.binding(() => Tokens.sizes.sidebar.width - content.anchors.leftMargin - content.anchors.margins),
+                    props: root.props,
+                    screenState: root.screenState
+                });
+        }
+
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.left: parent.left
@@ -34,11 +43,7 @@ Item {
         anchors.bottomMargin: 0
 
         active: root.shouldBeActive || root.visible
-
-        sourceComponent: Content {
-            implicitWidth: Tokens.sizes.sidebar.width - content.anchors.leftMargin - content.anchors.margins
-            props: root.props
-            screenState: root.screenState
-        }
+        onActiveChanged: ensureSource()
+        Component.onCompleted: ensureSource()
     }
 }

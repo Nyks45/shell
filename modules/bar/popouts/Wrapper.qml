@@ -8,7 +8,6 @@ import Caelestia.Config
 import qs.components
 import qs.services
 import qs.modules.nexus
-import qs.modules.windowinfo
 
 Item {
     id: root
@@ -22,7 +21,7 @@ Item {
 
     readonly property real nonAnimWidth: children.find(c => c.shouldBeActive)?.implicitWidth ?? content.implicitWidth
     readonly property real nonAnimHeight: children.find(c => c.shouldBeActive)?.implicitHeight ?? content.implicitHeight
-    readonly property Item current: (content.item as Content)?.current ?? null
+    readonly property Item current: (content.item as Item)?.current ?? null
     readonly property bool isDetached: detachedMode.length > 0
 
     property alias currentName: popoutState.currentName
@@ -70,7 +69,7 @@ Item {
     Keys.onEscapePressed: {
         // Forward escape to password popout if active, otherwise close
         if (currentName === "wirelesspassword" && content.item) {
-            const passwordPopout = (content.item as Content)?.children.find(c => c.name === "wirelesspassword");
+            const passwordPopout = (content.item as Item)?.children.find(c => c.name === "wirelesspassword");
             if (passwordPopout && passwordPopout.item) {
                 passwordPopout.item.closeDialog();
                 return;
@@ -112,8 +111,11 @@ Item {
         shouldBeActive: root.hasCurrent && !root.detachedMode
         anchors.fill: parent
 
-        sourceComponent: Content {
-            popouts: popoutState
+        onActiveChanged: {
+            if (active && !source.toString())
+                setSource(Qt.resolvedUrl("Content.qml"), {
+                    popouts: popoutState
+                });
         }
     }
 
@@ -123,9 +125,12 @@ Item {
         shouldBeActive: root.detachedMode === "winfo"
         anchors.centerIn: parent
 
-        sourceComponent: WindowInfo {
-            screen: root.screen
-            client: Hypr.activeToplevel
+        onActiveChanged: {
+            if (active && !source.toString())
+                setSource(Qt.resolvedUrl("../../windowinfo/WindowInfo.qml"), {
+                    screen: Qt.binding(() => root.screen),
+                    client: Qt.binding(() => Hypr.activeToplevel)
+                });
         }
     }
 

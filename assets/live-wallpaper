@@ -65,7 +65,7 @@ stop() {
         pkill -x linux-wallpaper 2>/dev/null || true
         for _ in $(seq 20); do pgrep -x linux-wallpaper > /dev/null || break; sleep 0.1; done
     fi
-    rm -f "$PIDFILE"
+    rm -f "$PIDFILE" "$STATE/ready.bmp"
 }
 
 # Pause/resume drawing (SIGSTOP/SIGCONT)
@@ -225,6 +225,7 @@ start() {
         args+=("${cfg[@]:3}")
     elif [[ -f "$SETTINGS" ]]; then
         # Turned off in the settings app: nothing to start
+        rm -f "$STATE/current-frame.png"
         stop
         return 0
     elif (( ${#gui[@]} )); then
@@ -245,17 +246,32 @@ start() {
 
     # The renderer also saves one full-size frame once it has drawn a few (named per
     # wallpaper: the shell caches images by path).
-    local frame="$STATE/frame-$(basename "$dir").png" f
+    local frame="$STATE/frame-$(basename "$dir").png" f had_frame=0
+    [[ -s "$frame" ]] && had_frame=1
     # Other wallpapers' frames go; this one stays until the renderer replaces
     # it (the shell shows it while the renderer loads: LiveStartFrame)
     for f in "$STATE"/frame-*.png; do [[ "$f" == "$frame" ]] || rm -f "$f"; done
-    args+=(--screenshot "$frame")
+    [[ -n "$dir" ]] && ln -sf "$(basename "$frame")" "$STATE/current-frame.png"
+    rm -f "$STATE/ready.bmp"
+    if (( had_frame )); then
+        # Saved frame already exists on disk: write an uncompressed .bmp marker
+        # after Frame 1 so LiveStartFrame drops cleanly without waiting 5 frames
+        # and ~800ms of PNG compression or truncating the displayed PNG.
+        args+=(--screenshot "$STATE/ready.bmp" --screenshot-delay 1)
+    else
+        args+=(--screenshot "$frame")
+    fi
 
     # Not a process-group leader in the background, so setsid execs in place:
     # $! is the renderer itself.
     setsid linux-wallpaperengine "${args[@]}" > "$STATE/log" 2>&1 < /dev/null &
     echo $! > "$PIDFILE"
     disown
+
+    if (( had_frame )); then
+        ( sleep 10; rm -f "$STATE/ready.bmp" ) > /dev/null 2>&1 < /dev/null &
+        disown
+    fi
 
     # Paused in the settings (it survives restarts and logins): pause again
     # once the first frames are drawn (the lock screen's frame is saved)
@@ -268,8 +284,17 @@ start() {
     # capture the screen, see shell.json lock.useWallpaper), and colours when the
     # dynamic scheme is used. The preview at once, the full-size frame once saved.
     command -v caelestia > /dev/null || return 0
-    local preview
     [[ -d "$dir" ]] || return 0
+    local cael_wall_state="${XDG_STATE_HOME:-$HOME/.local/state}/caelestia/wallpaper/path.txt"
+    if (( had_frame )); then
+        if [[ "$(cat "$cael_wall_state" 2>/dev/null)" == "$frame" ]]; then
+            return 0
+        fi
+        caelestia wallpaper -f "$frame" > /dev/null 2>&1 < /dev/null &
+        disown
+        return 0
+    fi
+    local preview
     preview="$(find "$dir" -maxdepth 1 -iname 'preview.*' \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' \) | head -1)"
     # Animated previews: their first frame, as a still image.
     if [[ "${preview,,}" == *.gif ]]; then

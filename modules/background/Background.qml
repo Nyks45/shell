@@ -54,6 +54,8 @@ Variants {
                 sourceSize.width: win.screen?.width ?? 2560
 
                 Behavior on opacity {
+                    enabled: !LiveStartFrame.showing && !LiveStartFrame.wasRunning
+
                     NumberAnimation {
                         duration: 450
                         easing.type: Easing.OutCubic
@@ -69,13 +71,27 @@ Variants {
                 anchors.fill: parent
                 active: Config.background.wallpaperEnabled
 
-                sourceComponent: Wallpaper {}
+                source: active ? Qt.resolvedUrl("Wallpaper.qml") : ""
             }
 
-            Visualiser {
+            Loader {
                 anchors.fill: parent
-                screen: win.modelData
-                wallpaper: wallpaper
+                asynchronous: true
+                active: Config.background.visualiser.enabled
+                onActiveChanged: {
+                    if (active && !source.toString())
+                        setSource(Qt.resolvedUrl("Visualiser.qml"), {
+                            screen: Qt.binding(() => win.modelData),
+                            wallpaper: wallpaper
+                        });
+                }
+                Component.onCompleted: {
+                    if (active)
+                        setSource(Qt.resolvedUrl("Visualiser.qml"), {
+                            screen: Qt.binding(() => win.modelData),
+                            wallpaper: wallpaper
+                        });
+                }
             }
         }
 
@@ -89,7 +105,7 @@ Variants {
             asynchronous: true
             active: Config.background.desktopIcons
 
-            sourceComponent: DesktopIcons {}
+            source: active ? Qt.resolvedUrl("DesktopIcons.qml") : ""
         }
 
         Loader {
@@ -190,10 +206,21 @@ Variants {
                 AnchorAnim {}
             }
 
-            sourceComponent: DesktopClock {
-                wallpaper: behindClock
-                absX: clockLoader.x
-                absY: clockLoader.y
+            onActiveChanged: {
+                if (active && !source.toString())
+                    setSource(Qt.resolvedUrl("DesktopClock.qml"), {
+                        wallpaper: behindClock,
+                        absX: Qt.binding(() => clockLoader.x),
+                        absY: Qt.binding(() => clockLoader.y)
+                    });
+            }
+            Component.onCompleted: {
+                if (active)
+                    setSource(Qt.resolvedUrl("DesktopClock.qml"), {
+                        wallpaper: behindClock,
+                        absX: Qt.binding(() => clockLoader.x),
+                        absY: Qt.binding(() => clockLoader.y)
+                    });
             }
         }
     }

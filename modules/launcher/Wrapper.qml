@@ -37,7 +37,11 @@ Item {
     implicitWidth: content.implicitWidth || 630 // Hard coded fallback for first open
     opacity: 1 - offsetScale
 
-    Component.onCompleted: Qt.callLater(() => Apps) // Load apps on init
+    Timer {
+        interval: 300
+        running: true
+        onTriggered: Apps
+    }
 
     Behavior on offsetScale {
         Anim {}
@@ -46,15 +50,20 @@ Item {
     Loader {
         id: content
 
+        function ensureSource(): void {
+            if (active && !source.toString())
+                setSource(Qt.resolvedUrl("Content.qml"), {
+                    screenState: root.screenState,
+                    panels: root.panels,
+                    maxHeight: Qt.binding(() => root.maxHeight)
+                });
+        }
+
         anchors.top: parent.top
         anchors.horizontalCenter: parent.horizontalCenter
 
         active: root.shouldBeActive || root.visible
-
-        sourceComponent: Content {
-            screenState: root.screenState
-            panels: root.panels
-            maxHeight: root.maxHeight
-        }
+        onActiveChanged: ensureSource()
+        Component.onCompleted: ensureSource()
     }
 }

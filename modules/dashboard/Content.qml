@@ -8,12 +8,25 @@ import Caelestia.Config
 import Caelestia.I18n
 import qs.components
 import qs.components.filedialog
+import qs.utils
 
 Item {
     id: root
 
     required property ScreenState screenState
-    required property FileDialog facePicker
+    readonly property FileDialog facePicker: FileDialog {
+        title: Tr.tr("Select a profile picture")
+        filterLabel: Tr.tr("Image files")
+        filters: Images.validImageExtensions
+        onAccepted: path => {
+            if (CUtils.copyFile(Qt.resolvedUrl(path), Qt.resolvedUrl(Paths.face)) && (Paths.reloadFace(), true))
+                // TRANSLATORS: %1 = a file path
+                Quickshell.execDetached(["notify-send", "-a", "caelestia-shell", "-u", "low", "-h", `STRING:image-path:${path}`, Tr.tr("Profile picture changed"), Tr.tr("Profile picture changed to %1").arg(Paths.shortenHome(path))]);
+            else
+                // TRANSLATORS: %1 = a file path
+                Quickshell.execDetached(["notify-send", "-a", "caelestia-shell", "-u", "critical", Tr.tr("Unable to change profile picture"), Tr.tr("Failed to change profile picture to %1").arg(Paths.shortenHome(path))]);
+        }
+    }
 
     readonly property var dashboardTabs: {
         const allTabs = [

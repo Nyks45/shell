@@ -24,8 +24,12 @@ Item {
             currentItem = null;
         }
 
-        const comp = PageCompRegistry.pageComps[idx] ?? PageCompRegistry.placeholderComp;
-        const incubator = comp.incubateObject(container, {
+        const pageSpecs = PageCompRegistry.specs[idx];
+        const comp = pageSpecs ? PageCompRegistry.stackPageComp : PageCompRegistry.placeholderComp;
+        const incubator = comp.incubateObject(container, pageSpecs ? {
+            nState,
+            pageSpecs
+        } : {
             nState
         });
 

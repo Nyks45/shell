@@ -28,13 +28,18 @@ Item {
     Loader {
         id: content
 
+        function ensureSource(): void {
+            if (active && !source.toString())
+                setSource(Qt.resolvedUrl("Content.qml"), {
+                    screenState: root.screenState
+                });
+        }
+
         anchors.verticalCenter: parent.verticalCenter
         anchors.left: parent.left
 
         active: root.shouldBeActive || root.visible
-
-        sourceComponent: Content {
-            screenState: root.screenState
-        }
+        onActiveChanged: ensureSource()
+        Component.onCompleted: ensureSource()
     }
 }

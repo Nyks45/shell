@@ -26,7 +26,7 @@ Item {
     }
     readonly property bool shouldBeActive: screenState.sidebar || (screenState.utilities && Config.utilities.enabled && !(screenState.session && Config.session.enabled))
     readonly property real totalPadding: content.anchors.margins + CUtils.clamp(content.anchors.margins - Config.border.thickness, 0, content.anchors.margins)
-    readonly property real nonAnimHeight: ((content.item as Content)?.nonAnimHeight ?? 0) + totalPadding
+    readonly property real nonAnimHeight: ((content.item as Item)?.nonAnimHeight ?? 0) + totalPadding
     property real offsetScale: shouldBeActive ? 0 : 1
     property real sidebarLerp
 
@@ -73,19 +73,24 @@ Item {
     Loader {
         id: content
 
+        function ensureSource(): void {
+            if (active && !source.toString())
+                setSource(Qt.resolvedUrl("Content.qml"), {
+                    implicitWidth: Qt.binding(() => root.implicitWidth - root.totalPadding),
+                    props: root.props,
+                    screenState: root.screenState,
+                    popouts: root.popouts,
+                    deformMatrix: Qt.binding(() => root.deformMatrix)
+                });
+        }
+
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.margins: Tokens.padding.large
 
         asynchronous: true
         active: root.shouldBeActive || root.visible
-
-        sourceComponent: Content {
-            implicitWidth: root.implicitWidth - root.totalPadding
-            props: root.props
-            screenState: root.screenState
-            popouts: root.popouts
-            deformMatrix: root.deformMatrix
-        }
+        onActiveChanged: ensureSource()
+        Component.onCompleted: ensureSource()
     }
 }

@@ -12,6 +12,7 @@ import qs.modules.areapicker
 import qs.modules.background
 import qs.modules.drawers
 import qs.modules.lock
+import qs.modules.nexus
 import qs.modules.polkit
 import qs.daemons
 
@@ -21,27 +22,34 @@ ShellRoot {
     settings.watchFiles: true
 
     Component.onCompleted: {
-        // Force certain singletons to load on shell init instead of lazily
+        // Critical singletons needed on Frame 0
         Notifs;
-        Players;
         Brightness;
-        Weather.reload();
-        // Writes hypr-settings.lua when there is none yet or its generator is
-        // newer (Print through the shell, hidden renderer test windows...)
-        HyprSettings;
-        // Reads the live wallpaper library and settings (importing the old
-        // GUI's on first run): the login script uses that settings file
-        LiveWallpaper;
-        // Login order: the shell first, then it starts the live wallpaper
-        // (showing its last frame until the renderer draws)
         LiveStartFrame;
-        // The session's polkit agent (password prompts)
         Polkit;
-        // Checks for updates every few hours and notifies (Settings › Apps)
-        Packages;
+    }
 
-        if (GlobalConfig.utilities.vpn.enabled)
-            VPN;
+    Timer {
+        interval: 200
+        running: true
+        onTriggered: {
+            Players;
+            HyprSettings;
+            LiveWallpaper;
+            Weather.reload();
+            Packages;
+            if (GlobalConfig.utilities.vpn.enabled)
+                VPN;
+        }
+    }
+
+    Timer {
+        interval: 550
+        running: true
+        onTriggered: {
+            // Pre-warm the default Settings landing page in idle time so opening Settings is instant
+            PageCompRegistry.subComp("WallpaperAndStyle.qml");
+        }
     }
 
     FontLoader {

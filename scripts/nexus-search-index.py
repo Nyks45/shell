@@ -102,30 +102,20 @@ def tr_of(expr: str):
 def registry():
     """[(page index, [component name per sub-page index])] from PageCompRegistry.qml."""
     src = (NEXUS / "PageCompRegistry.qml").read_text()
-    body = src[src.index("pageComps:"):src.index("placeholderComp")]
+    body = src[src.index("specs:"):src.index("stackPageComp")]
     pages = []
     depth = 0
-    stack = []  # type names of open elements
     for line in body.splitlines():
         stripped = strip_comment(line)
-        m = OPEN.match(stripped)
-        if m:
-            name = m.group(1)
-            stack.append(name)
-            if name == "StackPage":
-                pages.append([])
-            elif len(stack) >= 2 and stack[-2] == "Component" and len(stack) >= 3 and stack[-3] == "StackPage":
-                pages[-1].append(name)
-            depth += 1
-            closes = stripped.count("}") - (stripped.count("{") - 1)
-            for _ in range(max(0, closes)):
-                stack.pop()
+        for c in stripped:
+            if c == "[":
+                depth += 1
+                if depth == 2:
+                    pages.append([])
+            elif c == "]":
                 depth -= 1
-            continue
-        for _ in range(stripped.count("}")):
-            if stack:
-                stack.pop()
-                depth -= 1
+        for m in re.finditer(r'"([^"]+\.qml)"', stripped):
+            pages[-1].append(Path(m.group(1)).stem)
     return pages
 
 
