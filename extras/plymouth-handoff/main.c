@@ -530,12 +530,6 @@ static int run_handoff_session(int cfd, const char* fb_path, const char* plymout
             int status = 0;
             while (waitpid(pid, &status, 0) < 0 && errno == EINTR) {}
         }
-
-        if (has_fb) {
-            double t = (double)mono_ns() / 1e9;
-            update_fb_dirty_frame(&assets, t, &fbuf);
-            pwrite_all(fbfd, fbuf.data, fbuf.size, fbuf.offset);
-        }
     }
 
     char ack = 'K';

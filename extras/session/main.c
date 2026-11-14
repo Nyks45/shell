@@ -225,9 +225,10 @@ int main(int argc, char** argv) {
         // Stock Hyprland or missing handoff marker: release Plymouth before exec.
         trigger_plymouth_handoff();
 
-    const char* locked_cmd = access(BOOT_SPLASH, X_OK) == 0
+    const bool gl_handoff = access("/usr/share/caelestia/hyprland-handoff-gl", F_OK) == 0;
+    const char* locked_cmd = (!gl_handoff && access(BOOT_SPLASH, X_OK) == 0)
         ? BOOT_SPLASH " & exec qs -c caelestia -n"
-        : "qs -c caelestia -n";
+        : "exec qs -c caelestia -n";
 
     char* const exec_args[] = {
         (char*)START_HYPRLAND,
