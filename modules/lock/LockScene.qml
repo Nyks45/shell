@@ -140,7 +140,7 @@ FocusScope {
         if (bootLoading)
             return 1;
         const pop = Curves.outBack(Curves.phase(o, 0, 350), NebulaTheme.lock.centerOvershoot);
-        const bump = Curves.outCubic(Curves.phase(o, 820, 260)) - Curves.outCubic(Curves.phase(o, 1080, 320));
+        const bump = bootLock ? 0 : Curves.outCubic(Curves.phase(o, 820, 260)) - Curves.outCubic(Curves.phase(o, 1080, 320));
         return pop * (1 + 0.25 * bump) * holeBase;
     }
 

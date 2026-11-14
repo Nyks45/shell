@@ -32,15 +32,17 @@ int main(void) {
         (void)read(cfd, &req, 1);
     }
 
-    pid_t pid = fork();
-    if (pid == 0) {
-        char* const args[] = {(char*)"/usr/bin/plymouth", (char*)"deactivate", NULL};
-        execv("/usr/bin/plymouth", args);
-        _exit(127);
-    }
-    if (pid > 0) {
-        int status = 0;
-        while (waitpid(pid, &status, 0) < 0 && errno == EINTR) {}
+    if (access("/run/plymouth/pid", F_OK) == 0) {
+        pid_t pid = fork();
+        if (pid == 0) {
+            char* const args[] = {(char*)"/usr/bin/plymouth", (char*)"deactivate", NULL};
+            execv("/usr/bin/plymouth", args);
+            _exit(127);
+        }
+        if (pid > 0) {
+            int status = 0;
+            while (waitpid(pid, &status, 0) < 0 && errno == EINTR) {}
+        }
     }
 
     char ack = 'K';
