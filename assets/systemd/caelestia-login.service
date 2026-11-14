@@ -21,7 +21,10 @@ Environment=XDG_VTNR=1
 Environment=XDG_SESSION_TYPE=wayland
 Environment=XDG_SESSION_CLASS=user
 Environment=CAELESTIA_BOOT_LOCK=1
-ExecStartPre=+-/usr/bin/plymouth deactivate
+# The boot animation folds into the dark (theme "nebula": 0.34 s), then Plymouth lets go of the
+# screen; it quits once the lock screen is up (plymouth-quit.service is held off above).
+ExecStartPre=+-/bin/sh -c 'plymouth update --status=nebula-out; sleep 0.4; plymouth deactivate'
+ExecStartPost=+-/usr/bin/systemd-run --quiet --no-block --collect --on-active=8 /usr/bin/plymouth quit --retain-splash
 ExecStart=/usr/lib/caelestia/caelestia-session
 ExecStopPost=-/usr/bin/plymouth quit
 Restart=always

@@ -25,7 +25,7 @@ FocusScope {
     property bool closing: false
     property bool unlockEmitted: false
     property bool firstFrameSent: false
-    property real openT: bootLock ? 0.22 : 0
+    property real openT: 0
     property real closeT: 0
     property real modeT: 0
     property real shakeX: 0
@@ -135,8 +135,9 @@ FocusScope {
             const grow = modeT > 0 ? Curves.outBack(Curves.phase(c, 180, 350), NebulaTheme.lock.centerOvershoot) : 0;
             return Math.max(holeBase, grow) * (1 - Curves.inBack(Curves.phase(c, 1000, 420), NebulaTheme.lock.foldOvershoot));
         }
+        // At boot the hole grows out of the dark (the boot animation ended in the same dark)
         if (bootLoading)
-            return 1;
+            return Curves.outBack(Curves.phase(o, 0, 350), NebulaTheme.lock.centerOvershoot);
         const pop = Curves.outBack(Curves.phase(o, 0, 350), NebulaTheme.lock.centerOvershoot);
         const bump = Curves.outCubic(Curves.phase(o, 820, 260)) - Curves.outCubic(Curves.phase(o, 1080, 320));
         return pop * (1 + 0.25 * bump) * holeBase;
@@ -154,7 +155,7 @@ FocusScope {
 
     readonly property real iconOpacity: closing
         ? (modeT > 0 ? Curves.phase(c, 180, 150) : 1) * (1 - Curves.phase(c, 1000, 250))
-        : (bootLoading ? 1 : Curves.phase(o, 0, 200))
+        : Curves.phase(o, 0, 200)
 
     readonly property real contentOpacity: closing
         ? 1 - Curves.inQuad(Curves.phase(c, 0, 100))
@@ -327,7 +328,6 @@ FocusScope {
         forceActiveFocus();
         if (bootLock) {
             bootLoading = true;
-            bootIntroAnim.start();
             bootMinTimer.start();
             bootFallbackTimer.start();
         } else {
@@ -347,7 +347,11 @@ FocusScope {
     FrameAnimation {
         running: root.bootLock && !root.firstFrameSent
         onTriggered: {
+            // The intro starts with the first frame on screen, not while the scene still loads
+            // (its clock then ran ahead and the first frames jumped)
             root.firstFrameSent = true;
+            if (root.bootLoading)
+                bootIntroAnim.start();
             root.firstFrameDrawn();
         }
     }
@@ -394,10 +398,10 @@ FocusScope {
 
         target: root
         property: "openT"
-        from: 0.22
+        from: 0
         to: 0.28
-        duration: 480
-        easing.type: Easing.OutCubic
+        duration: Math.round(0.28 * root.openMs())
+        easing.type: Easing.Linear
     }
 
     NumberAnimation {

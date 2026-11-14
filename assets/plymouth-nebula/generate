@@ -1,0 +1,298 @@
+#!/usr/bin/python3 -I
+"""Build the Nebula boot animation (a Plymouth "script" theme) to match the Nebula lock screen.
+
+    generate OUTDIR [WIDTH HEIGHT] [--scheme FILE]
+
+Same picture as modules/lock (BlackHole.qml, LockStars.qml, NebulaTheme.qml): the space
+colour, the star field (same positions), the black hole with its halo and the dots orbiting
+it, in the current scheme's colours. The animation fades in from the dark, and on the status
+"nebula-out" (sent by caelestia-login.service just before Hyprland takes the screen) the dots
+spiral into the hole and everything fades back into the dark: the lock screen then grows out
+of the same dark, so the hand-off between the two has nothing on screen to jump.
+
+Colours are baked in: run again after changing the scheme (then `mkinitcpio -P`).
+"""
+
+import json
+import math
+import os
+import sys
+
+from PIL import Image, ImageDraw, ImageFilter
+
+# NebulaTheme.qml
+SPACE = (0x05, 0x05, 0x0F)
+STAR = (0xE9, 0xE4, 0xFF)
+STARS, STAR_FAINT, STAR_BRIGHT = 160, 0.25, 0.6
+TWINKLERS = 18
+RING_DOTS, RING_TILT = 90, 0.32
+HOLE_SIZE, CENTER_HEIGHT = 160, 0.42
+SPIN_FRAMES = 20  # a 9-lobed shape repeats every 40 degrees: 2 degrees a frame at 50 Hz = 100 deg/s (QML: 360 in 3.6 s)
+HOLE_STEPS = 8
+
+
+def rand(seed):
+    """BlackHole.qml / LockStars.qml rand()."""
+    x = math.sin(seed * 12.9898 + 78.233) * 43758.5453
+    return x - math.floor(x)
+
+
+def hexrgb(h):
+    h = h.lstrip("#")
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def circle(d, colour, alpha=1.0, ss=8):
+    """An antialiased filled circle of diameter d (float) on a transparent square."""
+    size = max(2, math.ceil(d) + 2)
+    big = Image.new("L", (size * ss, size * ss), 0)
+    c = size * ss / 2
+    ImageDraw.Draw(big).ellipse([c - d * ss / 2, c - d * ss / 2, c + d * ss / 2, c + d * ss / 2], fill=round(255 * alpha))
+    a = big.resize((size, size), Image.LANCZOS)
+    img = Image.new("RGBA", (size, size), colour + (0,))
+    img.putalpha(a)
+    return img
+
+
+def hole(d, border, ss=4):
+    """Black disc with a 2 px border (inversePrimary at 0.75), like holeCircle."""
+    size = math.ceil(d) + 2
+    big = Image.new("RGBA", (size * ss, size * ss), (0, 0, 0, 0))
+    dr = ImageDraw.Draw(big)
+    c, r = size * ss / 2, d * ss / 2
+    dr.ellipse([c - r, c - r, c + r, c + r], fill=border + (191,))
+    r -= 2 * ss
+    dr.ellipse([c - r, c - r, c + r, c + r], fill=(0, 0, 0, 255))
+    return big.resize((size, size), Image.LANCZOS)
+
+
+def halo(r, colour):
+    """Radial gradient: colour at 0.32 up to 0.2 of the radius, to 0 at the edge; shown at 0.65."""
+    size = math.ceil(r * 2)
+    img = Image.new("RGBA", (size, size), colour + (0,))
+    px = img.load()
+    c = (size - 1) / 2
+    for y in range(size):
+        for x in range(size):
+            t = math.hypot(x - c, y - c) / r
+            a = 0.32 if t <= 0.2 else max(0.0, 0.32 * (1 - (t - 0.2) / 0.8))
+            px[x, y] = colour + (round(255 * a * 0.65),)
+    return img
+
+
+def cookie(size, colour, angle, lobes=9, depth=0.09, ss=4):
+    """A soft 9-lobed 'cookie' (Material loading shape), rotated by angle degrees."""
+    n = size * ss
+    big = Image.new("L", (n, n), 0)
+    c, r0 = n / 2, n / 2 * 0.92
+    pts = []
+    for i in range(720):
+        th = i / 720 * 2 * math.pi
+        r = r0 * (1 - depth + depth * math.cos(lobes * th))
+        a = th + math.radians(angle)
+        pts.append((c + r * math.cos(a), c + r * math.sin(a)))
+    ImageDraw.Draw(big).polygon(pts, fill=255)
+    a = big.resize((size, size), Image.LANCZOS)
+    img = Image.new("RGBA", (size, size), colour + (0,))
+    img.putalpha(a)
+    return img
+
+
+def stars(w, h):
+    """LockStars' canvas: the static stars (the lock shows them at up to full opacity)."""
+    ss = 4
+    big = Image.new("L", (w * ss, h * ss), 0)
+    dr = ImageDraw.Draw(big)
+    for i in range(STARS):
+        bright = rand(i + 1) > 0.9
+        x, y, r = rand(i + 2) * w * ss, rand(i + 3) * h * ss, (1.4 if bright else 0.8) * ss
+        dr.ellipse([x - r, y - r, x + r, y + r], fill=round(255 * (STAR_BRIGHT if bright else STAR_FAINT)))
+    a = big.resize((w, h), Image.LANCZOS)
+    img = Image.new("RGBA", (w, h), STAR + (0,))
+    img.putalpha(a)
+    return img
+
+
+def f(x):
+    return f"{x:.5f}"
+
+
+def main(argv):
+    args = [a for a in argv if not a.startswith("--")]
+    if not args:
+        print(__doc__, file=sys.stderr)
+        return 2
+    out = args[0]
+    w, h = (int(args[1]), int(args[2])) if len(args) >= 3 else (2560, 1440)
+    scheme = os.path.expanduser("~/.local/state/caelestia/scheme.json")
+    if "--scheme" in argv:
+        scheme = argv[argv.index("--scheme") + 1]
+    col = {"primary": "9bd0cc", "tertiary": "d5efff", "inversePrimary": "336764"}
+    try:
+        d = json.load(open(scheme))
+        col.update({k: v for k, v in (d.get("colours") or d).items() if k in col})
+    except (OSError, ValueError):
+        pass
+    primary, tertiary, inverse = (hexrgb(col[k]) for k in ("primary", "tertiary", "inversePrimary"))
+
+    unit = max(0.65, min(1.5, min(w / 1920, h / 1080)))  # LockScene.unit
+    hole_d = HOLE_SIZE * unit
+    radius = hole_d / 2
+    os.makedirs(out, exist_ok=True)
+    for old in os.listdir(out):
+        if old.endswith((".png", ".script", ".plymouth")):
+            os.remove(os.path.join(out, old))
+
+    stars(w, h).save(os.path.join(out, "stars.png"))
+    halo(hole_d * 1.6, primary).save(os.path.join(out, "halo.png"))
+    for i in range(HOLE_STEPS):  # hole-7 = full size ... hole-0 = smallest (the collapse)
+        hole(hole_d * (i + 1) / HOLE_STEPS, inverse).save(os.path.join(out, f"hole-{i}.png"))
+    circle(3, primary, 0.75).save(os.path.join(out, "dot-p.png"))
+    circle(3, tertiary, 0.75).save(os.path.join(out, "dot-t.png"))
+    circle(2, STAR, 0.9).save(os.path.join(out, "twinkle.png"))
+    spin = round(hole_d * 0.44 * 0.56)
+    for i in range(SPIN_FRAMES):
+        cookie(spin, primary, i * 40 / SPIN_FRAMES).save(os.path.join(out, f"spin-{i:02d}.png"))
+
+    s = []
+    s.append("# Nebula boot animation: generated by caelestia-shell assets/plymouth-nebula/generate. Don't edit.")
+    s.append(f"Window.SetBackgroundTopColor({f(SPACE[0] / 255)}, {f(SPACE[1] / 255)}, {f(SPACE[2] / 255)});")
+    s.append(f"Window.SetBackgroundBottomColor({f(SPACE[0] / 255)}, {f(SPACE[1] / 255)}, {f(SPACE[2] / 255)});")
+    s.append("W = Window.GetWidth(); H = Window.GetHeight();")
+    s.append(f"cx = W / 2; cy = H * {CENTER_HEIGHT}; R = {f(radius)}; TILT = {RING_TILT};")
+    s.append(f"NDOTS = {RING_DOTS}; NTW = {TWINKLERS}; NSPIN = {SPIN_FRAMES}; NHOLE = {HOLE_STEPS};")
+    for i in range(RING_DOTS):  # BlackHole.qml: ring, start angle, colour
+        ring = 1.5 + rand(i + 1) * 1.9
+        s.append(f"ring[{i}] = {f(ring)}; ang0[{i}] = {f(rand(i + 50) * 2 * math.pi)}; "
+                 f"speed[{i}] = {f(1 / ring ** 1.5)}; tert[{i}] = {1 if i % 3 == 0 else 0};")
+    for i in range(TWINKLERS):  # LockStars.qml: position and the pause before each twinkle
+        s.append(f"twx[{i}] = {f(rand(i * 7 + 101))}; twy[{i}] = {f(rand(i * 7 + 102))}; "
+                 f"twp[{i}] = {f(0.4 + rand(i + 300) * 3.2)};")
+    s.append(SCRIPT)
+    with open(os.path.join(out, "nebula.script"), "w") as fh:
+        fh.write("\n".join(s) + "\n")
+    with open(os.path.join(out, "nebula.plymouth"), "w") as fh:
+        fh.write("[Plymouth Theme]\nName=Nebula\nDescription=Caelestia: the Nebula lock screen's black hole, "
+                 "fading out of and back into the dark\nModuleName=script\n\n[script]\n"
+                 "ImageDir=/usr/share/plymouth/themes/nebula\nScriptFile=/usr/share/plymouth/themes/nebula/nebula.script\n")
+    print(f"Nebula boot animation for {w}x{h} in {out} (primary #{col['primary']})")
+    return 0
+
+
+# The animation. t counts refreshes (50 a second). Everything is multiplied by `vis`:
+# 0 -> 1 while fading in, 1 -> 0 once "nebula-out" arrives (and it then stays dark).
+SCRIPT = r"""
+stars_img = Image("stars.png");
+if (stars_img.GetWidth() != W || stars_img.GetHeight() != H) stars_img = stars_img.Scale(W, H);
+stars = Sprite(stars_img); stars.SetPosition(0, 0, 0); stars.SetOpacity(0);
+
+halo_img = Image("halo.png");
+halo = Sprite(halo_img);
+halo.SetPosition(cx - halo_img.GetWidth() / 2, cy - halo_img.GetHeight() / 2, 1); halo.SetOpacity(0);
+
+for (i = 0; i < NHOLE; i++) hole_img[i] = Image("hole-" + i + ".png");
+hole = Sprite(hole_img[NHOLE - 1]); hole.SetOpacity(0);
+hole_now = -1;
+
+dot_p = Image("dot-p.png"); dot_t = Image("dot-t.png");
+for (i = 0; i < NDOTS; i++) {
+    if (tert[i]) dot[i] = Sprite(dot_t); else dot[i] = Sprite(dot_p);
+    dot[i].SetOpacity(0);
+}
+
+tw_img = Image("twinkle.png");
+for (i = 0; i < NTW; i++) {
+    tw[i] = Sprite(tw_img); tw[i].SetPosition(twx[i] * W, twy[i] * H, 2); tw[i].SetOpacity(0);
+}
+
+for (i = 0; i < NSPIN; i++) {
+    if (i < 10) spin_img[i] = Image("spin-0" + i + ".png"); else spin_img[i] = Image("spin-" + i + ".png");
+}
+spin = Sprite(spin_img[0]);
+spin.SetPosition(cx - spin_img[0].GetWidth() / 2, cy - spin_img[0].GetHeight() / 2, 30); spin.SetOpacity(0);
+
+t = 0;          # refreshes since the start
+out_at = -1;    # the refresh "nebula-out" arrived at
+phase = 0;      # the dots' shared spin (BlackHole.spinPhase)
+FADE_IN = 30;   # 0.6 s
+FADE_OUT = 17;  # 0.34 s
+
+fun ease(x) {   # smooth step
+    if (x < 0) x = 0;
+    if (x > 1) x = 1;
+    return x * x * (3 - 2 * x);
+}
+
+fun refresh() {
+    global.t = t + 1;
+    if (out_at < 0) {
+        vis = ease(t / FADE_IN);
+        solid = vis;
+        front = vis;
+        pull = 1;
+        rate = 0.5 + 9 * 0.45;                       # holeBoost while loading
+    } else {
+        k = (t - out_at) / FADE_OUT;
+        if (k > 1) k = 1;
+        vis = 1 - ease(k);
+        if (k < 0.8) solid = 1; else solid = (1 - k) / 0.2;   # the hole stays solid while it shrinks
+        front = 1 - ease(k * 1.7);                   # the shape inside goes first
+        pull = 1 - k * k;                            # the dots fall into the hole...
+        rate = 0.5 + 9 * (0.45 + 2.5 * k);           # ...spinning faster
+    }
+    global.phase = phase + 0.02 * rate * 1.6;
+
+    stars.SetOpacity(vis);
+    halo.SetOpacity(vis);
+    spin.SetImage(spin_img[t % NSPIN]);
+    spin.SetOpacity(front);
+
+    step = Math.Int(pull * NHOLE + 0.999) - 1;       # the hole shrinks with the dots
+    if (step < 0) step = 0;
+    if (step > NHOLE - 1) step = NHOLE - 1;
+    if (step != hole_now) {
+        global.hole_now = step;
+        hole.SetImage(hole_img[step]);
+        hole.SetPosition(cx - hole_img[step].GetWidth() / 2, cy - hole_img[step].GetHeight() / 2, 10);
+    }
+    hole.SetOpacity(solid);
+
+    for (i = 0; i < NDOTS; i++) {
+        a = ang0[i] + phase * speed[i];
+        sn = Math.Sin(a);
+        r = ring[i] * R * pull;
+        if (sn > 0) z = 20; else z = 5;              # in front of the hole, or behind it
+        dot[i].SetPosition(cx + Math.Cos(a) * r - 2, cy + sn * r * TILT - 2, z);
+        dot[i].SetOpacity(vis);
+    }
+
+    for (i = 0; i < NTW; i++) {                      # pause, 0.9 s up, 1.3 s down
+        period = twp[i] + 2.2;
+        x = t / 50;
+        x = x - Math.Int(x / period) * period - twp[i];
+        if (x < 0) o = 0;
+        else if (x < 0.9) o = ease(x / 0.9);
+        else o = 1 - ease((x - 0.9) / 1.3);
+        tw[i].SetOpacity(o * vis);
+    }
+}
+
+fun go_out() {
+    if (out_at < 0) global.out_at = t;
+}
+
+fun on_status(status) {
+    if (status == "nebula-out") go_out();
+}
+
+fun on_message(text) {
+    if (text == "nebula-out") go_out();
+}
+
+Plymouth.SetRefreshFunction(refresh);
+Plymouth.SetUpdateStatusFunction(on_status);
+Plymouth.SetMessageFunction(on_message);
+"""
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
