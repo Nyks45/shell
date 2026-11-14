@@ -55,6 +55,8 @@ static struct wl_display* display;
 static struct wl_compositor* compositor;
 static struct wl_shm* shm;
 static struct zwlr_layer_shell_v1* layer_shell;
+static struct wl_seat* seat;
+static struct wl_pointer* pointer;
 static struct wl_surface* surface;
 static struct zwlr_layer_surface_v1* layer_surface;
 static struct buffer buffers[2];
@@ -218,7 +220,7 @@ static void render(void) {
     if (!b)
         return;
     int x, y, w, h;
-    draw_frame(b, now() - t0, &x, &y, &w, &h);
+    draw_frame(b, now(), &x, &y, &w, &h);
     b->busy = true;
     wl_surface_attach(surface, b->wl, 0, 0);
     wl_surface_damage_buffer(surface, x, y, w, h);
@@ -282,6 +284,37 @@ static void layer_closed(void* data, struct zwlr_layer_surface_v1* ls) {
 }
 static const struct zwlr_layer_surface_v1_listener layer_listener = {.configure = layer_configure, .closed = layer_closed};
 
+static void ptr_enter(void* data, struct wl_pointer* p, uint32_t serial, struct wl_surface* s, wl_fixed_t x, wl_fixed_t y) {
+    (void)data, (void)s, (void)x, (void)y;
+    wl_pointer_set_cursor(p, serial, NULL, 0, 0);
+}
+static void ptr_leave(void* d, struct wl_pointer* p, uint32_t s, struct wl_surface* sf) { (void)d, (void)p, (void)s, (void)sf; }
+static void ptr_motion(void* d, struct wl_pointer* p, uint32_t t, wl_fixed_t x, wl_fixed_t y) { (void)d, (void)p, (void)t, (void)x, (void)y; }
+static void ptr_button(void* d, struct wl_pointer* p, uint32_t s, uint32_t t, uint32_t b, uint32_t st) { (void)d, (void)p, (void)s, (void)t, (void)b, (void)st; }
+static void ptr_axis(void* d, struct wl_pointer* p, uint32_t t, uint32_t a, wl_fixed_t v) { (void)d, (void)p, (void)t, (void)a, (void)v; }
+static void ptr_frame(void* d, struct wl_pointer* p) { (void)d, (void)p; }
+static void ptr_axis_source(void* d, struct wl_pointer* p, uint32_t s) { (void)d, (void)p, (void)s; }
+static void ptr_axis_stop(void* d, struct wl_pointer* p, uint32_t t, uint32_t a) { (void)d, (void)p, (void)t, (void)a; }
+static void ptr_axis_discrete(void* d, struct wl_pointer* p, uint32_t a, int32_t dsc) { (void)d, (void)p, (void)a, (void)dsc; }
+static const struct wl_pointer_listener ptr_listener = {
+    .enter = ptr_enter, .leave = ptr_leave, .motion = ptr_motion, .button = ptr_button,
+    .axis = ptr_axis, .frame = ptr_frame, .axis_source = ptr_axis_source,
+    .axis_stop = ptr_axis_stop, .axis_discrete = ptr_axis_discrete,
+};
+
+static void seat_caps(void* data, struct wl_seat* s, uint32_t caps) {
+    (void)data;
+    if ((caps & WL_SEAT_CAPABILITY_POINTER) && !pointer) {
+        pointer = wl_seat_get_pointer(s);
+        wl_pointer_add_listener(pointer, &ptr_listener, NULL);
+    } else if (!(caps & WL_SEAT_CAPABILITY_POINTER) && pointer) {
+        wl_pointer_destroy(pointer);
+        pointer = NULL;
+    }
+}
+static void seat_name(void* data, struct wl_seat* s, const char* name) { (void)data, (void)s, (void)name; }
+static const struct wl_seat_listener seat_listener = {.capabilities = seat_caps, .name = seat_name};
+
 static void global_add(void* data, struct wl_registry* reg, uint32_t name, const char* iface, uint32_t version) {
     (void)data, (void)version;
     if (!strcmp(iface, wl_compositor_interface.name))
@@ -290,6 +323,10 @@ static void global_add(void* data, struct wl_registry* reg, uint32_t name, const
         shm = wl_registry_bind(reg, name, &wl_shm_interface, 1);
     else if (!strcmp(iface, zwlr_layer_shell_v1_interface.name))
         layer_shell = wl_registry_bind(reg, name, &zwlr_layer_shell_v1_interface, 1);
+    else if (!strcmp(iface, wl_seat_interface.name) && !seat) {
+        seat = wl_registry_bind(reg, name, &wl_seat_interface, version >= 5 ? 5 : 1);
+        wl_seat_add_listener(seat, &seat_listener, NULL);
+    }
 }
 static void global_remove(void* data, struct wl_registry* reg, uint32_t name) {
     (void)data, (void)reg, (void)name;
@@ -383,6 +420,10 @@ int main(int argc, char** argv) {
         if (pid == (int)getpid())
             unlink(pidfile);
     }
+    if (pointer)
+        wl_pointer_destroy(pointer);
+    if (seat)
+        wl_seat_destroy(seat);
     if (layer_surface)
         zwlr_layer_surface_v1_destroy(layer_surface);
     if (surface)

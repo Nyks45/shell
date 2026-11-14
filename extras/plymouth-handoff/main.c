@@ -500,7 +500,6 @@ static int run_handoff_session(int cfd, const char* fb_path, const char* plymout
     int has_fb = 0;
     struct nebula_assets assets = {0};
     struct fb_buffer fbuf = {0};
-    int64_t t0_ns = mono_ns();
 
     if (access(plymouth_pid_path, F_OK) == 0) {
         fbfd = open(fb_path, O_RDWR | O_CLOEXEC);
@@ -512,8 +511,7 @@ static int run_handoff_session(int cfd, const char* fb_path, const char* plymout
                 init_nebula_assets((int)vinfo.xres, (int)vinfo.yres, theme_dir, &assets) == 0 &&
                 prepare_nebula_fb_buffer(&finfo, &vinfo, &assets, &fbuf) == 0) {
                 has_fb = 1;
-                t0_ns = mono_ns();
-                update_fb_dirty_frame(&assets, 0.0, &fbuf);
+                update_fb_dirty_frame(&assets, (double)mono_ns() / 1e9, &fbuf);
                 pwrite_all(fbfd, fbuf.data, fbuf.size, fbuf.offset);
             } else {
                 free_nebula_assets(&assets);
@@ -534,7 +532,7 @@ static int run_handoff_session(int cfd, const char* fb_path, const char* plymout
         }
 
         if (has_fb) {
-            double t = (double)(mono_ns() - t0_ns) / 1e9;
+            double t = (double)mono_ns() / 1e9;
             update_fb_dirty_frame(&assets, t, &fbuf);
             pwrite_all(fbfd, fbuf.data, fbuf.size, fbuf.offset);
         }
@@ -574,7 +572,7 @@ static int run_handoff_session(int cfd, const char* fb_path, const char* plymout
 
             now = mono_ns();
             if (now >= next_tick_ns) {
-                double t = (double)(now - t0_ns) / 1e9;
+                double t = (double)now / 1e9;
                 update_fb_dirty_frame(&assets, t, &fbuf);
                 pwrite_all(fbfd, fbuf.dirty_fb, fbuf.dirty_fb_size, fbuf.dirty_fb_offset);
                 while (next_tick_ns <= now)

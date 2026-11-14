@@ -30,7 +30,13 @@ Scope {
         if (bootCursorRestored)
             return;
         bootCursorRestored = true;
-        Quickshell.execDetached(["hyprctl", "eval", "hl.config({ cursor = { invisible = false } })"]);
+        const rt = Quickshell.env("XDG_RUNTIME_DIR") || "/tmp";
+        const sig = Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") || "default";
+        Quickshell.execDetached([
+            "sh", "-c",
+            ': > "$1" 2>/dev/null; exec hyprctl eval "hl.config({ cursor = { invisible = false } })"',
+            "sh", rt + "/caelestia-boot-cursor-" + sig
+        ]);
     }
 
     function runBootAutostart(): void {
