@@ -23,16 +23,25 @@ Item {
     readonly property real backdropFade: closing ? Math.max(0, 1 - Math.pow(Math.max(0, (closeT - 0.5) / 0.5), 2)) : 1
     readonly property real targetBlur: 0.28 + 0.57 * root.modeT
     readonly property real blurAmount: (bootLock ? targetBlur : Math.min(1, Math.pow(Math.max(0, openT), 0.45)) * targetBlur) * backdropFade
-    // At boot the backdrop fades in out of the dark once its first frame is there (a video's
-    // arrives a moment after the scene: shown at once it popped in over the dark)
+    // At boot the backdrop fades in over the dark scene once its picture is there. "Ready"
+    // comes a little before the picture is on screen and can flicker while a video takes
+    // over from its still, so it is waited out and then latched (shown at once, or faded
+    // from a moving target, the picture popped in).
     readonly property bool mediaReady: !hasVideo || animatedBg.ready
-    property real mediaIn: !bootLock || (mediaReady && openT > 0.02) ? 1 : 0
+    property bool mediaLatched: false
+    property real mediaIn: !bootLock || mediaLatched ? 1 : 0
+
+    Timer {
+        interval: 350
+        running: root.bootLock && root.mediaReady && root.openT > 0.02 && !root.mediaLatched
+        onTriggered: root.mediaLatched = true
+    }
 
     Behavior on mediaIn {
         enabled: root.bootLock
 
         NumberAnimation {
-            duration: 800
+            duration: 700
             easing.type: Easing.InOutSine
         }
     }

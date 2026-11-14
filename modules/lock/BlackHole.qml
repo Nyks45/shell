@@ -154,11 +154,19 @@ Item {
         font.pixelSize: NebulaTheme.font.normal
         font.weight: Font.Medium
         color: NebulaTheme.colors.textOnSurface
-        opacity: root.bootLoading ? pulseAlpha : 0
+        opacity: root.bootLoading ? pulseAlpha * labelIn : 0
         visible: opacity > 0.01
         z: 3
 
         property real pulseAlpha: 0.85
+        // Fades in: the boot splash under the first frame has no label
+        property real labelIn: 0
+
+        NumberAnimation on labelIn {
+            running: root.bootLoading && root.visible
+            to: 1
+            duration: 600
+        }
 
         SequentialAnimation on pulseAlpha {
             loops: Animation.Infinite

@@ -103,7 +103,13 @@ Singleton {
         }
     }
 
-    Component.onCompleted: root.requestReloadHyprRules()
+    Component.onCompleted: {
+        // The scheme before the first frame (text() waits for the file: blockLoading)
+        const data = schemeFile.text();
+        if (data)
+            root.load(data, false);
+        root.requestReloadHyprRules();
+    }
 
     Connections {
         function onConfigReloaded(): void {
@@ -114,8 +120,13 @@ Singleton {
     }
 
     FileView {
+        id: schemeFile
+
         path: `${Paths.state}/scheme.json`
         watchChanges: true
+        // Read before the first frame (see Component.onCompleted): loaded later, the first
+        // frames were drawn in the default colours (the lock screen at boot showed them)
+        blockLoading: true
         onFileChanged: reload()
         onLoaded: root.load(text(), false)
     }

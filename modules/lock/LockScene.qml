@@ -135,9 +135,10 @@ FocusScope {
             const grow = modeT > 0 ? Curves.outBack(Curves.phase(c, 180, 350), NebulaTheme.lock.centerOvershoot) : 0;
             return Math.max(holeBase, grow) * (1 - Curves.inBack(Curves.phase(c, 1000, 420), NebulaTheme.lock.foldOvershoot));
         }
-        // At boot the hole grows out of the dark (the boot animation ended in the same dark)
+        // At boot the hole is there from the first frame: the boot splash under it
+        // (extras/boot-splash) shows the same hole in the same place
         if (bootLoading)
-            return Curves.outBack(Curves.phase(o, 0, 350), NebulaTheme.lock.centerOvershoot);
+            return 1;
         const pop = Curves.outBack(Curves.phase(o, 0, 350), NebulaTheme.lock.centerOvershoot);
         const bump = Curves.outCubic(Curves.phase(o, 820, 260)) - Curves.outCubic(Curves.phase(o, 1080, 320));
         return pop * (1 + 0.25 * bump) * holeBase;
@@ -155,7 +156,7 @@ FocusScope {
 
     readonly property real iconOpacity: closing
         ? (modeT > 0 ? Curves.phase(c, 180, 150) : 1) * (1 - Curves.phase(c, 1000, 250))
-        : Curves.phase(o, 0, 200)
+        : (bootLoading ? 1 : Curves.phase(o, 0, 200))
 
     readonly property real contentOpacity: closing
         ? 1 - Curves.inQuad(Curves.phase(c, 0, 100))
@@ -470,7 +471,7 @@ FocusScope {
         anchors.fill: parent
         opacity: root.closing
             ? 1 - Curves.inQuad(Curves.phase(root.c, 250, 750))
-            : Math.min(1, root.openT * 2.5)
+            : (root.bootLock ? 1 : Math.min(1, root.openT * 2.5))
     }
 
     NebulaClouds {

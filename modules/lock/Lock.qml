@@ -22,6 +22,8 @@ Scope {
             return;
         bootCursorRestored = true;
         Quickshell.execDetached(["hyprctl", "eval", "hl.config({ cursor = { invisible = false } })"]);
+        // The boot splash (extras/boot-splash) has done its part: the lock screen covers it now
+        Quickshell.execDetached(["sh", "-c", 'sleep 0.3; f="$XDG_RUNTIME_DIR/caelestia-boot-splash.pid"; [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; true']);
     }
 
     function runBootAutostart(): void {
