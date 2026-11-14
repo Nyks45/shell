@@ -19,7 +19,31 @@ import qs.daemons
 ShellRoot {
     id: root
 
+    property bool desktopReady: !lock.startLocked
+
     settings.watchFiles: true
+
+    Connections {
+        target: lock.lock
+
+        function onSecureChanged(): void {
+            if (lock.lock.secure && !root.desktopReady)
+                bootDesktopDelay.restart();
+        }
+    }
+
+    Timer {
+        id: bootDesktopDelay
+
+        interval: 750
+        onTriggered: root.desktopReady = true
+    }
+
+    Timer {
+        interval: 2200
+        running: lock.startLocked && !root.desktopReady
+        onTriggered: root.desktopReady = true
+    }
 
     Component.onCompleted: {
         // Critical singletons needed on Frame 0
@@ -62,14 +86,20 @@ ShellRoot {
         value: root
     }
 
-    // Modules
-    Background {}
-    Drawers {}
-    AreaPicker {}
-    PolkitOverlay {}
+    // Modules (Lock first; defer Background/Drawers on boot-lock until WlSessionLock secures)
     Lock {
         id: lock
     }
+    Loader {
+        active: root.desktopReady
+        sourceComponent: Background {}
+    }
+    Loader {
+        active: root.desktopReady
+        sourceComponent: Drawers {}
+    }
+    AreaPicker {}
+    PolkitOverlay {}
 
     // Daemons
     Shortcuts {}

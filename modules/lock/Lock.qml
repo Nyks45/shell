@@ -8,16 +8,28 @@ import Caelestia.Config
 import qs.components.misc
 
 Scope {
+    id: root
+
     property alias lock: lock
+    readonly property bool startLocked: Quickshell.env("CAELESTIA_BOOT_LOCK") === "1"
+    property bool bootLockActive: startLocked
 
     WlSessionLock {
         id: lock
 
         signal unlock
 
+        locked: root.startLocked
+
+        onLockedChanged: {
+            if (!locked)
+                root.bootLockActive = false;
+        }
+
         LockSurface {
             lock: lock
             pam: pam
+            bootLock: root.bootLockActive
         }
     }
 
@@ -29,7 +41,7 @@ Scope {
 
     Loader {
         asynchronous: true
-        active: !GlobalConfig.lock.useWallpaper
+        active: !GlobalConfig.lock.useWallpaper && !root.startLocked
         onLoaded: active = false
 
         // Force a load of a screencopy so the one in the lock works
@@ -59,6 +71,11 @@ Scope {
 
     IpcHandler {
         function lock(): void {
+            lock.locked = true;
+        }
+
+        function bootLock(): void {
+            root.bootLockActive = true;
             lock.locked = true;
         }
 

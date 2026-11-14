@@ -69,9 +69,22 @@ if("plugin" IN_LIST ENABLE_MODULES)
 endif()
 
 if("shell" IN_LIST ENABLE_MODULES)
+    find_program(QSB_EXECUTABLE NAMES qsb PATHS /usr/lib/qt6/bin REQUIRED)
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/assets/shaders")
+    add_custom_command(
+        OUTPUT "${CMAKE_BINARY_DIR}/assets/shaders/liquid.frag.qsb"
+        COMMAND "${QSB_EXECUTABLE}" --glsl "100 es,120,150" --hlsl 50 --msl 12 -o "${CMAKE_BINARY_DIR}/assets/shaders/liquid.frag.qsb" "${CMAKE_SOURCE_DIR}/assets/shaders/liquid.frag"
+        DEPENDS "${CMAKE_SOURCE_DIR}/assets/shaders/liquid.frag"
+        COMMENT "Compiling liquid.frag shader"
+        VERBATIM
+    )
+    add_custom_target(shell_shaders ALL DEPENDS "${CMAKE_BINARY_DIR}/assets/shaders/liquid.frag.qsb")
+
     foreach(dir assets components daemons modules services utils)
         install(DIRECTORY ${dir} DESTINATION "${INSTALL_QSCONFDIR}")
     endforeach()
+
+    install(FILES "${CMAKE_BINARY_DIR}/assets/shaders/liquid.frag.qsb" DESTINATION "${INSTALL_QSCONFDIR}/assets/shaders")
 
     install(PROGRAMS assets/wrap_term_launch.sh assets/live-wallpaper DESTINATION "${INSTALL_QSCONFDIR}/assets")
 
