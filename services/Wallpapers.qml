@@ -21,6 +21,16 @@ Searcher {
     property string actualCurrent
     property bool previewColourLock
     property bool pendingPreviewClear
+    // Defer the recursive wallpaper folder scan past Frame 0 unless searched earlier
+    property bool scanReady: false
+
+    function transformSearch(search: string): string {
+        if (!scanReady)
+            Qt.callLater(() => {
+                scanReady = true;
+            });
+        return search;
+    }
 
     function getCategoryFor(w: FileSystemEntry): string {
         let category = w.parentDir.slice(Paths.wallsdir.length + 1);
@@ -110,8 +120,14 @@ Searcher {
         id: wallpapers
 
         recursive: true
-        path: Paths.wallsdir
+        path: root.scanReady ? Paths.wallsdir : ""
         filter: FileSystemModel.Images | FileSystemModel.Videos
+    }
+
+    Timer {
+        interval: 350
+        running: !root.scanReady
+        onTriggered: root.scanReady = true
     }
 
     Process {

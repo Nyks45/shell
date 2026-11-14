@@ -16,21 +16,22 @@ Singleton {
     id: root
 
     readonly property string state: Quickshell.env("XDG_STATE_HOME") || `${Quickshell.env("HOME")}/.local/state`
-    readonly property string current: LiveWallpaper.current
+    readonly property string configDir: Quickshell.env("XDG_CONFIG_HOME") || `${Quickshell.env("HOME")}/.config`
     property string cachedFrame: ""
-    readonly property string frame: !current ? cachedFrame : current.startsWith("playlist:") ? (LiveWallpaper.currentFrame || cachedFrame) : `${state}/live-wallpaper/frame-${current.split("/").pop()}.png`
+    readonly property string frame: cachedFrame
     // When the shell started (a frame written after it is the renderer's first)
     readonly property real startedAt: Date.now() / 1000
     property bool ready
     property bool checked
     property bool wasRunning
     property bool started
+    property bool configured
 
     // Shown while the renderer loads
     readonly property bool showing: !!frame && !ready
 
     // Check if this session's renderer is already running (a shell restart) and
-    // locate the saved frame on disk immediately without waiting for LiveWallpaper
+    // locate the saved frame on disk immediately without instantiating LiveWallpaper
     Process {
         running: true
         command: ["sh", "-c", `
@@ -40,13 +41,35 @@ Singleton {
                 echo "running"
                 exit 0
             fi
+            cfg="${root.configDir}/caelestia/live-wallpaper.json"
+            if [ -f "$cfg" ]; then
+                flat=$(tr -d '[:space:]' < "$cfg" 2>/dev/null)
+                case "$flat" in
+                    *'"screens":{}'*) exit 0 ;;
+                    *'"screens":{"'*)
+                        if [ -s "$d/current-frame.png" ]; then
+                            echo "frame:$(readlink -f "$d/current-frame.png")"
+                            exit 0
+                        fi
+                        for f in "$d"/frame-*.png; do
+                            if [ -s "$f" ]; then
+                                echo "frame:$f"
+                                exit 0
+                            fi
+                        done
+                        echo "configured"
+                        exit 0
+                        ;;
+                esac
+                exit 0
+            fi
             if [ -s "$d/current-frame.png" ]; then
-                readlink -f "$d/current-frame.png"
+                echo "frame:$(readlink -f "$d/current-frame.png")"
                 exit 0
             fi
             for f in "$d"/frame-*.png; do
                 if [ -s "$f" ]; then
-                    echo "$f"
+                    echo "frame:$f"
                     break
                 fi
             done
@@ -57,8 +80,10 @@ Singleton {
                 if (out === "running") {
                     root.ready = true;
                     root.wasRunning = true;
-                } else if (out) {
-                    root.cachedFrame = out;
+                } else if (out === "configured") {
+                    root.configured = true;
+                } else if (out.startsWith("frame:")) {
+                    root.cachedFrame = out.slice(6);
                 }
                 root.checked = true;
             }
@@ -68,7 +93,7 @@ Singleton {
     // Start the renderer right after the shell has drawn (once per login:
     // not when it was running already, e.g. after a shell restart)
     Timer {
-        running: root.checked && !root.wasRunning && !root.started && (!!root.cachedFrame || !!root.current)
+        running: root.checked && !root.wasRunning && !root.started && (!!root.cachedFrame || root.configured)
         interval: 50
         onTriggered: {
             root.started = true;

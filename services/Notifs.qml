@@ -66,7 +66,7 @@ Singleton {
         interval: 1000
         onTriggered: storage.setText(JSON.stringify(root.notClosed.map(n => ({
                     time: n.time,
-                    id: n.id,
+                    notificationId: n.notificationId,
                     summary: n.summary,
                     body: n.body,
                     appIcon: n.appIcon,
@@ -116,18 +116,26 @@ Singleton {
         printErrors: false
         path: `${Paths.state}/notifs.json`
         onLoaded: {
-            const data = JSON.parse(text());
-            for (const notif of data) {
-                const properties = Object.assign({}, notif);
+            try {
+                const data = JSON.parse(text());
+                if (Array.isArray(data)) {
+                    const loadedList = [];
+                    for (const notif of data) {
+                        const properties = Object.assign({}, notif);
 
-                // Backwards compatibility for old notifications
-                if (properties.notificationId === undefined && properties.id !== undefined)
-                    properties.notificationId = properties.id;
+                        // Backwards compatibility for old notifications
+                        if (properties.notificationId === undefined && properties.id !== undefined)
+                            properties.notificationId = properties.id;
 
-                delete properties.id;
-                root.list.push(notifComp.createObject(root, properties));
+                        delete properties.id;
+                        loadedList.push(notifComp.createObject(root, properties));
+                    }
+                    loadedList.sort((a, b) => b.time - a.time);
+                    root.list = loadedList;
+                }
+            } catch (e) {
+                console.warn("Notifs: failed to parse stored notifications", e);
             }
-            root.list.sort((a, b) => b.time - a.time);
             root.loaded = true;
         }
         onLoadFailed: err => {

@@ -225,6 +225,7 @@ QtObject {
     }
 
     Component.onCompleted: {
+        updateTimeStr();
         if (!notification)
             return;
 

@@ -84,6 +84,7 @@ if("shell" IN_LIST ENABLE_MODULES)
     # The settings app (Nexus) in app launchers
     install(FILES assets/caelestia-settings.desktop DESTINATION "${INSTALL_APPDIR}")
 
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/shell.qml")
     file(READ shell.qml SHELL_QML)
     string(REPLACE "settings.watchFiles: true" "settings.watchFiles: false" SHELL_QML "${SHELL_QML}")
     file(WRITE "${CMAKE_BINARY_DIR}/qml/shell.qml" "${SHELL_QML}")

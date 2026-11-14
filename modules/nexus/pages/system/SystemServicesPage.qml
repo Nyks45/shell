@@ -97,7 +97,7 @@ PageBase {
 
         Timer {
             // Keeps the states current while the page is open
-            running: true
+            running: root.visible
             interval: 5000
             repeat: true
             onTriggered: if (!listProc.running)

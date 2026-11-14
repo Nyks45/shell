@@ -1,6 +1,7 @@
 #include "filesystemmodel.hpp"
 
 #include <qdiriterator.h>
+#include <qfileinfo.h>
 #include <qmediaformat.h>
 #include <qtconcurrentrun.h>
 
@@ -248,7 +249,20 @@ void FileSystemModel::watchDirIfRecursive(const QString& path) {
     }
 }
 
+void FileSystemModel::classBegin() {
+    m_complete = false;
+}
+
+void FileSystemModel::componentComplete() {
+    m_complete = true;
+    update();
+}
+
 void FileSystemModel::update() {
+    if (!m_complete) {
+        return;
+    }
+
     updateWatcher();
     updateEntries();
 }
@@ -337,28 +351,54 @@ FileSystemModel::ScanFilters FileSystemModel::filtersFor(
     const bool dirs = filter.testFlag(Filter::Dirs);
 
     if (!allFiles && (images || videos)) {
-        if (images) {
-            const auto formats = QImageReader::supportedImageFormats();
-            for (const auto& format : formats)
-                filters.nameFilters << u"*."_s + QString::fromUtf8(format);
-        }
-
-        QSet<QString> videoMimeTypes;
-        if (videos) {
-            const auto formats = QMediaFormat().supportedFileFormats(QMediaFormat::Decode);
-            for (const auto format : formats) {
-                const auto mimeType = QMediaFormat(format).mimeType();
-                if (!mimeType.name().startsWith(u"video/"_s))
-                    continue;
-                videoMimeTypes << mimeType.name();
-                filters.nameFilters << mimeType.globPatterns();
-            }
-        }
-
-        filters.filterFn = [images, videoMimeTypes](const QString& path) {
-            return (images && QImageReader(path).canRead()) ||
-                   videoMimeTypes.contains(QMimeDatabase().mimeTypeForFile(path).name());
+        static const auto imageGlobs = [] {
+            QStringList globs;
+            for (const auto& format : QImageReader::supportedImageFormats())
+                globs << u"*."_s + QString::fromUtf8(format);
+            return globs;
+        }();
+        static const auto imageSuffixes = [] {
+            QSet<QString> suffixes;
+            for (const auto& format : QImageReader::supportedImageFormats())
+                suffixes << QString::fromUtf8(format).toLower();
+            return suffixes;
+        }();
+        static const auto videoFormats = []() -> const std::pair<QSet<QString>, QStringList>& {
+            static const auto cached = [] {
+                QSet<QString> mimes;
+                QStringList globs;
+                for (const auto format : QMediaFormat().supportedFileFormats(QMediaFormat::Decode)) {
+                    const auto mimeType = QMediaFormat(format).mimeType();
+                    if (!mimeType.name().startsWith(u"video/"_s))
+                        continue;
+                    mimes << mimeType.name();
+                    globs << mimeType.globPatterns();
+                }
+                return std::pair{ std::move(mimes), std::move(globs) };
+            }();
+            return cached;
         };
+
+        if (images)
+            filters.nameFilters << imageGlobs;
+        if (videos)
+            filters.nameFilters << videoFormats().second;
+
+        // Only run per-file filtering when caller nameFilters or Dirs could let non-matching files through
+        if (!nameFilters.isEmpty() || dirs) {
+            const QSet<QString> videoMimes = videos ? videoFormats().first : QSet<QString>{};
+            filters.filterFn = [images, videos, dirs, videoMimes](const QString& path) {
+                if (dirs && QFileInfo(path).isDir())
+                    return true;
+                if (images && imageSuffixes.contains(QFileInfo(path).suffix().toLower()))
+                    return true;
+                if (videos) {
+                    return videoMimes.contains(
+                        QMimeDatabase().mimeTypeForFile(path, QMimeDatabase::MatchExtension).name());
+                }
+                return false;
+            };
+        }
     }
 
     const bool files = allFiles || images || videos;

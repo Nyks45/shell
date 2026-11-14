@@ -134,6 +134,7 @@ Singleton {
     }, config.playbackRules ?? {})
     // [{ app: window class (part of it), when: running|focused|maximized|fullscreen|audio, action }]
     readonly property var appRules: config.appRules ?? []
+    readonly property bool hasActiveRules: playbackRules.focused !== "run" || playbackRules.maximized !== "run" || playbackRules.audio !== "run" || appRules.some(r => r.app && r.action && r.action !== "run")
     // What the rules do right now, and why (shown on the settings page)
     property string ruleAction: "run"
     property string ruleReason
@@ -498,7 +499,8 @@ Singleton {
 
     // "When logging in": the next one once per boot
     function loginPlaylists(): void {
-        bootProc.running = true;
+        if (playingPlaylists().some(name => (playlist(name)?.mode ?? "timer") === "login"))
+            bootProc.running = true;
     }
 
     function savePlaylist(pl: var, oldName: string): void {
@@ -531,9 +533,15 @@ Singleton {
     }
 
     function refresh(): void {
-        scanProc.running = true;
-        statusProc.running = true;
-        runningTimer.restart();
+        if (!scanProc.running)
+            scanProc.running = true;
+        if (!statusProc.running)
+            statusProc.running = true;
+    }
+
+    function rescan(): void {
+        if (!scanProc.running)
+            scanProc.running = true;
     }
 
     function checkEngineUpdate(): void {
@@ -758,13 +766,16 @@ Singleton {
         onTriggered: root.warmWorkshop()
     }
 
-    // The playback rules, checked every second while a live wallpaper is on
+    // The playback rules, checked every second while a live wallpaper is on and rules are active
     Timer {
-        running: Object.keys(root.screens).length > 0
+        running: Object.keys(root.screens).length > 0 && (root.hasActiveRules || root.ruleAction !== "run")
         repeat: true
         interval: 1000
         onTriggered: root.evaluateRules()
-        onRunningChanged: if (!running) root.ruleAction = "run"
+        onRunningChanged: if (!running) {
+            root.ruleAction = "run";
+            root.ruleReason = "";
+        }
     }
 
     // This boot's id: "when logging in" playlists change once per boot
@@ -1035,7 +1046,6 @@ Singleton {
 
         path: root.configPath
         printErrors: false
-        blockAllReads: true
         watchChanges: true
         onFileChanged: reload()
         onLoaded: {

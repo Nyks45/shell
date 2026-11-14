@@ -10,6 +10,7 @@
 #include <qobject.h>
 #include <qqmlintegration.h>
 #include <qqmllist.h>
+#include <qqmlparserstatus.h>
 
 namespace caelestia::shell::models {
 
@@ -61,9 +62,10 @@ private:
     mutable bool m_mimeTypeInitialised;
 };
 
-class FileSystemModel : public QAbstractListModel {
+class FileSystemModel : public QAbstractListModel, public QQmlParserStatus {
     Q_OBJECT
     QML_NAMED_ELEMENT(FileSystemModel)
+    Q_INTERFACES(QQmlParserStatus)
 
     Q_PROPERTY(QString path READ path WRITE setPath NOTIFY pathChanged)
     Q_PROPERTY(bool recursive READ recursive WRITE setRecursive NOTIFY recursiveChanged)
@@ -88,6 +90,9 @@ public:
     Q_FLAG(Filters)
 
     explicit FileSystemModel(QObject* parent = nullptr);
+
+    void classBegin() override;
+    void componentComplete() override;
 
     [[nodiscard]] int rowCount(const QModelIndex& parent = QModelIndex()) const override;
     [[nodiscard]] QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
@@ -148,6 +153,7 @@ private:
     bool m_watchChanges;
     bool m_showHidden;
     bool m_sortReverse = false;
+    bool m_complete = true;
     Filters m_filter;
     QStringList m_nameFilters;
 

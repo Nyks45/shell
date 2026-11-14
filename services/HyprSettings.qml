@@ -497,12 +497,12 @@ return S
         blockLoading: false
     }
 
-    // hyprctl -j getoption for each watched option; it targets the Hyprland
-    // this shell runs under (HYPRLAND_INSTANCE_SIGNATURE)
+    // hyprctl --batch j/getoption for all watched options in one process; targets
+    // the Hyprland this shell runs under (HYPRLAND_INSTANCE_SIGNATURE)
     Process {
         id: reader
 
-        command: ["sh", "-c", "for o in \"$@\"; do hyprctl -j getoption \"$o\"; echo; done", "sh", ...root.watched]
+        command: ["hyprctl", "--batch", root.watched.map(o => `j/getoption ${o}`).join(";")]
         stdout: StdioCollector {
             onStreamFinished: {
                 const found = {};

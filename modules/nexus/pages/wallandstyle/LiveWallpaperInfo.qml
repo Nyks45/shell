@@ -80,6 +80,8 @@ PageBase {
         let i = 0;
         const peek = () => toks[i];
         const val = v => v === "true" ? true : v === "false" ? false : (v !== "" && v !== null && v !== undefined && !isNaN(Number(v)) && typeof v !== "boolean") ? Number(v) : v;
+        const truthy = v => v === true || (typeof v === "number" && v !== 0) || (typeof v === "string" && v !== "" && v !== "0" && v !== "false");
+        let or;
         const primary = () => {
             const t = toks[i++];
             if (t === undefined)
@@ -102,7 +104,6 @@ PageBase {
             const p = (w.properties ?? []).find(x => x.name === name);
             return val(p ? propValue(p) : undefined);
         };
-        const truthy = v => v === true || (typeof v === "number" && v !== 0) || (typeof v === "string" && v !== "" && v !== "0" && v !== "false");
         const cmp = () => {
             let a = primary();
             while (["==", "!=", ">", "<", ">=", "<="].includes(peek())) {
@@ -123,7 +124,7 @@ PageBase {
             }
             return a;
         };
-        const or = () => {
+        or = () => {
             let a = and();
             while (peek() === "||") {
                 i++;

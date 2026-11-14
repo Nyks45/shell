@@ -98,10 +98,14 @@ Singleton {
         return monitors.values.map(e => e.name);
     }
 
-    // The current monitor of that name first: Quickshell's lookup can hand back
-    // the object from before a sleep/reconnect (stale id and workspace)
+    // Look up through Hyprland first so any initial registration in monitors.values
+    // happens before reading monitors.values (avoids a binding loop on startup), while
+    // still returning the fresh live entry after a monitor reconnect.
     function monitorFor(screen: ShellScreen): HyprlandMonitor {
-        return monitors.values.find(m => m.name === screen?.name) ?? Hyprland.monitorFor(screen);
+        if (!screen)
+            return null;
+        const fallback = Hyprland.monitorFor(screen);
+        return monitors.values.find(m => m.name === screen.name) ?? fallback;
     }
 
     function trimWsName(name: string): string {

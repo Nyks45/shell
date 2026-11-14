@@ -210,23 +210,53 @@ HyprExtras::SocketPtr HyprExtras::makeRequest(
     }
 
     auto socket = SocketPtr::create(this);
+    auto buffer = QSharedPointer<QByteArray>::create();
+    auto done = QSharedPointer<bool>::create(false);
 
-    QObject::connect(socket.data(), &QLocalSocket::connected, this, [=, this] {
-        QObject::connect(socket.data(), &QLocalSocket::readyRead, this, [socket, callback] {
-            auto response = socket->readAll();
-            callback(true, std::move(response));
-            socket->close();
-        });
-
+    QObject::connect(socket.data(), &QLocalSocket::connected, this, [socket, request] {
         socket->write(request.toUtf8());
         socket->flush();
     });
 
-    QObject::connect(socket.data(), &QLocalSocket::errorOccurred, this, [=](QLocalSocket::LocalSocketError err) {
-        qCWarning(lcHypr) << "makeRequest: error making request:" << err << "| request:" << request;
-        callback(false, {});
-        socket->close();
+    QObject::connect(socket.data(), &QLocalSocket::readyRead, this, [socket, buffer, done] {
+        if (!*done && socket->isOpen()) {
+            buffer->append(socket->readAll());
+        }
     });
+
+    QObject::connect(socket.data(), &QLocalSocket::readChannelFinished, this, [socket, buffer, done, callback] {
+        if (*done) {
+            return;
+        }
+        *done = true;
+        if (socket->isOpen() && socket->bytesAvailable() > 0) {
+            buffer->append(socket->readAll());
+        }
+        callback(true, std::move(*buffer));
+        if (socket->isOpen()) {
+            socket->close();
+        }
+    });
+
+    QObject::connect(socket.data(), &QLocalSocket::errorOccurred, this,
+        [socket, buffer, done, request, callback](QLocalSocket::LocalSocketError err) {
+            if (*done) {
+                return;
+            }
+            *done = true;
+            if (socket->isOpen() && socket->bytesAvailable() > 0) {
+                buffer->append(socket->readAll());
+            }
+            if (err == QLocalSocket::PeerClosedError && !buffer->isEmpty()) {
+                callback(true, std::move(*buffer));
+            } else {
+                qCWarning(lcHypr) << "makeRequest: error making request:" << err << "| request:" << request;
+                callback(false, {});
+            }
+            if (socket->isOpen()) {
+                socket->close();
+            }
+        });
 
     socket->connectToServer(m_requestSocket);
 

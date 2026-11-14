@@ -95,9 +95,12 @@ def c_timers(args):
     s = scope(args)
     timers = json.loads(sh("systemctl", *s, "list-timers", "--all", "-o", "json") or "[]")
     files = {f["unit_file"]: f["state"] for f in json.loads(sh("systemctl", *s, "list-unit-files", "--type=timer", "-o", "json") or "[]")}
+    units = {u["unit"]: u.get("description", "") for u in json.loads(sh("systemctl", *s, "list-units", "--type=timer", "--all", "-o", "json") or "[]")}
     for t in timers:
         t["enabled"] = files.get(t["unit"], "")
-        desc = sh("systemctl", *s, "show", t["unit"], "-p", "Description", "--value").strip()
+        desc = units.get(t["unit"])
+        if desc is None:
+            desc = sh("systemctl", *s, "show", t["unit"], "-p", "Description", "--value").strip()
         t["description"] = desc
     print(json.dumps(timers))
 
@@ -171,11 +174,13 @@ def c_crash(args):
 # --- users ---------------------------------------------------------------------
 
 def c_users(args):
-    admins = set(grp.getgrnam("wheel").gr_mem) if "wheel" in [g.gr_name for g in grp.getgrall()] else set()
+    all_groups = grp.getgrall()
+    wheel = next((g for g in all_groups if g.gr_name == "wheel"), None)
+    admins = set(wheel.gr_mem) if wheel else set()
     users = []
     for p in pwd.getpwall():
         if 1000 <= p.pw_uid < 60000 and p.pw_shell not in ("/usr/bin/nologin", "/bin/false", "/sbin/nologin"):
-            groups = sorted(g.gr_name for g in grp.getgrall() if p.pw_name in g.gr_mem)
+            groups = sorted(g.gr_name for g in all_groups if p.pw_name in g.gr_mem)
             users.append({"name": p.pw_name, "uid": p.pw_uid, "fullName": p.pw_gecos.split(",")[0],
                           "home": p.pw_dir, "admin": p.pw_name in admins, "groups": groups,
                           "me": p.pw_uid == os.getuid()})
@@ -188,7 +193,7 @@ def c_users(args):
               "rfkill": "Turning radios on and off", "games": "Shared game data", "adm": "Reading all system logs",
               "systemd-journal": "Reading all system logs", "realtime": "Real-time audio priority",
               "gamemode": "GameMode", "plugdev": "Pluggable devices"}
-    existing = {g.gr_name for g in grp.getgrall()}
+    existing = {g.gr_name for g in all_groups}
     print(json.dumps({"users": users, "groups": [{"name": n, "about": a} for n, a in useful.items() if n in existing]}))
 
 

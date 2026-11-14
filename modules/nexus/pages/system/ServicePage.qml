@@ -80,7 +80,7 @@ PageBase {
         }
 
         Timer {
-            running: true
+            running: root.visible
             interval: 4000
             repeat: true
             onTriggered: if (!showProc.running)

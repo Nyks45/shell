@@ -1,5 +1,9 @@
 #include "rootnodes.hpp"
 
+#include <qguiapplication.h>
+#include <qicon.h>
+#include <qthread.h>
+
 #include "core/toaster.hpp"
 #include "util/i18n.hpp"
 #include "common.hpp"
@@ -57,6 +61,15 @@ void saveFailed(ConfigKind kind, const QString& error, const QString& screen) {
 ConfigRoot::ConfigRoot(const QString& path, ConfigRoot* fallback, QObject* parent)
     : RootNode(true, path, fallback, parent)
     , m_fontTokens(new FontTokens(this)) {
+    // Initialize the platform icon loader (KIconLoader) on the main GUI thread before
+    // asynchronous QQuickPixmapReader threads request theme icons.
+    if (qGuiApp && QThread::currentThread() == qGuiApp->thread()) {
+        static const bool s_iconWarmed = [] {
+            (void)QIcon::fromTheme(u"application-x-executable"_s).availableSizes();
+            return true;
+        }();
+        Q_UNUSED(s_iconWarmed);
+    }
     bindTokens();
 }
 

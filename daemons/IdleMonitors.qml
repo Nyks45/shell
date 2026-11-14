@@ -13,7 +13,8 @@ Scope {
     id: root
 
     required property Lock lock
-    readonly property bool hasPlayer: Players.list.some(p => p.isPlaying)
+    readonly property bool needsAudioCheck: GlobalConfig.general.idle.inhibitWhenAudio || GlobalConfig.general.idle.timeouts.values.some(t => t.inhibitWhenAudio)
+    readonly property bool hasPlayer: needsAudioCheck && Players.list.some(p => p.isPlaying)
     readonly property bool isCharging: !UPower.onBattery
     readonly property bool enabled: {
         if (GlobalConfig.general.idle.inhibitWhenAudio && hasPlayer)
