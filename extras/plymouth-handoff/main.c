@@ -2,11 +2,11 @@
 // Hyprland actually takes over DRM master, avoiding a static frozen splash during
 // session setup and dynamic linker/config startup.
 //
-// Before calling `plymouth deactivate`, paint the initial static Nebula splash
-// frame onto `/dev/fb0` (the kernel drmfb console backing store, otherwise left
-// all-black by `quiet`) so that when `nvidia-drm` drops Plymouth's DRM master
-// and restores fbdev while Hyprland finishes EGL/GLES init (~576ms), the screen
-// keeps showing Nebula instead of flashing black.
+// Before and right after calling `plymouth deactivate`, paint the static Nebula
+// splash frame onto `/dev/fb0` via write() (which synchronously invokes Linux
+// drm_fbdev_ttm_fb_write -> drm_fb_helper_damage_area, unlike mmap + immediate
+// munmap/close under fb_deferred_io) so that nvidia-drmdrmfb holds Nebula across
+// Hyprland's DRM/EGL setup until caelestia-boot-splash draws Frame 1.
 
 #define _GNU_SOURCE
 #include <errno.h>
@@ -19,7 +19,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
-#include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -152,42 +151,10 @@ static void blend_rgba_onto_rgb_buf(
     }
 }
 
-static void paint_nebula_fb0(void) {
-    int fbfd = open("/dev/fb0", O_RDWR | O_CLOEXEC);
-    if (fbfd < 0)
-        return;
-
-    struct fb_fix_screeninfo finfo;
-    struct fb_var_screeninfo vinfo;
-    if (ioctl(fbfd, FBIOGET_FSCREENINFO, &finfo) < 0 ||
-        ioctl(fbfd, FBIOGET_VSCREENINFO, &vinfo) < 0) {
-        close(fbfd);
-        return;
-    }
-
-    if (vinfo.bits_per_pixel != 32 || vinfo.xres == 0 || vinfo.yres == 0 ||
-        finfo.line_length < vinfo.xres * 4) {
-        close(fbfd);
-        return;
-    }
-
-    int w = (int)vinfo.xres;
-    int h = (int)vinfo.yres;
-    size_t row_end = (size_t)(vinfo.yoffset + vinfo.yres) * (size_t)finfo.line_length;
-    size_t map_len = finfo.smem_len > row_end ? finfo.smem_len : row_end;
-
-    uint8_t* fb = mmap(NULL, map_len, PROT_READ | PROT_WRITE, MAP_SHARED, fbfd, 0);
-    if (fb == MAP_FAILED) {
-        close(fbfd);
-        return;
-    }
-
+static uint8_t* render_nebula_rgb(int w, int h) {
     uint8_t* canvas = calloc((size_t)w * (size_t)h, 3);
-    if (!canvas) {
-        munmap(fb, map_len);
-        close(fbfd);
-        return;
-    }
+    if (!canvas)
+        return NULL;
 
     // Match nebula.script layout: fullscreen stars + center-anchored elements at (W/2, H*0.42)
     static const struct {
@@ -216,23 +183,70 @@ static void paint_nebula_fb0(void) {
         }
     }
 
-    uint32_t r_shift = vinfo.red.offset;
-    uint32_t g_shift = vinfo.green.offset;
-    uint32_t b_shift = vinfo.blue.offset;
-    uint32_t a_mask = vinfo.transp.length ? (0xFFU << vinfo.transp.offset) : 0xFF000000U;
+    return canvas;
+}
+
+struct fb_buffer {
+    uint8_t* data;
+    size_t size;
+    off_t offset;
+};
+
+static int prepare_nebula_fb_buffer(const struct fb_fix_screeninfo* finfo,
+                                    const struct fb_var_screeninfo* vinfo,
+                                    struct fb_buffer* out) {
+    if (vinfo->bits_per_pixel != 32 || vinfo->xres == 0 || vinfo->yres == 0 ||
+        finfo->line_length < vinfo->xres * 4)
+        return -1;
+
+    int w = (int)vinfo->xres;
+    int h = (int)vinfo->yres;
+    size_t buf_size = (size_t)h * (size_t)finfo->line_length;
+    uint8_t* packed = calloc(1, buf_size);
+    if (!packed)
+        return -1;
+
+    uint8_t* canvas = render_nebula_rgb(w, h);
+    if (!canvas) {
+        free(packed);
+        return -1;
+    }
+
+    uint32_t r_shift = vinfo->red.offset;
+    uint32_t g_shift = vinfo->green.offset;
+    uint32_t b_shift = vinfo->blue.offset;
+    uint32_t a_mask = vinfo->transp.length ? (0xFFU << vinfo->transp.offset) : 0xFF000000U;
 
     for (int y = 0; y < h; y++) {
         const uint8_t* srow = canvas + (size_t)y * (size_t)w * 3;
-        uint32_t* drow = (uint32_t*)(fb + (size_t)(vinfo.yoffset + (uint32_t)y) * finfo.line_length) +
-                         vinfo.xoffset;
+        uint32_t* drow = (uint32_t*)(packed + (size_t)y * finfo->line_length);
         for (int x = 0; x < w; x++, srow += 3)
             drow[x] = pack_fb_pixel(srow[0], srow[1], srow[2], r_shift, g_shift, b_shift, a_mask);
     }
 
     free(canvas);
-    msync(fb, map_len, MS_SYNC);
-    munmap(fb, map_len);
-    close(fbfd);
+    out->data = packed;
+    out->size = buf_size;
+    out->offset = (off_t)vinfo->yoffset * (off_t)finfo->line_length;
+    return 0;
+}
+
+static void write_fb_buffer(int fbfd, const struct fb_buffer* buf) {
+    if (fbfd < 0 || !buf || !buf->data)
+        return;
+
+    size_t written = 0;
+    while (written < buf->size) {
+        ssize_t n = pwrite(fbfd, buf->data + written, buf->size - written, buf->offset + (off_t)written);
+        if (n < 0) {
+            if (errno == EINTR)
+                continue;
+            break;
+        }
+        if (n == 0)
+            break;
+        written += (size_t)n;
+    }
 }
 
 int main(void) {
@@ -256,7 +270,22 @@ int main(void) {
     }
 
     if (access("/run/plymouth/pid", F_OK) == 0) {
-        paint_nebula_fb0();
+        int fbfd = open("/dev/fb0", O_RDWR | O_CLOEXEC);
+        struct fb_buffer fbuf = {0};
+        int has_fb = 0;
+        if (fbfd >= 0) {
+            struct fb_fix_screeninfo finfo;
+            struct fb_var_screeninfo vinfo;
+            if (ioctl(fbfd, FBIOGET_FSCREENINFO, &finfo) == 0 &&
+                ioctl(fbfd, FBIOGET_VSCREENINFO, &vinfo) == 0 &&
+                prepare_nebula_fb_buffer(&finfo, &vinfo, &fbuf) == 0) {
+                has_fb = 1;
+                write_fb_buffer(fbfd, &fbuf);
+            } else {
+                close(fbfd);
+                fbfd = -1;
+            }
+        }
 
         pid_t pid = fork();
         if (pid == 0) {
@@ -268,6 +297,13 @@ int main(void) {
             int status = 0;
             while (waitpid(pid, &status, 0) < 0 && errno == EINTR) {}
         }
+
+        if (has_fb) {
+            write_fb_buffer(fbfd, &fbuf);
+            free(fbuf.data);
+        }
+        if (fbfd >= 0)
+            close(fbfd);
     }
 
     char ack = 'K';
