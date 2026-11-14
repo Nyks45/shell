@@ -86,8 +86,8 @@ PageBase {
                 required property var modelData
                 required property int index
 
-                text: modelData.name
-                subtext: modelData.description
+                text: modelData.name ? Tr.trMarked(modelData.name) : ""
+                subtext: modelData.description ? Tr.trMarked(modelData.description) : ""
                 checked: modelData.enabled
                 onToggled: GlobalConfig.launcher.actions.at(index).enabled = checked
             }
