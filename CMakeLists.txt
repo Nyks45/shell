@@ -92,7 +92,7 @@ if("shell" IN_LIST ENABLE_MODULES)
     # shell's own password prompt, remembered for a few minutes
     install(PROGRAMS assets/caelestia-admin assets/caelestia-set-password assets/caelestia-disks assets/caelestia-system assets/caelestia-packages assets/caelestia-gaming assets/caelestia-devices assets/caelestia-fans assets/caelestia-session DESTINATION "${INSTALL_LIBDIR}")
     install(FILES assets/systemd-user/caelestia-openrgb.service assets/systemd-user/caelestia-devices.service DESTINATION "${CMAKE_INSTALL_LIBDIR}/systemd/user")
-    install(FILES assets/systemd/caelestia-login.service DESTINATION "${CMAKE_INSTALL_LIBDIR}/systemd/system")
+    install(FILES assets/systemd/caelestia-login.service assets/systemd/caelestia-plymouth-handoff.socket assets/systemd/caelestia-plymouth-handoff.service DESTINATION "${CMAKE_INSTALL_LIBDIR}/systemd/system")
     install(FILES assets/pam.d/caelestia-login DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}/pam.d")
     install(FILES assets/org.caelestia.shell.admin.policy DESTINATION "${CMAKE_INSTALL_DATADIR}/polkit-1/actions")
 

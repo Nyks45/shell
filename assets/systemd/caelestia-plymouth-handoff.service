@@ -1,0 +1,10 @@
+[Unit]
+Description=Deactivate Plymouth at Hyprland DRM Acquisition
+DefaultDependencies=no
+Requires=caelestia-plymouth-handoff.socket
+After=caelestia-plymouth-handoff.socket
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/caelestia/caelestia-plymouth-handoff
+TimeoutStartSec=5

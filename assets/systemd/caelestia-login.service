@@ -1,7 +1,8 @@
 [Unit]
 Description=Caelestia Seamless Login Manager (Nebula)
 Conflicts=getty@tty1.service sddm.service plymouth-quit.service plymouth-quit-wait.service
-After=systemd-user-sessions.service getty@tty1.service plymouth-start.service systemd-logind.service
+After=systemd-user-sessions.service getty@tty1.service plymouth-start.service systemd-logind.service caelestia-plymouth-handoff.socket
+Wants=caelestia-plymouth-handoff.socket
 PartOf=graphical.target
 
 [Service]
@@ -21,12 +22,10 @@ Environment=XDG_VTNR=1
 Environment=XDG_SESSION_TYPE=wayland
 Environment=XDG_SESSION_CLASS=user
 Environment=CAELESTIA_BOOT_LOCK=1
-# Plymouth lets go of the screen, its last frame staying up until Hyprland draws (the boot
-# splash then shows the same scene); it quits once the lock screen is up (plymouth-quit.service
-# is held off above).
-ExecStartPre=+-/usr/bin/plymouth deactivate
+# Plymouth keeps animating until Hyprland opens DRM (triggered on caelestia-plymouth-handoff.socket);
+# its last frame stays up until Hyprland commits caelestia-boot-splash + lock screen.
 ExecStartPost=+-/usr/bin/systemd-run --quiet --no-block --collect --on-active=8 /usr/bin/plymouth quit --retain-splash
-ExecStart=/usr/lib/caelestia/caelestia-session
+ExecStart=/usr/lib/caelestia/caelestia-session-boot
 ExecStopPost=-/usr/bin/plymouth quit
 Restart=always
 RestartSec=1

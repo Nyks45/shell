@@ -37,3 +37,12 @@ set_target_properties(caelestia-boot-splash PROPERTIES C_STANDARD 11 COMPILE_OPT
 target_include_directories(caelestia-boot-splash PRIVATE "${SPLASH_GEN}")
 target_link_libraries(caelestia-boot-splash PRIVATE PkgConfig::WAYLAND_CLIENT m)
 install(TARGETS caelestia-boot-splash DESTINATION "${INSTALL_LIBDIR}")
+
+# Fast native boot launcher & deferred Plymouth DRM handoff helper
+add_executable(caelestia-session-boot session/main.c)
+set_target_properties(caelestia-session-boot PROPERTIES C_STANDARD 11 COMPILE_OPTIONS "-O2;-Wall")
+install(TARGETS caelestia-session-boot DESTINATION "${INSTALL_LIBDIR}")
+
+add_executable(caelestia-plymouth-handoff plymouth-handoff/main.c)
+set_target_properties(caelestia-plymouth-handoff PROPERTIES C_STANDARD 11 COMPILE_OPTIONS "-O2;-Wall")
+install(TARGETS caelestia-plymouth-handoff DESTINATION "${INSTALL_LIBDIR}")

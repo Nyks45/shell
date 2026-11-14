@@ -1,0 +1,10 @@
+[Unit]
+Description=Plymouth DRM Handoff Socket for Caelestia Login
+DefaultDependencies=no
+
+[Socket]
+ListenStream=/run/caelestia/plymouth-handoff.sock
+SocketMode=0666
+DirectoryMode=0755
+Accept=no
+RemoveOnStop=yes
