@@ -121,7 +121,11 @@ def _exec_session(exec_cmd: str) -> int:
     prog = os.path.basename(parts[0]) if parts else ""
     if prog in ("start-hyprland", "Hyprland") and "--locked-cmd" not in parts:
         os.environ["CAELESTIA_MANAGED_LOCK"] = "1"
-        lock_args = ["--locked-cmd", "qs -c caelestia -n"]
+        boot_splash = "/usr/lib/caelestia/caelestia-boot-splash"
+        locked_cmd = "qs -c caelestia -n"
+        if os.access(boot_splash, os.X_OK):
+            locked_cmd = f"{boot_splash} & exec {locked_cmd}"
+        lock_args = ["--locked-cmd", locked_cmd]
         if prog == "start-hyprland" and "--" not in parts:
             parts.append("--")
         exec_cmd = shlex.join(parts + lock_args)

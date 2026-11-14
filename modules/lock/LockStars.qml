@@ -10,22 +10,21 @@ Item {
         return x - Math.floor(x);
     }
 
-    Canvas {
-        anchors.fill: parent
-        onWidthChanged: requestPaint()
-        onHeightChanged: requestPaint()
+    Repeater {
+        model: NebulaTheme.galaxy.stars
 
-        onPaint: {
-            const ctx = getContext("2d");
-            ctx.clearRect(0, 0, width, height);
-            ctx.fillStyle = NebulaTheme.lock.star;
-            for (let i = 0; i < NebulaTheme.galaxy.stars; i++) {
-                const big = root.rand(i + 1) > 0.9;
-                ctx.globalAlpha = big ? NebulaTheme.galaxy.starBright : NebulaTheme.galaxy.starFaint;
-                ctx.beginPath();
-                ctx.arc(root.rand(i + 2) * width, root.rand(i + 3) * height, big ? 1.4 : 0.8, 0, Math.PI * 2);
-                ctx.fill();
-            }
+        Rectangle {
+            required property int index
+
+            readonly property bool big: root.rand(index + 1) > 0.9
+
+            width: big ? 2.8 : 1.6
+            height: width
+            radius: width / 2
+            x: root.rand(index + 2) * root.width - width / 2
+            y: root.rand(index + 3) * root.height - height / 2
+            color: NebulaTheme.lock.star
+            opacity: big ? NebulaTheme.galaxy.starBright : NebulaTheme.galaxy.starFaint
         }
     }
 

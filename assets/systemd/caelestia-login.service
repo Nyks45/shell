@@ -24,9 +24,6 @@ Environment=CAELESTIA_BOOT_LOCK=1
 # Plymouth lets go of the screen, its last frame staying up until Hyprland draws (the boot
 # splash then shows the same scene); it quits once the lock screen is up (plymouth-quit.service
 # is held off above).
-# Diagnostic (2026-11-14, remove once the hand-over blink is settled): the display state
-# Plymouth ran with, to compare with Hyprland's (same mode and properties = no real mode-set)
-ExecStartPre=+-/bin/sh -c 'cat /sys/kernel/debug/dri/1/state > /run/caelestia-boot-drm-state.txt 2>&1; modetest -M nvidia-drm -c > /run/caelestia-boot-drm-props.txt 2>&1'
 ExecStartPre=+-/usr/bin/plymouth deactivate
 ExecStartPost=+-/usr/bin/systemd-run --quiet --no-block --collect --on-active=8 /usr/bin/plymouth quit --retain-splash
 ExecStart=/usr/lib/caelestia/caelestia-session
