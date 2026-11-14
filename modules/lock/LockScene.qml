@@ -17,6 +17,7 @@ FocusScope {
 
     signal unlocked()
     signal firstFrameDrawn()
+    signal bootLoadingFinished()
 
     property bool bootLoading: bootLock
     property bool bootMinElapsed: false
@@ -194,6 +195,7 @@ FocusScope {
         if (!bootLoading)
             return;
         bootLoading = false;
+        bootLoadingFinished();
         bootIntroAnim.stop();
         bootMinTimer.stop();
         bootFallbackTimer.stop();
@@ -220,7 +222,10 @@ FocusScope {
         if (closing)
             return;
         closing = true;
-        bootLoading = false;
+        if (bootLoading) {
+            bootLoading = false;
+            bootLoadingFinished();
+        }
         pendingWake = false;
         unlockEmitted = false;
         bootIntroAnim.stop();

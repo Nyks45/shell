@@ -16,14 +16,21 @@ Scope {
     readonly property bool startLocked: Quickshell.env("CAELESTIA_BOOT_LOCK") === "1" && !CUtils.fileExists(bootSentinel)
     property bool bootLockActive: startLocked
     property bool bootCursorRestored: false
+    property bool bootSplashHidden: false
+
+    function hideBootSplash(): void {
+        if (bootSplashHidden)
+            return;
+        bootSplashHidden = true;
+        // The boot splash (extras/boot-splash) has done its part: the lock screen covers it now
+        Quickshell.execDetached(["sh", "-c", 'sleep 0.3; f="$XDG_RUNTIME_DIR/caelestia-boot-splash.pid"; [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; true']);
+    }
 
     function revealBootCursor(): void {
         if (bootCursorRestored)
             return;
         bootCursorRestored = true;
         Quickshell.execDetached(["hyprctl", "eval", "hl.config({ cursor = { invisible = false } })"]);
-        // The boot splash (extras/boot-splash) has done its part: the lock screen covers it now
-        Quickshell.execDetached(["sh", "-c", 'sleep 0.3; f="$XDG_RUNTIME_DIR/caelestia-boot-splash.pid"; [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; true']);
     }
 
     function runBootAutostart(): void {
@@ -71,7 +78,12 @@ PY
             lock: lock
             pam: pam
             bootLock: root.bootLockActive
-            onFirstFrameDrawn: root.revealBootCursor()
+            onFirstFrameDrawn: {
+                root.hideBootSplash();
+                if (!root.bootLockActive)
+                    root.revealBootCursor();
+            }
+            onBootLoadingFinished: root.revealBootCursor()
         }
     }
 

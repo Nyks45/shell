@@ -11,7 +11,8 @@ Item {
     property int interval: 520
     property color color: NebulaTheme.colors.primary
     property color containerColor: NebulaTheme.colors.primaryContainer
-    property int index: 0
+    property int startIndex: 0
+    property int index: startIndex
 
     readonly property var shapes: [
         MaterialShape.SoftBurst,
@@ -78,7 +79,6 @@ Item {
     Timer {
         interval: root.interval
         repeat: true
-        triggeredOnStart: true
         running: root.shown && root.visible
         onTriggered: root.index = (root.index + 1) % root.shapes.length
     }

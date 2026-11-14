@@ -120,6 +120,7 @@ Item {
         width: root.width * 0.44
         height: width
         contained: false
+        startIndex: 1
         color: NebulaTheme.colors.primary
         running: root.bootLoading
         visible: opacity > 0

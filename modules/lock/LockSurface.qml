@@ -12,6 +12,7 @@ WlSessionLockSurface {
     property bool bootLock: false
 
     signal firstFrameDrawn()
+    signal bootLoadingFinished()
 
     readonly property alias unlocking: scene.closing
 
@@ -38,6 +39,7 @@ WlSessionLockSurface {
         bootLock: root.bootLock
         onUnlocked: root.lock.locked = false
         onFirstFrameDrawn: root.firstFrameDrawn()
+        onBootLoadingFinished: root.bootLoadingFinished()
     }
 
     Component.onCompleted: scene.forceActiveFocus()
