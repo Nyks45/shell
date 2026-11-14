@@ -25,6 +25,10 @@ Singleton {
     // Why a restart is needed: ["kernel", "nvidia"]
     property var restart: []
     property var held: []
+    // Packages built here in place of a repository one: [{ name, base, version, built, repo, newer }]
+    // (newer: the repository has a newer release than the one it was built from)
+    property var own: []
+    readonly property var ownOutdated: own.filter(o => o.newer)
     property date checkedAt
     property bool checking
     readonly property int total: repo.length + aur.length + flatpak.length
@@ -167,6 +171,7 @@ Singleton {
 
     // Notified for this set of updates already (only a new one notifies again)
     property string notifiedKey
+    property string notifiedOwnKey
 
     Process {
         id: updatesProc
@@ -180,10 +185,16 @@ Singleton {
                     root.aur = d.aur ?? [];
                     root.flatpak = d.flatpak ?? [];
                     root.held = d.held ?? [];
+                    root.own = d.own ?? [];
                     root.restart = d.restart ?? [];
                 } catch (e) {}
                 root.checkedAt = new Date();
                 root.checking = false;
+                // An own build fell behind its repository package: updates don't touch it, so say so
+                const ok = root.ownOutdated.map(o => `${o.name}<${o.repo}`).sort().join(" ");
+                if (ok && ok !== root.notifiedOwnKey && !root.quietCheck)
+                    root.notify(root.ownOutdated.length === 1 ? qsTr("%1 needs rebuilding").arg(root.ownOutdated[0].name) : qsTr("%1 of your own builds need rebuilding").arg(root.ownOutdated.length), root.ownOutdated.map(o => qsTr("%1 %2 is out (built from %3)").arg(o.base).arg(o.repo).arg(o.built)).join(", "));
+                root.notifiedOwnKey = ok;
                 const k = [...root.repo, ...root.aur, ...root.flatpak].map(u => `${u.name}=${u.to}`).sort().join(" ");
                 if (root.total > 0 && k !== root.notifiedKey && !root.updating) {
                     root.notifiedKey = k;

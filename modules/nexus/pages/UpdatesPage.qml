@@ -191,14 +191,35 @@ PageBase {
             items: Packages.flatpak
         }
 
-        // Kept at their version
+        // Built here in place of a repository package: updates never touch them
         SectionHeader {
-            visible: Packages.held.length > 0
+            visible: Packages.own.length > 0
+            text: Tr.tr("Your own builds")
+        }
+
+        Repeater {
+            model: Packages.own
+
+            RowButton {
+                required property var modelData
+
+                Layout.fillWidth: true
+                icon: modelData.newer ? "build_circle" : "verified"
+                text: modelData.newer ? Tr.tr("%1 needs rebuilding").arg(modelData.name) : modelData.name
+                subtext: modelData.newer ? Tr.tr("%1 %2 is out; this one is built from %3. Updates leave it alone: fit its changes to the new version and rebuild it.").arg(modelData.base).arg(modelData.repo).arg(modelData.built) : Tr.tr("In place of %1, built from %2 (the repository has %3). Updates leave it alone.").arg(modelData.base).arg(modelData.built).arg(modelData.repo)
+            }
+        }
+
+        // Kept at their version (not the ones an own build stands in for: those are above)
+        SectionHeader {
+            visible: heldRep.count > 0
             text: Tr.tr("Kept at their version")
         }
 
         Repeater {
-            model: Packages.held
+            id: heldRep
+
+            model: Packages.held.filter(h => !Packages.own.some(o => o.base === h))
 
             RowButton {
                 required property string modelData

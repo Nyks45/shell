@@ -480,12 +480,44 @@ def parse_updates(text):
     return res
 
 
+def own_builds():
+    """Packages built here in place of a repository one, which they provide (hyprland-nyks45 ->
+    hyprland): [{name, base, version, built, repo, newer}]. Updates never touch them, so a new
+    upstream version only shows here: `newer` = the repository's is a newer release than the
+    one this was built from (its patches then need fitting again, and a rebuild).
+    Read from checkupdates' own fresh copy of the databases when there is one."""
+    names = [l.split(" ", 1)[0] for l in sh("pacman", "-Qm").splitlines() if l.strip()]
+    if not names:
+        return []
+    dbpath = os.path.join(os.environ.get("TMPDIR") or "/tmp", f"checkup-db-{os.getuid()}")
+    fresh = ["--dbpath", dbpath] if os.path.isdir(os.path.join(dbpath, "sync")) else []
+    res = []
+    for block in sh("pacman", "-Qi", *names).split("\n\n"):
+        f = dict((k.strip(), v.strip()) for k, v in re.findall(r"^([A-Za-z ]+?)\s*:\s*(.*)$", block, re.M))
+        name = f.get("Name", "")
+        for prov in f.get("Provides", "").split():
+            base, eq, built = prov.partition("=")
+            if not eq or base == name or ".so" in base:
+                continue
+            v = re.search(r"^Version\s*:\s*(\S+)", sh("pacman", "-Si", base, *fresh), re.M)
+            if not v:
+                continue  # not a repository package
+            repo = v.group(1)
+            newer = sh("vercmp", repo.rsplit("-", 1)[0], built).strip() == "1"
+            res.append({"name": name, "base": base, "version": f.get("Version", ""), "built": built,
+                        "repo": repo, "newer": newer})
+            break
+    return res
+
+
 def c_updates(args):
-    result = {"repo": [], "aur": [], "flatpak": [], "errors": {}, "restart": restart_needed(),
+    result = {"repo": [], "aur": [], "flatpak": [], "own": [], "errors": {}, "restart": restart_needed(),
               "held": pacman_conf()[0].get("IgnorePkg", "").split()}
 
     def repo():
-        return parse_updates(sh("checkupdates", timeout=120))
+        ups = parse_updates(sh("checkupdates", timeout=120))
+        result["own"] = own_builds()  # after checkupdates: it refreshed the databases they're read from
+        return ups
 
     def aur():
         return parse_updates(sh("paru", "-Qua", timeout=120)) if os.path.exists("/usr/bin/paru") else []
