@@ -111,11 +111,12 @@ Item {
         readonly property real gap: 10
         readonly property real cardW: (width - gap * 2) / 3
         readonly property real sessionH: root.showSession ? 44 : 0
-        readonly property real gridH: height - (root.showSession ? sessionH + gap : 0)
+        readonly property real gridH: NebulaTheme.lock.statsHeight
         readonly property real cardH: (gridH - gap) / 2
 
         width: NebulaTheme.lock.statsWidth
-        height: NebulaTheme.lock.statsHeight
+        // The session row sits below the grid and adds to the height, so the cards keep their size
+        height: NebulaTheme.lock.statsHeight + (root.showSession ? sessionH + gap : 0)
         scale: root.width / width
         transformOrigin: Item.TopLeft
 

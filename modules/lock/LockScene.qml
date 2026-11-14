@@ -82,7 +82,9 @@ FocusScope {
     readonly property real notificationX: cx + activeClock / 2 + NebulaTheme.lock.sideGap * unit + NebulaTheme.lock.activeNotificationWidth * unit / 2
     readonly property real rowY: cy - activeClock / 2 - NebulaTheme.lock.rowOffset * unit
     readonly property real inputY: cy + activeClock / 2 + (NebulaTheme.lock.inputGap + NebulaTheme.lock.inputHeight / 2) * unit
-    readonly property real statsY: inputY + (NebulaTheme.lock.inputHeight / 2 + NebulaTheme.lock.statsGap + NebulaTheme.lock.statsHeight / 2) * unit
+    // Login session row (session picker + power) below the stats grid: same 44 + 10 as LockStats
+    readonly property real statsFullHeight: NebulaTheme.lock.statsHeight + (GlobalConfig.lock.enableSessionControls ? 54 : 0)
+    readonly property real statsY: inputY + (NebulaTheme.lock.inputHeight / 2 + NebulaTheme.lock.statsGap + statsFullHeight / 2) * unit
 
     readonly property real bass: {
         const v = Audio.cava.values;
@@ -663,7 +665,7 @@ FocusScope {
         x: root.cx - width / 2
         y: root.statsY - height / 2 + (1 - shownT) * 28 * root.unit
         width: NebulaTheme.lock.statsWidth * root.unit
-        height: NebulaTheme.lock.statsHeight * root.unit
+        height: root.statsFullHeight * root.unit
         opacity: shownT
         visible: opacity > 0
 
