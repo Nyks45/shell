@@ -22,8 +22,8 @@ Environment=XDG_SESSION_TYPE=wayland
 Environment=XDG_SESSION_CLASS=user
 Environment=CAELESTIA_BOOT_LOCK=1
 ExecStartPre=+-/usr/bin/plymouth deactivate
-ExecStartPre=+-/usr/bin/plymouth quit --retain-splash
 ExecStart=/usr/lib/caelestia/caelestia-session
+ExecStopPost=-/usr/bin/plymouth quit
 Restart=always
 RestartSec=1
 

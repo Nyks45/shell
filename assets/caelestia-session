@@ -4,6 +4,7 @@
 import json
 import os
 import re
+import shlex
 import shutil
 import sys
 from pathlib import Path
@@ -115,6 +116,20 @@ def cmd_set(session_id: str) -> int:
     return 0
 
 
+def _exec_session(exec_cmd: str) -> int:
+    parts = shlex.split(exec_cmd)
+    prog = os.path.basename(parts[0]) if parts else ""
+    if prog in ("start-hyprland", "Hyprland") and "--locked-cmd" not in parts:
+        os.environ["CAELESTIA_MANAGED_LOCK"] = "1"
+        lock_args = ["--locked-cmd", "qs -c caelestia -n"]
+        if prog == "start-hyprland" and "--" not in parts:
+            parts.append("--")
+        exec_cmd = shlex.join(parts + lock_args)
+
+    os.execv("/bin/sh", ["/bin/sh", "-l", "-c", f'export PATH="$HOME/.local/bin:$PATH"; exec {exec_cmd}'])
+    return 1
+
+
 def cmd_launch() -> int:
     sessions = list_sessions()
     if not sessions:
@@ -122,7 +137,7 @@ def cmd_launch() -> int:
         os.environ.setdefault("XDG_SESSION_TYPE", "wayland")
         os.environ.setdefault("XDG_CURRENT_DESKTOP", "Hyprland")
         os.environ.setdefault("XDG_SESSION_DESKTOP", "Hyprland")
-        os.execv("/bin/sh", ["/bin/sh", "-l", "-c", "exec /usr/bin/start-hyprland"])
+        return _exec_session("/usr/bin/start-hyprland")
 
     current_id = read_current(sessions)
     sess = next((s for s in sessions if s["id"] == current_id), sessions[0])
@@ -136,8 +151,7 @@ def cmd_launch() -> int:
     os.environ["CAELESTIA_BOOT_LOCK"] = "1"
 
     exec_cmd = re.sub(r"%[fFuUdDnNickvm]", "", sess["exec"]).strip()
-    os.execv("/bin/sh", ["/bin/sh", "-l", "-c", f"exec {exec_cmd}"])
-    return 1
+    return _exec_session(exec_cmd)
 
 
 def main() -> int:

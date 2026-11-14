@@ -66,8 +66,9 @@ Singleton {
                     fi
                 done
             fi
+            lw=$(command -v live-wallpaper || echo '${Quickshell.shellDir}/assets/live-wallpaper')
             if [ "$has_live" = 1 ] || [ -n "$frame" ]; then
-                (LIVE_WALLPAPER_MONITORS="${root.monitorNames}" exec live-wallpaper start) >/dev/null 2>&1 </dev/null &
+                (LIVE_WALLPAPER_MONITORS="${root.monitorNames}" exec "$lw" start) >/dev/null 2>&1 </dev/null &
                 if [ -n "$frame" ]; then
                     echo "frame:$frame"
                 else
@@ -107,8 +108,8 @@ Singleton {
         onTriggered: {
             root.started = true;
             // through PATH (~/.local/bin links the shell's script; the dev
-            // sandbox's stub catches it there)
-            Quickshell.execDetached(["sh", "-c", `LIVE_WALLPAPER_MONITORS="${root.monitorNames}" exec live-wallpaper start`]);
+            // sandbox's stub catches it there), or packaged fallback
+            Quickshell.execDetached(["sh", "-c", `lw=$(command -v live-wallpaper || echo '${Quickshell.shellDir}/assets/live-wallpaper'); LIVE_WALLPAPER_MONITORS="${root.monitorNames}" exec "$lw" start`]);
         }
     }
 

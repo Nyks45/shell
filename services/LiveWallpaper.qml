@@ -65,6 +65,11 @@ Singleton {
 
     readonly property string configPath: `${Paths.config}/live-wallpaper.json`
     readonly property string scanner: `${Quickshell.shellDir}/assets/live-wallpaper-scan.py`
+    readonly property string scriptBin: `${Quickshell.shellDir}/assets/live-wallpaper`
+
+    function runScript(arg: string): void {
+        Quickshell.execDetached(["sh", "-c", `s=$(command -v live-wallpaper || echo '${root.scriptBin}'); exec "$s" "$1"`, "sh", arg]);
+    }
     readonly property var screens: config.screens ?? {}
     // The wallpaper on all screens (or the first screen's)
     readonly property string current: screens["*"] ?? Object.values(screens)[0] ?? ""
@@ -202,15 +207,15 @@ Singleton {
         if (prev === "mute")
             muteRenderer(false);
         if (prev === "pause" && !paused)
-            Quickshell.execDetached(["live-wallpaper", "resume"]);
+            runScript("resume");
         if (prev === "stop")
             restartTimer.restart();
         if (best === "mute")
             muteRenderer(true);
         if (best === "pause" && !paused)
-            Quickshell.execDetached(["live-wallpaper", "pause"]);
+            runScript("pause");
         if (best === "stop")
-            Quickshell.execDetached(["live-wallpaper", "stop"]);
+            runScript("stop");
     }
 
     // The renderer's sound (its PipeWire stream), on or off
@@ -309,7 +314,7 @@ Singleton {
             screens: {},
             paused: false
         });
-        Quickshell.execDetached(["live-wallpaper", "stop"]);
+        runScript("stop");
         runningTimer.restart();
     }
 
@@ -349,7 +354,7 @@ Singleton {
     function togglePause(): void {
         const p = !paused;
         setQuiet("paused", p);
-        Quickshell.execDetached(["live-wallpaper", p ? "pause" : "resume"]);
+        runScript(p ? "pause" : "resume");
     }
 
     // Per wallpaper: scaling, volume, its own properties (--set-property)
@@ -721,7 +726,7 @@ Singleton {
 
         property bool again
 
-        command: ["live-wallpaper", "start"]
+        command: ["sh", "-c", `s=$(command -v live-wallpaper || echo '${root.scriptBin}'); exec "$s" start`]
         onExited: {
             if (again) {
                 again = false;
@@ -825,7 +830,7 @@ Singleton {
     Process {
         id: statusProc
 
-        command: ["sh", "-c", `command -v live-wallpaper >/dev/null && echo script; command -v linux-wallpaperengine >/dev/null && echo engine; pacman -Q linux-wallpaperengine-git 2>/dev/null | cut -d' ' -f2; p=$(cat "\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper/pid" 2>/dev/null); [ -n "$p" ] && [ "$(cat /proc/$p/comm 2>/dev/null)" = linux-wallpaper ] && echo running; echo "assets=$(python3 -I '${root.scanner}' assets)"`]
+        command: ["sh", "-c", `(command -v live-wallpaper >/dev/null || [ -x '${root.scriptBin}' ]) && echo script; command -v linux-wallpaperengine >/dev/null && echo engine; pacman -Q linux-wallpaperengine-git 2>/dev/null | cut -d' ' -f2; p=$(cat "\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper/pid" 2>/dev/null); [ -n "$p" ] && [ "$(cat /proc/$p/comm 2>/dev/null)" = linux-wallpaper ] && echo running; echo "assets=$(python3 -I '${root.scanner}' assets)"`]
         stdout: StdioCollector {
             onStreamFinished: {
                 const lines = text.split("\n");
