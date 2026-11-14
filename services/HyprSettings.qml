@@ -257,6 +257,13 @@ Singleton {
                 rule.bitdepth = 10;
                 if (m.sdrbrightness && m.sdrbrightness !== 1)
                     rule.sdrbrightness = m.sdrbrightness;
+            } else {
+                // HDR off: tell Hyprland the monitor has none. For an HDR-capable monitor it
+                // otherwise "clears" the HDR metadata on its first frame (an all-zero block
+                // where there was none), which the NVIDIA driver takes as an HDR signalling
+                // change and re-initialises the output: the screen blinked when Hyprland took
+                // over from the boot animation (kernel: "Infoframe changed ... hdr=1").
+                rule.supports_hdr = -1;
             }
             if (m.disabled)
                 rule.disabled = true;
