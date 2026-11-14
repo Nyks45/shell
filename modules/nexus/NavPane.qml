@@ -18,6 +18,7 @@ ColumnLayout {
     SearchBar {
         id: searchField
 
+        z: 1
         Layout.fillWidth: true
 
         placeholderText: Tr.tr("Search settings")

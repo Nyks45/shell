@@ -43,6 +43,7 @@ Item {
     }
 
     TapHandler {
+        gesturePolicy: TapHandler.ReleaseWithinBounds
         onTapped: root.focus = true
     }
 

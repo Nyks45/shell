@@ -23,6 +23,7 @@ StyledFlickable {
     }
 
     flickableDirection: Flickable.VerticalFlick
+    clip: true
 
     layer.enabled: true
     layer.effect: Mask {

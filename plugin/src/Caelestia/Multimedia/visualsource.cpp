@@ -1,5 +1,6 @@
 #include "visualsource.hpp"
 
+#include <qfileinfo.h>
 #include <qmimedatabase.h>
 #include <qquickwindow.h>
 #include <qvideosink.h>
@@ -190,7 +191,7 @@ void VisualSource::watchWindow(QQuickWindow* window) {
 
 void VisualSource::refresh() {
     const auto path = localPath();
-    if (path.isEmpty()) {
+    if (path.isEmpty() || (QUrl(m_source).scheme() != u"image"_s && !QFileInfo::exists(path))) {
         setImagePath({});
         return;
     }

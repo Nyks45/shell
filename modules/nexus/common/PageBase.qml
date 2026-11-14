@@ -240,6 +240,7 @@ ColumnLayout {
         contentItem.children: root.embedded ? [] : [root.contentChild]
 
         TapHandler {
+            gesturePolicy: TapHandler.ReleaseWithinBounds
             onTapped: ownFlickable.focus = true
         }
     }

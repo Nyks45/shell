@@ -50,20 +50,24 @@ StackView {
                 property: "opacity"
                 value: 0
             }
+            PropertyAction {
+                property: "x"
+                value: root.animMovement
+            }
             PauseAnimation {
-                duration: Tokens.anim.durations.expressiveDefaultEffects
+                duration: Tokens.anim.durations.expressiveFastEffects
             }
             ParallelAnimation {
                 Anim {
                     property: "opacity"
                     to: 1
-                    type: Anim.SlowEffects
+                    type: Anim.DefaultEffects
                 }
                 Anim {
                     property: "x"
                     from: root.animMovement
                     to: 0
-                    type: Anim.SlowEffects
+                    type: Anim.FastSpatial
                 }
             }
         }
@@ -83,20 +87,24 @@ StackView {
                 property: "opacity"
                 value: 0
             }
+            PropertyAction {
+                property: "x"
+                value: -root.animMovement
+            }
             PauseAnimation {
-                duration: Tokens.anim.durations.expressiveDefaultEffects
+                duration: Tokens.anim.durations.expressiveFastEffects
             }
             ParallelAnimation {
                 Anim {
                     property: "opacity"
                     to: 1
-                    type: Anim.SlowEffects
+                    type: Anim.DefaultEffects
                 }
                 Anim {
                     property: "x"
                     from: -root.animMovement
                     to: 0
-                    type: Anim.SlowEffects
+                    type: Anim.FastSpatial
                 }
             }
         }

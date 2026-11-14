@@ -18,6 +18,7 @@ VerticalFadeFlickable {
     contentHeight: content.implicitHeight
 
     TapHandler {
+        gesturePolicy: TapHandler.ReleaseWithinBounds
         onTapped: root.focus = true
     }
 

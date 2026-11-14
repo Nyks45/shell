@@ -84,13 +84,19 @@ StyledRect {
             if (!item)
                 return;
             const newStart = layout.y + item.y;
+            const newEnd = newStart + item.height;
+            startAnim.stop();
+            endAnim.stop();
+            if (indicator.opacity === 0 || indicator.end <= indicator.start) {
+                indicator.start = newStart;
+                indicator.end = newEnd;
+                return;
+            }
             const goingUp = newStart < start;
             const leading = Tokens.anim.durations.expressiveDefaultSpatial;
             const trailing = leading * (Config.bar.workspaces.activeTrail ? 1.5 : 1);
-            startAnim.stop();
-            endAnim.stop();
             startAnim.to = newStart;
-            endAnim.to = newStart + item.height;
+            endAnim.to = newEnd;
             startAnim.duration = goingUp ? leading : trailing;
             endAnim.duration = goingUp ? trailing : leading;
             startAnim.start();
@@ -129,6 +135,10 @@ StyledRect {
 
         Connections {
             function onYChanged(): void {
+                indicator.runAnim();
+            }
+
+            function onHeightChanged(): void {
                 indicator.runAnim();
             }
 
@@ -294,7 +304,7 @@ StyledRect {
     Timer {
         interval: 1000
         repeat: true
-        running: true
+        running: items.count > 0
         onTriggered: root.reportIcons(false)
     }
 

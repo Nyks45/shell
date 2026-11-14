@@ -10,6 +10,7 @@ Item {
 
     property int lastPageIdx
     property int animOff
+    property bool animateNextAttach
     property Item currentItem
 
     // Each load's number: pages are created asynchronously, and switching
@@ -41,6 +42,14 @@ Item {
             }
             incubator.object.anchors.fill = container;
             currentItem = incubator.object;
+            if (root.animateNextAttach) {
+                root.animateNextAttach = false;
+                fadeInAnim.restart();
+            } else {
+                container.opacity = 1;
+                container.anchors.topMargin = 0;
+                container.anchors.bottomMargin = 0;
+            }
         };
 
         if (incubator.status === Component.Ready)
@@ -58,22 +67,27 @@ Item {
         objectName: "PageContainer"
         anchors.fill: parent
         layer.enabled: opacity < 1
-        Component.onCompleted: root.loadPage(root.nState.currentPageIdx)
+        Component.onCompleted: {
+            root.lastPageIdx = root.nState.currentPageIdx;
+            root.loadPage(root.nState.currentPageIdx);
+        }
     }
 
     Connections {
         function onCurrentPageIdxChanged(): void {
-            switchAnim.complete();
+            fadeOutAnim.stop();
+            fadeInAnim.stop();
+            root.animateNextAttach = false;
             root.animOff = root.Tokens.padding.extraLarge * (root.nState.currentPageIdx > root.lastPageIdx ? 1 : -1);
-            switchAnim.start();
             root.lastPageIdx = root.nState.currentPageIdx;
+            fadeOutAnim.start();
         }
 
         target: root.nState
     }
 
     SequentialAnimation {
-        id: switchAnim
+        id: fadeOutAnim
 
         Anim {
             target: container
@@ -82,8 +96,16 @@ Item {
             type: Anim.DefaultEffects
         }
         ScriptAction {
-            script: root.loadPage(root.nState.currentPageIdx)
+            script: {
+                root.animateNextAttach = true;
+                root.loadPage(root.nState.currentPageIdx);
+            }
         }
+    }
+
+    SequentialAnimation {
+        id: fadeInAnim
+
         PropertyAction {
             target: container.anchors
             property: "topMargin"
@@ -100,13 +122,13 @@ Item {
                 property: "opacity"
                 from: 0
                 to: 1
-                type: Anim.SlowEffects
+                type: Anim.DefaultEffects
             }
             Anim {
                 target: container.anchors
                 properties: "topMargin,bottomMargin"
                 to: 0
-                type: Anim.SlowEffects
+                type: Anim.DefaultSpatial
             }
         }
     }
