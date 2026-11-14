@@ -103,6 +103,8 @@ Item {
     }
 
     Rectangle {
+        id: holeCircle
+
         anchors.centerIn: parent
         width: root.width
         height: width
@@ -133,6 +135,45 @@ Item {
         color: NebulaTheme.colors.textOnSurface
         opacity: root.bootLoading ? 0 : root.iconOpacity
         z: 3
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: NebulaTheme.anim.medium
+            }
+        }
+    }
+
+    Text {
+        id: bootStatusLabel
+
+        anchors.top: holeCircle.bottom
+        anchors.topMargin: 18
+        anchors.horizontalCenter: parent.horizontalCenter
+        text: "Starting desktop…"
+        font.family: NebulaTheme.font.family
+        font.pixelSize: NebulaTheme.font.normal
+        font.weight: Font.Medium
+        color: NebulaTheme.colors.textOnSurface
+        opacity: root.bootLoading ? pulseAlpha : 0
+        visible: opacity > 0.01
+        z: 3
+
+        property real pulseAlpha: 0.85
+
+        SequentialAnimation on pulseAlpha {
+            loops: Animation.Infinite
+            running: root.bootLoading && root.visible
+            NumberAnimation {
+                to: 0.48
+                duration: 700
+                easing.type: Easing.InOutSine
+            }
+            NumberAnimation {
+                to: 0.88
+                duration: 700
+                easing.type: Easing.InOutSine
+            }
+        }
 
         Behavior on opacity {
             NumberAnimation {

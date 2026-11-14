@@ -1,6 +1,8 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import M3Shapes
+import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
 import Caelestia.Services
@@ -21,6 +23,58 @@ Item {
     readonly property real netDown: NetworkUsage.downloadSpeed
     readonly property real netUp: NetworkUsage.uploadSpeed
     readonly property bool showSession: GlobalConfig.lock.enableSessionControls
+    readonly property string sessionHelper: CUtils.fileExists("/usr/lib/caelestia/caelestia-session")
+        ? "/usr/lib/caelestia/caelestia-session"
+        : `${Quickshell.shellDir}/assets/caelestia-session`
+    property var sessions: []
+    property string currentSession: "hyprland.desktop"
+    readonly property var currentSessionObj: {
+        for (const s of sessions) {
+            if (s.id === currentSession)
+                return s;
+        }
+        return sessions.length > 0 ? sessions[0] : null;
+    }
+    readonly property string sessionLabel: currentSessionObj ? currentSessionObj.name : "Hyprland"
+
+    Component.onCompleted: {
+        if (showSession)
+            sessionListProc.running = true;
+    }
+
+    function cycleSession(): void {
+        if (sessions.length < 2)
+            return;
+        const idx = sessions.findIndex(s => s.id === currentSession);
+        const next = sessions[(idx + 1) % sessions.length];
+        if (!next)
+            return;
+        currentSession = next.id;
+        sessionSetProc.running = false;
+        sessionSetProc.command = [sessionHelper, "set", next.id];
+        sessionSetProc.running = true;
+    }
+
+    Process {
+        id: sessionListProc
+
+        command: [root.sessionHelper, "list"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const data = JSON.parse(text);
+                    if (Array.isArray(data.sessions))
+                        root.sessions = data.sessions;
+                    if (data.current)
+                        root.currentSession = data.current;
+                } catch (e) {}
+            }
+        }
+    }
+
+    Process {
+        id: sessionSetProc
+    }
 
     ServiceRef {
         service: root.visible ? Cpu : null
@@ -179,6 +233,61 @@ Item {
             y: box.gridH + box.gap
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 12
+
+            Rectangle {
+                id: sessionPill
+
+                height: NebulaTheme.button.size
+                implicitWidth: Math.min(240, sessionRow.implicitWidth + 24)
+                radius: NebulaTheme.radius.full
+                color: sessionMouse.pressed ? NebulaTheme.colors.surfaceContainerHighest
+                    : sessionMouse.containsMouse ? NebulaTheme.colors.surfaceContainerHigh
+                    : NebulaTheme.colors.surfaceContainer
+                border.width: 1
+                border.color: sessionMouse.containsMouse ? Qt.alpha(NebulaTheme.colors.primary, 0.45) : Qt.alpha(NebulaTheme.colors.textOnSurface, 0.08)
+
+                Row {
+                    id: sessionRow
+
+                    anchors.centerIn: parent
+                    spacing: 8
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "desktop_windows"
+                        font.family: NebulaTheme.font.icons
+                        font.pixelSize: 18
+                        color: NebulaTheme.colors.primary
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.sessionLabel
+                        font.family: NebulaTheme.font.family
+                        font.pixelSize: NebulaTheme.font.normal
+                        font.weight: Font.Medium
+                        color: NebulaTheme.colors.textOnSurface
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: root.sessions.length > 1
+                        text: "swap_horiz"
+                        font.family: NebulaTheme.font.icons
+                        font.pixelSize: 16
+                        color: Qt.alpha(NebulaTheme.colors.textOnSurface, 0.55)
+                    }
+                }
+
+                MouseArea {
+                    id: sessionMouse
+
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: root.sessions.length > 1 ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    onClicked: root.cycleSession()
+                }
+            }
 
             NebulaIconButton {
                 icon: Config.session.icons.logout

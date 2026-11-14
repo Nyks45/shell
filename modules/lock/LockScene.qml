@@ -352,7 +352,7 @@ FocusScope {
     Timer {
         id: bootFallbackTimer
 
-        interval: 1400
+        interval: 2200
         onTriggered: root.finishBootLoading()
     }
 
@@ -443,6 +443,7 @@ FocusScope {
         screen: root.screen
         openT: root.openT
         closeT: root.closeT
+        modeT: root.modeT
         closing: root.closing
         bootLock: root.bootLock
     }

@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+"""Session selector and launcher for Caelestia's Nebula login manager."""
+
+import json
+import os
+import re
+import shutil
+import sys
+from pathlib import Path
+
+SESSION_DIRS = (
+    ("/usr/local/share/wayland-sessions", "wayland"),
+    ("/usr/share/wayland-sessions", "wayland"),
+    ("/usr/local/share/xsessions", "x11"),
+    ("/usr/share/xsessions", "x11"),
+)
+
+STATE_FILE = (
+    Path(os.environ.get("XDG_STATE_HOME") or (Path.home() / ".local/state"))
+    / "caelestia"
+    / "dm-session"
+)
+
+
+def parse_desktop_file(path: Path, stype: str) -> dict | None:
+    try:
+        lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except OSError:
+        return None
+
+    in_entry = False
+    data: dict[str, str] = {}
+    for raw in lines:
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            if in_entry:
+                break
+            in_entry = line == "[Desktop Entry]"
+            continue
+        if not in_entry or "=" not in line:
+            continue
+        key, val = line.split("=", 1)
+        data.setdefault(key.strip(), val.strip())
+
+    if data.get("Hidden", "").lower() == "true" or data.get("NoDisplay", "").lower() == "true":
+        return None
+
+    exec_cmd = data.get("Exec", "")
+    if not exec_cmd:
+        return None
+
+    try_exec = data.get("TryExec", "")
+    if try_exec and not shutil.which(try_exec):
+        return None
+
+    desktop_names = [p for p in data.get("DesktopNames", "").split(";") if p]
+    return {
+        "id": path.name,
+        "name": data.get("Name") or path.stem,
+        "exec": exec_cmd,
+        "desktopNames": ":".join(desktop_names) if desktop_names else (data.get("Name") or path.stem),
+        "type": stype,
+    }
+
+
+def list_sessions() -> list[dict]:
+    seen: set[str] = set()
+    sessions: list[dict] = []
+    for directory, stype in SESSION_DIRS:
+        p = Path(directory)
+        if not p.is_dir():
+            continue
+        for entry in sorted(p.glob("*.desktop")):
+            if entry.name in seen:
+                continue
+            parsed = parse_desktop_file(entry, stype)
+            if parsed:
+                seen.add(entry.name)
+                sessions.append(parsed)
+
+    sessions.sort(key=lambda s: (0 if s["id"] == "hyprland.desktop" else 1, s["name"].lower()))
+    return sessions
+
+
+def read_current(sessions: list[dict]) -> str:
+    try:
+        chosen = STATE_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        chosen = ""
+
+    ids = {s["id"] for s in sessions}
+    if chosen in ids:
+        return chosen
+    if "hyprland.desktop" in ids:
+        return "hyprland.desktop"
+    return sessions[0]["id"] if sessions else "hyprland.desktop"
+
+
+def cmd_list() -> int:
+    sessions = list_sessions()
+    print(json.dumps({"current": read_current(sessions), "sessions": sessions}))
+    return 0
+
+
+def cmd_set(session_id: str) -> int:
+    clean = os.path.basename(session_id.strip())
+    if not clean:
+        return 1
+    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = STATE_FILE.with_name(STATE_FILE.name + ".tmp")
+    tmp.write_text(clean + "\n", encoding="utf-8")
+    os.replace(tmp, STATE_FILE)
+    return 0
+
+
+def cmd_launch() -> int:
+    sessions = list_sessions()
+    if not sessions:
+        os.environ["CAELESTIA_BOOT_LOCK"] = "1"
+        os.environ.setdefault("XDG_SESSION_TYPE", "wayland")
+        os.environ.setdefault("XDG_CURRENT_DESKTOP", "Hyprland")
+        os.environ.setdefault("XDG_SESSION_DESKTOP", "Hyprland")
+        os.execv("/bin/sh", ["/bin/sh", "-l", "-c", "exec /usr/bin/start-hyprland"])
+
+    current_id = read_current(sessions)
+    sess = next((s for s in sessions if s["id"] == current_id), sessions[0])
+    stem = sess["id"].removesuffix(".desktop")
+    first_desktop = sess["desktopNames"].split(":")[0] or stem
+
+    os.environ["DESKTOP_SESSION"] = stem
+    os.environ["XDG_SESSION_DESKTOP"] = first_desktop
+    os.environ["XDG_CURRENT_DESKTOP"] = sess["desktopNames"]
+    os.environ["XDG_SESSION_TYPE"] = sess["type"]
+    os.environ["CAELESTIA_BOOT_LOCK"] = "1"
+
+    exec_cmd = re.sub(r"%[fFuUdDnNickvm]", "", sess["exec"]).strip()
+    os.execv("/bin/sh", ["/bin/sh", "-l", "-c", f"exec {exec_cmd}"])
+    return 1
+
+
+def main() -> int:
+    args = sys.argv[1:]
+    if args[:1] == ["list"]:
+        return cmd_list()
+    if args[:1] == ["set"] and len(args) == 2:
+        return cmd_set(args[1])
+    if not args:
+        return cmd_launch()
+    print("usage: caelestia-session [list | set <desktop-id>]", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

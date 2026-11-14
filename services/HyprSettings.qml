@@ -411,8 +411,8 @@ function S.apply()
         hl.on("hyprland.start", function() hl.exec_cmd("hyprsunset") end)
     end
 
-    -- Apps in ~/.config/autostart (the settings app's Startup apps)
-    if ${s.autostart === false ? "false" : "true"} then
+    -- Apps in ~/.config/autostart (the settings app's Startup apps; deferred until boot unlock if CAELESTIA_BOOT_LOCK=1)
+    if ${s.autostart === false ? "false" : "true"} and os.getenv("CAELESTIA_BOOT_LOCK") ~= "1" then
         hl.on("hyprland.start", function()
             local dir = ${JSON.stringify(root.autostartDir)}
             local list = io.popen("ls -1 '" .. dir .. "' 2>/dev/null")

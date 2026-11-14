@@ -1,0 +1,31 @@
+[Unit]
+Description=Caelestia Seamless Login Manager (Nebula)
+Conflicts=getty@tty1.service sddm.service plymouth-quit.service plymouth-quit-wait.service
+After=systemd-user-sessions.service getty@tty1.service plymouth-start.service systemd-logind.service
+PartOf=graphical.target
+
+[Service]
+User=hakan
+WorkingDirectory=/home/hakan
+PAMName=caelestia-login
+UtmpIdentifier=tty1
+TTYPath=/dev/tty1
+TTYReset=no
+TTYVHangup=no
+TTYVTDisallocate=no
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+Environment=XDG_SEAT=seat0
+Environment=XDG_VTNR=1
+Environment=XDG_SESSION_TYPE=wayland
+Environment=XDG_SESSION_CLASS=user
+Environment=CAELESTIA_BOOT_LOCK=1
+ExecStartPre=+-/usr/bin/plymouth deactivate
+ExecStartPre=+-/usr/bin/plymouth quit --retain-splash
+ExecStart=/usr/lib/caelestia/caelestia-session
+Restart=always
+RestartSec=1
+
+[Install]
+Alias=display-manager.service

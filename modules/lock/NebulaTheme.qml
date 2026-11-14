@@ -74,10 +74,10 @@ QtObject {
         readonly property int twinklers: 18
         readonly property int ringDots: 90
         readonly property real ringTilt: 0.32
-        readonly property real backdropDim: 0.62
+        readonly property real backdropDim: 0.44
         readonly property real surfaceTint: 0.94
         readonly property real blurSource: 0.5
-        readonly property int blurMax: 40
+        readonly property int blurMax: 28
         readonly property int openDuration: 3400
         readonly property int closeDuration: 1500
         readonly property real centerOvershoot: 1.2
@@ -114,24 +114,24 @@ QtObject {
         readonly property real pulseGain: 0.45
         readonly property int visualizerBars: 24
         readonly property int dotSize: 7
-        readonly property int dotMax: 24
+        readonly property int dotMax: 14
         readonly property real holePulse: 0.12
         readonly property int statsWidth: 540
         readonly property int statsHeight: 256
         readonly property int statsGap: 28
         readonly property int rowOffset: 70
         readonly property int bubbleSize: 84
-        readonly property int inputWidth: 360
+        readonly property int inputWidth: 400
         readonly property int inputHeight: 56
         readonly property int inputGap: 28
         readonly property int rowSpacing: 130
         readonly property int eqHeight: 170
         readonly property int maxNotifications: 3
-        readonly property int maxDots: 24
+        readonly property int maxDots: 14
         readonly property real spiralTurn: 2.8
         readonly property real wingStartScale: 0.3
         readonly property real centerHeight: 0.42
-        readonly property int bootLoadingMinMs: 450
+        readonly property int bootLoadingMinMs: 1100
         readonly property int bootLoadingMaxMs: 1800
     }
     readonly property LockTokens lock: LockTokens {}

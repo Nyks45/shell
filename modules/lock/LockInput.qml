@@ -59,6 +59,33 @@ Item {
         }
     }
 
+    function syncDots(): void {
+        // As many shapes as fit the field (15px + 4px gap each, plus the caret), never more than dotMax
+        const fit = Math.floor((dotArea.width - 7 + 4) / 19);
+        const cap = Math.max(1, Math.min(NebulaTheme.lock.dotMax, dotArea.width > 0 ? fit : NebulaTheme.lock.dotMax));
+        if (root.typed <= 0) {
+            dotModel.clear();
+            return;
+        }
+        while (dotModel.count > Math.min(root.typed, cap))
+            dotModel.remove(dotModel.count - 1);
+        const startIdx = Math.max(dotModel.count > 0 ? dotModel.get(dotModel.count - 1).glyphIdx + 1 : 0, root.typed - cap);
+        for (let idx = startIdx; idx < root.typed; idx++) {
+            if (dotModel.count >= cap)
+                dotModel.remove(0);
+            dotModel.append({
+                glyphIdx: idx
+            });
+        }
+    }
+
+    onTypedChanged: syncDots()
+    Component.onCompleted: syncDots()
+
+    ListModel {
+        id: dotModel
+    }
+
     GlassRect {
         anchors.fill: parent
         radius: height / 2
@@ -128,6 +155,8 @@ Item {
     }
 
     Item {
+        id: dotArea
+
         anchors.left: lockBox.right
         anchors.leftMargin: 10
         anchors.right: button.left
@@ -135,6 +164,7 @@ Item {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         clip: true
+        onWidthChanged: root.syncDots()
 
         Text {
             anchors.centerIn: parent
@@ -152,7 +182,7 @@ Item {
 
         Row {
             anchors.centerIn: parent
-            spacing: 3
+            spacing: 4
             visible: root.typing || root.checking
 
             SequentialAnimation on opacity {
@@ -171,40 +201,73 @@ Item {
             }
 
             Repeater {
-                model: Math.min(root.typed, NebulaTheme.lock.dotMax)
+                model: dotModel
 
                 Item {
                     id: piece
 
                     required property int index
+                    required property int glyphIdx
 
-                    width: 17
-                    height: 17
-                    scale: 0.5
+                    property real targetW: 15
+                    property real enterRot: -60
 
-                    Component.onCompleted: pop.start()
+                    width: 0
+                    height: 20
+                    scale: 0
+                    opacity: 0
 
-                    NumberAnimation {
-                        id: pop
+                    Component.onCompleted: enterAnim.start()
 
-                        target: piece
-                        property: "scale"
-                        from: 0
-                        to: 1
-                        duration: 300
-                        easing.type: Easing.OutBack
-                        easing.overshoot: 1.5
+                    ParallelAnimation {
+                        id: enterAnim
+
+                        NumberAnimation {
+                            target: piece
+                            property: "width"
+                            from: 0
+                            to: piece.targetW
+                            duration: 220
+                            easing.type: Easing.OutCubic
+                        }
+                        NumberAnimation {
+                            target: piece
+                            property: "scale"
+                            from: 0
+                            to: 1
+                            duration: 220
+                            easing.type: Easing.OutBack
+                            easing.overshoot: 1.35
+                        }
+                        NumberAnimation {
+                            target: piece
+                            property: "opacity"
+                            from: 0
+                            to: 1
+                            duration: 180
+                            easing.type: Easing.OutCubic
+                        }
+                        NumberAnimation {
+                            target: piece
+                            property: "enterRot"
+                            from: -60
+                            to: 0
+                            duration: 220
+                            easing.type: Easing.OutCubic
+                        }
                     }
 
                     MaterialShape {
-                        readonly property int glyphIdx: root.typed - Math.min(root.typed, NebulaTheme.lock.dotMax) + piece.index
+                        id: shapeItem
 
-                        y: Math.sin(root.t * 3.2 + piece.index * 0.8) * 2.5
-                        width: parent.width
-                        height: parent.height
-                        rotation: root.t * 45 + piece.index * 40
-                        shape: root.dotShapes[glyphIdx % root.dotShapes.length]
-                        color: root.dotColors[glyphIdx % root.dotColors.length]
+                        anchors.centerIn: parent
+                        anchors.verticalCenterOffset: Math.sin(root.t * 3.0 + piece.index * 0.7) * 1.5
+                        width: 15
+                        height: 15
+                        implicitSize: 15
+                        rotation: piece.enterRot + Math.sin(root.t * 1.8 + piece.index * 0.5) * 12
+                        shape: root.dotShapes[piece.glyphIdx % root.dotShapes.length]
+                        color: root.dotColors[piece.glyphIdx % root.dotColors.length]
                     }
                 }
             }
@@ -213,7 +276,6 @@ Item {
                 width: 3
                 height: 20
                 radius: 1.5
-                anchors.verticalCenter: parent.verticalCenter
                 color: NebulaTheme.colors.primary
                 visible: !root.checking
 

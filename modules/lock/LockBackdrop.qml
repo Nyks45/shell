@@ -5,7 +5,6 @@ import Quickshell.Wayland
 import Caelestia
 import Caelestia.Config
 import Caelestia.Multimedia
-import Caelestia.State
 import qs.services
 
 Item {
@@ -14,6 +13,7 @@ Item {
     required property var screen
     property real openT: 0
     property real closeT: 0
+    property real modeT: 0
     property bool closing: false
     property bool bootLock: false
 
@@ -21,7 +21,8 @@ Item {
     readonly property bool hasVideo: CUtils.fileExists(videoPath)
     readonly property bool useWallpaperMode: Config.lock.useWallpaper || bootLock
     readonly property real backdropFade: closing ? Math.max(0, 1 - Math.pow(Math.max(0, (closeT - 0.5) / 0.5), 2)) : 1
-    readonly property real blurAmount: (bootLock ? 1.0 : Math.min(1, Math.pow(Math.max(0, openT), 0.45))) * backdropFade
+    readonly property real targetBlur: 0.28 + 0.57 * root.modeT
+    readonly property real blurAmount: (bootLock ? targetBlur : Math.min(1, Math.pow(Math.max(0, openT), 0.45)) * targetBlur) * backdropFade
     readonly property real mediaIn: bootLock ? Math.min(1, Math.max(0, openT) * 4.5) : 1
 
     Rectangle {
@@ -69,16 +70,8 @@ Item {
 
                 anchors.fill: parent
                 source: root.hasVideo ? root.videoPath : Wallpapers.current
-                playing: PersistentState.wallpaperPlaying && root.visible && (root.hasVideo ? root.openT > 0.01 : true)
-                animate: true
-                opacity: ready ? 1 : 0
-
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: NebulaTheme.anim.slow
-                        easing.type: Easing.OutCubic
-                    }
-                }
+                playing: root.visible && !root.closing
+                animate: false
             }
         }
     }
@@ -86,6 +79,6 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: NebulaTheme.lock.space
-        opacity: Math.min(1, root.openT * 1.6) * NebulaTheme.lock.backdropDim * root.backdropFade
+        opacity: Math.min(1, root.openT * 1.6) * (0.18 + 0.26 * root.modeT) * root.backdropFade
     }
 }
