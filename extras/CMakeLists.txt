@@ -47,5 +47,5 @@ install(TARGETS caelestia-session-boot DESTINATION "${INSTALL_LIBDIR}")
 
 add_executable(caelestia-plymouth-handoff plymouth-handoff/main.c)
 set_target_properties(caelestia-plymouth-handoff PROPERTIES C_STANDARD 11 COMPILE_OPTIONS "-O2;-Wall")
-target_link_libraries(caelestia-plymouth-handoff PRIVATE PkgConfig::LIBPNG)
+target_link_libraries(caelestia-plymouth-handoff PRIVATE PkgConfig::LIBPNG m)
 install(TARGETS caelestia-plymouth-handoff DESTINATION "${INSTALL_LIBDIR}")
