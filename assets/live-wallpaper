@@ -61,7 +61,7 @@ stop() {
     if pid="$(own_pid)"; then
         kill "$pid" 2>/dev/null || true
         for _ in $(seq 20); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
-    elif [[ -z "${LIVE_WALLPAPER_OWN_ONLY:-}" ]]; then
+    elif [[ -z "${LIVE_WALLPAPER_OWN_ONLY:-}" ]] && pgrep -x linux-wallpaper > /dev/null; then
         pkill -x linux-wallpaper 2>/dev/null || true
         for _ in $(seq 20); do pgrep -x linux-wallpaper > /dev/null || break; sleep 0.1; done
     fi
@@ -111,7 +111,7 @@ EOF
 config_args() {
     [[ -f "$SETTINGS" ]] || return 0
     python3 - "$SETTINGS" <<'EOF'
-import json, subprocess, sys
+import json, os, subprocess, sys
 try:
     c = json.load(open(sys.argv[1], encoding="utf-8"))
 except Exception:
@@ -120,10 +120,14 @@ screens = {k: v for k, v in (c.get("screens") or {}).items() if v}
 if not screens:
     sys.exit(0)
 if "*" in screens:
-    try:
-        mons = [m["name"] for m in json.loads(subprocess.run(["hyprctl", "monitors", "-j"], capture_output=True, text=True).stdout)]
-    except Exception:
-        mons = []
+    env_mons = [m for m in os.environ.get("LIVE_WALLPAPER_MONITORS", "").split(",") if m]
+    if env_mons:
+        mons = env_mons
+    else:
+        try:
+            mons = [m["name"] for m in json.loads(subprocess.run(["hyprctl", "monitors", "-j"], capture_output=True, text=True).stdout)]
+        except Exception:
+            mons = []
     screens = {m: screens["*"] for m in mons} or screens
 overrides = c.get("overrides") or {}
 # Playlists are run by the settings app: a playlist's screen shows its
@@ -240,7 +244,12 @@ start() {
         [[ "${LIVE_WALLPAPER_SOUND:-0}" == 1 ]] || args+=(--silent)
         # Every monitor (built-in fullscreen pause keeps games unaffected).
         local mon
-        while read -r mon; do args+=(--screen-root "$mon" --bg "$dir"); done < <(hyprctl monitors -j | python3 -c 'import json,sys; [print(m["name"]) for m in json.load(sys.stdin)]')
+        if [[ -n "${LIVE_WALLPAPER_MONITORS:-}" ]]; then
+            local IFS=','
+            for mon in $LIVE_WALLPAPER_MONITORS; do [[ -n "$mon" ]] && args+=(--screen-root "$mon" --bg "$dir"); done
+        else
+            while read -r mon; do args+=(--screen-root "$mon" --bg "$dir"); done < <(hyprctl monitors -j | python3 -c 'import json,sys; [print(m["name"]) for m in json.load(sys.stdin)]')
+        fi
     fi
     stop
 

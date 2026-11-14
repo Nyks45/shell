@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import Caelestia.Config
 import qs.components.misc
 
 Scope {
@@ -28,7 +29,7 @@ Scope {
 
     Loader {
         asynchronous: true
-        active: true
+        active: !GlobalConfig.lock.useWallpaper
         onLoaded: active = false
 
         // Force a load of a screencopy so the one in the lock works

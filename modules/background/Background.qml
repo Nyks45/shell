@@ -45,11 +45,11 @@ Variants {
             // the shell starts it: LiveStartFrame), faded out once it draws
             Image {
                 anchors.fill: parent
-                visible: opacity > 0
+                visible: opacity > 0 && status === Image.Ready
                 opacity: LiveStartFrame.showing ? 1 : 0
                 source: LiveStartFrame.frame && (LiveStartFrame.showing || opacity > 0) ? `file://${LiveStartFrame.frame}` : ""
                 fillMode: Image.PreserveAspectCrop
-                asynchronous: true
+                asynchronous: false
                 cache: false
                 sourceSize.width: win.screen?.width ?? 2560
 
@@ -57,8 +57,8 @@ Variants {
                     enabled: !LiveStartFrame.showing && !LiveStartFrame.wasRunning
 
                     NumberAnimation {
-                        duration: 450
-                        easing.type: Easing.OutCubic
+                        duration: 200
+                        easing.type: Easing.OutQuad
                     }
                 }
             }

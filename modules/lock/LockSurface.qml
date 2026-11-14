@@ -36,47 +36,15 @@ WlSessionLockSurface {
         ParallelAnimation {
             Anim {
                 target: lockContent
-                properties: "implicitWidth,implicitHeight"
-                to: lockContent.size
+                property: "opacity"
+                to: 0
+                type: Anim.FastEffects
             }
             Anim {
-                target: lockBg
-                property: "radius"
-                to: lockContent.radius
-            }
-            Anim {
-                target: content
+                target: lockContent
                 property: "scale"
-                to: 0
-            }
-            Anim {
-                target: content
-                property: "opacity"
-                to: 0
-                type: Anim.StandardSmall
-            }
-            Anim {
-                target: lockIcon
-                property: "opacity"
-                to: 1
-                type: Anim.StandardLarge
-            }
-            Anim {
-                target: background
-                property: "opacity"
-                to: 0
-                type: Anim.StandardLarge
-            }
-            SequentialAnimation {
-                PauseAnimation {
-                    duration: Tokens.anim.durations.small
-                }
-                Anim {
-                    type: Anim.Standard
-                    target: lockContent
-                    property: "opacity"
-                    to: 0
-                }
+                to: 0.97
+                type: Anim.FastSpatial
             }
         }
         PropertyAction {
@@ -92,67 +60,16 @@ WlSessionLockSurface {
         running: true
 
         Anim {
-            target: background
+            target: lockContent
             property: "opacity"
             to: 1
-            type: Anim.StandardLarge
+            type: Anim.FastEffects
         }
-        SequentialAnimation {
-            ParallelAnimation {
-                Anim {
-                    target: lockContent
-                    property: "scale"
-                    to: 1
-                    type: Anim.FastSpatial
-                }
-                Anim {
-                    target: lockContent
-                    property: "rotation"
-                    to: 360
-                    duration: Tokens.anim.durations.expressiveFastSpatial
-                    easing: Tokens.anim.standardAccel
-                }
-            }
-            ParallelAnimation {
-                Anim {
-                    target: lockIcon
-                    property: "rotation"
-                    to: 360
-                    easing: Tokens.anim.standardDecel
-                }
-                Anim {
-                    type: Anim.DefaultEffects
-                    target: lockIcon
-                    property: "opacity"
-                    to: 0
-                }
-                Anim {
-                    type: Anim.DefaultEffects
-                    target: content
-                    property: "opacity"
-                    to: 1
-                }
-                Anim {
-                    target: content
-                    property: "scale"
-                    to: 1
-                }
-                Anim {
-                    target: lockBg
-                    property: "radius"
-                    to: lockContent.Tokens.rounding.extraLarge * 1.5
-                }
-                Anim {
-                    target: lockContent
-                    property: "implicitWidth"
-                    to: (root.screen?.height ?? 0) * lockContent.Tokens.sizes.lock.heightMult * lockContent.Tokens.sizes.lock.ratio
-                }
-                Anim {
-                    target: lockContent
-                    property: "implicitHeight"
-                    to: (root.screen?.height ?? 0) * lockContent.Tokens.sizes.lock.heightMult
-                }
-            }
+        Anim {
+            target: lockContent
+            property: "scale"
+            to: 1
+            type: Anim.DefaultSpatial
         }
     }
 
@@ -160,7 +77,7 @@ WlSessionLockSurface {
         id: background
 
         anchors.fill: parent
-        opacity: 0
+        opacity: 1
 
         layer.enabled: true
         layer.effect: MultiEffect {
@@ -188,32 +105,45 @@ WlSessionLockSurface {
     Component {
         id: wallpaperBackground
 
-        Visual {
-            source: Wallpapers.current
-            playing: PersistentState.wallpaperPlaying
+        Item {
+            Image {
+                anchors.fill: parent
+                source: {
+                    const p = LiveStartFrame.frame || Wallpapers.current;
+                    return p ? `file://${p}` : "";
+                }
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: false
+                cache: false
+            }
+
+            Visual {
+                anchors.fill: parent
+                source: LiveStartFrame.frame || Wallpapers.current
+                playing: PersistentState.wallpaperPlaying
+                animate: false
+            }
         }
     }
 
     Item {
         id: lockContent
 
-        readonly property int size: lockIcon.implicitHeight + Tokens.padding.large * 4
-        readonly property int radius: size / 4 * Tokens.rounding.scale
-
         anchors.centerIn: parent
-        implicitWidth: size
-        implicitHeight: size
+        implicitWidth: (root.screen?.height ?? 0) * Tokens.sizes.lock.heightMult * Tokens.sizes.lock.ratio
+        implicitHeight: (root.screen?.height ?? 0) * Tokens.sizes.lock.heightMult
 
         visible: Config.lock.enabled
-        rotation: 180
-        scale: 0
+        rotation: 0
+        scale: 0.96
+        opacity: 0
 
         StyledRect {
             id: lockBg
 
             anchors.fill: parent
             color: Colours.palette.m3surface
-            radius: parent.radius
+            radius: Tokens.rounding.extraLarge * 1.5
             opacity: Colours.transparency.enabled ? Colours.transparency.base : 1
 
             layer.enabled: true
@@ -227,10 +157,7 @@ WlSessionLockSurface {
         MaterialIcon {
             id: lockIcon
 
-            anchors.centerIn: parent
-            text: "lock"
-            fontStyle: Tokens.font.icon.builders.extraLarge.scale(4).weight(Font.Bold).build()
-            rotation: 180
+            visible: false
         }
 
         Content {
@@ -241,8 +168,8 @@ WlSessionLockSurface {
             height: (root.screen?.height ?? 0) * Tokens.sizes.lock.heightMult - Tokens.padding.extraLargeIncreased
 
             lock: root
-            opacity: 0
-            scale: 0
+            opacity: 1
+            scale: 1
         }
     }
 }

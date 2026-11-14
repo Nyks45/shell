@@ -113,6 +113,10 @@ QString CUtils::toLocalFile(const QUrl& url) {
     return url.toLocalFile();
 }
 
+bool CUtils::fileExists(const QString& path) {
+    return !path.isEmpty() && QFileInfo::exists(path);
+}
+
 qreal CUtils::clamp(qreal value, qreal min, qreal max) {
     return qBound(min, value, max);
 }

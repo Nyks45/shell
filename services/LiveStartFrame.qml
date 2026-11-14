@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Caelestia
 import qs.utils
 
 // Login order, like Windows: the shell first, then the live wallpaper. The
@@ -17,7 +18,9 @@ Singleton {
 
     readonly property string state: Quickshell.env("XDG_STATE_HOME") || `${Quickshell.env("HOME")}/.local/state`
     readonly property string configDir: Quickshell.env("XDG_CONFIG_HOME") || `${Quickshell.env("HOME")}/.config`
-    property string cachedFrame: ""
+    readonly property string monitorNames: Quickshell.screens.map(s => s.name).join(",")
+    readonly property string defaultFrame: `${state}/live-wallpaper/current-frame.png`
+    property string cachedFrame: CUtils.fileExists(defaultFrame) && CUtils.fileExists(`${configDir}/caelestia/live-wallpaper.json`) ? defaultFrame : ""
     readonly property string frame: cachedFrame
     // When the shell started (a frame written after it is the renderer's first)
     readonly property real startedAt: Date.now() / 1000
@@ -31,7 +34,8 @@ Singleton {
     readonly property bool showing: !!frame && !ready
 
     // Check if this session's renderer is already running (a shell restart) and
-    // locate the saved frame on disk immediately without instantiating LiveWallpaper
+    // locate the saved frame on disk while launching the renderer immediately
+    // without instantiating LiveWallpaper
     Process {
         running: true
         command: ["sh", "-c", `
@@ -42,56 +46,61 @@ Singleton {
                 exit 0
             fi
             cfg="${root.configDir}/caelestia/live-wallpaper.json"
+            has_live=0
             if [ -f "$cfg" ]; then
                 flat=$(tr -d '[:space:]' < "$cfg" 2>/dev/null)
                 case "$flat" in
-                    *'"screens":{}'*) exit 0 ;;
-                    *'"screens":{"'*)
-                        if [ -s "$d/current-frame.png" ]; then
-                            echo "frame:$(readlink -f "$d/current-frame.png")"
-                            exit 0
-                        fi
-                        for f in "$d"/frame-*.png; do
-                            if [ -s "$f" ]; then
-                                echo "frame:$f"
-                                exit 0
-                            fi
-                        done
-                        echo "configured"
-                        exit 0
-                        ;;
+                    *'"screens":{}'*) echo "none"; exit 0 ;;
+                    *'"screens":{"'*) has_live=1 ;;
+                    *) echo "none"; exit 0 ;;
                 esac
-                exit 0
             fi
+            frame=""
             if [ -s "$d/current-frame.png" ]; then
-                echo "frame:$(readlink -f "$d/current-frame.png")"
-                exit 0
+                frame=$(readlink -f "$d/current-frame.png")
+            else
+                for f in "$d"/frame-*.png; do
+                    if [ -s "$f" ]; then
+                        frame="$f"
+                        break
+                    fi
+                done
             fi
-            for f in "$d"/frame-*.png; do
-                if [ -s "$f" ]; then
-                    echo "frame:$f"
-                    break
+            if [ "$has_live" = 1 ] || [ -n "$frame" ]; then
+                (LIVE_WALLPAPER_MONITORS="${root.monitorNames}" exec live-wallpaper start) >/dev/null 2>&1 </dev/null &
+                if [ -n "$frame" ]; then
+                    echo "frame:$frame"
+                else
+                    echo "configured"
                 fi
-            done
+            else
+                echo "none"
+            fi
         `]
         stdout: StdioCollector {
             onStreamFinished: {
                 const out = text.trim();
                 if (out === "running") {
+                    root.cachedFrame = "";
                     root.ready = true;
                     root.wasRunning = true;
+                } else if (out === "none" || !out) {
+                    root.cachedFrame = "";
+                    root.ready = true;
                 } else if (out === "configured") {
+                    root.cachedFrame = "";
                     root.configured = true;
+                    root.started = true;
                 } else if (out.startsWith("frame:")) {
                     root.cachedFrame = out.slice(6);
+                    root.started = true;
                 }
                 root.checked = true;
             }
         }
     }
 
-    // Start the renderer right after the shell has drawn (once per login:
-    // not when it was running already, e.g. after a shell restart)
+    // Fallback launcher if not already started above
     Timer {
         running: root.checked && !root.wasRunning && !root.started && (!!root.cachedFrame || root.configured)
         interval: 50
@@ -99,7 +108,7 @@ Singleton {
             root.started = true;
             // through PATH (~/.local/bin links the shell's script; the dev
             // sandbox's stub catches it there)
-            Quickshell.execDetached(["live-wallpaper", "start"]);
+            Quickshell.execDetached(["sh", "-c", `LIVE_WALLPAPER_MONITORS="${root.monitorNames}" exec live-wallpaper start`]);
         }
     }
 
@@ -107,7 +116,7 @@ Singleton {
     Timer {
         running: root.showing && root.started
         repeat: true
-        interval: 150
+        interval: 80
         onTriggered: if (!statProc.running)
             statProc.running = true
     }
@@ -115,11 +124,18 @@ Singleton {
     Process {
         id: statProc
 
-        command: ["stat", "-L", "-c", "%Y", `${root.state}/live-wallpaper/ready.bmp`, root.frame]
+        command: ["sh", "-c", `
+            rb="${root.state}/live-wallpaper/ready.bmp"
+            if [ -s "$rb" ]; then
+                stat -L -c "%Y" "$rb" 2>/dev/null
+            else
+                stat -L -c "%Y" "${root.frame}" 2>/dev/null
+            fi
+        `]
         stdout: StdioCollector {
             onStreamFinished: {
                 for (const line of text.trim().split("\n")) {
-                    if (parseInt(line) >= root.startedAt - 1) {
+                    if (parseInt(line) >= Math.floor(root.startedAt)) {
                         root.ready = true;
                         break;
                     }

@@ -3,6 +3,7 @@
 #include <qguiapplication.h>
 #include <qicon.h>
 #include <qthread.h>
+#include <utility>
 
 #include "core/toaster.hpp"
 #include "util/i18n.hpp"
@@ -22,10 +23,15 @@ void loaded(ConfigKind kind, settings::RootNode* layer, const QString& screen) {
         return;
 
     const auto* config = static_cast<ConfigRoot*>(layer);
+    const auto issues = static_cast<int>(config->diagnostics().count());
+    static bool s_firstLoad = true;
+    const bool isFirst = std::exchange(s_firstLoad, false);
+    if (isFirst && issues == 0)
+        return;
+
     if (!config->utilities()->toasts()->configLoaded())
         return;
 
-    const auto issues = static_cast<int>(config->diagnostics().count());
     const auto message = issues > 0
                              ? markN(u"Config loaded with %n issue."_s, u"Config loaded with %n issues."_s, issues)
                              : mark(u"Config loaded successfully!"_s);
