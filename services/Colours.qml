@@ -95,14 +95,17 @@ Singleton {
         // Nebula's parts (Settings > Style): their glass shapes are blurred behind, following each
         // shape's outline (ignore_alpha 0.1, as in Nebula's own rules)
         const neb = Hypr.usingLua ? `eval hl.layer_rule({ match = { namespace = "caelestia-nebula-(widgets|widgetcorner|widgetmenu)" }, blur = true, ignore_alpha = 0.1 })` : "keyword layerrule blur on, match:namespace caelestia-nebula-(widgets|widgetcorner|widgetmenu)";
-        Hypr.extras.batchMessage([rule.arg("blur").arg(trEnabled), rule.arg("ignore_alpha").arg(Math.max(0, transparency.base - 0.03)), neb]);
+        // Nebula's launcher: the whole screen behind the ring is blurred (Nebula: blur, no
+        // ignore_alpha) and it opens without the compositor's layer animation (its own intro)
+        const nebLauncher = Hypr.usingLua ? [`eval hl.layer_rule({ match = { namespace = "caelestia-nebula-launcher" }, blur = true, no_anim = true })`] : ["keyword layerrule blur on, match:namespace caelestia-nebula-launcher", "keyword layerrule no_anim on, match:namespace caelestia-nebula-launcher"];
+        Hypr.extras.batchMessage([rule.arg("blur").arg(trEnabled), rule.arg("ignore_alpha").arg(Math.max(0, transparency.base - 0.03)), neb, ...nebLauncher]);
 
         // Their own blur strength (Wallpaper & style > Blur; 0 = as windows): layer rules of the
         // shell's own Hyprland build. Sent apart, so a Hyprland without them keeps the rules above.
         if (Hypr.usingLua) {
             const b = GlobalConfig.appearance.blur;
             const strength = (ns, size, passes) => `eval hl.layer_rule({ match = { namespace = "${ns}" }, blur_size = ${Math.max(0, size)}, blur_passes = ${Math.max(0, passes)} })`;
-            Hypr.extras.batchMessage([strength("caelestia-drawers", b.shellSize, b.shellPasses), strength("caelestia-nebula-(widgets|widgetcorner|widgetmenu)", b.widgetsSize, b.widgetsPasses)]);
+            Hypr.extras.batchMessage([strength("caelestia-drawers", b.shellSize, b.shellPasses), strength("caelestia-nebula-(widgets|widgetcorner|widgetmenu)", b.widgetsSize, b.widgetsPasses), strength("caelestia-nebula-launcher", b.launcherSize, b.launcherPasses)]);
         }
     }
 
@@ -117,6 +120,12 @@ Singleton {
             root.requestReloadHyprRules();
         }
         function onWidgetsPassesChanged(): void {
+            root.requestReloadHyprRules();
+        }
+        function onLauncherSizeChanged(): void {
+            root.requestReloadHyprRules();
+        }
+        function onLauncherPassesChanged(): void {
             root.requestReloadHyprRules();
         }
 

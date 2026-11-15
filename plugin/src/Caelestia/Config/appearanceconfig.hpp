@@ -289,6 +289,8 @@ class AppearanceBlur : public settings::ObjectNode {
     CONFIG_GLOBAL_PROPERTY(int, shellPasses, 0)
     CONFIG_GLOBAL_PROPERTY(int, widgetsSize, 0)
     CONFIG_GLOBAL_PROPERTY(int, widgetsPasses, 0)
+    CONFIG_GLOBAL_PROPERTY(int, launcherSize, 0)
+    CONFIG_GLOBAL_PROPERTY(int, launcherPasses, 0)
 };
 
 // Nebula style (github.com/LilaccFlowerr/Nebula, see NEBULA.md): which of its parts are on.
@@ -297,6 +299,8 @@ class AppearanceStyle : public settings::ObjectNode {
     CONFIG_NODE(AppearanceStyle, settings::ObjectNode)
 
     CONFIG_GLOBAL_PROPERTY(bool, desktopWidgets, false)
+    // "caelestia" (the drawer list) or "nebula" (Nebula's Clover ring)
+    CONFIG_GLOBAL_PROPERTY(QString, launcher, u"caelestia"_s)
 };
 
 class AppearanceConfig : public settings::ObjectNode {

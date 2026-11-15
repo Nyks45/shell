@@ -51,7 +51,7 @@ Item {
     readonly property bool isCommand: shownEntry?.run !== undefined
     readonly property bool isWallpaper: shownEntry?.path !== undefined
     readonly property bool isTheme: shownEntry?.scheme !== undefined
-    readonly property var preview: isTheme ? Scheme.previews[shownEntry.scheme] ?? null : null
+    readonly property var preview: isTheme ? shownEntry.preview ?? null : null
     readonly property real radians: (angle - 90) * Math.PI / 180
 
     width: Theme.launcher.labelWidth
@@ -84,7 +84,8 @@ Item {
 
     Text {
         anchors.centerIn: shape
-        visible: root.isCommand
+        // Commands, and themes without colours to show (the Material variants)
+        visible: root.isCommand || (root.isTheme && !root.preview)
         text: root.shownEntry?.icon ?? ""
         color: root.selected ? Colors.textOnPrimaryContainer : Colors.textOnSurface
         font.family: Theme.font.icons

@@ -46,6 +46,45 @@ PageBase {
         }
 
         SectionHeader {
+            text: Tr.tr("Launcher")
+        }
+
+        SelectRow {
+            label: Tr.tr("Launcher")
+            subtext: GlobalConfig.appearance.style.launcher === "nebula" ? Tr.tr("A ring of apps around a search pill. Type > for commands; Theme, Variant, Wallpaper and Calculator open pickers in the ring") : Tr.tr("The list that slides up from the bottom edge")
+            menuItems: [caelestiaLauncher, nebulaLauncher]
+            active: GlobalConfig.appearance.style.launcher === "nebula" ? nebulaLauncher : caelestiaLauncher
+            onSelected: item => GlobalConfig.appearance.style.launcher = item.value
+
+            MenuItem {
+                id: caelestiaLauncher
+
+                icon: "view_list"
+                text: Tr.tr("Caelestia list")
+                value: "caelestia"
+            }
+
+            MenuItem {
+                id: nebulaLauncher
+
+                icon: "filter_vintage"
+                text: Tr.tr("Nebula ring")
+                value: "nebula"
+            }
+        }
+
+        StyledText {
+            Layout.fillWidth: true
+            Layout.leftMargin: Tokens.padding.normal
+            Layout.bottomMargin: Tokens.spacing.small
+            // TRANSLATORS: where the launcher's contents come from, whatever its style
+            text: Tr.tr("Either style opens the same way (Super, the hot corner, the bar's logo) and uses the same apps, hidden apps and actions from Settings > Launcher.")
+            wrapMode: Text.WordWrap
+            color: Colours.palette.m3outline
+            font: Tokens.font.label.small
+        }
+
+        SectionHeader {
             text: Tr.tr("Glass")
         }
 

@@ -58,7 +58,7 @@ Item {
         customToShape: clover(Launcher.commandSlots)
         morphProgress: root.shownMorph
         rotation: root.shownMorph * 360 / Launcher.commandSlots - leafOffset - (1 - Curves.decel(root.cloverT)) * 120
-        readonly property color accent: Launcher.themeMode ? Scheme.previews[root.results[root.cursor]?.scheme]?.primaryContainer ?? Colors.primaryContainer
+        readonly property color accent: Launcher.themeMode ? root.results[root.cursor]?.preview?.primaryContainer ?? Colors.primaryContainer
              : Launcher.wallpaperMode ? Colors.secondaryContainer : Launcher.commandMode ? Colors.tertiaryContainer : Colors.primaryContainer
         color: Qt.alpha(accent, Theme.launcher.glassTint)
 

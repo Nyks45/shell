@@ -63,6 +63,10 @@ StyledWindow {
         return Math.max(...thresholds);
     }
 
+    // The launcher is Nebula's ring (its own window, modules/nebula/NebulaLauncher.qml): the
+    // drawers take neither the keyboard nor a focus grab for it
+    readonly property bool nebulaLauncher: GlobalConfig.appearance.style.launcher === "nebula"
+
     onHasFullscreenChanged: {
         screenState.launcher = false;
         screenState.session = false;
@@ -73,7 +77,7 @@ StyledWindow {
     name: "drawers"
     WlrLayershell.exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: (fsTransitionProg > 0 && contentItem.Config.general.showOverFullscreen) || (hasSpecialWorkspace && hasFullscreenOnNormalWs) ? WlrLayer.Overlay : WlrLayer.Top
-    WlrLayershell.keyboardFocus: screenState.launcher || screenState.session ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: (screenState.launcher && !root.nebulaLauncher) || screenState.session ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     mask: hasFullscreen ? emptyRegion : regions
 
@@ -120,7 +124,9 @@ StyledWindow {
         active: {
             const s = root.screenState;
             const conf = root.contentItem.Config;
-            if ((s.launcher && conf.launcher.enabled) || (s.session && conf.session.enabled) || (s.sidebar && conf.sidebar.enabled))
+            if (!s || !conf) // the screen went away (shell reload, monitor unplugged)
+                return false;
+            if ((s.launcher && conf.launcher.enabled && !root.nebulaLauncher) || (s.session && conf.session.enabled) || (s.sidebar && conf.sidebar.enabled))
                 return true;
             if (!conf.dashboard.showOnHover && s.dashboard && conf.dashboard.enabled)
                 return true;

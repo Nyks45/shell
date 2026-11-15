@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/prctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -131,6 +132,12 @@ static void trigger_plymouth_handoff(void) {
 }
 
 int main(int argc, char** argv) {
+    // pam_systemd gives a local-seat session an ambient CAP_WAKE_ALARM (systemd >= 254). It is
+    // inherited by every program started from the desktop, and bubblewrap (Steam's runtime,
+    // Flatpak) refuses to start with any capability while not setuid: "Unexpected capabilities
+    // but not setuid". Nothing in the desktop needs it, so the session starts without it.
+    prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0);
+
     if (argc > 1) {
         execv(SESSION_HELPER, argv);
         perror("execv caelestia-session");

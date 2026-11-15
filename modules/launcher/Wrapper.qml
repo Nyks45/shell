@@ -13,7 +13,8 @@ Item {
     required property ScreenState screenState
     required property var panels
 
-    readonly property bool shouldBeActive: screenState.launcher && Config.launcher.enabled
+    // With the Nebula launcher style the ring opens instead (modules/nebula/NebulaLauncher.qml)
+    readonly property bool shouldBeActive: screenState.launcher && Config.launcher.enabled && GlobalConfig.appearance.style.launcher !== "nebula"
 
     readonly property real maxHeight: {
         let max = screen.height - Config.border.thickness * 2 + Tokens.padding.extraLarge;

@@ -3,6 +3,7 @@ import QtQuick.Effects
 import M3Shapes
 import Quickshell
 import Quickshell.Wayland
+import Caelestia.Config
 import qs.nebula.services
 import qs.nebula.theme
 import "../../components/Curves.js" as Curves
@@ -51,10 +52,10 @@ PanelWindow {
     property int selected: 0
     property int cursor: 0
     readonly property var results: Launcher.results
-    readonly property bool infinite: Launcher.wallpaperMode && results.length > Launcher.slots
+    readonly property bool infinite: (Launcher.wallpaperMode || Launcher.themeMode) && results.length > Launcher.slots
     onResultsChanged: {
-        cursor = Launcher.wallpaperMode ? Math.max(0, results.findIndex(w => w.path === Wallpaper.current))
-            : Launcher.themeMode ? Math.max(0, results.findIndex(s => s.scheme === Scheme.current)) : 0;
+        cursor = Launcher.wallpaperMode ? Math.max(0, results.findIndex(w => w.path === Launcher.currentWallpaper))
+            : Launcher.themeMode ? Math.max(0, results.findIndex(s => s.scheme === Launcher.currentTheme)) : 0;
         selected = infinite ? 0 : cursor;
     }
 
@@ -216,6 +217,9 @@ PanelWindow {
                 else if (event.key === Qt.Key_Left || event.key === Qt.Key_Up || event.key === Qt.Key_Backtab) window.step(-1, event.isAutoRepeat);
                 else if (event.key === Qt.Key_Right || event.key === Qt.Key_Down || event.key === Qt.Key_Tab) window.step(1, event.isAutoRepeat);
                 else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) Launcher.activate(window.results[window.cursor]);
+                // Settings > Launcher > Vim keybinds
+                else if (GlobalConfig.launcher.vimKeybinds && (event.modifiers & Qt.ControlModifier) && (event.key === Qt.Key_H || event.key === Qt.Key_K)) window.step(-1, event.isAutoRepeat);
+                else if (GlobalConfig.launcher.vimKeybinds && (event.modifiers & Qt.ControlModifier) && (event.key === Qt.Key_L || event.key === Qt.Key_J)) window.step(1, event.isAutoRepeat);
                 else return;
                 event.accepted = true;
             }
@@ -225,7 +229,7 @@ PanelWindow {
             x: input.x
             anchors.verticalCenter: parent.verticalCenter
             visible: input.text === "" || input.text === ">"
-            text: Launcher.wallpaperMode ? "Wallpapers" : Launcher.themeMode ? "Themes" : input.text === ">" ? "> Commands" : "Search"
+            text: Launcher.placeholder
             color: Colors.textOnSurfaceVariant
             opacity: input.opacity
             font: input.font

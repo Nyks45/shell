@@ -503,7 +503,7 @@ PageBase {
         BlurRow {
             visible: root.blurOn
             label: Tr.tr("Panels and bar")
-            subtext: Tr.tr("The shell's bar, dashboard, launcher, sidebar, notifications and popouts")
+            subtext: GlobalConfig.appearance.style.launcher === "nebula" ? Tr.tr("The shell's bar, dashboard, sidebar, notifications and popouts") : Tr.tr("The shell's bar, dashboard, launcher, sidebar, notifications and popouts")
             size: GlobalConfig.appearance.blur.shellSize
             passes: GlobalConfig.appearance.blur.shellPasses
             onSizeMoved: v => GlobalConfig.appearance.blur.shellSize = v
@@ -518,6 +518,16 @@ PageBase {
             passes: GlobalConfig.appearance.blur.widgetsPasses
             onSizeMoved: v => GlobalConfig.appearance.blur.widgetsSize = v
             onPassesMoved: v => GlobalConfig.appearance.blur.widgetsPasses = v
+        }
+
+        BlurRow {
+            visible: root.blurOn && GlobalConfig.appearance.style.launcher === "nebula"
+            label: Tr.tr("Nebula launcher")
+            subtext: Tr.tr("The screen behind Nebula's ring launcher")
+            size: GlobalConfig.appearance.blur.launcherSize
+            passes: GlobalConfig.appearance.blur.launcherPasses
+            onSizeMoved: v => GlobalConfig.appearance.blur.launcherSize = v
+            onPassesMoved: v => GlobalConfig.appearance.blur.launcherPasses = v
         }
 
         ToggleRow {
