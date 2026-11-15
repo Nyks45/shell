@@ -356,6 +356,8 @@ Singleton {
 
     component NowPlaying: QtObject {
         readonly property int margin: 32
+        // The default spot's distance from the left edge: past the shell's left bar (Nebula: 32)
+        readonly property int marginLeft: 32 + 72
         readonly property int cookieSize: 280
         readonly property int artSize: 88
         readonly property int textWidth: 170

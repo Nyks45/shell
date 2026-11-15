@@ -381,7 +381,7 @@ Variants {
                 readonly property real maxY: Math.max(0, window.height - height)
                 readonly property bool ghost: !!cfg.screen && Widgets.dragId === modelData && Widgets.dragSource !== window.modelData.name
                 readonly property real restX: ghost ? Widgets.dragX - window.modelData.x
-                    : pos.x < 0 ? Theme.nowPlaying.margin : Math.min(pos.x, maxX)
+                    : pos.x < 0 ? Theme.nowPlaying.marginLeft : Math.min(pos.x, maxX)
                 readonly property real restY: ghost ? Widgets.dragY - window.modelData.y
                     : pos.y < 0 ? maxY - Theme.nowPlaying.margin : Math.min(pos.y, maxY)
 

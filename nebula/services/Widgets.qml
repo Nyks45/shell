@@ -208,7 +208,7 @@ Singleton {
         const s = screenNamed(w.screen ?? "");
         const size = w.size ?? types[w.type]?.size ?? 200;
         const p = position(w, s);
-        const x = p.x < 0 ? Theme.nowPlaying.margin : p.x;
+        const x = p.x < 0 ? Theme.nowPlaying.marginLeft : p.x;
         const tall = size * aspectOf(w);
         const y = p.y < 0 ? s.height - tall - Theme.nowPlaying.margin : p.y;
         return Qt.rect(s.x + x, s.y + y, size, tall);
