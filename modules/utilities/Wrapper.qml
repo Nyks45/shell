@@ -36,13 +36,19 @@ Item {
 
     visible: offsetScale < 1
     anchors.bottomMargin: expandStyle ? 0 : (-implicitHeight - 5) * offsetScale
-    implicitHeight: (content.implicitHeight + totalPadding) * (expandStyle ? openT : 1)
+    implicitHeight: (content.implicitHeight + totalPadding) * (expandStyle && !attached ? openT : 1)
     clip: expandStyle
-    implicitWidth: sidebar.width * (1 - sidebar.offsetScale) * horizontalStretch * sidebarLerp + Tokens.sizes.utilities.width * (1 - sidebarLerp)
+    // Expanding with the sidebar: one body. Attached, it widens exactly with the sidebar (whose
+    // width already grows) and doesn't grow on its own; its content keeps its final width and is
+    // revealed from the right edge, not reflowed while the panel grows.
+    readonly property real fullWidth: attached ? Tokens.sizes.sidebar.width * horizontalStretch : Tokens.sizes.utilities.width
+    // (the sidebar on screen, opening or closing: its own transition doesn't matter then)
+    readonly property bool attached: expandStyle && sidebar.offsetScale < 1
+    implicitWidth: attached ? sidebar.width * horizontalStretch : expandStyle ? Tokens.sizes.utilities.width : sidebar.width * (1 - sidebar.offsetScale) * horizontalStretch * sidebarLerp + Tokens.sizes.utilities.width * (1 - sidebarLerp)
     opacity: expandStyle ? 1 : 1 - offsetScale
     // Expanding: the body grows first, then the content fades in and settles (closing: the
     // content goes first, then the body folds back into the edge)
-    readonly property real contentT: expandStyle ? Math.max(0, Math.min(1, (openT - 0.35) / 0.6)) : 1
+    readonly property real contentT: !expandStyle ? 1 : attached ? sidebar.contentT : Math.max(0, Math.min(1, (openT - 0.35) / 0.6))
 
     states: State {
         name: "attachedToSidebar"
@@ -88,7 +94,7 @@ Item {
         function ensureSource(): void {
             if (active && !source.toString())
                 setSource(Qt.resolvedUrl("Content.qml"), {
-                    implicitWidth: Qt.binding(() => root.implicitWidth - root.totalPadding),
+                    implicitWidth: Qt.binding(() => (root.expandStyle ? root.fullWidth : root.implicitWidth) - root.totalPadding),
                     props: root.props,
                     screenState: root.screenState,
                     popouts: root.popouts,
@@ -99,7 +105,8 @@ Item {
         // (expanding: stays put at the bottom edge and is revealed; sliding: moves with the panel)
         anchors.top: root.expandStyle ? undefined : parent.top
         anchors.bottom: root.expandStyle ? parent.bottom : undefined
-        anchors.left: parent.left
+        anchors.left: root.expandStyle ? undefined : parent.left
+        anchors.right: root.expandStyle ? parent.right : undefined
         anchors.margins: Tokens.padding.large
 
         asynchronous: true
