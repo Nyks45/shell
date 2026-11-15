@@ -147,8 +147,29 @@ Singleton {
         return out;
     }
 
+    // Keys whose waiting changes were just made (shown as "Saved")
+    property var savedKeys: []
+    // Launchers closed by "Save now" to start again once their waiting changes are made
+    property var restartAfter: []
+
+    function waitingFor(launcher: string): bool {
+        return queued.some(q => q.launcher === launcher) || Object.keys(pending).some(k => k.startsWith(`${launcher}:`));
+    }
+
+    // "Save now": close the launcher (Steam: its own clean shutdown), make the waiting changes,
+    // start it again
+    function saveNow(launcher: string): void {
+        if (launcher !== "steam" || !blocked(launcher))
+            return;
+        if (!restartAfter.includes(launcher))
+            restartAfter = [...restartAfter, launcher];
+        Quickshell.execDetached(["steam", "-shutdown"]);
+        load();
+    }
+
     function flushPending(): void {
         let changed = false;
+        const saved = [];
         const p = Object.assign({}, pending);
         for (const key of Object.keys(p)) {
             const g = find(key);
@@ -165,6 +186,7 @@ Singleton {
             const change = p[key];
             delete p[key];
             changed = true;
+            saved.push(key);
             Admin.exec([helper, "game-set"], Tr.tr("Change %1's settings").arg(g.title), () => root.load(), JSON.stringify(Object.assign({
                 key
             }, change)));
@@ -182,7 +204,31 @@ Singleton {
             pending = p;
             queued = waiting;
             savePending();
+            savedKeys = [...savedKeys, ...saved];
+            savedTimer.restart();
         }
+        // Closed by "Save now": started again when nothing waits for it any more
+        for (const l of restartAfter) {
+            if (!blocked(l) && loaded && !waitingFor(l)) {
+                restartAfter = restartAfter.filter(x => x !== l);
+                restartTimer.restart();
+            }
+        }
+    }
+
+    Timer {
+        id: savedTimer
+
+        interval: 8000
+        onTriggered: root.savedKeys = []
+    }
+
+    // A moment for the saving jobs to finish before Steam reads its settings again
+    Timer {
+        id: restartTimer
+
+        interval: 2500
+        onTriggered: Quickshell.execDetached(["steam"])
     }
 
     onLaunchersChanged: flushPending()

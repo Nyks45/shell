@@ -1,0 +1,13 @@
+[Unit]
+Description=Caelestia: keep the clipboard after the program it was copied from closes (like Windows)
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+# Only the clipboard (Ctrl+C), not the selection; huge copies (over 200 MB) are left alone
+ExecStart=/usr/bin/wl-clip-persist --clipboard regular --selection-size-limit 209715200 --reconnect-tries 10 --disable-timestamps
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

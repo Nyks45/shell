@@ -155,7 +155,7 @@ PageBase {
                             Layout.fillWidth: true
                             readonly property int own: Object.keys(row.modelData.env).length + (row.modelData.mangohud ? 1 : 0) + (row.modelData.perf ? 1 : 0)
 
-                            text: [row.modelData.shortcut ? Tr.tr("Steam (added)") : Games.launcherNames[row.modelData.launcher], root.protonLabel(row.modelData), row.modelData.state === "updating" ? Tr.tr("downloading or updating") : row.modelData.state === "hidden" ? Tr.tr("hidden in Faugus") : "", own ? (own === 1 ? Tr.tr("1 own setting") : Tr.tr("%1 own settings").arg(own)) : ""].filter(s => s).join(" · ")
+                            text: [row.modelData.shortcut ? Tr.tr("Steam (added)") : Games.launcherNames[row.modelData.launcher], root.protonLabel(row.modelData), row.modelData.state === "updating" ? Tr.tr("downloading or updating") : row.modelData.state === "hidden" ? Tr.tr("hidden in Faugus") : "", Games.hasPending(row.modelData.key) ? Tr.tr("changes not saved yet") : "", own ? (own === 1 ? Tr.tr("1 own setting") : Tr.tr("%1 own settings").arg(own)) : ""].filter(s => s).join(" · ")
                             color: Colours.palette.m3outline
                             font: Tokens.font.label.small
                             elide: Text.ElideRight

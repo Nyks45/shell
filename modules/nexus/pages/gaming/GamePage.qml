@@ -30,6 +30,9 @@ PageBase {
     readonly property string what: Tr.tr("Change %1's settings").arg(game?.title ?? "")
     readonly property bool busy: Admin.jobs.some(j => j.what === root.what)
     readonly property bool canChange: !!game && !busy
+    readonly property bool justSaved: !!game && Games.savedKeys.includes(game.key)
+    readonly property bool restarting: !!game && Games.restartAfter.includes(game.launcher)
+    readonly property string launcherName: Games.launcherNames[game?.launcher] ?? ""
     readonly property var choices: launcher.choices ?? []
 
     function change(c: var): void {
@@ -172,14 +175,66 @@ PageBase {
             }
         }
 
+        // Saved or waiting: what happened to this game's changes, and "Save now"
+        ConnectedRect {
+            Layout.fillWidth: true
+            Layout.bottomMargin: Tokens.spacing.small
+            visible: !!root.game && (root.blocked || root.busy || root.waiting || root.justSaved)
+            implicitHeight: saveL.implicitHeight + Tokens.padding.medium * 2
+
+            RowLayout {
+                id: saveL
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Tokens.padding.largeIncreased
+                anchors.rightMargin: Tokens.padding.largeIncreased
+                spacing: Tokens.spacing.medium
+
+                MaterialIcon {
+                    text: root.busy || root.restarting ? "sync" : root.waiting ? "schedule" : root.justSaved ? "check_circle" : "info"
+                    color: root.waiting || root.busy || root.restarting ? Colours.palette.m3tertiary : root.justSaved ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
+                    fontStyle: Tokens.font.icon.medium
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: root.busy ? Tr.tr("Saving…") : root.restarting ? Tr.tr("Closing %1 to save…").arg(root.launcherName) : root.waiting ? Tr.tr("Changes not saved yet") : root.justSaved ? Tr.tr("Saved") : Tr.tr("%1 is open").arg(root.launcherName)
+                        font: Tokens.font.body.small
+                    }
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: root.restarting ? Tr.tr("It starts again once the changes are saved") : root.waiting ? Tr.tr("Saved as soon as %1 is closed: it writes its old settings back when it quits").arg(root.launcherName) : root.justSaved ? Tr.tr("The changes are in %1's settings").arg(root.launcherName) : Tr.tr("Changes made now are saved as soon as it's closed")
+                        color: Colours.palette.m3outline
+                        font: Tokens.font.label.small
+                        wrapMode: Text.WordWrap
+                    }
+                }
+
+                TextButton {
+                    visible: root.waiting && root.blocked && root.game?.launcher === "steam" && !root.restarting
+                    text: Tr.tr("Save now")
+                    type: TextButton.Filled
+                    onClicked: Games.saveNow("steam")
+                }
+            }
+        }
+
         StyledText {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
             Layout.bottomMargin: Tokens.spacing.small
-            visible: root.blocked || root.busy || root.waiting
-            text: root.busy ? Tr.tr("Saving…") : root.waiting ? Tr.tr("Changed: saved as soon as %1 is closed (it writes its old settings back when it quits).").arg(Games.launcherNames[root.game?.launcher] ?? "") : Tr.tr("%1 is open: changes made now are saved as soon as it's closed.").arg(Games.launcherNames[root.game?.launcher] ?? "")
+            visible: root.waiting && root.blocked && root.game?.launcher === "steam" && !root.restarting
+            // TRANSLATORS: explains the Save now button
+            text: Tr.tr("Save now closes Steam (and a game running from it), saves, and starts Steam again.")
             wrapMode: Text.WordWrap
-            color: root.busy || root.waiting ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
+            color: Colours.palette.m3outline
             font: Tokens.font.label.small
         }
 
