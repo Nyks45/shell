@@ -52,7 +52,7 @@ resolve() {
 event() {
     local who="" p=$PPID n=0
     while [[ "$p" -gt 1 && $n -lt 3 ]]; do
-        who+="${who:+ < }$(tr '\0' ' ' < /proc/"$p"/cmdline 2>/dev/null | cut -c1-80)"
+        who+="${who:+ < }$(tr '\0\n' '  ' < /proc/"$p"/cmdline 2>/dev/null | cut -c1-80)"
         p=$(awk '{print $4}' /proc/"$p"/stat 2>/dev/null || echo 1); n=$((n + 1))
     done
     mkdir -p "$STATE"
