@@ -13,6 +13,8 @@ ColumnLayout {
     property string arg: ""
     readonly property var cfg: Widgets.get(arg) ?? ({})
     readonly property bool shapeLocked: cfg.type === "weather" && (cfg.follow ?? true)
+    // A digital clock is a plate, not a shape
+    readonly property bool shapeless: cfg.type === "clock" && cfg.face === "digital"
     readonly property var type: Widgets.types[cfg.type] ?? ({ title: "", icon: "widgets", size: 200, minSize: 80, maxSize: 600, color: "secondary" })
 
     signal navigate(string target)
@@ -33,6 +35,7 @@ ColumnLayout {
         title: "Look"
 
         SettingRow {
+            visible: !page.shapeless
             icon: "category"
             title: "Shape"
             subtitle: page.shapeLocked ? "Follows the weather" : cfg.shape ?? ""
@@ -40,7 +43,7 @@ ColumnLayout {
 
         Item {
             Layout.fillWidth: true
-            visible: !page.shapeLocked
+            visible: !page.shapeLocked && !page.shapeless
             implicitHeight: shapeFlow.implicitHeight + Theme.spacing.md * 2
 
             Flow {

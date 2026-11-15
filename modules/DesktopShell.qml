@@ -19,6 +19,10 @@ Scope {
     required property Lock lock
 
     Component.onCompleted: {
+        // The shell's old Desktop clock lives on as the clock widget's digital face: if it was
+        // on, the widgets come on and take it over (nebula/services/Widgets.qml adoptShellClock)
+        if (GlobalConfig.background.desktopClock.enabled)
+            GlobalConfig.appearance.style.desktopWidgets = true;
         Players;
         HyprSettings;
         LiveWallpaper;

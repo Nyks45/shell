@@ -98,66 +98,6 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Clock on the desktop",
-            "ctx": "",
-            "sub": "",
-            "section": "Desktop clock",
-            "page": 0,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Position",
-            "ctx": "",
-            "sub": "",
-            "section": "Desktop clock",
-            "page": 0,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Clock size",
-            "ctx": "",
-            "sub": "",
-            "section": "Desktop clock",
-            "page": 0,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Dark text",
-            "ctx": "",
-            "sub": "For light wallpapers",
-            "section": "Desktop clock",
-            "page": 0,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Background behind the clock",
-            "ctx": "",
-            "sub": "",
-            "section": "Desktop clock",
-            "page": 0,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Shadow",
-            "ctx": "",
-            "sub": "",
-            "section": "Desktop clock",
-            "page": 0,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
             "label": "Visualiser on the desktop",
             "ctx": "",
             "sub": "Bars at the bottom of the wallpaper that move with what's playing",

@@ -4,6 +4,9 @@ import M3Shapes
 import qs.nebula.components
 import qs.nebula.services
 import qs.nebula.theme
+import QtQuick.Layouts
+import Caelestia.Config
+import qs.services as Shell
 
 Item {
     id: root
@@ -15,6 +18,10 @@ Item {
     property bool showDate: true
     property bool showNumbers: false
     property string tickStyle: "hours"
+    // "analog" (Nebula's) or "digital" (the shell's desktop clock, in a glass plate): the shell's
+    // separate Desktop clock is this widget now
+    property string clockFace: "analog"
+    readonly property bool digital: clockFace === "digital"
     readonly property bool showTicks: tickStyle !== "off"
     property bool live: true
     readonly property var colors: Widgets.palette(colorRole)
@@ -31,7 +38,7 @@ Item {
     }
 
     implicitWidth: size
-    implicitHeight: size
+    implicitHeight: digital ? size * Widgets.digitalClockAspect : size
 
     readonly property date now: clock.date
     readonly property real ticks: Math.floor((now.getTime() - now.getTimezoneOffset() * 60000) / 1000)
@@ -133,6 +140,7 @@ Item {
 
     GlassShape {
         id: face
+        visible: !root.digital
         anchors.fill: parent
         shape: MaterialShape[root.shapeName] ?? MaterialShape.Cookie12Sided
         fill: root.colors.fill
@@ -155,7 +163,7 @@ Item {
     }
 
     Repeater {
-        model: root.tickStyle === "all" ? 60 : root.tickStyle === "hours" ? 12 : 0
+        model: root.digital ? 0 : root.tickStyle === "all" ? 60 : root.tickStyle === "hours" ? 12 : 0
 
         Rectangle {
             required property int index
@@ -187,7 +195,7 @@ Item {
     }
 
     Repeater {
-        model: root.showNumbers ? 12 : 0
+        model: root.showNumbers && !root.digital ? 12 : 0
 
         Text {
             required property int index
@@ -216,7 +224,7 @@ Item {
             NumberAnimation { duration: Theme.anim.slow; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.anim.emphasizedDecel }
         }
 
-        visible: root.showDate
+        visible: root.showDate && !root.digital
         x: root.width / 2 - width / 2
         y: root.height / 2 - height / 2 + reach
         text: root.now.toLocaleString(Qt.locale("en_US"), "ddd d")
@@ -228,6 +236,7 @@ Item {
 
     Rectangle {
         id: hourHand
+        visible: !root.digital
 
         readonly property real length: root.inner * 0.55
 
@@ -248,6 +257,7 @@ Item {
 
     Rectangle {
         id: minuteHand
+        visible: !root.digital
 
         readonly property real length: root.inner * 0.82
 
@@ -271,12 +281,106 @@ Item {
 
         readonly property real distance: Math.max(root.inner * 0.5, (root.ready && face.width > 0 ? face.distanceAtAngle(root.secondAngle) : root.inner) - root.dotSize * 1.4 - root.tickInset)
 
-        visible: root.showSeconds
+        visible: root.showSeconds && !root.digital
         x: root.width / 2 + distance * Math.sin(root.secondAngle * Math.PI / 180) - width / 2
         y: root.height / 2 - distance * Math.cos(root.secondAngle * Math.PI / 180) - height / 2
         width: root.dotSize
         height: width
         radius: width / 2
         color: root.colors.text
+    }
+
+    // Digital face: the shell's desktop clock (hour : minute | month, day, weekday)
+    GlassRect {
+        anchors.fill: parent
+        visible: root.digital
+        fill: root.colors.fill
+        radius: height * 0.32
+
+        RowLayout {
+            id: digitalRow
+
+            readonly property real unit: parent.height / 100
+            readonly property string fontFamily: GlobalConfig.appearance.font.clock
+
+            anchors.centerIn: parent
+            spacing: unit * 9
+            scale: Math.min(1, (parent.width - parent.height * 0.3) / Math.max(1, implicitWidth))
+
+            RowLayout {
+                spacing: digitalRow.unit * 2
+
+                Text {
+                    text: Shell.Time.hourStr
+                    font.family: digitalRow.fontFamily
+                    font.pixelSize: digitalRow.unit * 62
+                    font.weight: Font.Bold
+                    color: Colors.primary
+                }
+                Text {
+                    Layout.topMargin: -digitalRow.unit * 10
+                    text: ":"
+                    font.family: digitalRow.fontFamily
+                    font.pixelSize: digitalRow.unit * 62
+                    color: Colors.tertiary
+                    opacity: 0.8
+                }
+                Text {
+                    text: Shell.Time.minuteStr
+                    font.family: digitalRow.fontFamily
+                    font.pixelSize: digitalRow.unit * 62
+                    font.weight: Font.Bold
+                    color: Colors.secondary
+                }
+                Text {
+                    Layout.alignment: Qt.AlignTop
+                    Layout.topMargin: digitalRow.unit * 12
+                    visible: Shell.Time.amPmStr !== ""
+                    text: Shell.Time.amPmStr
+                    font.family: digitalRow.fontFamily
+                    font.pixelSize: digitalRow.unit * 16
+                    color: Colors.secondary
+                }
+            }
+
+            Rectangle {
+                visible: root.showDate
+                Layout.fillHeight: true
+                Layout.preferredWidth: Math.max(2, digitalRow.unit * 3)
+                Layout.topMargin: digitalRow.unit * 10
+                Layout.bottomMargin: digitalRow.unit * 10
+                radius: width / 2
+                color: Colors.primary
+                opacity: 0.8
+            }
+
+            ColumnLayout {
+                visible: root.showDate
+                spacing: 0
+
+                Text {
+                    text: Qt.formatDate(root.now, "MMMM").toUpperCase()
+                    font.family: digitalRow.fontFamily
+                    font.pixelSize: digitalRow.unit * 17
+                    font.letterSpacing: digitalRow.unit * 2.5
+                    font.weight: Font.Bold
+                    color: Colors.secondary
+                }
+                Text {
+                    text: Qt.formatDate(root.now, "dd")
+                    font.family: digitalRow.fontFamily
+                    font.pixelSize: digitalRow.unit * 38
+                    font.weight: Font.Bold
+                    color: Colors.primary
+                }
+                Text {
+                    text: Qt.formatDate(root.now, "dddd")
+                    font.family: digitalRow.fontFamily
+                    font.pixelSize: digitalRow.unit * 17
+                    font.letterSpacing: digitalRow.unit * 1.5
+                    color: Colors.secondary
+                }
+            }
+        }
     }
 }

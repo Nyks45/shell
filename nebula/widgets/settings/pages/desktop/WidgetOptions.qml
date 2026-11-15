@@ -191,7 +191,25 @@ ColumnLayout {
         title: "Clock"
         visible: page.cfg.type === "clock"
 
+        // Analog (Nebula's) or digital (the shell's desktop clock)
         SettingRow {
+            icon: "schedule"
+            title: "Face"
+            subtitle: (page.cfg.face ?? "analog") === "digital" ? "Hours and minutes, with the date beside them" : "Hands in a shape"
+
+            SegmentedButton {
+                readonly property var faces: ["analog", "digital"]
+
+                width: Theme.settings.controlWidth
+                anchors.verticalCenter: parent.verticalCenter
+                options: ["Analog", "Digital"]
+                currentIndex: Math.max(0, faces.indexOf(page.cfg.face ?? "analog"))
+                onSelected: index => page.set({ face: faces[index] })
+            }
+        }
+
+        SettingRow {
+            visible: (page.cfg.face ?? "analog") !== "digital"
             icon: "timer"
             title: "Seconds"
             subtitle: "A dot that runs along the edge"
@@ -207,7 +225,7 @@ ColumnLayout {
         SettingRow {
             icon: "calendar_today"
             title: "Date"
-            subtitle: "Moves out of the way of the hands"
+            subtitle: (page.cfg.face ?? "analog") === "digital" ? "Month, day and weekday beside the time" : "Moves out of the way of the hands"
             clickable: true
             onClicked: page.set({ date: !(page.cfg.date ?? true) })
 
@@ -218,6 +236,7 @@ ColumnLayout {
         }
 
         SettingRow {
+            visible: (page.cfg.face ?? "analog") !== "digital"
             icon: "more_horiz"
             title: "Tick marks"
 
@@ -233,6 +252,7 @@ ColumnLayout {
         }
 
         SettingRow {
+            visible: (page.cfg.face ?? "analog") !== "digital"
             icon: "pin"
             title: "Hour numbers"
             clickable: true

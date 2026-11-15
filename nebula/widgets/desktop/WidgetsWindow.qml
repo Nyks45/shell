@@ -361,6 +361,7 @@ Variants {
                 showDate: parent?.cfg?.date ?? true
                 showNumbers: parent?.cfg?.numbers ?? false
                 tickStyle: parent?.cfg?.tickStyle ?? "hours"
+                clockFace: parent?.cfg?.face ?? "analog"
             }
         }
 

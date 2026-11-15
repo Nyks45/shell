@@ -63,7 +63,8 @@ PageBase {
                 if (item.arg !== undefined)
                     item.arg = Qt.binding(() => root.subArg);
                 Qt.callLater(() => {
-                    if (root.flickable)
+                    // the page may be gone by then (settings closed)
+                    if (root?.flickable)
                         root.flickable.contentY = 0;
                 });
             }

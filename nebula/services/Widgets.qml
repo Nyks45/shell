@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Caelestia.Config
 import qs.utils
 import Quickshell.Io
 import qs.nebula.theme
@@ -198,7 +199,12 @@ Singleton {
         deskOpen = false;
     }
 
+    // A digital clock face is a wide plate (the shell's desktop clock)
+    readonly property real digitalClockAspect: 0.3
+
     function aspectOf(w) {
+        if (w?.type === "clock" && w?.face === "digital")
+            return digitalClockAspect;
         return types[w?.type]?.aspect ?? 1;
     }
 
@@ -640,6 +646,39 @@ Singleton {
         syncPresets();
         if (Settings.widgets.items === "") migrate();
         else list = parse(Settings.widgets.items);
+        adoptShellClock();
+    }
+
+    // The shell's own Desktop clock (background.desktopClock) is this widget's digital face now:
+    // where it was on, it comes back as a digital clock widget in the same corner, same size
+    function adoptShellClock() {
+        const old = GlobalConfig.background.desktopClock;
+        if (!old.enabled)
+            return;
+        const scr = Quickshell.screens[0];
+        const W = scr?.width ?? 1920, H = scr?.height ?? 1080, m = 48;
+        const size = Math.round(540 * (old.scale ?? 1)), h = size * digitalClockAspect;
+        const pos = String(old.position ?? "bottom-right");
+        const x = pos.endsWith("left") ? m + 72 : pos.endsWith("right") ? W - size - m : (W - size) / 2;
+        const y = pos.startsWith("top") ? m : pos.startsWith("bottom") ? H - h - m : (H - h) / 2;
+        save(list.concat([{
+            id: "clock-desktop",
+            type: "clock",
+            face: "digital",
+            enabled: true,
+            shape: types.clock.shape,
+            size: size,
+            color: "surface",
+            opacity: 1,
+            textScale: 1,
+            screen: "",
+            source: "",
+            date: true,
+            x: Math.round(x),
+            y: Math.round(y),
+            z: 0
+        }]));
+        GlobalConfig.background.desktopClock.enabled = false;
     }
 
     Connections {
