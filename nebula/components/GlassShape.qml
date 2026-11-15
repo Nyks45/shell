@@ -1,23 +1,18 @@
 import QtQuick
 import QtQuick.Effects
 import M3Shapes
-import qs.services
+import qs.nebula.theme
 
-// A glass surface in a Material 3 shape: the tint, and the top light cut to the shape (it stays
-// upright while the shape turns).
-// From Nebula (github.com/LilaccFlowerr/Nebula, AGPL-3.0), components/GlassShape.qml.
 MaterialShape {
     id: root
 
-    property color fill: Colours.palette.m3surfaceContainerHigh
-    property real tint: Colours.glass.tint
-    property real light: Colours.glass.topLight
+    property color fill: Colors.surfaceContainerHigh
+    property real tint: Theme.glass.tint
 
     color: Qt.alpha(fill, tint)
 
     MaterialShape {
         id: mask
-
         anchors.fill: parent
         shape: root.shape
         animationDuration: root.animationDuration
@@ -28,8 +23,7 @@ MaterialShape {
     }
 
     Item {
-        id: lightLayer
-
+        id: light
         anchors.fill: parent
         visible: false
         layer.enabled: true
@@ -40,22 +34,15 @@ MaterialShape {
             height: parent.height * 1.5
             rotation: -root.rotation
             gradient: Gradient {
-                GradientStop {
-                    position: 0.17
-                    color: Qt.rgba(1, 1, 1, root.light)
-                }
-                GradientStop {
-                    position: 0.55
-                    color: Qt.rgba(1, 1, 1, 0)
-                }
+                GradientStop { position: 0.17; color: Qt.rgba(1, 1, 1, Theme.glass.topLight) }
+                GradientStop { position: 0.55; color: Qt.rgba(1, 1, 1, 0) }
             }
         }
     }
 
     MultiEffect {
         anchors.fill: parent
-        visible: root.light > 0
-        source: lightLayer
+        source: light
         maskEnabled: true
         maskSource: mask
     }

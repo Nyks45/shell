@@ -92,7 +92,10 @@ Singleton {
             rule = "keyword layerrule %1 %2, match:namespace caelestia-drawers";
             trEnabled = transparency.enabled ? 1 : 0;
         }
-        Hypr.extras.batchMessage([rule.arg("blur").arg(trEnabled), rule.arg("ignore_alpha").arg(Math.max(0, transparency.base - 0.03))]);
+        // Nebula's parts (Settings > Style): their glass shapes are blurred behind, following each
+        // shape's outline (ignore_alpha 0.1, as in Nebula's own rules)
+        const neb = Hypr.usingLua ? `eval hl.layer_rule({ match = { namespace = "caelestia-nebula-(widgets|widgetcorner|widgetmenu)" }, blur = true, ignore_alpha = 0.1 })` : "keyword layerrule blur on, match:namespace caelestia-nebula-(widgets|widgetcorner|widgetmenu)";
+        Hypr.extras.batchMessage([rule.arg("blur").arg(trEnabled), rule.arg("ignore_alpha").arg(Math.max(0, transparency.base - 0.03)), neb]);
     }
 
     function requestReloadHyprRules(): void {

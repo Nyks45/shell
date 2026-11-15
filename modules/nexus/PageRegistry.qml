@@ -164,6 +164,14 @@ QtObject {
             category: "advanced"
         },
         {
+            id: "style",
+            label: Tr.tr("Style"),
+            icon: "auto_awesome",
+            description: Tr.tr("Nebula look: desktop widgets, glass"),
+            keywords: "nebula style look widgets desktop widgets clock calendar weather battery now playing lyrics fetch fastfetch image note text shapes glass frosted tint edit layouts presets snap grid expressive",
+            category: "personalise"
+        },
+        {
             id: "about",
             label: Tr.tr("About"),
             icon: "info",

@@ -8,6 +8,7 @@ import qs.modules.areapicker
 import qs.modules.background
 import qs.modules.drawers
 import qs.modules.lock
+import qs.modules.nebula
 import qs.modules.nexus
 import qs.modules.polkit
 import qs.daemons
@@ -37,6 +38,13 @@ Scope {
     }
 
     Background {}
+
+    // Nebula's desktop widgets (Settings > Style), above the wallpaper and the desktop icons
+    LazyLoader {
+        active: GlobalConfig.appearance.style.desktopWidgets
+
+        NebulaDesktop {}
+    }
     Drawers {}
     AreaPicker {}
     PolkitOverlay {}

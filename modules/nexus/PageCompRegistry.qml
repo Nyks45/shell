@@ -159,7 +159,12 @@ QtObject {
             "merged/SystemPage.qml",
             "system/ServicePage.qml"
         ],
-        // 19: About
+        // 19: Style (Nebula): page (0), Nebula's own settings pages (1)
+        [
+            "style/StylePage.qml",
+            "style/NebulaPages.qml"
+        ],
+        // 20: About
         [
             "AboutPage.qml"
         ]

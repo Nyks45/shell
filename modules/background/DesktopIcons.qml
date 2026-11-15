@@ -189,7 +189,7 @@ Item {
             root.forceActiveFocus();
             root.selected = "";
             if (event.button === Qt.RightButton)
-                root.openMenu([openFolderItem, settingsItem], event.x, event.y);
+                root.openMenu(GlobalConfig.appearance.style.desktopWidgets ? [openFolderItem, editWidgetsItem, addWidgetItem, settingsItem] : [openFolderItem, settingsItem], event.x, event.y);
         }
     }
 
@@ -268,6 +268,23 @@ Item {
         text: qsTr("Open the Desktop folder")
         icon: "folder_open"
         onClicked: Quickshell.execDetached([...GlobalConfig.general.apps.explorer, DesktopFiles.dir])
+    }
+
+    // Nebula's desktop widgets (Settings > Style), when they're on
+    MenuItem {
+        id: editWidgetsItem
+
+        text: qsTr("Edit widgets")
+        icon: "edit"
+        onClicked: Quickshell.execDetached(["caelestia", "shell", "nebulaWidgets", "edit"])
+    }
+
+    MenuItem {
+        id: addWidgetItem
+
+        text: qsTr("Add a widget")
+        icon: "add_circle"
+        onClicked: WindowFactory.createAt("style", [1])
     }
 
     MenuItem {

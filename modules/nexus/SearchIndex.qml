@@ -5231,11 +5231,64 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Desktop widgets",
+            "ctx": "",
+            "sub": "Clock, calendar, weather, battery, now playing, lyrics, pictures, notes and system info in Material shapes on the desktop",
+            "section": "Desktop widgets",
+            "page": 19,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Widgets and layouts",
+            "ctx": "",
+            "sub": "Add, change and arrange them. On the desktop: right-click for the menu; Super+Shift+E to edit",
+            "section": "Desktop widgets",
+            "opens": 1,
+            "page": 19,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Glass tint",
+            "ctx": "",
+            "sub": "",
+            "section": "Glass",
+            "page": 19,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Light across the top",
+            "ctx": "",
+            "sub": "",
+            "section": "Glass",
+            "page": 19,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Widget",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 19,
+            "path": [
+                1
+            ],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Hostname",
             "ctx": "",
             "sub": "",
             "section": "System",
-            "page": 19,
+            "page": 20,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5245,7 +5298,7 @@ QtObject {
             "ctx": "system model name",
             "sub": "",
             "section": "System",
-            "page": 19,
+            "page": 20,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5255,7 +5308,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "System",
-            "page": 19,
+            "page": 20,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5265,7 +5318,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "System",
-            "page": 19,
+            "page": 20,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5275,7 +5328,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "System",
-            "page": 19,
+            "page": 20,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5285,7 +5338,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hardware",
-            "page": 19,
+            "page": 20,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5295,7 +5348,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hardware",
-            "page": 19,
+            "page": 20,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5305,7 +5358,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hardware",
-            "page": 19,
+            "page": 20,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5315,7 +5368,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hardware",
-            "page": 19,
+            "page": 20,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5325,7 +5378,7 @@ QtObject {
             "ctx": "the caelestia shell itself, not a unix shell",
             "sub": "",
             "section": "Software",
-            "page": 19,
+            "page": 20,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5335,7 +5388,7 @@ QtObject {
             "ctx": "the caelestia command line tool",
             "sub": "",
             "section": "Software",
-            "page": 19,
+            "page": 20,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5345,7 +5398,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Plugins",
-            "page": 19,
+            "page": 20,
             "path": [],
             "trail": [],
             "keywords": ""

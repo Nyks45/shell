@@ -80,7 +80,7 @@ if("shell" IN_LIST ENABLE_MODULES)
     )
     add_custom_target(shell_shaders ALL DEPENDS "${CMAKE_BINARY_DIR}/assets/shaders/liquid.frag.qsb")
 
-    foreach(dir assets components daemons modules services utils)
+    foreach(dir assets components daemons modules nebula services utils)
         install(DIRECTORY ${dir} DESTINATION "${INSTALL_QSCONFDIR}")
     endforeach()
 

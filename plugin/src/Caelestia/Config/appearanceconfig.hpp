@@ -279,6 +279,14 @@ class AppearanceGlass : public settings::ObjectNode {
     CONFIG_GLOBAL_PROPERTY(qreal, topLight, 0.08)
 };
 
+// Nebula style (github.com/LilaccFlowerr/Nebula, see NEBULA.md): which of its parts are on.
+// Settings > Style.
+class AppearanceStyle : public settings::ObjectNode {
+    CONFIG_NODE(AppearanceStyle, settings::ObjectNode)
+
+    CONFIG_GLOBAL_PROPERTY(bool, desktopWidgets, false)
+};
+
 class AppearanceConfig : public settings::ObjectNode {
     CONFIG_NODE(AppearanceConfig, settings::ObjectNode)
 
@@ -290,6 +298,7 @@ class AppearanceConfig : public settings::ObjectNode {
     CONFIG_SUBOBJECT(AppearanceAnim, anim)
     CONFIG_SUBOBJECT(AppearanceTransparency, transparency)
     CONFIG_SUBOBJECT(AppearanceGlass, glass)
+    CONFIG_SUBOBJECT(AppearanceStyle, style)
 };
 
 } // namespace caelestia::shell::config
