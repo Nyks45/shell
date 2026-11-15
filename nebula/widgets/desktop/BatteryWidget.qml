@@ -1,5 +1,7 @@
 import QtQuick
 import QtQuick.Shapes
+import Quickshell.Io
+import Quickshell.Services.UPower
 import M3Shapes
 import qs.nebula.components
 import qs.nebula.services
@@ -7,6 +9,50 @@ import qs.nebula.theme
 
 Item {
     id: root
+
+    // The computer's battery; on a desktop PC (no battery) a wireless device's (mouse, keyboard,
+    // headset...), read from the kernel: UPower reports a sleeping one as 0% and not present,
+    // and Nebula's widget only said "No battery" there
+    property var device: null // { name, level 0..1, status }
+    readonly property bool peripheral: !Battery.available && device !== null
+    readonly property bool asleep: peripheral && device.status === "Unknown"
+    readonly property bool bAvailable: Battery.available || peripheral
+    readonly property real bLevel: Battery.available ? Battery.level : peripheral ? device.level : 0
+    readonly property int bPercent: Math.round(bLevel * 100)
+    readonly property bool bCharging: Battery.available ? Battery.charging : peripheral && device.status === "Charging"
+    readonly property bool bFull: Battery.available ? Battery.full : peripheral && device.status === "Full"
+    readonly property bool bPluggedIn: Battery.available ? Battery.pluggedIn : bCharging || bFull
+    readonly property real bTimeToEmpty: Battery.available ? Battery.timeToEmpty : 0
+    readonly property real bTimeToFull: Battery.available ? Battery.timeToFull : 0
+    readonly property string deviceName: {
+        const m = device?.name ?? "";
+        return m === "" ? "Device" : m.length > 18 ? m.slice(0, 17) + "…" : m;
+    }
+
+    Process {
+        id: devices
+
+        running: !Battery.available
+        command: ["sh", "-c", "for d in /sys/class/power_supply/*; do [ \"$(cat \"$d/scope\" 2>/dev/null)\" = Device ] && [ -r \"$d/capacity\" ] && printf '%s|%s|%s\\n' \"$(cat \"$d/model_name\" 2>/dev/null)\" \"$(cat \"$d/capacity\")\" \"$(cat \"$d/status\" 2>/dev/null)\"; done"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const first = text.split("\n").find(l => l.includes("|"));
+                if (!first) {
+                    root.device = null;
+                    return;
+                }
+                const [name, cap, status] = first.split("|");
+                root.device = { name: name, level: Math.max(0, Math.min(100, parseInt(cap) || 0)) / 100, status: status };
+            }
+        }
+    }
+
+    Timer {
+        interval: 30000
+        repeat: true
+        running: !Battery.available
+        onTriggered: devices.running = true
+    }
 
     property string shapeName: "Cookie12Sided"
     property real baseSize: 200
@@ -25,7 +71,7 @@ Item {
         }
     }
 
-    readonly property real level: Battery.available ? Battery.level : 0
+    readonly property real level: root.bAvailable ? root.bLevel : 0
     property real shownLevel: level
 
     Behavior on shownLevel {
@@ -36,9 +82,9 @@ Item {
         }
     }
 
-    readonly property bool critical: Battery.available && level <= Settings.power.lowBattery / 100
-    readonly property bool halfway: Battery.available && level <= 0.5
-    property color accent: !Battery.available ? Colors.outline : critical ? Colors.errorColor : halfway ? Colors.tertiary : Colors.primary
+    readonly property bool critical: root.bAvailable && level <= Settings.power.lowBattery / 100
+    readonly property bool halfway: root.bAvailable && level <= 0.5
+    property color accent: !root.bAvailable ? Colors.outline : critical ? Colors.errorColor : halfway ? Colors.tertiary : Colors.primary
 
     Behavior on accent {
         ColorAnimation { duration: Theme.anim.medium }
@@ -70,7 +116,7 @@ Item {
     readonly property real sweep: Math.min(360, 360 * shownLevel)
     readonly property real trackSweep: Math.max(0, 360 - sweep - gap * 2)
 
-    readonly property real numberSize: ringRadius * (Battery.percent >= 100 ? 0.62 : 0.8)
+    readonly property real numberSize: ringRadius * (root.bPercent >= 100 ? 0.62 : 0.8)
     readonly property real percentSize: ringRadius * 0.27
     readonly property real percentGap: ringRadius * 0.03
     readonly property real lineGap: ringRadius * 0.03
@@ -80,10 +126,10 @@ Item {
     readonly property real iconGap: ringRadius * 0.05
 
     readonly property real innerRadius: ringRadius - ringWidth / 2 - size * 0.03
-    readonly property real pillWidth: statusMetrics.advanceWidth + pillPadding * 2 + (Battery.charging ? iconSize + iconGap : 0)
-    readonly property real blockHeight: (Battery.available ? numberMetrics.height + lineGap : 0) + statusMetrics.height + pillPaddingY * 2
+    readonly property real pillWidth: statusMetrics.advanceWidth + pillPadding * 2 + (root.bCharging ? iconSize + iconGap : 0)
+    readonly property real blockHeight: (root.bAvailable ? numberMetrics.height + lineGap : 0) + statusMetrics.height + pillPaddingY * 2
     readonly property real numberReach: numberMetrics.advanceWidth / 2 + percentGap + percentMetrics.advanceWidth
-    readonly property real reach: Math.max(Math.hypot(pillWidth / 2, blockHeight / 2), Battery.available ? Math.hypot(numberReach, blockHeight / 2) : 0)
+    readonly property real reach: Math.max(Math.hypot(pillWidth / 2, blockHeight / 2), root.bAvailable ? Math.hypot(numberReach, blockHeight / 2) : 0)
     readonly property real fit: reach > 0 ? Math.min(1, innerRadius / reach) : 1
 
     function duration(seconds) {
@@ -93,11 +139,12 @@ Item {
     }
 
     readonly property string status: {
-        if (!Battery.available) return "No battery";
-        if (Battery.full) return "Full";
-        const time = duration(Battery.charging ? Battery.timeToFull : Battery.timeToEmpty);
-        if (Battery.charging) return time !== "" ? time + " to full" : "Charging";
-        if (Battery.pluggedIn) return "Plugged in";
+        if (!root.bAvailable) return "No battery";
+        if (root.peripheral) return root.bCharging ? root.deviceName + " · charging" : root.asleep ? root.deviceName + " · asleep" : root.deviceName;
+        if (root.bFull) return "Full";
+        const time = duration(root.bCharging ? root.bTimeToFull : root.bTimeToEmpty);
+        if (root.bCharging) return time !== "" ? time + " to full" : "Charging";
+        if (root.bPluggedIn) return "Plugged in";
         return time !== "" ? time + " left" : "On battery";
     }
 
@@ -128,7 +175,7 @@ Item {
 
     Shape {
         anchors.fill: parent
-        visible: Battery.available
+        visible: root.bAvailable
         preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
@@ -170,13 +217,13 @@ Item {
 
         Item {
             anchors.horizontalCenter: parent.horizontalCenter
-            visible: Battery.available
+            visible: root.bAvailable
             implicitWidth: number.implicitWidth
             implicitHeight: number.implicitHeight
 
             Text {
                 id: number
-                text: Battery.percent
+                text: root.bPercent
                 font.family: Theme.font.family
                 font.pixelSize: root.numberSize * root.fit
                 font.weight: Font.DemiBold
@@ -210,7 +257,7 @@ Item {
                 spacing: root.iconGap * root.fit
 
                 Text {
-                    visible: Battery.charging
+                    visible: root.bCharging
                     text: "bolt"
                     font.family: Theme.font.icons
                     font.pixelSize: root.iconSize * root.fit
@@ -232,7 +279,7 @@ Item {
 
     TextMetrics {
         id: numberMetrics
-        text: Battery.percent
+        text: root.bPercent
         font.family: Theme.font.family
         font.pixelSize: root.numberSize
         font.weight: Font.DemiBold
@@ -250,7 +297,7 @@ Item {
         id: statusMetrics
         text: root.status
         font.family: Theme.font.family
-        font.pixelSize: root.ringRadius * (Battery.available ? 0.19 : 0.3)
+        font.pixelSize: root.ringRadius * (root.bAvailable ? 0.19 : 0.3)
         font.weight: Font.Medium
     }
 }

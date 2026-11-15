@@ -43,6 +43,11 @@ PageBase {
     }
     Component.onDestruction: SettingsNav.sub = ""
 
+    // Each of Nebula's pages starts at the top (going back from a scrolled widget page kept
+    // the overview scrolled, cut off at the top)
+    onSubChanged: if (flickable)
+        flickable.contentY = 0
+
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
@@ -57,6 +62,10 @@ PageBase {
             onLoaded: {
                 if (item.arg !== undefined)
                     item.arg = Qt.binding(() => root.subArg);
+                Qt.callLater(() => {
+                    if (root.flickable)
+                        root.flickable.contentY = 0;
+                });
             }
         }
 

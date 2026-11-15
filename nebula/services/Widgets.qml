@@ -14,7 +14,7 @@ Singleton {
         image: { title: "Image", description: "Any picture, in a shape", picker: true, icon: "image", shape: "Clover4Leaf", size: 200, minSize: 80, maxSize: 600, color: "secondary" },
         clock: { title: "Clock", description: "An analog clock in a shape", icon: "schedule", shape: "Cookie12Sided", size: 220, minSize: 100, maxSize: 600, color: "primary" },
         calendar: { title: "Calendar", description: "Today, tap to open the month", icon: "calendar_month", shape: "Cookie9Sided", size: 200, minSize: 140, maxSize: 420, color: "tertiary" },
-        battery: { title: "Battery", description: "Fills like water as you charge", icon: "battery_full", shape: "Cookie12Sided", size: 200, minSize: 120, maxSize: 480, color: "secondary" },
+        battery: { title: "Battery", description: "Charge in a ring (your mouse or headset on a desktop)", icon: "battery_full", shape: "Cookie12Sided", size: 200, minSize: 120, maxSize: 480, color: "secondary" },
         weather: { title: "Weather", description: "Today's weather, in its own shape", icon: "partly_cloudy_day", shape: "Cookie9Sided", size: 220, minSize: 140, maxSize: 480, color: "primary" },
         terminal: { title: "Fetch", description: "Your system at a glance, rice style", icon: "terminal", shape: "Square", size: 520, minSize: 240, maxSize: 1000, color: "surface" },
         text: { title: "Text", description: "A note on your desktop", icon: "sticky_note_2", shape: "Sunny", size: 180, minSize: 80, maxSize: 600, color: "tertiary" },
@@ -314,12 +314,31 @@ Singleton {
             .map(key => Object.assign({ key: key }, types[key]));
     }
 
+    // Where a new widget goes: the free spot nearest the screen's centre (Nebula put each one at
+    // the centre nudged 36 px, so new widgets piled up on each other)
     function spawn(size, screenName) {
         const screen = screenNamed(screenName);
-        const shift = list.filter(w => w.type !== "nowplaying").length % 6 * 36;
+        const W = screen.width, H = screen.height, gap = 24, margin = 32;
+        const taken = list.filter(w => w.enabled !== false && (!w.screen || !screenName || w.screen === screenName)).map(w => {
+            const s = w.size ?? 200;
+            return { x: w.x ?? 0, y: w.y ?? 0, w: s, h: s * aspectOf(w) };
+        });
+        const free = (x, y) => x >= margin && y >= margin && x + size <= W - margin && y + size <= H - margin
+            && !taken.some(r => x < r.x + r.w + gap && x + size + gap > r.x && y < r.y + r.h + gap && y + size + gap > r.y);
+        const cx = (W - size) / 2, cy = (H - size) / 2, step = Math.max(40, Math.round(size / 3));
+        for (let ring = 0; ring < 40; ring++) {
+            for (let i = -ring; i <= ring; i++) {
+                for (const [dx, dy] of [[i, -ring], [i, ring], [-ring, i], [ring, i]]) {
+                    const x = Math.round(cx + dx * step), y = Math.round(cy + dy * step);
+                    if (free(x, y))
+                        return { x: x, y: y };
+                }
+            }
+        }
+        const shift = list.length % 6 * 36;
         return {
-            x: Math.max(0, Math.round((screen.width - size) / 2 + shift)),
-            y: Math.max(0, Math.round((screen.height - size) / 2 + shift))
+            x: Math.max(0, Math.round(cx + shift)),
+            y: Math.max(0, Math.round(cy + shift))
         };
     }
 
@@ -586,18 +605,34 @@ Singleton {
         }
     }
 
+    // First run: a starter layout on the first screen's right side (clock, calendar, weather,
+    // now playing), so turning the widgets on shows something (Nebula started with only a now
+    // playing widget, which is a small note icon while nothing plays)
     function migrate() {
-        const old = Settings.nowPlaying;
-        save([{
-            id: "nowplaying-1",
-            type: "nowplaying",
-            enabled: old.enabled,
-            shape: types.nowplaying.shape,
-            size: types.nowplaying.size,
-            x: old.x,
-            y: old.y,
-            source: ""
-        }]);
+        const scr = Quickshell.screens[0];
+        const w = scr?.width ?? 1920, h = scr?.height ?? 1080;
+        const m = 48, gap = 24, right = w - m;
+        const item = (type, size, x, y, extra) => Object.assign({
+            id: type + "-1",
+            type: type,
+            enabled: true,
+            shape: types[type].shape,
+            size: size,
+            color: types[type].color,
+            opacity: 1,
+            textScale: 1,
+            screen: "",
+            source: "",
+            x: Math.round(x),
+            y: Math.round(y),
+            z: 0
+        }, extra ?? {});
+        save([
+            item("clock", 240, right - 240, m + 40),
+            item("calendar", 200, right - 240 - gap - 200, m + 60),
+            item("weather", 200, right - 200, m + 40 + 240 + gap),
+            item("nowplaying", 260, right - 200 - gap - 260, m + 40 + 240 + gap - 10)
+        ]);
     }
 
     function sync() {

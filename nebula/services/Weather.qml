@@ -2,12 +2,16 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Caelestia.Config
+import qs.services as Shell
 import M3Shapes
 
 Singleton {
     id: root
 
-    readonly property string city: Settings.weather.city.trim()
+    // Nebula's own city (Settings > Style), else the shell's weather location (set, or found
+    // from the network): out of the box it shows the weather instead of "No city yet"
+    readonly property string city: Settings.weather.city.trim() || Shell.Weather.city.trim() || String(GlobalConfig.services.weatherLocation ?? "").trim()
     readonly property bool enabled: city !== ""
 
     property string place: ""

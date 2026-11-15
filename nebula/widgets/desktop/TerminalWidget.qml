@@ -29,7 +29,8 @@ Item {
     property string logoRaw: ""
     readonly property var lines: Ansi.merge(Ansi.parse(infoRaw, ansiColors))
     readonly property var logoLines: Ansi.parse(logoRaw, ansiColors)
-    readonly property url picture: Wallpaper.url(source !== "" ? source : Paths.face)
+    // The avatar the shell uses (~/.face, or the account picture); none: no picture (no load error)
+    readonly property url picture: source !== "" ? Wallpaper.url(source) : SystemInfo.hasAvatar ? Wallpaper.url(Paths.faceSource) : ""
     readonly property string logoShape: shapeName === "Cookie9Sided" ? "Cookie12Sided" : "Cookie9Sided"
     readonly property bool showArt: logoMode !== "fastfetch" || logoLines.length === 0
 

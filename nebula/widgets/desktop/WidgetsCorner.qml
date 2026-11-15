@@ -224,7 +224,9 @@ PanelWindow {
     Rectangle {
         id: blob
         anchors.left: parent.left
-        anchors.leftMargin: Theme.recorder.margin
+        // Past the shell's left bar (64 px, revealed from the left edge) and clear of hyprflow's
+        // bottom-left hot corner: in Nebula the bar is on top and this corner is free
+        anchors.leftMargin: Theme.recorder.margin + 72
         anchors.bottom: parent.bottom
         width: window.targetWidth
         height: window.targetHeight

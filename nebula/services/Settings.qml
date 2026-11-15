@@ -225,17 +225,24 @@ Singleton {
         reset(["clock", "notifications", "recorder", "wallpaper", "nowPlaying", "apps", "input", "power", "sound", "bar", "blur", "windows", "theme", "quickSettings", "screenshot"]);
     }
 
+    // The folder first, then the file: read (and, on a first run, written) only once the folder
+    // exists. Nebula started both at once, so the first run's write failed and nothing was saved.
+    property bool dirReady: false
+
     Process {
         running: true
         command: ["mkdir", "-p", root.directory]
+        onExited: root.dirReady = true
     }
 
     FileView {
         id: file
-        path: root.directory + "/settings.json"
+        path: root.dirReady ? root.directory + "/settings.json" : ""
         watchChanges: true
         onFileChanged: reload()
         onAdapterUpdated: writeAdapter()
+        // A missing file on the first run is expected (written just below): no warning for it
+        printErrors: false
         onLoaded: root.ready = true
         onLoadFailed: error => {
             if (error !== FileViewError.FileNotFound) return;

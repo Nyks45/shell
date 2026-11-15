@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import qs.modules.nexus
 import Quickshell.Hyprland
 import Quickshell.Io
 
@@ -144,10 +145,15 @@ Singleton {
     }
 
     function openSettings(page, tab = "", fromQuick = false) {
-        // In the shell's settings app (Settings > Style), not Nebula's own window
-        if (page === "desktop") {
+        // In the shell's settings app: Nebula's desktop pages under Style, its other pages at the
+        // shell's page for the same thing (Nebula's own settings window is part of its bar)
+        const shellPages = { appearance: "wallpaper", windows: "windows", bar: "panels", connections: "network", system: "display", apps: "apps", notifications: "notifications", recorder: "panels", about: "about" };
+        if (page === "desktop" || shellPages[page]) {
             closeAll();
-            SettingsNav.open(tab);
+            if (page === "desktop")
+                SettingsNav.open(tab);
+            else
+                WindowFactory.createAt(shellPages[page], []);
             return;
         }
         settingsPage = page;

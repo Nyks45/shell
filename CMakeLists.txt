@@ -78,13 +78,28 @@ if("shell" IN_LIST ENABLE_MODULES)
         COMMENT "Compiling liquid.frag shader"
         VERBATIM
     )
-    add_custom_target(shell_shaders ALL DEPENDS "${CMAKE_BINARY_DIR}/assets/shaders/liquid.frag.qsb")
+    # Nebula's shaders (nebula/shaders), built here with a GLSL ES variant: the .qsb files Nebula
+    # ships have none, and Qt then warns that the pipeline's stages share no GLSL ES version
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/nebula/shaders")
+    set(NEBULA_QSB "")
+    foreach(shader glitch liquid outline snapgrid)
+        add_custom_command(
+            OUTPUT "${CMAKE_BINARY_DIR}/nebula/shaders/${shader}.frag.qsb"
+            COMMAND "${QSB_EXECUTABLE}" --glsl "100 es,120,150" --hlsl 50 --msl 12 -o "${CMAKE_BINARY_DIR}/nebula/shaders/${shader}.frag.qsb" "${CMAKE_SOURCE_DIR}/nebula/shaders/${shader}.frag"
+            DEPENDS "${CMAKE_SOURCE_DIR}/nebula/shaders/${shader}.frag"
+            COMMENT "Compiling Nebula's ${shader}.frag shader"
+            VERBATIM
+        )
+        list(APPEND NEBULA_QSB "${CMAKE_BINARY_DIR}/nebula/shaders/${shader}.frag.qsb")
+    endforeach()
+    add_custom_target(shell_shaders ALL DEPENDS "${CMAKE_BINARY_DIR}/assets/shaders/liquid.frag.qsb" ${NEBULA_QSB})
 
     foreach(dir assets components daemons modules nebula services utils)
         install(DIRECTORY ${dir} DESTINATION "${INSTALL_QSCONFDIR}")
     endforeach()
 
     install(FILES "${CMAKE_BINARY_DIR}/assets/shaders/liquid.frag.qsb" DESTINATION "${INSTALL_QSCONFDIR}/assets/shaders")
+    install(FILES ${NEBULA_QSB} DESTINATION "${INSTALL_QSCONFDIR}/nebula/shaders")
 
     install(PROGRAMS assets/wrap_term_launch.sh assets/live-wallpaper assets/caelestia-session DESTINATION "${INSTALL_QSCONFDIR}/assets")
 
