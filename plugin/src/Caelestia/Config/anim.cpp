@@ -106,18 +106,18 @@ void AnimTokens::rebuildCurves() {
     m_expressiveDefaultEffects = buildCurve(m_curves->expressiveDefaultEffects());
     m_expressiveSlowEffects = buildCurve(m_curves->expressiveSlowEffects());
 
-    // Nebula's motion (appearance.style.shellAnim): moves overshoot a little (OutBack 1.2, its
-    // islands and panels), fades and grows ease out (emphasized decelerate)
+    // Nebula's motion (appearance.style.shellAnim): everything moves and resizes with its
+    // decelerating curve and fades with its standard curve. No overshoot anywhere (it looked out
+    // of place in the shell's panels, the user said).
     if (ConfigSingleton::instance()->appearance()->style()->shellAnim() == QStringLiteral("nebula")) {
-        QEasingCurve back(QEasingCurve::OutBack);
-        back.setOvershoot(1.2);
-        m_expressiveFastSpatial = back;
-        m_expressiveDefaultSpatial = back;
-        m_expressiveSlowSpatial = back;
         const auto DECEL = buildCurve({ 0.05, 0.7, 0.1, 1, 1, 1 });
-        m_expressiveFastEffects = DECEL;
-        m_expressiveDefaultEffects = DECEL;
-        m_expressiveSlowEffects = DECEL;
+        const auto STANDARD = buildCurve({ 0.2, 0, 0, 1, 1, 1 });
+        m_expressiveFastSpatial = DECEL;
+        m_expressiveDefaultSpatial = DECEL;
+        m_expressiveSlowSpatial = DECEL;
+        m_expressiveFastEffects = STANDARD;
+        m_expressiveDefaultEffects = STANDARD;
+        m_expressiveSlowEffects = STANDARD;
         m_emphasized = DECEL;
     }
 
