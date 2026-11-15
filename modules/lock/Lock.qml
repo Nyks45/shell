@@ -7,6 +7,7 @@ import Quickshell.Wayland
 import Caelestia
 import Caelestia.Config
 import qs.components.misc
+import qs.services
 
 Scope {
     id: root
@@ -23,7 +24,7 @@ Scope {
             return;
         bootSplashHidden = true;
         // The boot splash (extras/boot-splash) has done its part: the lock screen covers it now
-        Quickshell.execDetached(["sh", "-c", 'sleep 0.3; f="$XDG_RUNTIME_DIR/caelestia-boot-splash.pid"; [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; true']);
+        Quickshell.execDetached(["sh", "-c", 'sleep 0.3; f="$XDG_RUNTIME_DIR/caelestia-boot-splash.pid"; p=$(cat "$f" 2>/dev/null); [ -n "$p" ] && [ "$(cat /proc/$p/comm 2>/dev/null)" = caelestia-boot- ] && kill "$p"; true']);
     }
 
     function revealBootCursor(): void {
@@ -39,13 +40,18 @@ Scope {
         ]);
     }
 
+    // The startup apps (~/.config/autostart), once the boot lock opens; not when Settings >
+    // Apps > Startup apps is off (the Lua autostart is skipped under the boot lock)
     function runBootAutostart(): void {
+        if (HyprSettings.saved.autostart === false)
+            return;
         const sentinel = root.bootSentinel;
         Quickshell.execDetached(["sh", "-c", `
-pkill -x gcr-prompter >/dev/null 2>&1 || true
 SENT="$1"
 [ -e "$SENT" ] && exit 0
 touch "$SENT"
+# A keyring prompt left from before the unlock (only on this first run)
+pkill -x gcr-prompter >/dev/null 2>&1 || true
 python3 - <<'PY'
 import glob, os, re, subprocess
 d = os.path.expanduser("~/.config/autostart")

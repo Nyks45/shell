@@ -101,18 +101,6 @@ Singleton {
         }
     }
 
-    // Fallback launcher if not already started above
-    Timer {
-        running: root.checked && !root.wasRunning && !root.started && (!!root.cachedFrame || root.configured)
-        interval: 50
-        onTriggered: {
-            root.started = true;
-            // through PATH (~/.local/bin links the shell's script; the dev
-            // sandbox's stub catches it there), or packaged fallback
-            Quickshell.execDetached(["sh", "-c", `lw=$(command -v live-wallpaper || echo '${Quickshell.shellDir}/assets/live-wallpaper'); LIVE_WALLPAPER_MONITORS="${root.monitorNames}" exec "$lw" start`]);
-        }
-    }
-
     // A new frame / ready marker from the renderer: it's drawing
     Timer {
         running: root.showing && root.started

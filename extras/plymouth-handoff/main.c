@@ -2,8 +2,8 @@
 // Hyprland actually takes over DRM master, avoiding a static frozen splash during
 // session setup and dynamic linker/config startup.
 //
-// Before and right after calling `plymouth deactivate`, paint the animated Nebula
-// splash frame onto `/dev/fb0` via pwrite() (which synchronously invokes Linux
+// Before calling `plymouth deactivate`, paint the animated Nebula splash frame onto
+// `/dev/fb0` via pwrite() (which synchronously invokes Linux
 // drm_fbdev_ttm_fb_write -> drm_fb_helper_damage_area, unlike mmap + immediate
 // munmap/close under fb_deferred_io), then keep animating the center dirty band
 // at ~60 fps until Hyprland sends 'S' (after committing Frame 1) or closes the

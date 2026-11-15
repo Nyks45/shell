@@ -9,12 +9,26 @@ import shutil
 import sys
 from pathlib import Path
 
+# Wayland sessions only: there is no X server here to run an X11 session in (it exited at once,
+# and the login service restarted it in a loop).
 SESSION_DIRS = (
     ("/usr/local/share/wayland-sessions", "wayland"),
     ("/usr/share/wayland-sessions", "wayland"),
-    ("/usr/local/share/xsessions", "x11"),
-    ("/usr/share/xsessions", "x11"),
 )
+
+
+def _hyprland_session(exec_cmd: str) -> bool:
+    """A session that can start behind the lock screen: Hyprland itself, or through uwsm.
+    The login is automatic and the lock screen offers the session list and Log out, so a session
+    that started unlocked would open the desktop without the password."""
+    try:
+        parts = shlex.split(exec_cmd)
+    except ValueError:
+        return False
+    prog = os.path.basename(parts[0]) if parts else ""
+    if prog in ("start-hyprland", "Hyprland"):
+        return True
+    return prog == "uwsm" and any("hyprland" in p.lower() for p in parts[1:])
 
 STATE_FILE = (
     Path(os.environ.get("XDG_STATE_HOME") or (Path.home() / ".local/state"))
@@ -49,7 +63,7 @@ def parse_desktop_file(path: Path, stype: str) -> dict | None:
         return None
 
     exec_cmd = data.get("Exec", "")
-    if not exec_cmd:
+    if not exec_cmd or not _hyprland_session(exec_cmd):
         return None
 
     try_exec = data.get("TryExec", "")
@@ -119,6 +133,10 @@ def cmd_set(session_id: str) -> int:
 def _exec_session(exec_cmd: str) -> int:
     parts = shlex.split(exec_cmd)
     prog = os.path.basename(parts[0]) if parts else ""
+    # Always started locked (see _hyprland_session): uwsm's Hyprland too, and anything else
+    # falls back to Hyprland
+    if prog not in ("start-hyprland", "Hyprland"):
+        parts, prog = ["/usr/bin/start-hyprland"], "start-hyprland"
     if prog in ("start-hyprland", "Hyprland") and "--locked-cmd" not in parts:
         os.environ["CAELESTIA_MANAGED_LOCK"] = "1"
         boot_splash = "/usr/lib/caelestia/caelestia-boot-splash"

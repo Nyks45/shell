@@ -296,8 +296,18 @@ start() {
     disown
     event "start: renderer $(cat "$PIDFILE") ($(basename "${dir:-?}"))"
 
+    # The saved frame stays current (lock screen, Settings previews, scheme): the fast
+    # ready.bmp marker, once written, becomes the new frame-<id>.png, off the start path
+    # (python-pillow; without it the old frame stays)
     if (( had_frame )); then
-        ( sleep 10; rm -f "$STATE/ready.bmp" ) > /dev/null 2>&1 < /dev/null &
+        (
+            for _ in $(seq 100); do [[ -s "$STATE/ready.bmp" ]] && break; sleep 0.2; done
+            sleep 0.5 # written in full
+            [[ -s "$STATE/ready.bmp" ]] || exit 0
+            python3 -I -c 'import sys; from PIL import Image; Image.open(sys.argv[1]).convert("RGB").save(sys.argv[2], "PNG")' \
+                "$STATE/ready.bmp" "$frame.tmp" 2>/dev/null && mv -f "$frame.tmp" "$frame"
+            rm -f "$frame.tmp"
+        ) > /dev/null 2>&1 < /dev/null &
         disown
     fi
 

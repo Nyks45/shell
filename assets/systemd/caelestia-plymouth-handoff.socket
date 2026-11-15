@@ -4,7 +4,9 @@ DefaultDependencies=no
 
 [Socket]
 ListenStream=/run/caelestia/plymouth-handoff.sock
-SocketMode=0666
+# Only the session user (the one caelestia-login.service logs in) may trigger the root helper
+SocketUser=hakan
+SocketMode=0600
 DirectoryMode=0755
 Accept=no
 RemoveOnStop=yes

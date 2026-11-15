@@ -255,9 +255,7 @@ FocusScope {
 
         if (bootLoading || !active) {
             wake();
-            if (isPrintable && !bootLoading) {
-                pam.handleKey(event);
-            } else if (isPrintable && bootLoading) {
+            if (isPrintable) {
                 pam.handleKey(event);
             } else if (event.key === Qt.Key_Space || event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Escape) {
                 event.accepted = true;

@@ -130,8 +130,11 @@ Singleton {
                         delete properties.id;
                         loadedList.push(notifComp.createObject(root, properties));
                     }
-                    loadedList.sort((a, b) => b.time - a.time);
-                    root.list = loadedList;
+                    // Notifications that came in before the stored ones finished loading stay
+                    // (first load only: later loads replace the list)
+                    const merged = root.loaded ? loadedList : [...root.list, ...loadedList];
+                    merged.sort((a, b) => b.time - a.time);
+                    root.list = merged;
                 }
             } catch (e) {
                 console.warn("Notifs: failed to parse stored notifications", e);
