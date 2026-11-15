@@ -843,6 +843,41 @@ Singleton {
         }
     }
 
+    // Watchdog: the renderer this shell saw drawing is gone although nothing stopped it (a
+    // crash, or something else killing it): noted in live-wallpaper/events.log and started
+    // again. Only after it was seen running here, so a test session never starts one.
+    property bool seenRunning
+    property int missing
+
+    onRunningChanged: if (running)
+        seenRunning = true
+
+    Timer {
+        running: root.seenRunning && Object.keys(root.screens).length > 0 && root.ruleAction !== "stop"
+        repeat: true
+        interval: 10000
+        onTriggered: if (!watchProc.running)
+            watchProc.running = true
+    }
+
+    Process {
+        id: watchProc
+
+        command: ["sh", "-c", `p=$(cat "\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper/pid" 2>/dev/null); [ -n "$p" ] && [ "$(cat /proc/$p/comm 2>/dev/null)" = linux-wallpaper ]`]
+        onExited: code => {
+            if (code === 0 || startProc.running || restartTimer.running || Object.keys(root.screens).length === 0 || root.ruleAction === "stop") {
+                root.missing = 0;
+                return;
+            }
+            // Twice in a row (20 s): not a restart in progress
+            if (++root.missing < 2)
+                return;
+            root.missing = 0;
+            Quickshell.execDetached(["sh", "-c", `d="\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper"; c=$(coredumpctl -q --no-pager --since=-2min list linux-wallpaperengine 2>/dev/null | tail -1); printf '%s gone without a stop%s: started again by the shell\\n' "$(date '+%F %T')" "\${c:+ (crashed: $c)}" >> "$d/events.log"`]);
+            restartTimer.restart();
+        }
+    }
+
     Process {
         id: runningProc
 

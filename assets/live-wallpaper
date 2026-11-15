@@ -47,6 +47,19 @@ resolve() {
     else return 1; fi
 }
 
+# Who started or stopped the renderer, and when (to find out why a wallpaper stopped):
+# $STATE/events.log, last 500 lines. The caller is the parent process chain.
+event() {
+    local who="" p=$PPID n=0
+    while [[ "$p" -gt 1 && $n -lt 3 ]]; do
+        who+="${who:+ < }$(tr '\0' ' ' < /proc/"$p"/cmdline 2>/dev/null | cut -c1-80)"
+        p=$(awk '{print $4}' /proc/"$p"/stat 2>/dev/null || echo 1); n=$((n + 1))
+    done
+    mkdir -p "$STATE"
+    printf '%s %s (%s)%s\n' "$(date '+%F %T')" "$1" "${who:-?}" "${LIVE_WALLPAPER_OWN_ONLY:+ [own only]}" >> "$STATE/events.log"
+    tail -n 500 "$STATE/events.log" > "$STATE/events.log.tmp" 2>/dev/null && mv "$STATE/events.log.tmp" "$STATE/events.log"
+}
+
 # Ours (by its pid file); without one, every renderer (exact process name, which
 # the kernel cuts to 15 characters; never a command-line match), unless
 # LIVE_WALLPAPER_OWN_ONLY is set (a test session must not touch the real one).
@@ -59,9 +72,11 @@ own_pid() {
 stop() {
     local pid
     if pid="$(own_pid)"; then
+        event "stop: renderer $pid"
         kill "$pid" 2>/dev/null || true
         for _ in $(seq 20); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
     elif [[ -z "${LIVE_WALLPAPER_OWN_ONLY:-}" ]] && pgrep -x linux-wallpaper > /dev/null; then
+        event "stop: every renderer, no pid file ($(pgrep -x linux-wallpaper | tr '\n' ' '))"
         pkill -x linux-wallpaper 2>/dev/null || true
         for _ in $(seq 20); do pgrep -x linux-wallpaper > /dev/null || break; sleep 0.1; done
     fi
@@ -273,9 +288,13 @@ start() {
 
     # Not a process-group leader in the background, so setsid execs in place:
     # $! is the renderer itself.
+    # The last runs' logs are kept (log.1 = the one before)
+    for i in 2 1; do [[ -f "$STATE/log.$i" ]] && mv -f "$STATE/log.$i" "$STATE/log.$((i + 1))"; done
+    [[ -f "$STATE/log" ]] && mv -f "$STATE/log" "$STATE/log.1"
     setsid linux-wallpaperengine "${args[@]}" > "$STATE/log" 2>&1 < /dev/null &
     echo $! > "$PIDFILE"
     disown
+    event "start: renderer $(cat "$PIDFILE") ($(basename "${dir:-?}"))"
 
     if (( had_frame )); then
         ( sleep 10; rm -f "$STATE/ready.bmp" ) > /dev/null 2>&1 < /dev/null &
