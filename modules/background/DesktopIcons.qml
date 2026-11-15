@@ -284,7 +284,7 @@ Item {
 
         text: qsTr("Add a widget")
         icon: "add_circle"
-        onClicked: WindowFactory.createAt("style", [1])
+        onClicked: WindowFactory.createAt("wallpaper", [9, 10])
     }
 
     MenuItem {

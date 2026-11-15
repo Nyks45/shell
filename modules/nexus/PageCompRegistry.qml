@@ -52,7 +52,10 @@ QtObject {
             "wallandstyle/LiveWallpaperInfo.qml",
             "wallandstyle/LivePlaylists.qml",
             "wallandstyle/LiveWorkshop.qml",
-            "wallandstyle/LiveSettings.qml"
+            "wallandstyle/LiveSettings.qml",
+            // Nebula (9), Nebula's own settings pages for its parts (10)
+            "style/StylePage.qml",
+            "style/NebulaPages.qml"
         ],
         // 1: Fonts & themes
         [
@@ -159,12 +162,7 @@ QtObject {
             "merged/SystemPage.qml",
             "system/ServicePage.qml"
         ],
-        // 19: Style (Nebula): page (0), Nebula's own settings pages (1)
-        [
-            "style/StylePage.qml",
-            "style/NebulaPages.qml"
-        ],
-        // 20: About
+        // 19: About
         [
             "AboutPage.qml"
         ]

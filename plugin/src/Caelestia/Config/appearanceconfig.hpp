@@ -279,6 +279,18 @@ class AppearanceGlass : public settings::ObjectNode {
     CONFIG_GLOBAL_PROPERTY(qreal, topLight, 0.08)
 };
 
+// Blur strength for the shell's own surfaces (Hyprland layer rules blur_size / blur_passes, from
+// the shell's own Hyprland build); 0 = the same as windows (decoration:blur). Settings >
+// Wallpaper & style > Blur.
+class AppearanceBlur : public settings::ObjectNode {
+    CONFIG_NODE(AppearanceBlur, settings::ObjectNode)
+
+    CONFIG_GLOBAL_PROPERTY(int, shellSize, 0)
+    CONFIG_GLOBAL_PROPERTY(int, shellPasses, 0)
+    CONFIG_GLOBAL_PROPERTY(int, widgetsSize, 0)
+    CONFIG_GLOBAL_PROPERTY(int, widgetsPasses, 0)
+};
+
 // Nebula style (github.com/LilaccFlowerr/Nebula, see NEBULA.md): which of its parts are on.
 // Settings > Style.
 class AppearanceStyle : public settings::ObjectNode {
@@ -299,6 +311,7 @@ class AppearanceConfig : public settings::ObjectNode {
     CONFIG_SUBOBJECT(AppearanceTransparency, transparency)
     CONFIG_SUBOBJECT(AppearanceGlass, glass)
     CONFIG_SUBOBJECT(AppearanceStyle, style)
+    CONFIG_SUBOBJECT(AppearanceBlur, blur)
 };
 
 } // namespace caelestia::shell::config

@@ -277,14 +277,6 @@ PageBase {
 
         ToggleRow {
             visible: root.hyprflowLoaded
-            text: Tr.tr("Frosted bars")
-            subtext: Tr.tr("Blur behind see-through title bars")
-            checked: HyprSettings.value("plugin:hyprflow:bar_blur", true)
-            onToggled: HyprSettings.setHyprflow("bar_blur", checked)
-        }
-
-        ToggleRow {
-            visible: root.hyprflowLoaded
             text: Tr.tr("Bars on apps with their own")
             subtext: Tr.tr("Apps that draw their own title bar (GNOME apps, browsers) get one too")
             checked: HyprSettings.value("plugin:hyprflow:bar_csd", "bar") === "bar"

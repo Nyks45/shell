@@ -96,6 +96,31 @@ Singleton {
         // shape's outline (ignore_alpha 0.1, as in Nebula's own rules)
         const neb = Hypr.usingLua ? `eval hl.layer_rule({ match = { namespace = "caelestia-nebula-(widgets|widgetcorner|widgetmenu)" }, blur = true, ignore_alpha = 0.1 })` : "keyword layerrule blur on, match:namespace caelestia-nebula-(widgets|widgetcorner|widgetmenu)";
         Hypr.extras.batchMessage([rule.arg("blur").arg(trEnabled), rule.arg("ignore_alpha").arg(Math.max(0, transparency.base - 0.03)), neb]);
+
+        // Their own blur strength (Wallpaper & style > Blur; 0 = as windows): layer rules of the
+        // shell's own Hyprland build. Sent apart, so a Hyprland without them keeps the rules above.
+        if (Hypr.usingLua) {
+            const b = GlobalConfig.appearance.blur;
+            const strength = (ns, size, passes) => `eval hl.layer_rule({ match = { namespace = "${ns}" }, blur_size = ${Math.max(0, size)}, blur_passes = ${Math.max(0, passes)} })`;
+            Hypr.extras.batchMessage([strength("caelestia-drawers", b.shellSize, b.shellPasses), strength("caelestia-nebula-(widgets|widgetcorner|widgetmenu)", b.widgetsSize, b.widgetsPasses)]);
+        }
+    }
+
+    Connections {
+        function onShellSizeChanged(): void {
+            root.requestReloadHyprRules();
+        }
+        function onShellPassesChanged(): void {
+            root.requestReloadHyprRules();
+        }
+        function onWidgetsSizeChanged(): void {
+            root.requestReloadHyprRules();
+        }
+        function onWidgetsPassesChanged(): void {
+            root.requestReloadHyprRules();
+        }
+
+        target: GlobalConfig.appearance.blur
     }
 
     function requestReloadHyprRules(): void {

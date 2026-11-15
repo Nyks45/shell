@@ -180,12 +180,72 @@ QtObject {
         {
             "label": "Blur",
             "ctx": "",
-            "sub": "",
-            "section": "Audio visualiser",
+            "sub": "Frosted glass behind everything see-through: windows, panels, the bar, widgets, title bars",
+            "section": "Blur",
             "page": 0,
             "path": [],
             "trail": [],
             "keywords": "frosted glass transparency"
+        },
+        {
+            "label": "Look",
+            "ctx": "",
+            "sub": "Sets windows' strength (and so everything that follows it)",
+            "section": "Blur",
+            "page": 0,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Windows",
+            "ctx": "",
+            "sub": "See-through windows; also everything below set to \"as windows\"",
+            "section": "Blur",
+            "page": 0,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Panels and bar",
+            "ctx": "",
+            "sub": "The shell's bar, dashboard, launcher, sidebar, notifications and popouts",
+            "section": "Blur",
+            "page": 0,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Desktop widgets",
+            "ctx": "",
+            "sub": "Nebula's widgets, their menus and the widgets corner",
+            "section": "Blur",
+            "page": 0,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Title bars",
+            "ctx": "",
+            "sub": "Desktop mode's title bars, at windows' strength",
+            "section": "Blur",
+            "page": 0,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Audio visualiser",
+            "ctx": "",
+            "sub": "The visualiser's bars on the desktop",
+            "section": "Blur",
+            "page": 0,
+            "path": [],
+            "trail": [],
+            "keywords": ""
         },
         {
             "label": "Wallpapers",
@@ -731,6 +791,90 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Nebula",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 0,
+            "path": [
+                9
+            ],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Desktop widgets",
+            "ctx": "",
+            "sub": "Clock, calendar, weather, battery, now playing, lyrics, pictures, notes and system info in Material shapes on the desktop",
+            "section": "Desktop widgets",
+            "page": 0,
+            "path": [
+                9
+            ],
+            "trail": [
+                "Nebula"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Widgets and layouts",
+            "ctx": "",
+            "sub": "Add, change and arrange them. On the desktop: right-click for the menu; Super+Shift+E to edit",
+            "section": "Desktop widgets",
+            "opens": 10,
+            "page": 0,
+            "path": [
+                9
+            ],
+            "trail": [
+                "Nebula"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Glass tint",
+            "ctx": "",
+            "sub": "",
+            "section": "Glass",
+            "page": 0,
+            "path": [
+                9
+            ],
+            "trail": [
+                "Nebula"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Light across the top",
+            "ctx": "",
+            "sub": "",
+            "section": "Glass",
+            "page": 0,
+            "path": [
+                9
+            ],
+            "trail": [
+                "Nebula"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Widget",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 0,
+            "path": [
+                9,
+                10
+            ],
+            "trail": [
+                "Nebula"
+            ],
+            "keywords": ""
+        },
+        {
             "label": "Interface font",
             "ctx": "",
             "sub": "Panels, menus, the launcher and this app",
@@ -993,32 +1137,12 @@ QtObject {
         {
             "label": "Blur",
             "ctx": "",
-            "sub": "Frosted glass behind see-through windows and panels",
+            "sub": "All blur settings (windows, panels, widgets, title bars) are in Wallpaper & style > Blur",
             "section": "Effects",
             "page": 2,
             "path": [],
             "trail": [],
             "keywords": "frosted glass transparency"
-        },
-        {
-            "label": "Blur strength",
-            "ctx": "",
-            "sub": "",
-            "section": "Effects",
-            "page": 2,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Blur passes",
-            "ctx": "",
-            "sub": "More is smoother, and costs more",
-            "section": "Effects",
-            "page": 2,
-            "path": [],
-            "trail": [],
-            "keywords": ""
         },
         {
             "label": "Shadows",
@@ -1264,16 +1388,6 @@ QtObject {
             "label": "Colour from the window",
             "ctx": "",
             "sub": "The bar takes the colour of the app's top edge, so it blends in",
-            "section": "Title bars",
-            "page": 2,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Frosted bars",
-            "ctx": "",
-            "sub": "Blur behind see-through title bars",
             "section": "Title bars",
             "page": 2,
             "path": [],
@@ -5231,74 +5345,11 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Desktop widgets",
-            "ctx": "",
-            "sub": "Clock, calendar, weather, battery, now playing, lyrics, pictures, notes and system info in Material shapes on the desktop",
-            "section": "Desktop widgets",
-            "page": 19,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Widgets and layouts",
-            "ctx": "",
-            "sub": "Add, change and arrange them. On the desktop: right-click for the menu; Super+Shift+E to edit",
-            "section": "Desktop widgets",
-            "opens": 1,
-            "page": 19,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Blur",
-            "ctx": "",
-            "sub": "Behind glass, panels and see-through windows",
-            "section": "Glass",
-            "page": 19,
-            "path": [],
-            "trail": [],
-            "keywords": "frosted glass transparency"
-        },
-        {
-            "label": "Glass tint",
-            "ctx": "",
-            "sub": "",
-            "section": "Glass",
-            "page": 19,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Light across the top",
-            "ctx": "",
-            "sub": "",
-            "section": "Glass",
-            "page": 19,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Widget",
-            "ctx": "",
-            "sub": "",
-            "section": "",
-            "page": 19,
-            "path": [
-                1
-            ],
-            "trail": [],
-            "keywords": ""
-        },
-        {
             "label": "Hostname",
             "ctx": "",
             "sub": "",
             "section": "System",
-            "page": 20,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5308,7 +5359,7 @@ QtObject {
             "ctx": "system model name",
             "sub": "",
             "section": "System",
-            "page": 20,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5318,7 +5369,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "System",
-            "page": 20,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5328,7 +5379,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "System",
-            "page": 20,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5338,7 +5389,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "System",
-            "page": 20,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5348,7 +5399,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hardware",
-            "page": 20,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5358,7 +5409,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hardware",
-            "page": 20,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5368,7 +5419,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hardware",
-            "page": 20,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5378,7 +5429,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Hardware",
-            "page": 20,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5388,7 +5439,7 @@ QtObject {
             "ctx": "the caelestia shell itself, not a unix shell",
             "sub": "",
             "section": "Software",
-            "page": 20,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5398,7 +5449,7 @@ QtObject {
             "ctx": "the caelestia command line tool",
             "sub": "",
             "section": "Software",
-            "page": 20,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""
@@ -5408,7 +5459,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Plugins",
-            "page": 20,
+            "page": 19,
             "path": [],
             "trail": [],
             "keywords": ""

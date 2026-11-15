@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import Caelestia.Config
 import Caelestia.I18n
 import qs.services
+import qs.modules.nexus
 import qs.modules.nexus.common
 
 // How windows look (Hyprland: gaps, borders, corners, blur, shadows,
@@ -88,32 +89,16 @@ PageBase {
             text: Tr.tr("Effects")
         }
 
-        ToggleRow {
+        RowButton {
+            Layout.fillWidth: true
+            icon: "blur_on"
             text: Tr.tr("Blur")
-            subtext: Tr.tr("Frosted glass behind see-through windows and panels")
-            checked: HyprSettings.value("decoration:blur:enabled", true)
-            onToggled: HyprSettings.setOption("decoration:blur:enabled", checked)
-        }
-
-        StepperRow {
-            visible: HyprSettings.value("decoration:blur:enabled", true)
-            label: Tr.tr("Blur strength")
-            value: HyprSettings.value("decoration:blur:size", 8)
-            from: 1
-            to: 20
-            stepSize: 1
-            onMoved: v => HyprSettings.setOption("decoration:blur:size", v)
-        }
-
-        StepperRow {
-            visible: HyprSettings.value("decoration:blur:enabled", true)
-            label: Tr.tr("Blur passes")
-            subtext: Tr.tr("More is smoother, and costs more")
-            value: HyprSettings.value("decoration:blur:passes", 2)
-            from: 1
-            to: 6
-            stepSize: 1
-            onMoved: v => HyprSettings.setOption("decoration:blur:passes", v)
+            subtext: Tr.tr("All blur settings (windows, panels, widgets, title bars) are in Wallpaper & style > Blur")
+            onClicked: root.nState.goTo({
+                page: PageRegistry.find("wallpaper"),
+                path: [],
+                text: Tr.tr("Blur")
+            })
         }
 
         ToggleRow {

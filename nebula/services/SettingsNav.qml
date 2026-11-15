@@ -4,7 +4,7 @@ import QtQuick
 import Quickshell
 import qs.modules.nexus
 
-// Where Nebula's settings open: in the shell's settings app (Settings > Style), at one of
+// Where Nebula's settings open: in the shell's settings app (Wallpaper & style > Nebula), at one of
 // Nebula's own pages. `sub` is Nebula's sub-page key: "" (desktop widgets), "widget:<id>",
 // "newwidget", "images".
 Singleton {
@@ -14,6 +14,6 @@ Singleton {
 
     function open(sub: string): void {
         root.sub = sub ?? "";
-        WindowFactory.createAt("style", [1]);
+        WindowFactory.createAt("wallpaper", [9, 10]); // Wallpaper & style > Nebula > its pages
     }
 }

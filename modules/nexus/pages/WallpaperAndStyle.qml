@@ -210,6 +210,18 @@ PageBase {
                 verticalPadding: Tokens.padding.medium
                 onClicked: root.nState.openSubPage(3) // Colours page
             }
+
+            IconTextButton {
+                icon: "auto_awesome"
+                text: Tr.tr("Nebula")
+                font: Tokens.font.body.large
+                isRound: true
+                shapeMorph: true
+                type: IconTextButton.Tonal
+                horizontalPadding: Tokens.padding.extraLarge
+                verticalPadding: Tokens.padding.medium
+                onClicked: root.nState.openSubPage(9) // Nebula: desktop widgets, glass
+            }
         }
 
         ToggleRow {
@@ -523,11 +535,134 @@ PageBase {
             onToggled: GlobalConfig.background.visualiser.autoHide = checked
         }
 
-        ToggleRow {
-            visible: Config.background.visualiser.enabled
+
+        // Every blur setting, in one place: what each one blurs is in its text. Windows' blur is
+        // Hyprland's (decoration:blur); the shell's surfaces can have their own strength (layer
+        // rules blur_size / blur_passes, from the shell's own Hyprland build), 0 = as windows.
+        SectionHeader {
             text: Tr.tr("Blur")
+        }
+
+        ToggleRow {
+            text: Tr.tr("Blur")
+            subtext: Tr.tr("Frosted glass behind everything see-through: windows, panels, the bar, widgets, title bars")
+            checked: HyprSettings.value("decoration:blur:enabled", true)
+            onToggled: HyprSettings.setOption("decoration:blur:enabled", checked)
+        }
+
+        SelectRow {
+            visible: root.blurOn
+            label: Tr.tr("Look")
+            subtext: Tr.tr("Sets windows' strength (and so everything that follows it)")
+            menuItems: [nebulaBlur, strongBlur]
+            active: root.winBlurSize === 4 && root.winBlurPasses === 1 ? nebulaBlur : root.winBlurSize === 8 && root.winBlurPasses === 2 ? strongBlur : null
+            fallbackText: Tr.tr("Your own")
+            onSelected: item => {
+                HyprSettings.setOption("decoration:blur:size", item.value[0]);
+                HyprSettings.setOption("decoration:blur:passes", item.value[1]);
+            }
+
+            MenuItem {
+                id: nebulaBlur
+
+                text: Tr.tr("Nebula: soft, shapes show through")
+                value: [4, 1]
+            }
+
+            MenuItem {
+                id: strongBlur
+
+                text: Tr.tr("Strong: frosted")
+                value: [8, 2]
+            }
+        }
+
+        BlurRow {
+            visible: root.blurOn
+            label: Tr.tr("Windows")
+            subtext: Tr.tr("See-through windows; also everything below set to \"as windows\"")
+            size: root.winBlurSize
+            passes: root.winBlurPasses
+            minimum: 1
+            onSizeMoved: v => HyprSettings.setOption("decoration:blur:size", v)
+            onPassesMoved: v => HyprSettings.setOption("decoration:blur:passes", v)
+        }
+
+        BlurRow {
+            visible: root.blurOn
+            label: Tr.tr("Panels and bar")
+            subtext: Tr.tr("The shell's bar, dashboard, launcher, sidebar, notifications and popouts")
+            size: GlobalConfig.appearance.blur.shellSize
+            passes: GlobalConfig.appearance.blur.shellPasses
+            onSizeMoved: v => GlobalConfig.appearance.blur.shellSize = v
+            onPassesMoved: v => GlobalConfig.appearance.blur.shellPasses = v
+        }
+
+        BlurRow {
+            visible: root.blurOn
+            label: Tr.tr("Desktop widgets")
+            subtext: Tr.tr("Nebula's widgets, their menus and the widgets corner")
+            size: GlobalConfig.appearance.blur.widgetsSize
+            passes: GlobalConfig.appearance.blur.widgetsPasses
+            onSizeMoved: v => GlobalConfig.appearance.blur.widgetsSize = v
+            onPassesMoved: v => GlobalConfig.appearance.blur.widgetsPasses = v
+        }
+
+        ToggleRow {
+            visible: root.blurOn && HyprSettings.value("plugin:hyprflow:bar_blur", null) !== null
+            text: Tr.tr("Title bars")
+            subtext: Tr.tr("Desktop mode's title bars, at windows' strength")
+            checked: HyprSettings.value("plugin:hyprflow:bar_blur", true)
+            onToggled: HyprSettings.setHyprflow("bar_blur", checked)
+        }
+
+        ToggleRow {
+            visible: root.blurOn && Config.background.visualiser.enabled
+            text: Tr.tr("Audio visualiser")
+            subtext: Tr.tr("The visualiser's bars on the desktop")
             checked: Config.background.visualiser.blur
             onToggled: GlobalConfig.background.visualiser.blur = checked
+        }
+    }
+
+    readonly property bool blurOn: HyprSettings.value("decoration:blur:enabled", true)
+    readonly property int winBlurSize: HyprSettings.value("decoration:blur:size", 8)
+    readonly property int winBlurPasses: HyprSettings.value("decoration:blur:passes", 2)
+
+    // Strength (blur size) and quality (passes) of one kind of surface; 0 = "as windows"
+    component BlurRow: ColumnLayout {
+        id: blurRow
+
+        property string label
+        property string subtext
+        property int size
+        property int passes
+        property int minimum: 0
+
+        signal sizeMoved(int v)
+        signal passesMoved(int v)
+
+        Layout.fillWidth: true
+        spacing: Tokens.spacing.extraSmall / 2
+
+        StepperRow {
+            label: blurRow.label
+            subtext: blurRow.minimum === 0 && blurRow.size === 0 ? blurRow.subtext + " · " + Tr.tr("strength as windows") : blurRow.subtext + " · " + Tr.tr("strength")
+            value: blurRow.size
+            from: blurRow.minimum
+            to: 20
+            stepSize: 1
+            onMoved: v => blurRow.sizeMoved(v)
+        }
+
+        StepperRow {
+            label: Tr.tr("%1: quality").arg(blurRow.label)
+            subtext: blurRow.minimum === 0 && blurRow.passes === 0 ? Tr.tr("Passes: more is smoother and costs more · as windows") : Tr.tr("Passes: more is smoother and costs more")
+            value: blurRow.passes
+            from: blurRow.minimum
+            to: 6
+            stepSize: 1
+            onMoved: v => blurRow.passesMoved(v)
         }
     }
 }
