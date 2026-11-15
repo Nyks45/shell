@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
+import qs.components.controls
 import qs.services
 import qs.modules.nexus
 import qs.modules.nexus.common
@@ -45,6 +46,37 @@ PageBase {
 
         SectionHeader {
             text: Tr.tr("Glass")
+        }
+
+        // Hyprland has one blur for everything (windows too): Nebula's is lighter (size 4, one
+        // pass), so the glass still shows the shapes behind it. Saved as the Windows page's blur.
+        SelectRow {
+            readonly property bool nebula: HyprSettings.value("decoration:blur:size", 8) === 4 && HyprSettings.value("decoration:blur:passes", 2) === 1
+
+            label: Tr.tr("Blur")
+            subtext: Tr.tr("Behind glass, panels and see-through windows")
+            menuItems: [nebulaBlur, strongBlur]
+            active: nebula ? nebulaBlur : HyprSettings.value("decoration:blur:size", 8) === 8 && HyprSettings.value("decoration:blur:passes", 2) === 2 ? strongBlur : null
+            fallbackText: Tr.tr("Your own (Windows page)")
+            onSelected: item => {
+                HyprSettings.setOption("decoration:blur:enabled", true);
+                HyprSettings.setOption("decoration:blur:size", item.value[0]);
+                HyprSettings.setOption("decoration:blur:passes", item.value[1]);
+            }
+
+            MenuItem {
+                id: nebulaBlur
+
+                text: Tr.tr("Nebula: soft, shapes show through")
+                value: [4, 1]
+            }
+
+            MenuItem {
+                id: strongBlur
+
+                text: Tr.tr("Strong: frosted")
+                value: [8, 2]
+            }
         }
 
         SliderRow {

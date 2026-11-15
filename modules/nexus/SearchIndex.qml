@@ -5252,6 +5252,16 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Blur",
+            "ctx": "",
+            "sub": "Behind glass, panels and see-through windows",
+            "section": "Glass",
+            "page": 19,
+            "path": [],
+            "trail": [],
+            "keywords": "frosted glass transparency"
+        },
+        {
             "label": "Glass tint",
             "ctx": "",
             "sub": "",
