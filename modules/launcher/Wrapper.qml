@@ -23,13 +23,17 @@ Item {
         return max;
     }
 
-    property real offsetScale: shouldBeActive ? 0 : 1
+    property real offsetScale: 1
 
     // Nebula motion (Wallpaper & style > Nebula > Animations > Shell): expands out of the edge like
     // Nebula's media island, its content revealed in place, instead of sliding in
-    readonly property bool expandStyle: GlobalConfig.appearance.style.shellAnim === "nebula"
+    readonly property bool expandStyle: GlobalConfig.appearance.style.shellAnim === "nebula" || GlobalConfig.appearance.style.shellAnim === "island"
     readonly property real openT: 1 - offsetScale
     property real closingHeight
+
+    // Switching style while running: back to the live height (a close may have fixed it)
+    // Switching style while running: back to the live height (a close may have fixed it)
+    onExpandStyleChanged: implicitHeight = Qt.binding(() => content.implicitHeight * (expandStyle ? openT : 1))
 
     onShouldBeActiveChanged: {
         if (shouldBeActive)
@@ -44,13 +48,12 @@ Item {
 
     visible: offsetScale < 1
     anchors.bottomMargin: expandStyle ? 0 : (-implicitHeight - 5) * offsetScale
-    implicitHeight: content.implicitHeight
+    implicitHeight: content.implicitHeight * (expandStyle ? openT : 1)
     implicitWidth: (content.implicitWidth || 630) * (expandStyle ? 0.3 + 0.7 * openT : 1) // 630: fallback for first open
-    clip: expandStyle
+    clip: true // (always: switching it on and off left the rounded-clip textures black)
     opacity: expandStyle ? 1 : 1 - offsetScale
-    // Expanding: the body grows first, then the content fades in and settles (closing: the
-    // content goes first, then the body folds back into the edge)
-    readonly property real contentT: expandStyle ? Math.max(0, Math.min(1, (openT - 0.35) / 0.6)) : 1
+    // (No fade on the content: it holds rounded masks that capture it into a texture, and Qt
+    // doesn't capture anything at opacity 0, so they stayed black. Expanding reveals it in place.)
 
     Timer {
         interval: 300
@@ -58,16 +61,14 @@ Item {
         onTriggered: Apps
     }
 
-    Behavior on offsetScale {
-        Anim {}
+    ShellMotion {
+        target: root
+        to: root.shouldBeActive ? 0 : 1
     }
 
     Loader {
         id: content
 
-        opacity: root.contentT
-        scale: 0.96 + 0.04 * root.contentT
-        transformOrigin: Item.Bottom
 
         function ensureSource(): void {
             if (active && !source.toString())
@@ -78,9 +79,10 @@ Item {
                 });
         }
 
+        // Where it sits: one x/y expression, never swapped anchors (swapping fixed its size at 0
+        // after a style switch: an empty dashboard and notification list)
         // (expanding: stays put at the bottom edge and is revealed; sliding: moves with the panel)
-        anchors.top: root.expandStyle ? undefined : parent.top
-        anchors.bottom: root.expandStyle ? parent.bottom : undefined
+        y: 0
         anchors.horizontalCenter: parent.horizontalCenter
 
         active: root.shouldBeActive || root.visible

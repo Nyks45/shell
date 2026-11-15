@@ -34,7 +34,7 @@ Singleton {
         property string items: ""
         property string presets: "[]"
         property string preset: ""
-        property bool grid: true
+        property bool grid: false
         property string toolbarEdge: "bottom"
     }
 

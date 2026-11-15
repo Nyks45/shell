@@ -189,13 +189,58 @@ Singleton {
         });
     }
 
-    // Windows and workspaces: "caelestia" (the shared animations.lua) or "nebula" (Nebula's
-    // workspace and special-workspace motion). Wallpaper & style > Nebula > Animations.
-    function setWindowAnim(style: string): void {
+    // Animation style per area (Wallpaper & style > Nebula > Animations): windows, workspaces,
+    // layers (the shell's other surfaces). "caelestia" = the shared animations.lua as it is;
+    // nebula, island, spring, m3spring, glide (see animStyleLua)
+    function animStyle(area: string): string {
+        const a = saved.anims ?? {};
+        // (earlier: one windowAnim for windows and workspaces)
+        return a[area] ?? (area !== "layers" ? (saved.windowAnim ?? "caelestia") : "caelestia");
+    }
+
+    function animStyleOf(st: var, area: string): string {
+        const a = st.anims ?? {};
+        return a[area] ?? (area !== "layers" ? (st.windowAnim ?? "caelestia") : "caelestia");
+    }
+
+    function setAnimStyle(area: string, style: string): void {
         update({
-            windowAnim: style
+            anims: Object.assign({}, saved.anims ?? {}, {
+                [area]: style
+            })
         });
         reloadSoon();
+    }
+
+    // Lua for one area's style: its curve, then its animation leaves. Springs are critically
+    // damped (damping = 2 * sqrt(stiffness * mass)): they settle without overshooting.
+    function animStyleLua(area: string, style: string): string {
+        if (!style || style === "caelestia")
+            return "";
+        const curves = {
+            nebula: `hl.curve("cs_${area}", { type = "bezier", points = { { 0.05, 0.7 }, { 0.1, 1 } } })`,
+            glide: `hl.curve("cs_${area}", { type = "bezier", points = { { 0.23, 1 }, { 0.32, 1 } } })`,
+            spring: `hl.curve("cs_${area}", { type = "spring", stiffness = 170, damping = 26.1, mass = 1 })`,
+            island: `hl.curve("cs_${area}", { type = "spring", stiffness = 220, damping = 29.7, mass = 1 })`,
+            m3spring: `hl.curve("cs_${area}", { type = "spring", stiffness = 380, damping = 39, mass = 1 })`
+        };
+        const curve = curves[style];
+        if (!curve)
+            return "";
+        const speed = style === "glide" ? 7 : 5;
+        const fade = `hl.curve("cs_fade", { type = "bezier", points = { { 0.2, 0 }, { 0, 1 } } })`;
+        const anim = (leaf, extra) => `hl.animation({ leaf = "${leaf}", enabled = true, speed = ${speed}, bezier = "cs_${area}"${extra ?? ""} })`;
+        const lines = [curve, fade];
+        if (area === "windows") {
+            // island: windows grow out of their centre (popin) like the island
+            lines.push(anim("windowsIn", style === "island" ? `, style = "popin 80%"` : ""), anim("windowsOut", style === "island" ? `, style = "popin 80%"` : ""), anim("windowsMove"));
+            lines.push(`hl.animation({ leaf = "fade", enabled = true, speed = 6, bezier = "cs_fade" })`, `hl.animation({ leaf = "border", enabled = true, speed = 6, bezier = "cs_fade" })`);
+        } else if (area === "workspaces") {
+            lines.push(anim("workspaces", style === "nebula" || style === "glide" ? `, style = "slidefade 20%"` : ""), anim("specialWorkspace", `, style = "${style === "island" ? "slidefadevert 15%" : "fade"}"`));
+        } else if (area === "layers") {
+            lines.push(anim("layersIn", `, style = "${style === "island" ? "popin 85%" : "slide"}"`), anim("layersOut", `, style = "${style === "island" ? "popin 85%" : "slide"}"`), `hl.animation({ leaf = "fadeLayers", enabled = true, speed = 5, bezier = "cs_fade" })`);
+        }
+        return lines.map(l => "        " + l).join("\n");
     }
 
     function update(changes: var): void {
@@ -422,13 +467,10 @@ function S.apply()
         bind("XF86PowerOff", hl.dsp.exec_cmd("caelestia shell drawers toggle session"))
     end
 
-    -- Windows and workspaces like Nebula (else the shared animations.lua as it is): its
-    -- smoother workspace slide and a plain fade for the special workspace
-    if ${s.windowAnim === "nebula" ? "true" : "false"} then
-        hl.curve("smooth", { type = "bezier", points = { { 0.4, 0 }, { 0.2, 1 } } })
-        hl.curve("emphasizedDecel", { type = "bezier", points = { { 0.05, 0.7 }, { 0.1, 1 } } })
-        hl.animation({ leaf = "workspaces", enabled = true, speed = 4, bezier = "smooth" })
-        hl.animation({ leaf = "specialWorkspace", enabled = true, speed = 3, bezier = "emphasizedDecel", style = "fade" })
+    -- Animation styles per area (Wallpaper & style > Nebula > Animations; else the shared
+    -- animations.lua as it is)
+    do
+${["windows", "workspaces", "layers"].map(a => root.animStyleLua(a, root.animStyleOf(s, a))).filter(x => x).join("\n")}
     end
 
     -- Night light (hyprsunset, scheduled in ~/.config/hypr/hyprsunset.conf)
