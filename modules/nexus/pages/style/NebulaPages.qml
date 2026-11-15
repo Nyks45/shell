@@ -54,51 +54,52 @@ PageBase {
         pageAnim.restart();
     }
 
-    SequentialAnimation {
-        id: pageAnim
-
-        property int dir: 1
-
-        Anim {
-            target: loader
-            property: "opacity"
-            to: 0
-            type: Anim.DefaultEffects
-        }
-        ScriptAction {
-            script: {
-                loader.slide = pageAnim.dir * root.animMovement;
-                loader.shownSub = root.sub;
-                loader.shown = Qt.resolvedUrl(root.current.source);
-                // Each of Nebula's pages starts at the top
-                if (root.flickable)
-                    root.flickable.contentY = 0;
-            }
-        }
-        PauseAnimation {
-            duration: Tokens.anim.durations.expressiveFastEffects
-        }
-        ParallelAnimation {
-            Anim {
-                target: loader
-                property: "opacity"
-                to: 1
-                type: Anim.DefaultEffects
-            }
-            Anim {
-                target: loader
-                property: "slide"
-                to: 0
-                type: Anim.FastSpatial
-            }
-        }
-    }
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         width: root.cappedWidth
         spacing: Theme.spacing.md
+
+        SequentialAnimation {
+            id: pageAnim
+
+            property int dir: 1
+
+            Anim {
+                target: loader
+                property: "opacity"
+                to: 0
+                type: Anim.DefaultEffects
+            }
+            ScriptAction {
+                script: {
+                    loader.slide = pageAnim.dir * root.animMovement;
+                    loader.shownSub = root.sub;
+                    loader.shown = Qt.resolvedUrl(root.current.source);
+                    // Each of Nebula's pages starts at the top
+                    if (root.flickable)
+                        root.flickable.contentY = 0;
+                }
+            }
+            PauseAnimation {
+                duration: Tokens.anim.durations.expressiveFastEffects
+            }
+            ParallelAnimation {
+                Anim {
+                    target: loader
+                    property: "opacity"
+                    to: 1
+                    type: Anim.DefaultEffects
+                }
+                Anim {
+                    target: loader
+                    property: "slide"
+                    to: 0
+                    type: Anim.FastSpatial
+                }
+            }
+        }
 
         Loader {
             id: loader
