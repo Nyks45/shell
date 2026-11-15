@@ -66,9 +66,159 @@ Singleton {
 
     // change: { proton?, env?: { KEY: value | null }, mangohud?, perf? }
     function set(key: string, change: var, what: string): void {
+        // Its launcher is open and would write its old settings back when it quits: the change
+        // waits (shown already) and is made as soon as the launcher is closed
+        const g = find(key);
+        if (g && blocked(g.launcher)) {
+            const p = Object.assign({}, pending);
+            const merged = Object.assign({}, p[key] ?? {}, change);
+            if (change.env)
+                merged.env = Object.assign({}, p[key]?.env ?? {}, change.env);
+            p[key] = merged;
+            pending = p;
+            savePending();
+            return;
+        }
         Admin.exec([helper, "game-set"], what, () => root.load(), JSON.stringify(Object.assign({
             key
         }, change)));
+    }
+
+    // Changes waiting for their launcher to close: { key: change } (kept across restarts)
+    property var pending: ({})
+
+    // Other jobs waiting for a launcher to close: [{ launcher, command, what }] (kept too)
+    property var queued: []
+
+    // Run `command` now, or (its launcher open, which would undo it) once it's closed
+    function whenClosed(launcher: string, command: list<string>, what: string, done: var): void {
+        if (!blocked(launcher)) {
+            Admin.exec(command, what, ok => {
+                root.load();
+                if (typeof done === "function")
+                    done(ok);
+            });
+            return;
+        }
+        queued = [...queued.filter(q => q.what !== what), {
+                launcher,
+                command: Array.from(command),
+                what
+            }];
+        savePending();
+    }
+
+    function isQueued(what: string): bool {
+        return queued.some(q => q.what === what);
+    }
+
+    function unqueue(what: string): void {
+        queued = queued.filter(q => q.what !== what);
+        savePending();
+    }
+
+    function savePending(): void {
+        pendingFile.setText(JSON.stringify({
+            games: pending,
+            jobs: queued
+        }));
+    }
+
+    function hasPending(key: string): bool {
+        return pending[key] !== undefined;
+    }
+
+    // The game as it will be: its settings with the waiting changes on top
+    function withPending(g: var): var {
+        const p = g ? pending[g.key] : undefined;
+        if (!p)
+            return g;
+        const out = Object.assign({}, g, p);
+        if (p.env) {
+            const env = Object.assign({}, g.env ?? {});
+            for (const [k, v] of Object.entries(p.env)) {
+                if (v === null)
+                    delete env[k];
+                else
+                    env[k] = v;
+            }
+            out.env = env;
+        }
+        return out;
+    }
+
+    function flushPending(): void {
+        let changed = false;
+        const p = Object.assign({}, pending);
+        for (const key of Object.keys(p)) {
+            const g = find(key);
+            if (!g) {
+                // Gone from its launcher
+                if (loaded) {
+                    delete p[key];
+                    changed = true;
+                }
+                continue;
+            }
+            if (blocked(g.launcher))
+                continue;
+            const change = p[key];
+            delete p[key];
+            changed = true;
+            Admin.exec([helper, "game-set"], Tr.tr("Change %1's settings").arg(g.title), () => root.load(), JSON.stringify(Object.assign({
+                key
+            }, change)));
+        }
+        const waiting = [];
+        for (const q of queued) {
+            if (blocked(q.launcher) || !loaded)
+                waiting.push(q);
+            else {
+                Admin.exec(q.command, q.what, () => root.load());
+                changed = true;
+            }
+        }
+        if (changed) {
+            pending = p;
+            queued = waiting;
+            savePending();
+        }
+    }
+
+    onLaunchersChanged: flushPending()
+
+    // A game writes Proton logs (its own option or the one for all games): each launch's log is
+    // filed apart (caelestia-gamelogs.path), so the unit is on
+    property bool logsUnitOn: false
+    readonly property bool anyLogs: globalEnv.PROTON_LOG === "1" || games.some(g => g.env?.PROTON_LOG === "1") || Object.values(pending).some(p => p.env?.PROTON_LOG === "1")
+
+    onAnyLogsChanged: {
+        if (anyLogs && !logsUnitOn) {
+            logsUnitOn = true;
+            Quickshell.execDetached(["systemctl", "--user", "enable", "--now", "caelestia-gamelogs.path"]);
+        }
+    }
+
+    // While changes wait, look for their launcher closing (reading the library also reads that)
+    Timer {
+        running: Object.keys(root.pending).length > 0 || root.queued.length > 0
+        repeat: true
+        interval: 4000
+        onTriggered: root.load()
+    }
+
+    FileView {
+        id: pendingFile
+
+        path: `${Paths.state}/games-pending.json`
+        printErrors: false
+        onLoaded: {
+            try {
+                const d = JSON.parse(text()) ?? {};
+                root.pending = d.games ?? {};
+                root.queued = d.jobs ?? [];
+            } catch (e) {}
+        }
     }
 
     function add(spec: var, done: var): void {

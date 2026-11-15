@@ -1,0 +1,12 @@
+[Unit]
+Description=Caelestia settings: keep each game launch's Proton log
+
+[Path]
+# Proton writes ~/steam-<game id>.log (PROTON_LOG=1); it is moved at once into
+# ~/.local/state/caelestia/game-logs/<game id>/<start time>.log (the running game keeps writing
+# to it there), so every launch keeps its own log
+PathExistsGlob=%h/steam-*.log
+Unit=caelestia-gamelogs.service
+
+[Install]
+WantedBy=default.target

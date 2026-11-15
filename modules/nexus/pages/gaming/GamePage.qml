@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import Quickshell.Widgets
 import Caelestia.Config
 import Caelestia.I18n
@@ -22,14 +23,43 @@ PageBase {
 
     readonly property var game: Games.find(nState.selectedGame ?? "")
     readonly property var launcher: game ? Games.launchers[game.launcher] ?? {} : {}
+    // Its settings as they will be (changes made while its launcher is open wait for it to close)
+    readonly property var shown: Games.withPending(game)
     readonly property bool blocked: !!game && Games.blocked(game.launcher)
+    readonly property bool waiting: !!game && Games.hasPending(game.key)
     readonly property string what: Tr.tr("Change %1's settings").arg(game?.title ?? "")
     readonly property bool busy: Admin.jobs.some(j => j.what === root.what)
-    readonly property bool canChange: !!game && !blocked && !busy
+    readonly property bool canChange: !!game && !busy
     readonly property var choices: launcher.choices ?? []
 
     function change(c: var): void {
         Games.set(game.key, c, what);
+    }
+
+    // The game's newest Proton log (caelestia-gaming game-log): { path, size, modified, errors, tail }
+    property var log: null
+
+    // One launch's log (its path), else the newest
+    function readLog(path): void {
+        if (!game)
+            return;
+        root.logProc.command = [Games.helper, "game-log", game.key, ...(path ? [path] : [])];
+        root.logProc.running = true;
+    }
+
+    onGameChanged: if (game && log === null)
+        readLog()
+
+    readonly property Process logProc: Process {
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    root.log = JSON.parse(text);
+                } catch (e) {
+                    root.log = null;
+                }
+            }
+        }
     }
 
     function size(b: real): string {
@@ -146,10 +176,10 @@ PageBase {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
             Layout.bottomMargin: Tokens.spacing.small
-            visible: root.blocked || root.busy
-            text: root.busy ? Tr.tr("Saving…") : Tr.tr("%1 is open: close it to change this game's settings (it rewrites them when it quits).").arg(Games.launcherNames[root.game?.launcher] ?? "")
+            visible: root.blocked || root.busy || root.waiting
+            text: root.busy ? Tr.tr("Saving…") : root.waiting ? Tr.tr("Changed: saved as soon as %1 is closed (it writes its old settings back when it quits).").arg(Games.launcherNames[root.game?.launcher] ?? "") : Tr.tr("%1 is open: changes made now are saved as soon as it's closed.").arg(Games.launcherNames[root.game?.launcher] ?? "")
             wrapMode: Text.WordWrap
-            color: root.busy ? Colours.palette.m3primary : Colours.palette.m3error
+            color: root.busy || root.waiting ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
             font: Tokens.font.label.small
         }
 
@@ -176,7 +206,7 @@ PageBase {
                     text: modelData[0] === "" && root.launcher.default ? `${modelData[1]} (${root.launcher.default})` : modelData[1]
                     isToggle: true
                     followChecked: true
-                    checked: (root.game?.proton ?? "") === modelData[0]
+                    checked: (root.shown?.proton ?? "") === modelData[0]
                     type: TextButton.Tonal
                     onClicked: root.change({
                         proton: modelData[0]
@@ -196,7 +226,7 @@ PageBase {
             enabled: root.canChange
             text: Tr.tr("Overlay")
             subtext: Tr.tr("Frame rate and the rest (Gaming › Overlay); Shift (right) + F12 hides it")
-            checked: !!root.game?.mangohud
+            checked: !!root.shown?.mangohud
             onToggled: root.change({
                 mangohud: checked
             })
@@ -207,7 +237,7 @@ PageBase {
             enabled: root.canChange
             text: Tr.tr("Performance mode")
             subtext: Tr.tr("The performance power profile and the scheduler's Gaming mode while it runs (game-performance)")
-            checked: !!root.game?.perf
+            checked: !!root.shown?.perf
             onToggled: root.change({
                 perf: checked
             })
@@ -220,7 +250,7 @@ PageBase {
             required property var modelData
             // "" = like all games, "on", "off"
             readonly property string mine: {
-                const v = root.game?.env?.[modelData[0]];
+                const v = root.shown?.env?.[modelData[0]];
                 return v === undefined ? "" : v === modelData[2] ? "on" : "off";
             }
             readonly property bool allOn: Games.globalOn(modelData)
@@ -302,6 +332,136 @@ PageBase {
             model: root.game ? Games.protonOptions : []
 
             OptionRow {}
+        }
+
+        // Logs: Proton's log for this game (Proton > Proton logs above turns it on), its error
+        // lines shown here, the whole file opened in the editor
+        SectionHeader {
+            visible: !!root.game && root.game.proton !== null && root.game.proton !== undefined
+            text: Tr.tr("Logs")
+        }
+
+        ConnectedRect {
+            Layout.fillWidth: true
+            visible: !!root.game && root.log !== null
+            implicitHeight: logL.implicitHeight + Tokens.padding.medium * 2
+
+            ColumnLayout {
+                id: logL
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Tokens.padding.largeIncreased
+                anchors.rightMargin: Tokens.padding.largeIncreased
+                spacing: Tokens.spacing.small
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Tokens.spacing.small
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: root.log?.path ? Tr.tr("Launch of %1 (%2 kept)").arg(new Date(((root.log.runs ?? []).find(r => r.path === root.log.path)?.started ?? root.log.modified ?? 0) * 1000).toLocaleString(Qt.locale(), Locale.ShortFormat)).arg((root.log.runs ?? []).length) : Tr.tr("No log yet")
+                            font: Tokens.font.body.small
+                        }
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: root.log?.path ? `${Paths.shortenHome(root.log.path)} · ${root.size(root.log.size ?? 0) || "0 MB"}` : Tr.tr("Set Proton > Proton logs to On above, start the game, then come back")
+                            color: Colours.palette.m3outline
+                            font: Tokens.font.label.small
+                            elide: Text.ElideMiddle
+                        }
+                    }
+
+                    TextButton {
+                        visible: !!root.log?.path
+                        text: Tr.tr("Open")
+                        type: TextButton.Tonal
+                        onClicked: Quickshell.execDetached(["xdg-open", root.log.path])
+                    }
+
+                    TextButton {
+                        visible: !!root.log?.path
+                        text: Tr.tr("Delete all")
+                        type: TextButton.Text
+                        onClicked: Admin.exec([Games.helper, "game-log", root.game.key, "delete"], Tr.tr("Delete %1's logs").arg(root.game.title), () => root.readLog())
+                        // (all of this game's kept launches)
+                    }
+
+                    TextButton {
+                        text: Tr.tr("Refresh")
+                        type: TextButton.Text
+                        onClicked: root.readLog()
+                    }
+                }
+
+                // Each launch keeps its own log (caelestia-gamelogs.path files them)
+                Flow {
+                    Layout.fillWidth: true
+                    visible: (root.log?.runs ?? []).length > 1
+                    spacing: Tokens.spacing.small
+
+                    Repeater {
+                        model: root.log?.runs ?? []
+
+                        TextButton {
+                            required property var modelData
+
+                            text: new Date(modelData.started * 1000).toLocaleString(Qt.locale(), "d MMM HH:mm")
+                            isToggle: true
+                            followChecked: true
+                            checked: modelData.path === root.log?.path
+                            type: TextButton.Tonal
+                            onClicked: root.readLog(modelData.path)
+                        }
+                    }
+                }
+
+                StyledText {
+                    Layout.fillWidth: true
+                    visible: !!root.log?.path
+                    text: (root.log?.errors ?? []).length > 0 ? Tr.tr("Errors and warnings (the end of the log):") : Tr.tr("No errors found at the end of the log. Its last lines:")
+                    color: Colours.palette.m3onSurfaceVariant
+                    font: Tokens.font.label.small
+                }
+
+                StyledRect {
+                    Layout.fillWidth: true
+                    visible: !!root.log?.path
+                    implicitHeight: Math.min(logText.implicitHeight + Tokens.padding.medium * 2, 320)
+                    radius: Tokens.rounding.small
+                    color: Colours.palette.m3surfaceContainerLowest
+                    clip: true
+
+                    Flickable {
+                        anchors.fill: parent
+                        anchors.margins: Tokens.padding.medium
+                        contentHeight: logText.implicitHeight
+                        contentWidth: width
+                        boundsBehavior: Flickable.StopAtBounds
+
+                        TextEdit {
+                            id: logText
+
+                            width: parent.width
+                            readOnly: true
+                            selectByMouse: true
+                            wrapMode: TextEdit.WrapAnywhere
+                            text: ((root.log?.errors ?? []).length > 0 ? root.log.errors : root.log?.tail ?? []).join("\n")
+                            color: Colours.palette.m3onSurface
+                            selectionColor: Colours.palette.m3primary
+                            font.family: "monospace"
+                            font.pixelSize: 11
+                        }
+                    }
+                }
+            }
         }
 
         // What else its launcher has for it (kept as it is)

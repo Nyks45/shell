@@ -105,6 +105,9 @@ Item {
             path: {
                 if (root.dialog.cwd[0] === "Home")
                     return Paths.home + `/${root.dialog.cwd.slice(1).join("/")}`;
+                // Outside home (Computer, other drives): ["/", "mnt", "SATA"] = /mnt/SATA
+                if (root.dialog.cwd[0] === "/")
+                    return "/" + root.dialog.cwd.slice(1).join("/");
                 else
                     return root.dialog.cwd.join("/");
             }

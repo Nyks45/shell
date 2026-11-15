@@ -255,24 +255,28 @@ PageBase {
                                     parts.push(`DLSS FG ${mfgGame.modelData.fgVersion}`);
                                 if (mfgGame.modelData.installed && mfgGame.modelData.name)
                                     parts.push(Tr.tr("Using %1").arg(mfgGame.modelData.name));
-                                if (mfgGame.launcherBlocked)
-                                    parts.push(Tr.tr("close %1 first").arg(Games.launcherNames[mfgGame.modelData.launcher] ?? mfgGame.modelData.launcher));
+                                if (Games.isQueued(mfgGame.setWhat))
+                                    parts.push(Tr.tr("done when %1 closes").arg(Games.launcherNames[mfgGame.modelData.launcher] ?? mfgGame.modelData.launcher));
+                                else if (mfgGame.launcherBlocked)
+                                    parts.push(Tr.tr("%1 is open: done when it closes").arg(Games.launcherNames[mfgGame.modelData.launcher] ?? mfgGame.modelData.launcher));
                                 return parts.join(" · ");
                             }
                             wrapMode: Text.WordWrap
-                            color: mfgGame.hasAnticheat || mfgGame.launcherBlocked ? Colours.palette.m3error : mfgGame.modelData.installed ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
+                            color: mfgGame.hasAnticheat ? Colours.palette.m3error : Games.isQueued(mfgGame.setWhat) ? Colours.palette.m3primary : mfgGame.modelData.installed ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
                             font: Tokens.font.label.small
                         }
                     }
 
                     TextButton {
-                        enabled: !!root.mfg?.tag && !mfgGame.hasAnticheat && !mfgGame.launcherBlocked && !mfgGame.busy
-                        text: mfgGame.busy ? Tr.tr("Working…") : mfgGame.modelData.installed ? Tr.tr("Remove") : Tr.tr("Install")
-                        type: mfgGame.modelData.installed ? TextButton.Tonal : TextButton.Filled
-                        onClicked: Admin.exec([`${Paths.libdir}/caelestia-gaming`, "mfg-set", mfgGame.modelData.key, mfgGame.modelData.installed ? "off" : "on"], mfgGame.setWhat, () => {
-                            root.load();
-                            Games.load();
-                        })
+                        enabled: !!root.mfg?.tag && !mfgGame.hasAnticheat && !mfgGame.busy
+                        text: mfgGame.busy ? Tr.tr("Working…") : Games.isQueued(mfgGame.setWhat) ? Tr.tr("Cancel") : mfgGame.modelData.installed ? Tr.tr("Remove") : Tr.tr("Install")
+                        type: mfgGame.modelData.installed || Games.isQueued(mfgGame.setWhat) ? TextButton.Tonal : TextButton.Filled
+                        onClicked: {
+                            if (Games.isQueued(mfgGame.setWhat))
+                                Games.unqueue(mfgGame.setWhat);
+                            else
+                                Games.whenClosed(mfgGame.modelData.launcher, [`${Paths.libdir}/caelestia-gaming`, "mfg-set", mfgGame.modelData.key, mfgGame.modelData.installed ? "off" : "on"], mfgGame.setWhat, () => root.load());
+                        }
                     }
                 }
             }

@@ -137,19 +137,30 @@ PageBase {
                                 }
                             }
 
+                            // Steam open: these wait and are done once it's closed (it would
+                            // write its old settings back); a second click takes it back
                             TextButton {
-                                visible: tg.modelData[0] === "steam" && !row.isDefault && !root.tools.steamRunning
-                                text: Tr.tr("Make default")
+                                readonly property string what: Tr.tr("Make %1 Steam's default").arg(row.modelData.name)
+
+                                visible: tg.modelData[0] === "steam" && !row.isDefault
+                                text: Games.isQueued(what) ? Tr.tr("Default when Steam closes") : Tr.tr("Make default")
                                 type: TextButton.Text
-                                onClicked: Admin.exec([root.helper, "set-default", "steam", row.modelData.name], Tr.tr("Make %1 Steam's default").arg(row.modelData.name), () => root.load())
+                                onClicked: Games.isQueued(what) ? Games.unqueue(what) : Games.whenClosed("steam", [root.helper, "set-default", "steam", row.modelData.name], what, () => root.load())
                             }
 
                             TextButton {
                                 visible: !row.modelData.system
                                 enabled: !Admin.jobs.some(j => j.what === row.removeWhat)
-                                text: Tr.tr("Remove")
+                                text: Games.isQueued(row.removeWhat) ? Tr.tr("Removed when Steam closes") : Tr.tr("Remove")
                                 type: TextButton.Tonal
-                                onClicked: Admin.exec([root.helper, "remove", row.modelData.target, row.modelData.dir], row.removeWhat, () => root.load())
+                                onClicked: {
+                                    if (Games.isQueued(row.removeWhat))
+                                        Games.unqueue(row.removeWhat);
+                                    else if (row.modelData.target === "steam")
+                                        Games.whenClosed("steam", [root.helper, "remove", row.modelData.target, row.modelData.dir], row.removeWhat, () => root.load());
+                                    else
+                                        Admin.exec([root.helper, "remove", row.modelData.target, row.modelData.dir], row.removeWhat, () => root.load());
+                                }
                             }
                         }
                     }
@@ -162,7 +173,7 @@ PageBase {
             Layout.leftMargin: Tokens.padding.small
             Layout.topMargin: Tokens.spacing.small
             visible: !!root.tools?.steamRunning
-            text: Tr.tr("Steam is open: its default can be changed once it's closed (it rewrites its settings when it quits).")
+            text: Tr.tr("Steam is open: a new default, or removing a version its games use (they move to the matching Latest copy), is done as soon as it's closed (it rewrites its settings when it quits).")
             wrapMode: Text.WordWrap
             color: Colours.palette.m3outline
             font: Tokens.font.label.small

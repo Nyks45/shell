@@ -1,0 +1,6 @@
+[Unit]
+Description=Caelestia settings: file a game launch's Proton log
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/caelestia/caelestia-gaming game-logs-collect

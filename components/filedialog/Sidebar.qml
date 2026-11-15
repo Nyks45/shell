@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import Caelestia.Config
 import Caelestia.I18n
+import Quickshell.Io
 import qs.components
 import qs.components.filedialog
 import qs.services
@@ -17,6 +18,17 @@ StyledRect {
     implicitHeight: inner.implicitHeight + Tokens.padding.medium * 2
 
     color: Colours.tPalette.m3surfaceContainer
+
+    // Mounted drives outside home: /mnt/*, /media/*, /run/media/<user>/*
+    property list<string> drives: []
+
+    Process {
+        running: true
+        command: ["findmnt", "-rno", "TARGET"]
+        stdout: StdioCollector {
+            onStreamFinished: root.drives = text.trim().split("\n").map(l => l.replace(/\\x20/g, " ")).filter(t => /^\/(mnt|media|run\/media\/[^/]+)\/[^/]+$/.test(t)).sort()
+        }
+    }
 
     ColumnLayout {
         id: inner
@@ -37,13 +49,27 @@ StyledRect {
         }
 
         Repeater {
-            model: ["Home", "Downloads", "Desktop", "Documents", "Music", "Pictures", "Videos"]
+            // Home's folders, the whole computer, then every mounted drive (other partitions,
+            // USB sticks): "cwd" lists the path's parts from "Home" or from "/"
+            model: [...["Home", "Downloads", "Desktop", "Documents", "Music", "Pictures", "Videos"].map(n => ({
+                        name: n,
+                        icon: "",
+                        cwd: n === "Home" ? ["Home"] : ["Home", n]
+                    })), {
+                    name: Tr.trCtx("Computer", "file dialog: the whole file system"),
+                    icon: "computer",
+                    cwd: ["/"]
+                }, ...root.drives.map(d => ({
+                        name: d.split("/").pop(),
+                        icon: d.startsWith("/run/media") || d.startsWith("/media") ? "usb" : "hard_drive",
+                        cwd: ["/", ...d.split("/").filter(x => x)]
+                    }))]
 
             StyledRect {
                 id: place
 
-                required property string modelData
-                readonly property bool selected: modelData === root.dialog.cwd[root.dialog.cwd.length - 1]
+                required property var modelData
+                readonly property bool selected: JSON.stringify(modelData.cwd) === JSON.stringify(Array.from(root.dialog.cwd))
 
                 Layout.fillWidth: true
                 implicitHeight: placeInner.implicitHeight + Tokens.padding.medium * 2
@@ -53,12 +79,7 @@ StyledRect {
 
                 StateLayer {
                     color: place.selected ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
-                    onClicked: {
-                        if (place.modelData === "Home")
-                            root.dialog.cwd = ["Home"];
-                        else
-                            root.dialog.cwd = ["Home", place.modelData];
-                    }
+                    onClicked: root.dialog.cwd = place.modelData.cwd
                 }
 
                 RowLayout {
@@ -73,7 +94,9 @@ StyledRect {
 
                     MaterialIcon {
                         text: {
-                            const p = place.modelData;
+                            if (place.modelData.icon)
+                                return place.modelData.icon;
+                            const p = place.modelData.name;
                             if (p === "Home")
                                 return "home";
                             if (p === "Downloads")
@@ -103,7 +126,7 @@ StyledRect {
 
                     StyledText {
                         Layout.fillWidth: true
-                        text: place.modelData
+                        text: place.modelData.name
                         color: place.selected ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
                         font: Tokens.font.body.small
                         elide: Text.ElideRight

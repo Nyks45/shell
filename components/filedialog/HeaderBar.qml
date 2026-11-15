@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Caelestia.Config
+import Caelestia.I18n
 import qs.components
 import qs.services
 
@@ -108,9 +109,9 @@ StyledRect {
                                 anchors.verticalCenter: parent.verticalCenter
                                 anchors.leftMargin: Tokens.padding.medium
 
-                                active: folder.index === 0 && folder.modelData === "Home"
+                                active: folder.index === 0 && (folder.modelData === "Home" || folder.modelData === "/")
                                 sourceComponent: MaterialIcon {
-                                    text: "home"
+                                    text: folder.modelData === "/" ? "computer" : "home"
                                     color: root.dialog.cwd.length === 1 ? Colours.palette.m3onSurface : Colours.palette.m3onSurfaceVariant
                                     fill: 1
                                 }
@@ -123,7 +124,7 @@ StyledRect {
                                 anchors.verticalCenter: parent.verticalCenter
                                 anchors.leftMargin: homeIcon.active ? Tokens.padding.extraSmall : 0
 
-                                text: folder.modelData
+                                text: folder.modelData === "/" ? Tr.trCtx("Computer", "file dialog: the whole file system") : folder.modelData
                                 color: folder.index < root.dialog.cwd.length - 1 ? Colours.palette.m3onSurfaceVariant : Colours.palette.m3onSurface
                                 font: Tokens.font.body.builders.small.weight(Font.Bold).build()
                             }

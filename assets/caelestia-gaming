@@ -32,6 +32,7 @@ import shlex
 import shutil
 import sqlite3
 import struct
+import time
 import zlib
 import time
 import subprocess
@@ -358,9 +359,71 @@ def c_remove(args):
     if target == "steam":
         users = steam_users(path, name)
         if users:
-            sys.exit(f"Steam uses it ({', '.join(users)}): choose another for those in Steam first")
+            # The games (and the default) using it move to the same family's Latest copy, or
+            # (games only) back to Steam's default; Steam must be closed to change that
+            if sh("pgrep", "-x", "steam").strip():
+                sys.exit("close Steam first (it rewrites its settings when it quits)")
+            repl = latest_for(base, name)
+            if not repl and "its default" in users:
+                sys.exit(f"it's Steam's default: make another one the default first")
+            steam_reassign(path, name, repl)
+            print(f"Moved {', '.join(users)} to {repl or 'Steam\'s default'}", flush=True)
     shutil.rmtree(path)
     print(f"Removed {name}", flush=True)
+
+
+def latest_for(base, name):
+    """The kept-up-to-date copy of the same family as `name`, if installed."""
+    low = name.lower()
+    fam = None
+    for key, src in SOURCES.items():
+        latest = src.get("latest") if isinstance(src, dict) else None
+        if not latest:
+            continue
+        stem = latest.replace(" Latest", "").lower()
+        words = [w for w in re.split(r"[-_ ]", stem) if w not in ("proton", "")]
+        tokens = re.split(r"[-_ .]", low)
+        if words and all(w in tokens for w in words):
+            fam = latest
+            break
+    if fam and fam != name and os.path.isdir(os.path.join(base, fam)):
+        return fam
+    return ""
+
+
+def steam_reassign(path, dirname, repl):
+    """Point every CompatToolMapping entry using this tool at `repl` ("" = drop: Steam's default)."""
+    names = {dirname}
+    try:
+        m = re.search(r'"compat_tools"\s*\{\s*"([^"]+)"', open(os.path.join(path, "compatibilitytool.vdf"), errors="replace").read())
+        if m:
+            names.add(m.group(1))
+    except OSError:
+        pass
+    repl_name = repl
+    if repl:
+        try:
+            m = re.search(r'"compat_tools"\s*\{\s*"([^"]+)"', open(os.path.join(os.path.dirname(path), repl, "compatibilitytool.vdf"), errors="replace").read())
+            if m:
+                repl_name = m.group(1)
+        except OSError:
+            pass
+    p = os.path.join(STEAM_ROOT, "config/config.vdf")
+    t = open(p, errors="replace").read()
+    i = t.find('"CompatToolMapping"')
+    if i < 0:
+        return
+
+    def fix(m):
+        if m.group(3) not in names:
+            return m.group(0)
+        if repl_name:
+            return m.group(1) + f'"{repl_name}"'
+        return m.group(1) + '""'
+    head, tail = t[:i], t[i:]
+    tail = re.sub(r'("(\d+)"\s*\{\s*"name"\s*)"([^"]*)"', fix, tail, count=0)
+    shutil.copy2(p, p + ".caelestia-bak")
+    open(p, "w").write(head + tail)
 
 
 def steam_users(path, dirname):
@@ -1834,7 +1897,106 @@ def c_mfg_mode(args):
     print(f"Mode {mode}", flush=True)
 
 
-COMMANDS = {"gpu": c_gpu, "env": c_env, "env-set": c_env_set, "tools": c_tools, "releases": c_releases,
+# --- Game logs ------------------------------------------------------------------------------
+# Proton writes $PROTON_LOG_DIR (default home)/steam-<SteamGameId>.log when a game runs with
+# PROTON_LOG=1: Steam games use their app id, games added to Steam the 64-bit game id, umu
+# (Faugus, Lutris) "umu-<id>".
+LOG_ERR = re.compile(r"(^|:)err:|Unhandled exception|unhandled page fault|wine: |Assertion|"
+                     r"Traceback|Error:|ERROR|failed to|Failed to|could not|Could not|cannot |vkCreate|VK_ERROR|"
+                     r"DXVK: |^ProtonFixes.*(WARN|ERROR)|pressure-vessel.*E:")
+
+
+GAME_LOGS = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.join(HOME, ".local/state"), "caelestia/game-logs")
+LOGS_KEPT = 15  # launches kept per game
+
+
+def c_game_logs_collect(args):
+    """Move Proton's fresh logs (~/steam-<id>.log) into one file per launch (caelestia-gamelogs.path)."""
+    dirs = {HOME, os.environ.get("PROTON_LOG_DIR") or HOME}
+    for d in dirs:
+        try:
+            names = os.listdir(d)
+        except OSError:
+            continue
+        for name in names:
+            m = re.fullmatch(r"steam-(.+)\.log", name)
+            if not m:
+                continue
+            src = os.path.join(d, name)
+            st = os.stat(src)
+            dest_dir = os.path.join(GAME_LOGS, m.group(1))
+            os.makedirs(dest_dir, exist_ok=True)
+            stamp = time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime(min(st.st_ctime, st.st_mtime)))
+            dest = os.path.join(dest_dir, stamp + ".log")
+            n = 1
+            while os.path.exists(dest):
+                n += 1
+                dest = os.path.join(dest_dir, f"{stamp}-{n}.log")
+            # A rename: a game still running keeps writing into it there
+            shutil.move(src, dest)
+            runs = sorted(os.listdir(dest_dir))
+            for old in runs[:-LOGS_KEPT]:
+                os.remove(os.path.join(dest_dir, old))
+            print(f"Filed {name} as {dest}", flush=True)
+
+
+def game_log_ids(key):
+    launcher, _, gid = key.partition(":")
+    ids = {gid, f"umu-{gid}"}
+    if launcher == "steam" and gid.isdigit():
+        ids.add(str((int(gid) << 32) | 0x02000000))  # a game added to Steam
+    return ids
+
+
+def game_log_paths(key):
+    """Every kept launch's log, newest first (and a not yet filed one)."""
+    found = []
+    for i in game_log_ids(key):
+        for d in {HOME, os.environ.get("PROTON_LOG_DIR") or HOME}:
+            p = os.path.join(d, f"steam-{i}.log")
+            if os.path.isfile(p):
+                found.append(p)
+        dd = os.path.join(GAME_LOGS, i)
+        if os.path.isdir(dd):
+            found += [os.path.join(dd, f) for f in os.listdir(dd) if f.endswith(".log")]
+    return sorted(set(found), key=lambda p: os.path.getmtime(p), reverse=True)
+
+
+def c_game_log(args):
+    """game-log KEY [PATH | delete]: the game's launches (logs) and one's error lines and end."""
+    paths = game_log_paths(args[0])
+    if len(args) > 1 and args[1] == "delete":
+        for p in paths:
+            os.remove(p)
+        print(f"Deleted {len(paths)} log(s)", flush=True)
+        return
+    def started(p):
+        m = re.match(r"(\d{4}-\d\d-\d\d_\d\d-\d\d-\d\d)", os.path.basename(p))
+        if m:
+            return int(time.mktime(time.strptime(m.group(1), "%Y-%m-%d_%H-%M-%S")))
+        return int(os.path.getmtime(p))
+    runs = [{"path": p, "size": os.path.getsize(p), "modified": int(os.path.getmtime(p)), "started": started(p)}
+            for p in paths]
+    if not paths:
+        out({"path": "", "runs": []})
+        return
+    p = args[1] if len(args) > 1 and args[1] in paths else paths[0]
+    size = os.path.getsize(p)
+    with open(p, "rb") as f:
+        f.seek(max(0, size - 4 * 1024 * 1024))
+        lines = f.read().decode(errors="replace").splitlines()
+    errors, seen = [], set()
+    for line in lines:
+        if LOG_ERR.search(line) and ":trace:" not in line:
+            short = re.sub(r"^[\d.]+:[0-9a-f]+:[0-9a-f]+:", "", line).strip()[:300]
+            if short not in seen:
+                seen.add(short)
+                errors.append(short)
+    out({"path": p, "size": size, "modified": int(os.path.getmtime(p)), "runs": runs, "errors": errors[-40:],
+         "tail": [l[:300] for l in lines[-30:]]})
+
+
+COMMANDS = {"game-log": c_game_log, "game-logs-collect": c_game_logs_collect, "gpu": c_gpu, "env": c_env, "env-set": c_env_set, "tools": c_tools, "releases": c_releases,
             "mfg": c_mfg, "mfg-fetch": c_mfg_fetch, "mfg-set": c_mfg_set, "mfg-mode": c_mfg_mode,
             "install": c_install, "remove": c_remove, "set-default": c_set_default, "mangohud": c_mangohud,
             "mangohud-set": c_mangohud_set, "scx": c_scx, "library": c_library,
