@@ -189,6 +189,15 @@ Singleton {
         });
     }
 
+    // Windows and workspaces: "caelestia" (the shared animations.lua) or "nebula" (Nebula's
+    // workspace and special-workspace motion). Wallpaper & style > Nebula > Animations.
+    function setWindowAnim(style: string): void {
+        update({
+            windowAnim: style
+        });
+        reloadSoon();
+    }
+
     function update(changes: var): void {
         saved = Object.assign({}, saved, changes);
         jsonFile.setText(JSON.stringify(saved, null, 4) + "\n");
@@ -411,6 +420,15 @@ function S.apply()
     -- The power button opens the power menu (logind is set to ignore it)
     if ${s.powerKey === "menu" ? "true" : "false"} then
         bind("XF86PowerOff", hl.dsp.exec_cmd("caelestia shell drawers toggle session"))
+    end
+
+    -- Windows and workspaces like Nebula (else the shared animations.lua as it is): its
+    -- smoother workspace slide and a plain fade for the special workspace
+    if ${s.windowAnim === "nebula" ? "true" : "false"} then
+        hl.curve("smooth", { type = "bezier", points = { { 0.4, 0 }, { 0.2, 1 } } })
+        hl.curve("emphasizedDecel", { type = "bezier", points = { { 0.05, 0.7 }, { 0.1, 1 } } })
+        hl.animation({ leaf = "workspaces", enabled = true, speed = 4, bezier = "smooth" })
+        hl.animation({ leaf = "specialWorkspace", enabled = true, speed = 3, bezier = "emphasizedDecel", style = "fade" })
     end
 
     -- Night light (hyprsunset, scheduled in ~/.config/hypr/hyprsunset.conf)

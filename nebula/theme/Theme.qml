@@ -17,7 +17,7 @@ Singleton {
         readonly property string style: Settings.bar.style
         readonly property real zone: height + floatMargin
 
-        readonly property real motion: Settings.theme.reduceMotion ? 0 : 1 / Settings.theme.animSpeed
+        readonly property real motion: GlobalConfig.appearance.anim.durations.scale <= 0.05 ? 0 : GlobalConfig.appearance.anim.durations.scale
         property real leftT: style !== "attached" ? 1 : 0
         property real centerT: style === "floating" ? 1 : 0
         property real rightT: style !== "attached" ? 1 : 0
@@ -562,13 +562,14 @@ Singleton {
     }
     readonly property Font font: Font {}
 
+    // The shell's one animation control (Settings > Accessibility: speed, animations off)
     component Anim: QtObject {
-        readonly property real scale: Settings.theme.reduceMotion ? 0 : 1 / Settings.theme.animSpeed
+        readonly property real scale: GlobalConfig.appearance.anim.durations.scale <= 0.05 ? 0 : GlobalConfig.appearance.anim.durations.scale
         readonly property int fast: Math.round(150 * scale)
         readonly property int medium: Math.round(300 * scale)
         readonly property int slow: Math.round(500 * scale)
         readonly property int island: Math.round(550 * scale)
-        readonly property real overshoot: Settings.theme.reduceMotion ? 0 : 1.2
+        readonly property real overshoot: (GlobalConfig.appearance.anim.durations.scale <= 0.05) ? 0 : 1.2
 
         readonly property list<real> standard:        [0.2, 0, 0, 1, 1, 1]
         readonly property list<real> emphasizedDecel: [0.05, 0.7, 0.1, 1, 1, 1]

@@ -106,6 +106,21 @@ void AnimTokens::rebuildCurves() {
     m_expressiveDefaultEffects = buildCurve(m_curves->expressiveDefaultEffects());
     m_expressiveSlowEffects = buildCurve(m_curves->expressiveSlowEffects());
 
+    // Nebula's motion (appearance.style.shellAnim): moves overshoot a little (OutBack 1.2, its
+    // islands and panels), fades and grows ease out (emphasized decelerate)
+    if (ConfigSingleton::instance()->appearance()->style()->shellAnim() == QStringLiteral("nebula")) {
+        QEasingCurve back(QEasingCurve::OutBack);
+        back.setOvershoot(1.2);
+        m_expressiveFastSpatial = back;
+        m_expressiveDefaultSpatial = back;
+        m_expressiveSlowSpatial = back;
+        const auto DECEL = buildCurve({ 0.05, 0.7, 0.1, 1, 1, 1 });
+        m_expressiveFastEffects = DECEL;
+        m_expressiveDefaultEffects = DECEL;
+        m_expressiveSlowEffects = DECEL;
+        m_emphasized = DECEL;
+    }
+
     emit curvesChanged();
 }
 
@@ -114,6 +129,8 @@ void AnimTokens::bindCurves(AnimCurves* curves) {
 
     // Rebuild when any curve control points change
     connect(curves, &AnimCurves::optionChanged, this, &AnimTokens::rebuildCurves);
+    // ...and when the shell's motion style changes
+    connect(ConfigSingleton::instance()->appearance()->style(), &AppearanceStyle::optionChanged, this, &AnimTokens::rebuildCurves);
 
     rebuildCurves();
 }

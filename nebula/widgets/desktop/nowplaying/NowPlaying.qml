@@ -1,4 +1,5 @@
 import QtQuick
+import Caelestia.Config
 import QtQuick.Layouts
 import Quickshell.Widgets
 import M3Shapes
@@ -19,7 +20,7 @@ Item {
     property real size: empty ? baseSize * Theme.nowPlaying.emptySize / Theme.nowPlaying.cookieSize : baseSize
     property bool live: true
     property real spin: 0
-    property real speed: playing && live && Settings.nowPlaying.spin && !Settings.theme.reduceMotion ? 360 / Settings.nowPlaying.spinSeconds : 0
+    property real speed: playing && live && Settings.nowPlaying.spin && !(GlobalConfig.appearance.anim.durations.scale <= 0.05) ? 360 / Settings.nowPlaying.spinSeconds : 0
 
     implicitWidth: size
     implicitHeight: size

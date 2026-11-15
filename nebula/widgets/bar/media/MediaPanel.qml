@@ -1,4 +1,5 @@
 import QtQuick
+import Caelestia.Config
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Hyprland
@@ -60,7 +61,7 @@ Item {
     }
 
     property real spin: 0
-    property real speed: Media.playing && Settings.nowPlaying.spin && !Settings.theme.reduceMotion ? 360 / Settings.nowPlaying.spinSeconds : 0
+    property real speed: Media.playing && Settings.nowPlaying.spin && !(GlobalConfig.appearance.anim.durations.scale <= 0.05) ? 360 / Settings.nowPlaying.spinSeconds : 0
 
     Behavior on speed {
         NumberAnimation {

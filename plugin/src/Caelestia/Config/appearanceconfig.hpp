@@ -301,6 +301,9 @@ class AppearanceStyle : public settings::ObjectNode {
     CONFIG_GLOBAL_PROPERTY(bool, desktopWidgets, false)
     // "caelestia" (the drawer list) or "nebula" (Nebula's Clover ring)
     CONFIG_GLOBAL_PROPERTY(QString, launcher, u"caelestia"_s)
+    // The shell's motion: "caelestia" (Material expressive curves) or "nebula" (Nebula's: moves
+    // overshoot a little, fades ease out). Wallpaper & style > Nebula > Animations.
+    CONFIG_GLOBAL_PROPERTY(QString, shellAnim, u"caelestia"_s)
 };
 
 class AppearanceConfig : public settings::ObjectNode {

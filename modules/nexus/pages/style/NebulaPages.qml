@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import Caelestia.Config
 import Caelestia.I18n
+import qs.components
 import qs.modules.nexus.common
 import qs.nebula.services
 import qs.nebula.theme
@@ -43,10 +44,55 @@ PageBase {
     }
     Component.onDestruction: SettingsNav.sub = ""
 
-    // Each of Nebula's pages starts at the top (going back from a scrolled widget page kept
-    // the overview scrolled, cut off at the top)
-    onSubChanged: if (flickable)
-        flickable.contentY = 0
+    readonly property int animMovement: Tokens.padding.extraExtraLarge * 2
+
+    onSubChanged: {
+        if (sub === loader.shownSub)
+            return;
+        // Deeper ("" -> a widget, a widget -> its images) slides in from the right, back from the left
+        pageAnim.dir = sub === "" || (loader.shownSub.startsWith("images") && sub.startsWith("widget")) ? -1 : 1;
+        pageAnim.restart();
+    }
+
+    SequentialAnimation {
+        id: pageAnim
+
+        property int dir: 1
+
+        Anim {
+            target: loader
+            property: "opacity"
+            to: 0
+            type: Anim.DefaultEffects
+        }
+        ScriptAction {
+            script: {
+                loader.slide = pageAnim.dir * root.animMovement;
+                loader.shownSub = root.sub;
+                loader.shown = Qt.resolvedUrl(root.current.source);
+                // Each of Nebula's pages starts at the top
+                if (root.flickable)
+                    root.flickable.contentY = 0;
+            }
+        }
+        PauseAnimation {
+            duration: Tokens.anim.durations.expressiveFastEffects
+        }
+        ParallelAnimation {
+            Anim {
+                target: loader
+                property: "opacity"
+                to: 1
+                type: Anim.DefaultEffects
+            }
+            Anim {
+                target: loader
+                property: "slide"
+                to: 0
+                type: Anim.FastSpatial
+            }
+        }
+    }
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -57,11 +103,20 @@ PageBase {
         Loader {
             id: loader
 
+            // Moving between Nebula's pages: like the settings' own pages (StackPage): the old one
+            // fades out, the new one fades in sliding from the side it comes from
+            property url shown: Qt.resolvedUrl(root.current.source)
+            property string shownSub: root.sub
+            property real slide: 0
+
             Layout.fillWidth: true
-            source: Qt.resolvedUrl(root.current.source)
+            Layout.leftMargin: slide
+            Layout.rightMargin: -slide
+            source: shown
             onLoaded: {
                 if (item.arg !== undefined)
-                    item.arg = Qt.binding(() => root.subArg);
+                    // the page shown (not the one coming), so it keeps its data while fading out
+                    item.arg = Qt.binding(() => loader.shownSub.split(":")[1] ?? "");
                 Qt.callLater(() => {
                     // the page may be gone by then (settings closed)
                     if (root?.flickable)

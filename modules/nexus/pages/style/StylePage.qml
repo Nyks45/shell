@@ -85,6 +85,69 @@ PageBase {
         }
 
         SectionHeader {
+            text: Tr.tr("Animations")
+        }
+
+        SelectRow {
+            label: Tr.tr("Shell")
+            subtext: GlobalConfig.appearance.style.shellAnim === "nebula" ? Tr.tr("Panels, popouts, settings and the launcher move like Nebula's: a little overshoot, soft fades") : Tr.tr("Panels, popouts, settings and the launcher: Caelestia's own motion")
+            menuItems: [caelestiaShellAnim, nebulaShellAnim]
+            active: GlobalConfig.appearance.style.shellAnim === "nebula" ? nebulaShellAnim : caelestiaShellAnim
+            onSelected: item => GlobalConfig.appearance.style.shellAnim = item.value
+
+            MenuItem {
+                id: caelestiaShellAnim
+
+                icon: "animation"
+                text: Tr.tr("Caelestia")
+                value: "caelestia"
+            }
+
+            MenuItem {
+                id: nebulaShellAnim
+
+                icon: "filter_vintage"
+                text: Tr.tr("Nebula")
+                value: "nebula"
+            }
+        }
+
+        SelectRow {
+            label: Tr.tr("Windows and workspaces")
+            subtext: HyprSettings.saved.windowAnim === "nebula" ? Tr.tr("Nebula's smoother workspace slide and a fade for the special workspace") : Tr.tr("Caelestia's own window and workspace animations")
+            menuItems: [caelestiaWinAnim, nebulaWinAnim]
+            active: HyprSettings.saved.windowAnim === "nebula" ? nebulaWinAnim : caelestiaWinAnim
+            onSelected: item => HyprSettings.setWindowAnim(item.value)
+
+            MenuItem {
+                id: caelestiaWinAnim
+
+                icon: "animation"
+                text: Tr.tr("Caelestia")
+                value: "caelestia"
+            }
+
+            MenuItem {
+                id: nebulaWinAnim
+
+                icon: "filter_vintage"
+                text: Tr.tr("Nebula")
+                value: "nebula"
+            }
+        }
+
+        StyledText {
+            Layout.fillWidth: true
+            Layout.leftMargin: Tokens.padding.normal
+            Layout.bottomMargin: Tokens.spacing.small
+            // TRANSLATORS: where the one speed setting for all animations is
+            text: Tr.tr("Nebula's widgets and launcher always move their own way. How fast everything moves (or no animations): Accessibility.")
+            wrapMode: Text.WordWrap
+            color: Colours.palette.m3outline
+            font: Tokens.font.label.small
+        }
+
+        SectionHeader {
             text: Tr.tr("Glass")
         }
 

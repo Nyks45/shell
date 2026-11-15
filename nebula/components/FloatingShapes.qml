@@ -1,4 +1,5 @@
 import QtQuick
+import Caelestia.Config
 import M3Shapes
 import qs.nebula.services
 import qs.nebula.theme
@@ -19,7 +20,7 @@ Item {
 
     readonly property list<int> pool: [MaterialShape.Circle, MaterialShape.Cookie4Sided, MaterialShape.Cookie6Sided, MaterialShape.Cookie7Sided, MaterialShape.Cookie9Sided, MaterialShape.Cookie12Sided, MaterialShape.Sunny, MaterialShape.VerySunny, MaterialShape.SoftBurst, MaterialShape.Pentagon, MaterialShape.Gem, MaterialShape.Arch, MaterialShape.Arrow, MaterialShape.Pill, MaterialShape.Triangle, MaterialShape.Fan, MaterialShape.Oval]
 
-    property real pace: running && !Settings.theme.reduceMotion ? 1 : 0
+    property real pace: running && !(GlobalConfig.appearance.anim.durations.scale <= 0.05) ? 1 : 0
 
     Behavior on pace {
         NumberAnimation {

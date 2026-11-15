@@ -796,6 +796,34 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Shell",
+            "ctx": "",
+            "sub": "Panels, popouts, settings and the launcher move like Nebula's: a little overshoot, soft fades",
+            "section": "Animations",
+            "page": 0,
+            "path": [
+                9
+            ],
+            "trail": [
+                "Nebula"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Windows and workspaces",
+            "ctx": "",
+            "sub": "Nebula's smoother workspace slide and a fade for the special workspace",
+            "section": "Animations",
+            "page": 0,
+            "path": [
+                9
+            ],
+            "trail": [
+                "Nebula"
+            ],
+            "keywords": ""
+        },
+        {
             "label": "Glass tint",
             "ctx": "",
             "sub": "",
