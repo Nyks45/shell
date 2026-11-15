@@ -41,7 +41,7 @@ Singleton {
         command: ["sh", "-c", `
             d="${root.state}/live-wallpaper"
             p=$(cat "$d/pid" 2>/dev/null)
-            if [ -n "$p" ] && [ "$(cat /proc/$p/comm 2>/dev/null)" = linux-wallpaper ]; then
+            if [ -n "$p" ] && [ "$(cat /proc/$p/comm 2>/dev/null)" = linux-wallpaper ] && { [ -z "$HYPRLAND_INSTANCE_SIGNATURE" ] || tr "\\0" "\\n" < /proc/$p/environ 2>/dev/null | grep -qx "HYPRLAND_INSTANCE_SIGNATURE=$HYPRLAND_INSTANCE_SIGNATURE"; }; then
                 echo "running"
                 exit 0
             fi

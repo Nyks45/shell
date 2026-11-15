@@ -66,7 +66,14 @@ event() {
 own_pid() {
     local pid
     pid="$(cat "$PIDFILE" 2>/dev/null)" || return 1
-    [[ -n "$pid" ]] && [[ "$(cat /proc/"$pid"/comm 2>/dev/null)" == linux-wallpaper ]] && echo "$pid"
+    [[ -n "$pid" ]] && [[ "$(cat /proc/"$pid"/comm 2>/dev/null)" == linux-wallpaper ]] || return 1
+    # A renderer left from an earlier session (it outlives a logout: its Hyprland is gone, it draws
+    # nowhere) isn't ours: this session starts its own
+    if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] &&
+        ! tr '\0' '\n' < /proc/"$pid"/environ 2>/dev/null | grep -qx "HYPRLAND_INSTANCE_SIGNATURE=$HYPRLAND_INSTANCE_SIGNATURE"; then
+        return 1
+    fi
+    echo "$pid"
 }
 
 stop() {

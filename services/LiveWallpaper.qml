@@ -830,7 +830,7 @@ Singleton {
     Process {
         id: statusProc
 
-        command: ["sh", "-c", `(command -v live-wallpaper >/dev/null || [ -x '${root.scriptBin}' ]) && echo script; command -v linux-wallpaperengine >/dev/null && echo engine; pacman -Q linux-wallpaperengine-git 2>/dev/null | cut -d' ' -f2; p=$(cat "\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper/pid" 2>/dev/null); [ -n "$p" ] && [ "$(cat /proc/$p/comm 2>/dev/null)" = linux-wallpaper ] && echo running; echo "assets=$(python3 -I '${root.scanner}' assets)"`]
+        command: ["sh", "-c", `(command -v live-wallpaper >/dev/null || [ -x '${root.scriptBin}' ]) && echo script; command -v linux-wallpaperengine >/dev/null && echo engine; pacman -Q linux-wallpaperengine-git 2>/dev/null | cut -d' ' -f2; p=$(cat "\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper/pid" 2>/dev/null); [ -n "$p" ] && [ "$(cat /proc/$p/comm 2>/dev/null)" = linux-wallpaper ] && { [ -z "$HYPRLAND_INSTANCE_SIGNATURE" ] || tr "\\0" "\\n" < /proc/$p/environ 2>/dev/null | grep -qx "HYPRLAND_INSTANCE_SIGNATURE=$HYPRLAND_INSTANCE_SIGNATURE"; } && echo running; echo "assets=$(python3 -I '${root.scanner}' assets)"`]
         stdout: StdioCollector {
             onStreamFinished: {
                 const lines = text.split("\n");
@@ -863,7 +863,7 @@ Singleton {
     Process {
         id: watchProc
 
-        command: ["sh", "-c", `p=$(cat "\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper/pid" 2>/dev/null); [ -n "$p" ] && [ "$(cat /proc/$p/comm 2>/dev/null)" = linux-wallpaper ]`]
+        command: ["sh", "-c", `p=$(cat "\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper/pid" 2>/dev/null); [ -n "$p" ] && [ "$(cat /proc/$p/comm 2>/dev/null)" = linux-wallpaper ] && { [ -z "$HYPRLAND_INSTANCE_SIGNATURE" ] || tr "\\0" "\\n" < /proc/$p/environ 2>/dev/null | grep -qx "HYPRLAND_INSTANCE_SIGNATURE=$HYPRLAND_INSTANCE_SIGNATURE"; }`]
         onExited: code => {
             if (code === 0 || startProc.running || restartTimer.running || Object.keys(root.screens).length === 0 || root.ruleAction === "stop") {
                 root.missing = 0;
@@ -881,14 +881,14 @@ Singleton {
     Process {
         id: runningProc
 
-        command: ["sh", "-c", `p=$(cat "\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper/pid" 2>/dev/null); [ -n "$p" ] && [ "$(cat /proc/$p/comm 2>/dev/null)" = linux-wallpaper ]`]
+        command: ["sh", "-c", `p=$(cat "\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper/pid" 2>/dev/null); [ -n "$p" ] && [ "$(cat /proc/$p/comm 2>/dev/null)" = linux-wallpaper ] && { [ -z "$HYPRLAND_INSTANCE_SIGNATURE" ] || tr "\\0" "\\n" < /proc/$p/environ 2>/dev/null | grep -qx "HYPRLAND_INSTANCE_SIGNATURE=$HYPRLAND_INSTANCE_SIGNATURE"; }`]
         onExited: code => root.running = code === 0
     }
 
     Process {
         id: checkProc
 
-        command: ["sh", "-c", `p=$(cat "\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper/pid" 2>/dev/null); [ -n "$p" ] && [ "$(cat /proc/$p/comm 2>/dev/null)" = linux-wallpaper ] && echo ok || tail -5 "\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper/log"`]
+        command: ["sh", "-c", `p=$(cat "\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper/pid" 2>/dev/null); [ -n "$p" ] && [ "$(cat /proc/$p/comm 2>/dev/null)" = linux-wallpaper ] && { [ -z "$HYPRLAND_INSTANCE_SIGNATURE" ] || tr "\\0" "\\n" < /proc/$p/environ 2>/dev/null | grep -qx "HYPRLAND_INSTANCE_SIGNATURE=$HYPRLAND_INSTANCE_SIGNATURE"; } && echo ok || tail -5 "\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper/log"`]
         stdout: StdioCollector {
             onStreamFinished: {
                 root.running = text.trim() === "ok";
