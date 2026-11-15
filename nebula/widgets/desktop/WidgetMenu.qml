@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
+import qs.services as Shell
 import Quickshell.Hyprland
 import M3Shapes
 import qs.nebula.components
@@ -16,6 +17,10 @@ PanelWindow {
     required property ShellScreen modelData
 
     screen: modelData
+    // Not over a full-screen window (a game, a remote desktop): the corner and its popups wait
+    // until the desktop is shown again
+    readonly property bool fullscreenHere: Shell.Hypr.monitorFor(screen)?.activeWorkspace?.toplevels.values.some(t => t.lastIpcObject.fullscreen > 1) ?? false
+    visible: !fullscreenHere
     anchors {
         top: true
         bottom: true

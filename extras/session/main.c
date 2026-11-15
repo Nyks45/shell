@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/prctl.h>
+#include <termios.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -75,6 +76,16 @@ int main(int argc, char** argv) {
     // Flatpak) refuses to start with any capability while not setuid: "Unexpected capabilities
     // but not setuid". Nothing in the desktop needs it, so the session starts without it.
     prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0);
+
+    // The session runs on tty1, whose foreground process group is Hyprland's (and the shell's
+    // and its children's): a Ctrl+C reaching the console (it did from a full-screen RDP session)
+    // became SIGINT and ended the session. Nothing reads the console while Hyprland runs: no
+    // signal keys on it.
+    struct termios tio;
+    if (isatty(STDIN_FILENO) && tcgetattr(STDIN_FILENO, &tio) == 0) {
+        tio.c_lflag &= ~(tcflag_t)ISIG;
+        tcsetattr(STDIN_FILENO, TCSANOW, &tio);
+    }
 
     if (argc > 1) {
         execv(SESSION_HELPER, argv);

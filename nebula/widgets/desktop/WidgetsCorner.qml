@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Shapes
 import Quickshell
 import Quickshell.Wayland
+import qs.services as Shell
 import M3Shapes
 import qs.nebula.components
 import qs.nebula.services
@@ -20,6 +21,11 @@ PanelWindow {
     implicitHeight: Theme.widgetCorner.windowHeight
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
+
+    // Not over a full-screen window (a game, a remote desktop): the corner and its popups wait
+    // until the desktop is shown again
+    readonly property bool fullscreenHere: Shell.Hypr.monitorFor(screen)?.activeWorkspace?.toplevels.values.some(t => t.lastIpcObject.fullscreen > 1) ?? false
+    visible: !fullscreenHere
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "caelestia-nebula-widgetcorner"
