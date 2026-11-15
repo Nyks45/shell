@@ -23,6 +23,7 @@ Singleton {
     readonly property M3Palette current: M3Palette {}
     readonly property M3Palette preview: M3Palette {}
     readonly property Transparency transparency: Transparency {}
+    readonly property Glass glass: Glass {}
     readonly property alias wallLuminance: analyser.luminance
 
     property bool cooldownPending
@@ -155,6 +156,14 @@ Singleton {
 
         interval: Tokens.anim.durations.expressiveSlowEffects
         onTriggered: root.requestReloadHyprRules()
+    }
+
+    // Glass cards and shapes (components/nebula: GlassRect, GlassShape): how see-through their
+    // tint is and how strong the soft light across their top is. Panels and the bar are not
+    // glass cards: they are the plain translucent surface of `transparency` (as in Nebula).
+    component Glass: QtObject {
+        readonly property real tint: Math.max(0.2, Math.min(1, GlobalConfig.appearance.glass.tint))
+        readonly property real topLight: Math.max(0, Math.min(0.4, GlobalConfig.appearance.glass.topLight))
     }
 
     component Transparency: QtObject {

@@ -270,6 +270,15 @@ class AppearanceTransparency : public settings::ObjectNode {
     CONFIG_GLOBAL_PROPERTY(qreal, layers, 0.4)
 };
 
+// Glass cards and shapes (after Nebula, github.com/LilaccFlowerr/Nebula): a translucent tint
+// over the compositor's blur, with a soft light across their top
+class AppearanceGlass : public settings::ObjectNode {
+    CONFIG_NODE(AppearanceGlass, settings::ObjectNode)
+
+    CONFIG_GLOBAL_PROPERTY(qreal, tint, 0.72)
+    CONFIG_GLOBAL_PROPERTY(qreal, topLight, 0.08)
+};
+
 class AppearanceConfig : public settings::ObjectNode {
     CONFIG_NODE(AppearanceConfig, settings::ObjectNode)
 
@@ -280,6 +289,7 @@ class AppearanceConfig : public settings::ObjectNode {
     CONFIG_SUBOBJECT(AppearanceFont, font)
     CONFIG_SUBOBJECT(AppearanceAnim, anim)
     CONFIG_SUBOBJECT(AppearanceTransparency, transparency)
+    CONFIG_SUBOBJECT(AppearanceGlass, glass)
 };
 
 } // namespace caelestia::shell::config
