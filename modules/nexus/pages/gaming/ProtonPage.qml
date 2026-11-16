@@ -30,6 +30,8 @@ PageBase {
     // An installed "Latest" copy for the chosen source, and the newest release
     readonly property var latestCopy: mine.find(t => t.target === root.target && t.name === root.releases?.latest) ?? null
     readonly property var newest: releases?.releases?.[0] ?? null
+    // The Latest copy already holds the newest release (its version file): nothing to update
+    readonly property bool latestCurrent: !!latestCopy && !!newest && latestCopy.version === newest.tag
 
     function load(): void {
         toolsProc.running = true;
@@ -245,10 +247,10 @@ PageBase {
 
             Layout.fillWidth: true
             visible: !!root.releases?.latest && !!root.newest
-            disabled: working
-            icon: working ? "downloading" : "autorenew"
-            text: root.latestCopy ? Tr.tr("Update %1 to %2").arg(root.releases?.latest ?? "").arg(root.newest?.tag ?? "") : Tr.tr("Add %1 (%2)").arg(root.releases?.latest ?? "").arg(root.newest?.tag ?? "")
-            subtext: working ? root.busyText(what) : Tr.tr("One name launchers keep pointing at; updating replaces it with the newest version (%1)").arg(root.size(root.newest?.size ?? 0))
+            disabled: working || root.latestCurrent
+            icon: working ? "downloading" : root.latestCurrent ? "check_circle" : "autorenew"
+            text: root.latestCurrent ? Tr.tr("%1 is up to date (%2)").arg(root.releases?.latest ?? "").arg(root.newest?.tag ?? "") : root.latestCopy ? Tr.tr("Update %1 to %2").arg(root.releases?.latest ?? "").arg(root.newest?.tag ?? "") : Tr.tr("Add %1 (%2)").arg(root.releases?.latest ?? "").arg(root.newest?.tag ?? "")
+            subtext: working ? root.busyText(what) : root.latestCurrent ? Tr.tr("An update shows here when a newer version comes out") : Tr.tr("One name launchers keep pointing at; updating replaces it with the newest version (%1)").arg(root.size(root.newest?.size ?? 0))
             onClicked: root.install(root.newest.tag, true)
         }
 

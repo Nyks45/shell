@@ -206,6 +206,15 @@ ACCEPTS = {"steam": {"proton-ge", "proton-cachyos", "proton-em", "dwproton"},
            "lutris": {"proton-ge", "proton-cachyos", "proton-em", "dwproton", "wine-tkg"}}
 
 
+def tool_version(d):
+    """The version a tool folder holds (its `version` file: "<build time> <release tag>"), or ""."""
+    try:
+        parts = open(os.path.join(d, "version")).read().split()
+        return parts[-1] if parts else ""
+    except OSError:
+        return ""
+
+
 def vdf_name(d):
     """The tool's internal name (what launchers select) from compatibilitytool.vdf, else the folder."""
     try:
@@ -235,7 +244,8 @@ def c_tools(args):
         for d in sorted(glob.glob(os.path.join(base, "*"))):
             if os.path.isdir(d):
                 tools.append({"target": target, "dir": os.path.basename(d), "name": vdf_name(d) if target != "lutris" else os.path.basename(d),
-                              "size": du(d), "latest": os.path.basename(d).endswith(" Latest"), "system": False})
+                              "size": du(d), "latest": os.path.basename(d).endswith(" Latest"), "system": False,
+                              "version": tool_version(d)})
     for d in sorted(glob.glob(os.path.join(SYSTEM_STEAM, "*"))):
         tools.append({"target": "steam", "dir": os.path.basename(d), "name": vdf_name(d), "size": 0, "latest": False, "system": True})
     default, games = steam_default()
