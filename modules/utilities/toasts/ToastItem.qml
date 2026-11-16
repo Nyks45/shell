@@ -7,85 +7,68 @@ import qs.components
 import qs.components.effects
 import qs.services
 
+// The shell's own messages ("Copied", "Do not disturb enabled"...), as cards like the
+// notifications': the same glass card, rim and type; the kind (success, warning, error) only
+// colours the round icon.
 StyledRect {
     id: root
 
     required property Toast modelData
 
+    readonly property color accent: {
+        if (root.modelData.type === Toast.Success)
+            return Colours.palette.m3success;
+        if (root.modelData.type === Toast.Warning)
+            return Colours.palette.m3tertiary;
+        if (root.modelData.type === Toast.Error)
+            return Colours.palette.m3error;
+        return Colours.palette.m3secondaryContainer;
+    }
+    readonly property color onAccent: {
+        if (root.modelData.type === Toast.Success)
+            return Colours.palette.m3onSuccess;
+        if (root.modelData.type === Toast.Warning)
+            return Colours.palette.m3onTertiary;
+        if (root.modelData.type === Toast.Error)
+            return Colours.palette.m3onError;
+        return Colours.palette.m3onSecondaryContainer;
+    }
+
     anchors.left: parent.left
     anchors.right: parent.right
-    implicitHeight: layout.implicitHeight + Tokens.padding.large
+    implicitHeight: layout.implicitHeight + Tokens.padding.medium * 2
 
-    radius: Tokens.rounding.large
-    color: {
-        if (root.modelData.type === Toast.Success)
-            return Colours.palette.m3successContainer;
-        if (root.modelData.type === Toast.Warning)
-            return Colours.palette.m3secondary;
-        if (root.modelData.type === Toast.Error)
-            return Colours.palette.m3errorContainer;
-        return Colours.palette.m3surface;
-    }
-
+    radius: Tokens.rounding.extraLarge
+    color: Colours.tPalette.m3surfaceContainer
     border.width: 1
-    border.color: {
-        let colour = Colours.palette.m3outlineVariant;
-        if (root.modelData.type === Toast.Success)
-            colour = Colours.palette.m3success;
-        if (root.modelData.type === Toast.Warning)
-            colour = Colours.palette.m3secondaryContainer;
-        if (root.modelData.type === Toast.Error)
-            colour = Colours.palette.m3error;
-        return Qt.alpha(colour, 0.3);
-    }
+    border.color: Qt.alpha(Colours.palette.m3outlineVariant, 0.5)
 
     Elevation {
         anchors.fill: parent
         radius: parent.radius
         opacity: parent.opacity
         z: -1
-        level: 3
+        level: 2
     }
 
     RowLayout {
         id: layout
 
         anchors.fill: parent
-        anchors.margins: Tokens.padding.small
-        anchors.leftMargin: Tokens.padding.medium
-        anchors.rightMargin: Tokens.padding.medium
+        anchors.margins: Tokens.padding.medium
         spacing: Tokens.spacing.medium
 
         StyledRect {
-            radius: Tokens.rounding.large
-            color: {
-                if (root.modelData.type === Toast.Success)
-                    return Colours.palette.m3success;
-                if (root.modelData.type === Toast.Warning)
-                    return Colours.palette.m3secondaryContainer;
-                if (root.modelData.type === Toast.Error)
-                    return Colours.palette.m3error;
-                return Colours.palette.m3surfaceContainerHigh;
-            }
-
-            implicitWidth: implicitHeight
-            implicitHeight: icon.implicitHeight + Tokens.padding.large
+            implicitWidth: 40
+            implicitHeight: 40
+            radius: Tokens.rounding.full
+            color: root.accent
 
             MaterialIcon {
-                id: icon
-
                 anchors.centerIn: parent
                 text: root.modelData.icon
-                color: {
-                    if (root.modelData.type === Toast.Success)
-                        return Colours.palette.m3onSuccess;
-                    if (root.modelData.type === Toast.Warning)
-                        return Colours.palette.m3onSecondaryContainer;
-                    if (root.modelData.type === Toast.Error)
-                        return Colours.palette.m3onError;
-                    return Colours.palette.m3onSurfaceVariant;
-                }
-                fontStyle: Tokens.font.icon.builders.large.scale(1.2).build()
+                color: root.onAccent
+                fontStyle: Tokens.font.icon.medium
             }
         }
 
@@ -94,43 +77,21 @@ StyledRect {
             spacing: 0
 
             StyledText {
-                id: title
-
                 Layout.fillWidth: true
                 text: Tr.trMarked(root.modelData.title)
-                color: {
-                    if (root.modelData.type === Toast.Success)
-                        return Colours.palette.m3onSuccessContainer;
-                    if (root.modelData.type === Toast.Warning)
-                        return Colours.palette.m3onSecondary;
-                    if (root.modelData.type === Toast.Error)
-                        return Colours.palette.m3onErrorContainer;
-                    return Colours.palette.m3onSurface;
-                }
-                font: Tokens.font.title.small
+                font: Tokens.font.body.small
                 elide: Text.ElideRight
             }
 
             StyledText {
                 Layout.fillWidth: true
+                visible: text !== ""
                 textFormat: Text.StyledText
                 text: Tr.trMarked(root.modelData.message)
-                color: {
-                    if (root.modelData.type === Toast.Success)
-                        return Colours.palette.m3onSuccessContainer;
-                    if (root.modelData.type === Toast.Warning)
-                        return Colours.palette.m3onSecondary;
-                    if (root.modelData.type === Toast.Error)
-                        return Colours.palette.m3onErrorContainer;
-                    return Colours.palette.m3onSurface;
-                }
-                opacity: 0.8
+                color: Colours.palette.m3onSurfaceVariant
+                font: Tokens.font.label.medium
                 elide: Text.ElideRight
             }
         }
-    }
-
-    Behavior on border.color {
-        CAnim {}
     }
 }
