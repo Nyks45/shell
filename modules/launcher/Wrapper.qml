@@ -27,7 +27,7 @@ Item {
 
     property real closingHeight
 
-    readonly property DropMotion drop: DropMotion {
+    readonly property WaveMotion drop: WaveMotion {
         panel: root
         screenState: root.screenState
         edge: "bottom"
@@ -100,7 +100,7 @@ Item {
         // Where it sits: one x/y expression, never swapped anchors (swapping fixed its size at 0
         // after a style switch: an empty dashboard and notification list)
         // (expanding: stays put at the bottom edge and is revealed; sliding: moves with the panel)
-        // (drop: at its final place, the bottom edge's droplet growing over it)
+        // (drop: at its final place, the bottom edge's wave growing over it)
         y: root.drop.active ? root.height - root.drop.fullDepth : 0
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.horizontalCenterOffset: -root.drop.offset

@@ -156,7 +156,7 @@ Item {
         anchors.right: parent.right
         anchors.topMargin: -notifications.anchors.topMargin + dropInsetTop
         anchors.bottomMargin: dropInsetBottom
-        // (the Drop motion grows it within this span)
+        // (the Wave motion grows it within this span)
         dropFullTop: notifications.y + notifications.height - notifications.anchors.topMargin
         dropFullBottom: utilities.y
     }

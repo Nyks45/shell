@@ -92,9 +92,9 @@ PageBase {
 
         SelectRow {
             label: Tr.tr("Panels and popouts")
-            subtext: GlobalConfig.appearance.style.shellAnim === "drop" ? Tr.tr("A droplet grows out of where you click or hover (from the middle when opened with a shortcut) and swells into the panel") : Tr.tr("Caelestia's own motion")
+            subtext: GlobalConfig.appearance.style.shellAnim === "wave" ? Tr.tr("Panels rise out of their edge where you click or hover (the middle when opened with a shortcut) and spread along it like a wave") : Tr.tr("Caelestia's own motion")
             menuItems: [caelestiaAnim, dropAnim]
-            active: GlobalConfig.appearance.style.shellAnim === "drop" ? dropAnim : caelestiaAnim
+            active: GlobalConfig.appearance.style.shellAnim === "wave" ? dropAnim : caelestiaAnim
             onSelected: item => GlobalConfig.appearance.style.shellAnim = item.value
 
             MenuItem {
@@ -108,9 +108,9 @@ PageBase {
             MenuItem {
                 id: dropAnim
 
-                icon: "water_drop"
-                text: Tr.tr("Drop")
-                value: "drop"
+                icon: "waves"
+                text: Tr.tr("Wave")
+                value: "wave"
             }
         }
 

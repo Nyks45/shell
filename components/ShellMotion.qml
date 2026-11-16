@@ -4,8 +4,8 @@ import Caelestia.Config
 // How the shell's panels open and close (Wallpaper & style > Nebula > Animations > Panels):
 // animates `target.offsetScale` (1 hidden .. 0 shown) to `to`.
 //   caelestia  Caelestia's own motion (default)
-//   drop       the panel grows out of where it was opened from as a droplet
-//              (components/DropMotion.qml)
+//   wave       the panel rises out of its edge where it was opened from and spreads along it
+//              like a wave (components/WaveMotion.qml)
 // (Explicit animations, not a Behavior: a Behavior can't switch animations once set.)
 // Other styles are kept on the motion-styles branch.
 QtObject {
@@ -13,16 +13,18 @@ QtObject {
 
     required property Item target
     required property real to
+    // Wave's opening curve (popouts: a sound wave, fast out from the button, slowing at the edges)
+    property var waveOpenCurve: [0.42, 0, 0.18, 1, 1, 1]
 
-    readonly property bool drop: GlobalConfig.appearance.style.shellAnim === "drop"
+    readonly property bool drop: GlobalConfig.appearance.style.shellAnim === "wave"
 
-    // Drop: a timed curve that starts gently (the droplet is seen swelling) and lands softly
+    // Wave: a timed curve that starts gently and lands softly
     readonly property NumberAnimation dropAnim: NumberAnimation {
         target: root.target
         property: "offsetScale"
         duration: (root.to === 0 ? 620 : 460) * GlobalConfig.appearance.anim.durations.scale
         easing.type: Easing.BezierSpline
-        easing.bezierCurve: root.to === 0 ? [0.42, 0, 0.18, 1, 1, 1] : [0.4, 0, 0.6, 1, 1, 1]
+        easing.bezierCurve: root.to === 0 ? root.waveOpenCurve : [0.4, 0, 0.6, 1, 1, 1]
     }
 
     readonly property Anim curveAnim: Anim {

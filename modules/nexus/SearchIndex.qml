@@ -798,7 +798,7 @@ QtObject {
         {
             "label": "Panels and popouts",
             "ctx": "",
-            "sub": "A droplet grows out of where you click or hover (from the middle when opened with a shortcut) and swells into the panel",
+            "sub": "Panels rise out of their edge where you click or hover (the middle when opened with a shortcut) and spread along it like a wave",
             "section": "Animations",
             "page": 0,
             "path": [

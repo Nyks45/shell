@@ -17,8 +17,8 @@ Item {
     readonly property Brightness.Monitor monitor: Brightness.getMonitorForScreen(root.screen)
     readonly property bool shouldBeActive: screenState.osd && Config.osd.enabled && !(screenState.utilities && Config.utilities.enabled)
     property real offsetScale: 1
-    // Drop motion: grows out of where it was opened from (components/DropMotion.qml)
-    readonly property DropMotion drop: DropMotion {
+    // Wave motion: rises and spreads from where it was opened (components/WaveMotion.qml)
+    readonly property WaveMotion drop: WaveMotion {
         panel: root
         screenState: root.screenState
         edge: "right"
@@ -113,7 +113,7 @@ Item {
 
         opacity: root.drop.contentOpacity
         // Where it sits: one expression (never swapped anchors); with the drop, at its final
-        // place while the droplet grows over it
+        // place while the wave grows over it
         x: root.drop.active ? root.width - root.drop.fullDepth : 0
         anchors.verticalCenter: parent.verticalCenter
         anchors.verticalCenterOffset: -root.drop.offset

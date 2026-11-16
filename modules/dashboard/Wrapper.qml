@@ -16,8 +16,8 @@ Item {
     // (the drop spring nears "closed" slowly: hidden in its last 0.2%, nothing left behind)
     visible: offsetScale < 1
 
-    // Drop motion: grows out of where it was opened from (components/DropMotion.qml)
-    readonly property DropMotion drop: DropMotion {
+    // Wave motion: rises and spreads from where it was opened (components/WaveMotion.qml)
+    readonly property WaveMotion drop: WaveMotion {
         panel: root
         screenState: root.screenState
         edge: "top"

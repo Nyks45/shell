@@ -17,8 +17,8 @@ Item {
     // Its full top and bottom (Panels: between the notifications and the quick settings)
     property real dropFullTop
     property real dropFullBottom
-    // Drop motion: grows out of where it was opened from (components/DropMotion.qml)
-    readonly property DropMotion drop: DropMotion {
+    // Wave motion: rises and spreads from where it was opened (components/WaveMotion.qml)
+    readonly property WaveMotion drop: WaveMotion {
         panel: root
         screenState: root.screenState
         edge: "right"
@@ -58,7 +58,7 @@ Item {
 
         opacity: root.drop.contentOpacity
         // Where it sits: one expression each (never swapped anchors); with the drop, at its final
-        // place and full height while the droplet grows over it
+        // place and full height while the wave grows over it
         x: anchors.leftMargin + (root.drop.active ? root.width - root.drop.fullDepth : 0)
         y: anchors.margins - root.dropInsetTop
         height: root.height + root.dropInsetTop + root.dropInsetBottom - anchors.margins

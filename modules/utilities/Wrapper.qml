@@ -33,8 +33,8 @@ Item {
 
     // Its own width (under the sidebar: the sidebar's)
     readonly property real normalWidth: sidebar.width * (1 - sidebar.offsetScale) * horizontalStretch * sidebarLerp + Tokens.sizes.utilities.width * (1 - sidebarLerp)
-    // Drop motion: grows out of where it was opened from (components/DropMotion.qml)
-    readonly property DropMotion drop: DropMotion {
+    // Wave motion: rises and spreads from where it was opened (components/WaveMotion.qml)
+    readonly property WaveMotion drop: WaveMotion {
         panel: root
         screenState: root.screenState
         edge: "bottom"
@@ -107,7 +107,7 @@ Item {
 
         opacity: root.drop.contentOpacity
         // Where it sits: one expression each (never swapped anchors); with the drop, at its final
-        // place while the droplet grows over it
+        // place while the wave grows over it
         readonly property real m: Tokens.padding.large
         anchors.margins: m // (read by totalPadding)
         x: m + (root.drop.active ? root.width + root.anchors.rightMargin - root.drop.fullAlong : 0)
