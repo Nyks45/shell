@@ -41,6 +41,27 @@ Singleton {
     // The per-app rules ready before the first notification
     Component.onCompleted: NotifRules.ensureLoaded()
 
+    // The shell's own messages (Toaster.toast: "Copied", "Do not disturb enabled"...) are real
+    // notifications: sent to this server, so they pop up, follow do not disturb and the rules,
+    // and stay in the history like any other. Their icon goes along as a hint.
+    property var seenToasts: []
+
+    Connections {
+        function onToastsChanged(): void {
+            const list = Array.from(Toaster.toasts);
+            for (const t of list) {
+                if (root.seenToasts.includes(t))
+                    continue;
+                const urgency = t.type === Toast.Error ? "critical" : t.type === Toast.Success ? "low" : "normal";
+                Quickshell.execDetached(["notify-send", "-a", "Caelestia", "-u", urgency, "-t", String(t.timeout), "-h", `string:x-caelestia-icon:${t.icon || "info"}`, t.title, t.message]);
+                t.close();
+            }
+            root.seenToasts = list.filter(t => !t.closed);
+        }
+
+        target: Toaster
+    }
+
     onListChanged: {
         if (loaded)
             saveTimer.restart();

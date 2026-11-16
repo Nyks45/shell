@@ -135,9 +135,11 @@ Item {
         anchors.right: parent.right
     }
 
+    // (the shell's own messages are notifications now: services/Notifs.qml)
     Toasts.Toasts {
         id: toasts
 
+        visible: false
         anchors.bottom: sidebar.visible ? parent.bottom : utilities.top
         anchors.right: sidebar.left
         anchors.margins: Tokens.padding.medium

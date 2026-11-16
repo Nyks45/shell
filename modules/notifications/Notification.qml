@@ -202,7 +202,7 @@ StyledRect {
                         anchors.verticalCenterOffset: 1
 
                         sourceComponent: MaterialIcon {
-                            text: Icons.getNotifIcon(root.modelData.summary, root.modelData.urgency)
+                            text: root.modelData.hints?.["x-caelestia-icon"] || Icons.getNotifIcon(root.modelData.summary, root.modelData.urgency)
                             color: root.modelData?.urgency === NotificationUrgency.Critical ? Colours.palette.m3onError : root.modelData?.urgency === NotificationUrgency.Low ? Colours.palette.m3onSurface : Colours.palette.m3onSecondaryContainer
                             fontStyle: Tokens.font.icon.medium
                         }
