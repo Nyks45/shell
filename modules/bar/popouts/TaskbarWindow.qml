@@ -60,84 +60,94 @@ Item {
         }
     }
 
-    implicitWidth: column.implicitWidth + Tokens.padding.small * 2
-    implicitHeight: column.implicitHeight + Tokens.padding.small * 2
+    implicitWidth: column.implicitWidth
+    implicitHeight: column.implicitHeight
 
     ColumnLayout {
         id: column
 
         anchors.centerIn: parent
-        spacing: Tokens.spacing.medium
+        spacing: Tokens.spacing.small
 
-        // The app: its icon on a tile, its name and how many windows, and what to do with it
+        // The app on one line: its icon, name and window count, its actions grouped on the right
         RowLayout {
             Layout.fillWidth: true
+            Layout.leftMargin: Tokens.padding.extraSmall
             spacing: Tokens.spacing.small
 
-            StyledRect {
-                implicitWidth: 40
-                implicitHeight: 40
-                radius: Tokens.rounding.large
-                color: Colours.tPalette.m3surfaceContainerHigh
-
-                IconImage {
-                    anchors.centerIn: parent
-                    implicitSize: 26
-                    asynchronous: true
-                    source: root.app?.entry?.icon ? Quickshell.iconPath(root.app.entry.icon, "application-x-executable") : Icons.getAppIcon(root.app?.cls ?? "", "application-x-executable")
-                }
+            IconImage {
+                implicitSize: 20
+                asynchronous: true
+                source: root.app?.entry?.icon ? Quickshell.iconPath(root.app.entry.icon, "application-x-executable") : Icons.getAppIcon(root.app?.cls ?? "", "application-x-executable")
             }
 
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: -2
+            StyledText {
+                text: root.appName
+                font: Tokens.font.label.large
+                elide: Text.ElideRight
+                Layout.maximumWidth: 220
+            }
+
+            StyledRect {
+                visible: root.cardCount > 1
+                implicitWidth: countLabel.implicitWidth + 10
+                implicitHeight: countLabel.implicitHeight + 2
+                radius: height / 2
+                color: Colours.palette.m3secondaryContainer
 
                 StyledText {
-                    Layout.fillWidth: true
-                    text: root.appName
-                    font: Tokens.font.title.small
-                    elide: Text.ElideRight
-                }
+                    id: countLabel
 
-                StyledText {
-                    Layout.fillWidth: true
-                    text: root.cardCount === 0 ? qsTr("Not running") : root.cardCount === 1 ? qsTr("1 window") : qsTr("%1 windows").arg(root.cardCount)
-                    color: Colours.palette.m3onSurfaceVariant
+                    anchors.centerIn: parent
+                    text: root.cardCount
+                    color: Colours.palette.m3onSecondaryContainer
                     font: Tokens.font.label.small
                 }
             }
 
             Item {
                 Layout.fillWidth: true
-                implicitWidth: Tokens.spacing.large
+                implicitWidth: Tokens.spacing.medium
             }
 
-            IconButton {
-                visible: !!root.app?.entry
-                type: IconButton.Text
-                icon: root.cardCount ? "add" : "play_arrow"
-                onClicked: {
-                    TaskbarApps.launch(root.app);
-                    root.popouts.hasCurrent = false;
-                }
-            }
+            // The actions, small, in one capsule
+            StyledRect {
+                implicitWidth: actions.implicitWidth + 4
+                implicitHeight: actions.implicitHeight + 4
+                radius: height / 2
+                color: Colours.tPalette.m3surfaceContainerHigh
 
-            IconButton {
-                visible: !!root.app?.key
-                type: IconButton.Text
-                icon: "keep"
-                label.fill: TaskbarApps.isPinned(root.app?.key ?? "") ? 1 : 0
-                onClicked: TaskbarApps.isPinned(root.app.key) ? TaskbarApps.unpin(root.app.key) : TaskbarApps.pin(root.app.key)
-            }
+                Row {
+                    id: actions
 
-            IconButton {
-                visible: root.cardCount > 1
-                type: IconButton.Text
-                icon: "close_small"
-                onClicked: {
-                    root.closedFromHere = true;
-                    for (const t of (root.app?.toplevels ?? []).slice())
-                        TaskbarApps.close(t);
+                    anchors.centerIn: parent
+                    spacing: 0
+
+                    SmallAction {
+                        visible: !!root.app?.entry
+                        icon: root.cardCount ? "add" : "play_arrow"
+                        onClicked: {
+                            TaskbarApps.launch(root.app);
+                            root.popouts.hasCurrent = false;
+                        }
+                    }
+
+                    SmallAction {
+                        visible: !!root.app?.key
+                        icon: "keep"
+                        filled: TaskbarApps.isPinned(root.app?.key ?? "")
+                        onClicked: TaskbarApps.isPinned(root.app.key) ? TaskbarApps.unpin(root.app.key) : TaskbarApps.pin(root.app.key)
+                    }
+
+                    SmallAction {
+                        visible: root.cardCount > 1
+                        icon: "close"
+                        onClicked: {
+                            root.closedFromHere = true;
+                            for (const t of (root.app?.toplevels ?? []).slice())
+                                TaskbarApps.close(t);
+                        }
+                    }
                 }
             }
         }
@@ -170,8 +180,8 @@ Item {
             const size = modelData.lastIpcObject.size ?? [16, 10];
             return Math.max(0.2, size[0] / Math.max(1, size[1]));
         }
-        readonly property real previewW: Math.round(Math.max(120, Math.min(220, 130 * aspect)))
-        readonly property real previewH: Math.round(Math.min(130, previewW / aspect))
+        readonly property real previewW: Math.round(Math.max(110, Math.min(190, 108 * aspect)))
+        readonly property real previewH: Math.round(Math.min(108, previewW / aspect))
 
         implicitWidth: previewW
         implicitHeight: previewH
@@ -268,7 +278,7 @@ Item {
                             Layout.fillWidth: true
                             text: card.modelData.title
                             color: Colours.palette.m3onSurface
-                            font: Tokens.font.label.medium
+                            font: Tokens.font.label.small
                             elide: Text.ElideRight
                         }
                     }
@@ -309,9 +319,9 @@ Item {
             anchors.top: parent.top
             anchors.right: parent.right
             anchors.margins: Tokens.padding.small
-            implicitWidth: 26
-            implicitHeight: 26
-            radius: 13
+            implicitWidth: 22
+            implicitHeight: 22
+            radius: 11
             color: hovered ? Colours.palette.m3error : Qt.alpha(Colours.palette.m3surfaceContainerHighest, 0.9)
             opacity: card.pointerOn ? 1 : 0
             scale: card.pointerOn ? 1 : 0.7
@@ -319,7 +329,7 @@ Item {
             StateLayer {
                 id: closeLayer
 
-                radius: 13
+                radius: 11
                 color: Colours.palette.m3onError
                 onClicked: {
                     root.closedFromHere = true;
@@ -345,6 +355,33 @@ Item {
             Behavior on color {
                 CAnim {}
             }
+        }
+    }
+
+    component SmallAction: StyledRect {
+        id: sa
+
+        property string icon
+        property bool filled
+
+        signal clicked
+
+        implicitWidth: 28
+        implicitHeight: 28
+        radius: 14
+        color: "transparent"
+
+        StateLayer {
+            radius: 14
+            onClicked: sa.clicked()
+        }
+
+        MaterialIcon {
+            anchors.centerIn: parent
+            text: sa.icon
+            color: sa.filled ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
+            fontStyle: Tokens.font.icon.small
+            fill: sa.filled ? 1 : 0
         }
     }
 }

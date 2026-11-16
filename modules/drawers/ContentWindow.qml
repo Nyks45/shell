@@ -43,6 +43,8 @@ StyledWindow {
     readonly property real borderLayoutThickness: hasFullscreen ? 0 : contentItem.Config.border.thickness
 
     property color surfaceColour: Colours.tPalette.m3surface
+    // The islands (dashboard, pill, its menus): the panels' glass (readable over anything)
+    readonly property color islandColour: root.surfaceColour
 
     readonly property int dragMaskPadding: {
         if (focusGrab.active || panels.popouts.isDetached)
@@ -170,21 +172,21 @@ StyledWindow {
         BlobGroup {
             id: islandGroup
 
-            color: root.surfaceColour
+            color: root.islandColour
             smoothing: root.contentItem.Config.border.smoothing
         }
 
         BlobGroup {
             id: pillGroup
 
-            color: root.surfaceColour
+            color: root.islandColour
             smoothing: root.contentItem.Config.border.smoothing
         }
 
         BlobGroup {
             id: popoutIslandGroup
 
-            color: root.surfaceColour
+            color: root.islandColour
             smoothing: root.contentItem.Config.border.smoothing
         }
 
@@ -216,6 +218,8 @@ StyledWindow {
             panel: panels.dashboard
             deformAmount: 0.1
             radius: Math.min(Tokens.rounding.extraLarge, height / 2)
+
+            IslandEdge {}
         }
 
         PanelBg {
@@ -271,6 +275,8 @@ StyledWindow {
             implicitWidth: bar.contentWidth * growW
             implicitHeight: fullH * growH
             radius: width / 2
+
+            IslandEdge {}
         }
 
         // The incoming notifications have no panel behind them: each is its own card
@@ -322,6 +328,10 @@ StyledWindow {
             y: fromPill ? startY + (endY - startY) * m : panels.popoutsWrapper.y + root.borderThickness
             implicitWidth: fromPill ? startW + (panels.popoutsWrapper.width - startW) * m : panels.popouts.width * (1 + extraWidth)
             implicitHeight: fromPill ? startH + (panels.popoutsWrapper.height - startH) * m : panels.popoutsWrapper.height
+
+            IslandEdge {
+                visible: parent.fromPill
+            }
 
             Behavior on extraWidth {
                 Anim {}
@@ -413,6 +423,37 @@ StyledWindow {
         screen: root.screen
         slot: "panels"
         component: panels
+    }
+
+    // An island's glass edge (like the settings window's): a soft 1px rim and a faint light
+    // across its top
+    component IslandEdge: Item {
+        anchors.fill: parent
+        visible: parent.visible && parent.width > 4
+
+        Rectangle {
+            anchors.fill: parent
+            radius: (parent.parent as BlobRect)?.radius ?? 0
+            color: "transparent"
+            border.width: 1
+            border.color: Qt.alpha(Colours.palette.m3outlineVariant, 0.35)
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: Math.max(0, ((parent.parent as BlobRect)?.radius ?? 0) - 1)
+            gradient: Gradient {
+                GradientStop {
+                    position: 0
+                    color: Qt.alpha(Colours.palette.m3onSurface, 0.025)
+                }
+                GradientStop {
+                    position: 0.35
+                    color: "transparent"
+                }
+            }
+        }
     }
 
     component PanelBg: BlobRect {
