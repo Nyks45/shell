@@ -228,81 +228,80 @@ Item {
                             Layout.fillWidth: true
                             spacing: Tokens.spacing.small
 
+                            // The power mode: three fixed buttons, one highlight sliding between them
+                            // (nothing changes size, so nothing shifts)
                             StyledRect {
-                                implicitWidth: modes.implicitWidth + 6
-                                implicitHeight: 38
+                                id: modesBox
+
+                                readonly property var modes: [
+                                    {
+                                        p: PowerProfile.PowerSaver,
+                                        icon: "energy_savings_leaf"
+                                    },
+                                    {
+                                        p: PowerProfile.Balanced,
+                                        icon: "balance"
+                                    },
+                                    {
+                                        p: PowerProfile.Performance,
+                                        icon: "rocket_launch"
+                                    }
+                                ]
+                                readonly property int chosen: Math.max(0, modes.findIndex(m => m.p === PowerProfiles.profile))
+                                readonly property real cell: 38
+
+                                implicitWidth: cell * modes.length + 6
+                                implicitHeight: cell + 6
                                 radius: height / 2
                                 color: Colours.tPalette.m3surfaceContainerHigh
 
-                                Row {
-                                    id: modes
+                                StyledRect {
+                                    x: 3 + modesBox.chosen * modesBox.cell
+                                    y: 3
+                                    width: modesBox.cell
+                                    height: modesBox.cell
+                                    radius: height / 2
+                                    color: Colours.palette.m3primary
 
-                                    anchors.centerIn: parent
-                                    spacing: 2
+                                    Behavior on x {
+                                        Anim {
+                                            type: Anim.DefaultSpatial
+                                        }
+                                    }
+                                }
+
+                                Row {
+                                    x: 3
+                                    y: 3
 
                                     Repeater {
-                                        model: [
-                                            {
-                                                p: PowerProfile.PowerSaver,
-                                                icon: "energy_savings_leaf",
-                                                text: Tr.tr("Saver")
-                                            },
-                                            {
-                                                p: PowerProfile.Balanced,
-                                                icon: "balance",
-                                                text: Tr.tr("Balanced")
-                                            },
-                                            {
-                                                p: PowerProfile.Performance,
-                                                icon: "rocket_launch",
-                                                text: Tr.tr("Performance")
-                                            }
-                                        ]
+                                        model: modesBox.modes
 
-                                        StyledRect {
+                                        Item {
                                             id: mode
 
                                             required property var modelData
-                                            readonly property bool chosen: PowerProfiles.profile === modelData.p
+                                            required property int index
+                                            readonly property bool isChosen: modesBox.chosen === index
 
-                                            implicitWidth: modeRow.implicitWidth + Tokens.padding.medium * 2
-                                            implicitHeight: 32
-                                            radius: height / 2
-                                            color: chosen ? Colours.palette.m3primary : "transparent"
-
-                                            Behavior on color {
-                                                CAnim {}
-                                            }
-
-                                            Behavior on implicitWidth {
-                                                Anim {}
-                                            }
+                                            width: modesBox.cell
+                                            height: modesBox.cell
 
                                             StateLayer {
-                                                color: mode.chosen ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface
+                                                radius: height / 2
+                                                color: mode.isChosen ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface
                                                 onClicked: PowerProfiles.profile = mode.modelData.p
                                             }
 
-                                            Row {
-                                                id: modeRow
-
+                                            MaterialIcon {
                                                 anchors.centerIn: parent
-                                                spacing: Tokens.spacing.extraSmall
+                                                text: mode.modelData.icon
+                                                color: mode.isChosen ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
+                                                fontStyle: Tokens.font.icon.small
+                                                fill: mode.isChosen ? 1 : 0
 
-                                                MaterialIcon {
-                                                    anchors.verticalCenter: parent.verticalCenter
-                                                    text: mode.modelData.icon
-                                                    color: mode.chosen ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
-                                                    fontStyle: Tokens.font.icon.small
-                                                    fill: mode.chosen ? 1 : 0
-                                                }
-
-                                                StyledText {
-                                                    anchors.verticalCenter: parent.verticalCenter
-                                                    visible: mode.chosen
-                                                    text: mode.modelData.text
-                                                    color: Colours.palette.m3onPrimary
-                                                    font: Tokens.font.label.medium
+                                                Behavior on color {
+                                                    CAnim {}
                                                 }
                                             }
                                         }
