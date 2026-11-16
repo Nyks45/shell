@@ -27,6 +27,8 @@ PageBase {
         TabPart {
             id: timePart
 
+            key: "datetime"
+
             title: Tr.tr("Date & time")
             icon: "schedule"
             summary: Tr.tr("Time zone, automatic time, clock format")
@@ -40,6 +42,8 @@ PageBase {
 
         TabPart {
             id: languagePart
+
+            key: "language"
 
             title: Tr.tr("Language & region")
             icon: "translate"

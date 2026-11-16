@@ -33,6 +33,17 @@ ColumnLayout {
         }
     }
 
+    // A link to one of these tabs while the page is already open
+    Connections {
+        function onPendingTabAtChanged(): void {
+            const wanted = root.parts.find(p => p.key === PageRegistry.pendingTab);
+            if (wanted)
+                root.show(wanted);
+        }
+
+        target: PageRegistry
+    }
+
     Flow {
         Layout.fillWidth: true
         Layout.bottomMargin: Tokens.spacing.medium

@@ -27,6 +27,8 @@ PageBase {
         TabPart {
             id: fontsPart
 
+            key: "fonts"
+
             title: Tr.tr("Fonts")
             icon: "text_fields"
             summary: Tr.tr("Shell and app fonts, sizes, smoothing")
@@ -40,6 +42,8 @@ PageBase {
 
         TabPart {
             id: themesPart
+
+            key: "appearance"
 
             title: Tr.tr("Themes")
             icon: "palette"

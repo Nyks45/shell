@@ -28,6 +28,8 @@ PageBase {
         TabPart {
             id: drivesPart
 
+            key: "disks"
+
             title: Tr.tr("Drives")
             icon: "hard_drive"
             summary: Tr.tr("Drives and partitions, home folder, clean up")
@@ -41,6 +43,8 @@ PageBase {
 
         TabPart {
             id: snapshotsPart
+
+            key: "backups"
 
             title: Tr.tr("Snapshots")
             icon: "history"

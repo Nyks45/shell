@@ -41,6 +41,8 @@ PageBase {
         TabPart {
             id: desktopPart
 
+            key: "desktopmode"
+
             title: Tr.tr("Desktop mode")
             icon: "desktop_windows"
             summary: Tr.tr("Floating windows, title bars, snapping")

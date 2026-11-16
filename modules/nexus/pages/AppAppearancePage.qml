@@ -231,6 +231,7 @@ for name in names:
             subtext: Tr.tr("App and shell fonts")
             onClicked: root.nState.goTo({
                 page: PageRegistry.find("fonts"),
+                tab: "fonts",
                 path: []
             })
         }
@@ -241,6 +242,7 @@ for name in names:
             subtext: Tr.tr("Style and size, on Keyboard & mouse")
             onClicked: root.nState.goTo({
                 page: PageRegistry.find("input"),
+                tab: "input",
                 path: [],
                 text: Tr.tr("Cursor style"),
                 sectionText: Tr.tr("Cursor")

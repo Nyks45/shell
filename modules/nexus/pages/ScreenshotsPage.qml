@@ -136,6 +136,7 @@ PageBase {
             subtext: Tr.tr("Super+Shift+S: an area (the screen frozen); change them in Keyboard shortcuts")
             onClicked: root.nState.goTo({
                 page: PageRegistry.find("shortcuts"),
+                tab: "shortcuts",
                 path: []
             })
         }

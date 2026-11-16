@@ -27,6 +27,8 @@ PageBase {
         TabPart {
             id: workspacesPart
 
+            key: "multitasking"
+
             title: Tr.tr("Workspaces")
             icon: "view_carousel"
             summary: Tr.tr("Focus, workspaces, the scrolling layout")
@@ -41,6 +43,8 @@ PageBase {
         TabPart {
             id: shortcutsPart
 
+            key: "shortcuts"
+
             title: Tr.tr("Shortcuts")
             icon: "keyboard_command_key"
             summary: Tr.tr("Keyboard shortcuts")
@@ -54,6 +58,8 @@ PageBase {
 
         TabPart {
             id: screenshotsPart
+
+            key: "screenshots"
 
             title: Tr.tr("Screenshots")
             icon: "screenshot_region"

@@ -215,6 +215,14 @@ QtObject {
     property string pendingTab
     property real pendingTabAt
 
+    // Where a link to a page id goes: its page, and the tab it's now on (a former page id)
+    function target(id: string): var {
+        return {
+            page: find(id),
+            tab: aliases[id] ? id : ""
+        };
+    }
+
     // A page's index by its id (or a former id)
     function find(id: string): int {
         return pages.findIndex(p => p.id === (aliases[id] ?? id));

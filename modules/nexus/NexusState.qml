@@ -74,6 +74,11 @@ QtObject {
     // (SearchIndex entry: page, sub-page path, label)
     function goTo(entry: var): void {
         const path = entry.path ?? [];
+        // A tab of a page (a former page id): the page's tabs pick it up (PartTabs)
+        if (entry.tab) {
+            PageRegistry.pendingTab = entry.tab;
+            PageRegistry.pendingTabAt = Date.now();
+        }
         highlight = entry.text ? {
             text: entry.text,
             section: entry.sectionText ?? "",

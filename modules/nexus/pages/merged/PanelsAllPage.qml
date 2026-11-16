@@ -41,6 +41,8 @@ PageBase {
         TabPart {
             id: servicesPart
 
+            key: "services"
+
             title: Tr.tr("Shell services")
             icon: "tune"
             summary: Tr.tr("Poll intervals, lyrics, media players")

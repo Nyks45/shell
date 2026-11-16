@@ -66,6 +66,7 @@ PageBase {
             actionText: Tr.tr("Plugins")
             onAction: root.nState.goTo({
                 page: PageRegistry.find("plugins"),
+                tab: "plugins",
                 path: []
             })
         }

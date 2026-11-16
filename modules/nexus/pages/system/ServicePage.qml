@@ -244,6 +244,7 @@ PageBase {
                 root.nState.logUnit = root.unit;
                 root.nState.goTo({
                     page: PageRegistry.find("logs"),
+                    tab: "logs",
                     path: []
                 });
             }

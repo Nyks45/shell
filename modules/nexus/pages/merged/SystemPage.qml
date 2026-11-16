@@ -73,6 +73,8 @@ PageBase {
         TabPart {
             id: servicesPart
 
+            key: "systemd"
+
             title: Tr.tr("Services")
             icon: "settings_applications"
             summary: Tr.tr("What runs in the background: start, stop, start at boot")
@@ -87,6 +89,8 @@ PageBase {
         TabPart {
             id: logsPart
 
+            key: "logs"
+
             title: Tr.tr("Logs")
             icon: "receipt_long"
             summary: Tr.tr("System messages, errors, crash reports")
@@ -100,6 +104,8 @@ PageBase {
 
         TabPart {
             id: pluginsPart
+
+            key: "plugins"
 
             title: Tr.tr("Plugins")
             icon: "extension"
