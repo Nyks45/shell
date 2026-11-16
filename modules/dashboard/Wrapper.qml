@@ -6,9 +6,9 @@ import qs.components
 import qs.services
 
 // The dashboard as a hiding island: touching the top edge brings out a small pill with the time
-// and date and a button per page; a button opens that page alone; resting the pointer on the pill
-// (1.5 s) or the shortcut opens the overview page alone (there are no tabs); clicking the time
-// and date opens the quick settings and notifications page. Moving away shrinks it
+// and date and a button per page; a button opens that page alone, clicking the time and date
+// opens the quick settings and notifications page, the shortcut the overview (hovering only
+// shows the pill). Moving away shrinks it
 // back into the edge. The shortcut opens the dashboard at once. It grows like Nebula's media island: the shape eases
 // out over about half a second, revealing the page at full size, which fades in near the end.
 Item {
@@ -76,6 +76,16 @@ Item {
             key: "quick",
             icon: "tune",
             on: true
+        },
+        {
+            key: "settings",
+            icon: "settings",
+            on: true
+        },
+        {
+            key: "power",
+            icon: "power_settings_new",
+            on: true
         }
     ].filter(p => p.on)
     readonly property var pillButtons: pages.filter(p => p.key !== "dashboard" && p.key !== "quick")
@@ -87,6 +97,7 @@ Item {
             return;
         screenState.dashboardTab = i;
         screenState.dashboardSolo = true;
+        screenState.dashboardSticky = key === "settings";
         screenState.dashboard = true;
     }
 
@@ -111,8 +122,10 @@ Item {
 
     // Closed: the next opening picks its page again
     onMorphChanged: {
-        if (morph < 0.002 && !shouldBeActive && screenState.dashboardSolo)
+        if (morph < 0.002 && !shouldBeActive && screenState.dashboardSolo) {
             screenState.dashboardSolo = false;
+            screenState.dashboardSticky = false;
+        }
     }
 
     visible: morph > 0.002 || peek > 0.002 || shouldBeActive || peeking
@@ -141,12 +154,6 @@ Item {
         target: (root.peeking || root.shouldBeActive) && root.dashEnabled ? 1 : 0
     }
 
-    // Resting on the pill opens the dashboard
-    Timer {
-        interval: 1500
-        running: root.peeking && root.pointerOnPill && !root.shouldBeActive && root.dashEnabled
-        onTriggered: root.openAll()
-    }
 
     // The pill's face: page buttons, the time, page buttons
     Row {
@@ -159,7 +166,7 @@ Item {
         visible: opacity > 0.01
 
         Repeater {
-            model: root.pillButtons.slice(0, Math.ceil(root.pillButtons.length / 2))
+            model: root.pillButtons.slice(0, Math.floor(root.pillButtons.length / 2))
 
             PillButton {}
         }
@@ -201,7 +208,7 @@ Item {
         }
 
         Repeater {
-            model: root.pillButtons.slice(Math.ceil(root.pillButtons.length / 2))
+            model: root.pillButtons.slice(Math.floor(root.pillButtons.length / 2))
 
             PillButton {}
         }

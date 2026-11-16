@@ -4,12 +4,14 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Bluetooth
+import Quickshell.Services.UPower
 import Caelestia.Config
 import Caelestia.I18n
 import Caelestia.State
 import qs.components
 import qs.components.controls
 import qs.services
+import qs.modules.nexus
 import qs.modules.nexus
 
 // The island's page from a click on its pill: quick settings and notifications, side by side
@@ -86,191 +88,402 @@ Item {
                     Anim {}
                 }
 
-                // Quick settings: the network and Bluetooth as wide tiles, the other switches as
-                // round buttons, the volume as a thick slider
-                ColumnLayout {
+                // Quick settings: the network and Bluetooth as wide tiles (they open their lists), the switches as round buttons, then the power
+                // mode and the volume (which opens the sound outputs)
+                Item {
+                    id: quickPane
+
                     width: parent.parent.width
                     height: parent.height
-                    spacing: Tokens.spacing.small
 
-                    RowLayout {
-                        Layout.fillWidth: true
+                    ColumnLayout {
+                        anchors.fill: parent
                         spacing: Tokens.spacing.small
+                        // (fades away while a list is open over it)
+                        opacity: 1 - detail.t
+                        visible: opacity > 0.01
 
-                        // The network: Wi-Fi, or the cable when that's what's connected
-                        WideTile {
-                            readonly property bool wired: !!Nmcli.activeEthernet && !Nmcli.active
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Tokens.spacing.small
 
-                            icon: wired ? "lan" : Nmcli.wifiEnabled ? "wifi" : "wifi_off"
-                            text: wired ? Tr.tr("Ethernet") : Tr.tr("Wi-Fi")
-                            sub: wired ? (Nmcli.activeEthernet.connection || Tr.tr("Connected")) : Nmcli.active?.ssid || (Nmcli.wifiEnabled ? Tr.tr("Not connected") : Tr.tr("Off"))
-                            on: wired || Nmcli.wifiEnabled
-                            onToggled: {
-                                if (!wired)
-                                    Nmcli.toggleWifi();
+                            WideTile {
+                                id: netTile
+
+                                readonly property bool wired: !!Nmcli.activeEthernet && !Nmcli.active
+
+                                icon: wired ? "lan" : Nmcli.wifiEnabled ? "wifi" : "wifi_off"
+                                text: wired ? Tr.tr("Ethernet") : Tr.tr("Wi-Fi")
+                                sub: wired ? (Nmcli.activeEthernet.connection || Tr.tr("Connected")) : Nmcli.active?.ssid || (Nmcli.wifiEnabled ? Tr.tr("Not connected") : Tr.tr("Off"))
+                                on: wired || Nmcli.wifiEnabled
+                                expandable: true
+                                onToggled: {
+                                    if (!wired)
+                                        Nmcli.toggleWifi();
+                                }
+                                onExpand: detail.open("network", netTile)
+                            }
+
+                            WideTile {
+                                id: btTile
+
+                                readonly property var connected: Bluetooth.devices.values.filter(d => d.connected)
+
+                                icon: (Bluetooth.defaultAdapter?.enabled ?? false) ? "bluetooth" : "bluetooth_disabled"
+                                text: Tr.tr("Bluetooth")
+                                sub: !(Bluetooth.defaultAdapter?.enabled ?? false) ? Tr.tr("Off") : connected.length === 1 ? (connected[0].name || connected[0].deviceName) : connected.length > 1 ? Tr.tr("%1 devices").arg(connected.length) : Tr.tr("On")
+                                on: Bluetooth.defaultAdapter?.enabled ?? false
+                                expandable: true
+                                onToggled: {
+                                    const a = Bluetooth.defaultAdapter;
+                                    if (a)
+                                        a.enabled = !a.enabled;
+                                }
+                                onExpand: detail.open("bluetooth", btTile)
                             }
                         }
 
-                        WideTile {
-                            readonly property var connected: Bluetooth.devices.values.filter(d => d.connected)
+                        Item {
+                            Layout.fillHeight: true
+                        }
 
-                            icon: (Bluetooth.defaultAdapter?.enabled ?? false) ? "bluetooth" : "bluetooth_disabled"
-                            text: Tr.tr("Bluetooth")
-                            sub: !(Bluetooth.defaultAdapter?.enabled ?? false) ? Tr.tr("Off") : connected.length === 1 ? (connected[0].name || connected[0].deviceName) : connected.length > 1 ? Tr.tr("%1 devices").arg(connected.length) : Tr.tr("On")
-                            on: Bluetooth.defaultAdapter?.enabled ?? false
-                            onToggled: {
-                                const a = Bluetooth.defaultAdapter;
-                                if (a)
-                                    a.enabled = !a.enabled;
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 0
+
+                            // Desktop mode (hyprflow): its icon shows which layout is on
+                            RoundToggle {
+                                icon: Hypr.desktopMode ? "desktop_windows" : "view_week"
+                                text: Tr.tr("Desktop")
+                                on: Hypr.desktopMode
+                                onToggled: Hypr.toggleDesktopMode()
+                            }
+
+                            RoundToggle {
+                                icon: Audio.sourceMuted ? "mic_off" : "mic"
+                                text: Tr.tr("Mic")
+                                on: !Audio.sourceMuted
+                                onToggled: {
+                                    const audio = Audio.source?.audio;
+                                    if (audio)
+                                        audio.muted = !audio.muted;
+                                }
+                            }
+
+                            RoundToggle {
+                                icon: "notifications_off"
+                                text: Tr.tr("Silent")
+                                on: PersistentState.doNotDisturb
+                                onToggled: PersistentState.doNotDisturb = !PersistentState.doNotDisturb
+                            }
+
+                            RoundToggle {
+                                icon: "sports_esports"
+                                text: Tr.tr("Game")
+                                on: RuntimeState.gameMode
+                                onToggled: RuntimeState.gameMode = !RuntimeState.gameMode
+                            }
+
+                            RoundToggle {
+                                icon: "vpn_key"
+                                text: Tr.tr("VPN")
+                                on: VPN.connected
+                                onToggled: VPN.toggle()
+                            }
+
+                            RoundToggle {
+                                icon: "smart_display"
+                                text: Tr.tr("Live")
+                                on: PersistentState.wallpaperPlaying
+                                onToggled: PersistentState.wallpaperPlaying = !PersistentState.wallpaperPlaying
+                            }
+
+                            RoundToggle {
+                                icon: "coffee"
+                                text: Tr.tr("Awake")
+                                on: RuntimeState.inhibitIdle
+                                onToggled: RuntimeState.inhibitIdle = !RuntimeState.inhibitIdle
+                            }
+
+                            // The screen recorder: a click records the screen (with sound), a right
+                            // click a region; while recording, a click stops it
+                            RoundToggle {
+                                icon: Recorder.running ? "stop_circle" : "screen_record"
+                                text: Recorder.running ? Tr.tr("Stop") : Tr.tr("Record")
+                                on: Recorder.running
+                                onToggled: Recorder.running ? Recorder.stop() : Recorder.start(["-s"])
+                                onAltToggled: {
+                                    if (!Recorder.running)
+                                        Recorder.start(["-sr"]);
+                                }
+                            }
+
+                            RoundToggle {
+                                icon: "settings"
+                                text: Tr.tr("Settings")
+                                on: false
+                                onToggled: WindowFactory.create()
+                            }
+                        }
+
+                        Item {
+                            Layout.fillHeight: true
+                        }
+
+                        // The power mode, then the volume
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Tokens.spacing.small
+
+                            StyledRect {
+                                implicitWidth: modes.implicitWidth + 6
+                                implicitHeight: 38
+                                radius: height / 2
+                                color: Colours.tPalette.m3surfaceContainerHigh
+
+                                Row {
+                                    id: modes
+
+                                    anchors.centerIn: parent
+                                    spacing: 2
+
+                                    Repeater {
+                                        model: [
+                                            {
+                                                p: PowerProfile.PowerSaver,
+                                                icon: "energy_savings_leaf",
+                                                text: Tr.tr("Saver")
+                                            },
+                                            {
+                                                p: PowerProfile.Balanced,
+                                                icon: "balance",
+                                                text: Tr.tr("Balanced")
+                                            },
+                                            {
+                                                p: PowerProfile.Performance,
+                                                icon: "rocket_launch",
+                                                text: Tr.tr("Performance")
+                                            }
+                                        ]
+
+                                        StyledRect {
+                                            id: mode
+
+                                            required property var modelData
+                                            readonly property bool chosen: PowerProfiles.profile === modelData.p
+
+                                            implicitWidth: modeRow.implicitWidth + Tokens.padding.medium * 2
+                                            implicitHeight: 32
+                                            radius: height / 2
+                                            color: chosen ? Colours.palette.m3primary : "transparent"
+
+                                            Behavior on color {
+                                                CAnim {}
+                                            }
+
+                                            Behavior on implicitWidth {
+                                                Anim {}
+                                            }
+
+                                            StateLayer {
+                                                color: mode.chosen ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface
+                                                onClicked: PowerProfiles.profile = mode.modelData.p
+                                            }
+
+                                            Row {
+                                                id: modeRow
+
+                                                anchors.centerIn: parent
+                                                spacing: Tokens.spacing.extraSmall
+
+                                                MaterialIcon {
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    text: mode.modelData.icon
+                                                    color: mode.chosen ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
+                                                    fontStyle: Tokens.font.icon.small
+                                                    fill: mode.chosen ? 1 : 0
+                                                }
+
+                                                StyledText {
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    visible: mode.chosen
+                                                    text: mode.modelData.text
+                                                    color: Colours.palette.m3onPrimary
+                                                    font: Tokens.font.label.medium
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // The volume: a thick slider with its icon and the output's name inside
+                            // (a click on the icon mutes; the arrow opens the outputs)
+                            Item {
+                                id: vol
+
+                                readonly property real level: Audio.muted ? 0 : Math.max(0, Math.min(1, Audio.volume))
+
+                                Layout.fillWidth: true
+                                implicitHeight: 38
+
+                                StyledRect {
+                                    anchors.fill: parent
+                                    radius: height / 2
+                                    color: Colours.tPalette.m3surfaceContainerHigh
+                                }
+
+                                StyledRect {
+                                    width: Math.max(height, (parent.width - volMore.width) * vol.level)
+                                    height: parent.height
+                                    radius: height / 2
+                                    color: Colours.palette.m3primary
+
+                                    Behavior on width {
+                                        enabled: !volArea.pressed
+
+                                        Anim {}
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: volArea
+
+                                    function set(x: real): void {
+                                        Audio.setVolume(Math.max(0, Math.min(1, x / width)));
+                                    }
+
+                                    anchors.fill: parent
+                                    anchors.rightMargin: volMore.width
+                                    cursorShape: Qt.PointingHandCursor
+                                    onPressed: event => {
+                                        if (event.x < height) {
+                                            const audio = Audio.sink?.audio;
+                                            if (audio)
+                                                audio.muted = !audio.muted;
+                                        } else {
+                                            set(event.x);
+                                        }
+                                    }
+                                    onPositionChanged: event => {
+                                        if (pressed && event.x >= height)
+                                            set(event.x);
+                                    }
+                                    onWheel: event => Audio.setVolume(Math.max(0, Math.min(1, Audio.volume + (event.angleDelta.y > 0 ? 0.05 : -0.05))))
+                                }
+
+                                MaterialIcon {
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: (parent.height - width) / 2
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: Audio.muted ? "volume_off" : vol.level < 0.34 ? "volume_mute" : vol.level < 0.67 ? "volume_down" : "volume_up"
+                                    color: Colours.palette.m3onPrimary
+                                    fontStyle: Tokens.font.icon.small
+                                }
+
+                                StyledText {
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: parent.height + Tokens.spacing.small
+                                    anchors.right: volPct.left
+                                    anchors.rightMargin: Tokens.spacing.small
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: Audio.sink?.description || Audio.sink?.nickname || Tr.tr("Volume")
+                                    color: vol.level > 0.3 ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
+                                    font: Tokens.font.label.medium
+                                    elide: Text.ElideRight
+                                }
+
+                                StyledText {
+                                    id: volPct
+
+                                    anchors.right: volMore.left
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: Audio.muted ? Tr.tr("Muted") : `${Math.round(Audio.volume * 100)}%`
+                                    color: Colours.palette.m3onSurfaceVariant
+                                    font: Tokens.font.label.medium
+                                }
+
+                                IconButton {
+                                    id: volMore
+
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    type: IconButton.Text
+                                    icon: "chevron_right"
+                                    onClicked: detail.open("audio", vol)
+                                }
                             }
                         }
                     }
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 0
-
-                        RoundToggle {
-                            icon: Audio.sourceMuted ? "mic_off" : "mic"
-                            text: Tr.tr("Mic")
-                            on: !Audio.sourceMuted
-                            onToggled: {
-                                const audio = Audio.source?.audio;
-                                if (audio)
-                                    audio.muted = !audio.muted;
-                            }
-                        }
-
-                        RoundToggle {
-                            icon: "notifications_off"
-                            text: Tr.tr("Silent")
-                            on: PersistentState.doNotDisturb
-                            onToggled: PersistentState.doNotDisturb = !PersistentState.doNotDisturb
-                        }
-
-                        RoundToggle {
-                            icon: "sports_esports"
-                            text: Tr.tr("Game")
-                            on: RuntimeState.gameMode
-                            onToggled: RuntimeState.gameMode = !RuntimeState.gameMode
-                        }
-
-                        RoundToggle {
-                            icon: "vpn_key"
-                            text: Tr.tr("VPN")
-                            on: VPN.connected
-                            onToggled: VPN.toggle()
-                        }
-
-                        RoundToggle {
-                            icon: "smart_display"
-                            text: Tr.tr("Wallpaper")
-                            on: PersistentState.wallpaperPlaying
-                            onToggled: PersistentState.wallpaperPlaying = !PersistentState.wallpaperPlaying
-                        }
-
-                        RoundToggle {
-                            icon: "coffee"
-                            text: Tr.tr("Awake")
-                            on: RuntimeState.inhibitIdle
-                            onToggled: RuntimeState.inhibitIdle = !RuntimeState.inhibitIdle
-                        }
-
-                        // The screen recorder: a click records the screen (with sound), a right
-                        // click a region; while recording, a click stops it
-                        RoundToggle {
-                            icon: Recorder.running ? "stop_circle" : "screen_record"
-                            text: Recorder.running ? Tr.tr("Stop") : Tr.tr("Record")
-                            on: Recorder.running
-                            onToggled: Recorder.running ? Recorder.stop() : Recorder.start(["-s"])
-                            onAltToggled: {
-                                if (!Recorder.running)
-                                    Recorder.start(["-sr"]);
-                            }
-                        }
-
-                        RoundToggle {
-                            icon: "settings"
-                            text: Tr.tr("Settings")
-                            on: false
-                            onToggled: WindowFactory.create()
-                        }
-                    }
-
-                    // The volume: a thick slider with its icon inside (a click on the icon mutes)
+                    // A tile's list (Wi-Fi networks, Bluetooth devices, sound outputs: the bar's own
+                    // popouts): it grows out of the tile into the whole pane, and shrinks back
+                    // into it, with the bar popouts' motion
                     Item {
-                        id: vol
+                        id: detail
 
-                        readonly property real level: Audio.muted ? 0 : Math.max(0, Math.min(1, Audio.volume))
+                        property string kind
+                        property Item from
+                        property rect start
+                        // 0 at the tile .. 1 the whole pane
+                        property real t: 0
+                        readonly property rect full: Qt.rect(0, 0, quickPane.width, quickPane.height)
 
-                        Layout.fillWidth: true
-                        implicitHeight: 38
+                        function open(k: string, item: Item): void {
+                            const p = item.mapToItem(quickPane, 0, 0);
+                            start = Qt.rect(p.x, p.y, item.width, item.height);
+                            from = item;
+                            kind = k;
+                            t = 1;
+                        }
 
+                        function close(): void {
+                            t = 0;
+                        }
+
+                        Shortcut {
+                            sequence: "Escape"
+                            enabled: detail.t > 0.5
+                            onActivated: detail.close()
+                        }
+
+                        visible: t > 0.001
+                        z: 10
+                        x: start.x + (full.x - start.x) * t
+                        y: start.y + (full.y - start.y) * t
+                        width: start.width + (full.width - start.width) * t
+                        height: start.height + (full.height - start.height) * t
+
+                        Behavior on t {
+                            Anim {
+                                type: Anim.DefaultSpatial
+                            }
+                        }
+
+                        // Leaving the pane closes it
+                        Connections {
+                            function onPaneChanged(): void {
+                                detail.t = 0;
+                            }
+
+                            target: root
+                        }
+
+                        // Glass like the tiles it grows from (the tiles fade out under it)
                         StyledRect {
                             anchors.fill: parent
-                            radius: height / 2
+                            radius: Tokens.rounding.large + (Tokens.rounding.extraLarge - Tokens.rounding.large) * detail.t
                             color: Colours.tPalette.m3surfaceContainerHigh
                         }
 
-                        StyledRect {
-                            width: Math.max(height, parent.width * vol.level)
-                            height: parent.height
-                            radius: height / 2
-                            color: Colours.palette.m3primary
-
-                            Behavior on width {
-                                enabled: !volArea.pressed
-
-                                Anim {}
-                            }
-                        }
-
-                        MouseArea {
-                            id: volArea
-
-                            function set(x: real): void {
-                                Audio.setVolume(Math.max(0, Math.min(1, x / width)));
-                            }
-
+                        QuickDetail {
                             anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onPressed: event => {
-                                if (event.x < height) {
-                                    const audio = Audio.sink?.audio;
-                                    if (audio)
-                                        audio.muted = !audio.muted;
-                                } else {
-                                    set(event.x);
-                                }
-                            }
-                            onPositionChanged: event => {
-                                if (pressed && event.x >= height)
-                                    set(event.x);
-                            }
-                            onWheel: event => Audio.setVolume(Math.max(0, Math.min(1, Audio.volume + (event.angleDelta.y > 0 ? 0.05 : -0.05))))
+                            anchors.margins: Tokens.padding.small
+                            clip: true
+                            kind: detail.kind || "network"
+                            opacity: Math.max(0, (detail.t - 0.5) * 2)
+                            onCloseRequested: detail.close()
                         }
-
-                        MaterialIcon {
-                            anchors.left: parent.left
-                            anchors.leftMargin: (parent.height - width) / 2
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: Audio.muted ? "volume_off" : vol.level < 0.34 ? "volume_mute" : vol.level < 0.67 ? "volume_down" : "volume_up"
-                            color: Colours.palette.m3onPrimary
-                            fontStyle: Tokens.font.icon.small
-                        }
-
-                        StyledText {
-                            anchors.right: parent.right
-                            anchors.rightMargin: Tokens.padding.medium
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: Audio.muted ? Tr.tr("Muted") : `${Math.round(Audio.volume * 100)}%`
-                            color: vol.level > 0.85 ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
-                            font: Tokens.font.label.medium
-                        }
-                    }
-
-                    Item {
-                        Layout.fillHeight: true
                     }
                 }
 
@@ -447,13 +660,18 @@ Item {
         property string text
         property string sub
         property bool on
+        // An arrow on its right opens its list
+        property bool expandable
 
         signal toggled
+        signal expand
 
         Layout.fillWidth: true
         Layout.preferredWidth: 1
-        implicitHeight: 56
-        radius: Tokens.rounding.large
+        // The ones with an arrow get a little more of the row
+        Layout.horizontalStretchFactor: expandable ? 6 : 4
+        implicitHeight: 58
+        radius: Tokens.rounding.extraLarge
         color: on ? Colours.palette.m3primaryContainer : Colours.tPalette.m3surfaceContainerHigh
 
         Behavior on color {
@@ -468,13 +686,13 @@ Item {
         RowLayout {
             anchors.fill: parent
             anchors.margins: Tokens.padding.small
-            anchors.rightMargin: Tokens.padding.medium
+            anchors.rightMargin: wt.expandable ? 2 : Tokens.padding.medium
             spacing: Tokens.spacing.small
 
             StyledRect {
-                implicitWidth: 40
-                implicitHeight: 40
-                radius: 20
+                implicitWidth: 36
+                implicitHeight: 36
+                radius: 18
                 color: wt.on ? Colours.palette.m3primary : Colours.layer(Colours.palette.m3surfaceContainerHighest, 2)
 
                 MaterialIcon {
@@ -507,6 +725,14 @@ Item {
                     elide: Text.ElideRight
                 }
             }
+
+            IconButton {
+                visible: wt.expandable
+                type: IconButton.Text
+                icon: "chevron_right"
+                inactiveOnColour: wt.on ? Colours.palette.m3onPrimaryContainer : Colours.palette.m3onSurfaceVariant
+                onClicked: wt.expand()
+            }
         }
     }
 
@@ -528,9 +754,9 @@ Item {
 
         StyledRect {
             Layout.alignment: Qt.AlignHCenter
-            implicitWidth: 44
-            implicitHeight: 40
-            radius: rt.on ? Tokens.rounding.medium : 20
+            implicitWidth: 48
+            implicitHeight: 42
+            radius: rt.on ? Tokens.rounding.large : 21
             color: rt.on ? Colours.palette.m3primary : Colours.tPalette.m3surfaceContainerHigh
 
             Behavior on radius {

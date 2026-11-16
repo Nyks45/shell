@@ -18,5 +18,8 @@ PersistentProperties {
     property int dashboardTab
     // Opened at one page from the island's buttons: that page alone, no tabs
     property bool dashboardSolo
+    // The island shows a page to work in (the settings): it stays open when the pointer leaves,
+    // takes the keyboard, and closes on Escape or a click outside
+    property bool dashboardSticky
     property date dashboardDate: new Date()
 }

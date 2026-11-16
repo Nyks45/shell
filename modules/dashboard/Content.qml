@@ -10,6 +10,7 @@ import Caelestia.I18n
 import qs.components
 import qs.components.filedialog
 import qs.utils
+import qs.modules.nexus
 
 Item {
     id: root
@@ -67,6 +68,20 @@ Item {
                 iconName: "tune",
                 text: Tr.tr("Quick settings"),
                 enabled: true
+            },
+            {
+                // The island's settings button: the settings, grown out of the pill
+                component: settingsComponent,
+                iconName: "settings",
+                text: Tr.tr("Settings"),
+                enabled: true
+            },
+            {
+                // The island's power button: lock, sleep, log out, restart, shut down
+                component: powerComponent,
+                iconName: "power_settings_new",
+                text: Tr.tr("Power"),
+                enabled: true
             }
         ];
         return allTabs.filter(tab => tab.enabled);
@@ -110,87 +125,22 @@ Item {
         radius: Tokens.rounding.large
         color: "transparent"
 
-        Flickable {
+        // One page at a time (the island opens a page alone): a single slot, sized by its page
+        Item {
             id: view
 
             readonly property int currentIndex: root.screenState.dashboardTab
-            readonly property Item currentItem: {
-                CUtils.dependency(repeater.count); // Trigger update on count change
-                return repeater.itemAt(currentIndex);
-            }
+            readonly property Item currentItem: page.item
 
             anchors.fill: parent
+            implicitWidth: page.item?.implicitWidth ?? 0
+            implicitHeight: page.item?.implicitHeight ?? 0
 
-            flickableDirection: Flickable.HorizontalFlick
-            // One page alone: no swiping to the others
-            interactive: !root.solo
+            Loader {
+                id: page
 
-            implicitWidth: currentItem?.implicitWidth ?? 0
-            implicitHeight: currentItem?.implicitHeight ?? 0
-
-            contentX: currentItem?.x ?? 0
-            // At least up to the page shown: a page opened directly (the island's buttons) isn't
-            // built yet, and past the end the view would snap back to the first page
-            contentWidth: Math.max(row.implicitWidth, (currentItem?.x ?? 0) + width)
-            contentHeight: row.implicitHeight
-
-            onContentXChanged: {
-                if (!moving || !currentItem)
-                    return;
-
-                const x = contentX - currentItem.x;
-                if (x > currentItem.implicitWidth / 2)
-                    root.screenState.dashboardTab = Math.min(root.screenState.dashboardTab + 1, tabs.count - 1);
-                else if (x < -currentItem.implicitWidth / 2)
-                    root.screenState.dashboardTab = Math.max(root.screenState.dashboardTab - 1, 0);
-            }
-
-            onDragEnded: {
-                if (!currentItem)
-                    return;
-
-                const x = contentX - currentItem.x;
-                if (x > currentItem.implicitWidth / 10)
-                    root.screenState.dashboardTab = Math.min(root.screenState.dashboardTab + 1, tabs.count - 1);
-                else if (x < -currentItem.implicitWidth / 10)
-                    root.screenState.dashboardTab = Math.max(root.screenState.dashboardTab - 1, 0);
-                else
-                    contentX = Qt.binding(() => currentItem?.x ?? 0);
-            }
-
-            RowLayout {
-                id: row
-
-                Repeater {
-                    id: repeater
-
-                    model: ScriptModel {
-                        values: root.dashboardTabs
-                    }
-
-                    delegate: Loader {
-                        id: paneLoader
-
-                        required property int index
-                        required property var modelData
-
-                        Layout.alignment: Qt.AlignTop
-
-                        sourceComponent: modelData.component
-
-                        active: {
-                            if (index === view.currentIndex)
-                                return true;
-                            if (view.moving && Math.abs(index - view.currentIndex) <= 1)
-                                return true;
-                            if (view.contentWidth <= 0 || implicitWidth <= 0)
-                                return false;
-                            const vx = Math.floor(view.visibleArea.xPosition * view.contentWidth);
-                            const vex = Math.floor(vx + view.visibleArea.widthRatio * view.contentWidth);
-                            return (vx >= x && vx <= x + implicitWidth) || (vex >= x && vex <= x + implicitWidth);
-                        }
-                    }
-                }
+                anchors.fill: parent
+                sourceComponent: root.dashboardTabs[view.currentIndex]?.component ?? null
             }
 
             Component {
@@ -218,6 +168,38 @@ Item {
             }
 
             Component {
+                id: settingsComponent
+
+                ClipRect {
+                    readonly property var scr: (QsWindow.window as QsWindow)?.screen ?? null
+
+                    radius: Tokens.rounding.extraLarge
+                    // Never wider or taller than the screen (a portrait screen, a small one)
+                    implicitWidth: Math.min(nexusInner.implicitWidth, (scr?.width ?? 1920) - Tokens.padding.extraLarge * 4)
+                    implicitHeight: Math.min(nexusInner.implicitHeight, (scr?.height ?? 1080) - Tokens.padding.extraLarge * 4)
+
+                    Nexus {
+                        id: nexusInner
+
+                        anchors.fill: parent
+                        nState.screen: (QsWindow.window as QsWindow)?.screen ?? null
+                        onClose: root.screenState.dashboard = false
+                    }
+
+                    Shortcut {
+                        sequence: "Escape"
+                        onActivated: root.screenState.dashboard = false
+                    }
+                }
+            }
+
+            Component {
+                id: powerComponent
+
+                MiniPower {}
+            }
+
+            Component {
                 id: quickComponent
 
                 MiniQuick {}
@@ -231,11 +213,6 @@ Item {
                 }
             }
 
-            Behavior on contentX {
-                enabled: root.animateSize
-
-                Anim {}
-            }
         }
     }
 

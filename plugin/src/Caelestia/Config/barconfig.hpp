@@ -133,7 +133,7 @@ class BarConfig : public settings::ObjectNode {
             LIST_ENTRY(spacer, true),
             LIST_ENTRY(taskbar, true),
             LIST_ENTRY(spacer, true),
-            LIST_ENTRY(desktopMode, true),
+            LIST_ENTRY(desktopMode, false), // in the island's quick settings now
             LIST_ENTRY(tray, true),
             LIST_ENTRY(clock, true),
             LIST_ENTRY(statusIcons, true),

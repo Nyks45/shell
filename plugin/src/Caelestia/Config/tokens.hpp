@@ -124,7 +124,7 @@ class DashboardTokens : public settings::ObjectNode {
     CONFIG_PROPERTY(int, userWidth, 340)
     // Every page of the dashboard island is this size (modules/dashboard/mini)
     CONFIG_PROPERTY(int, islandWidth, 580)
-    CONFIG_PROPERTY(int, islandHeight, 250)
+    CONFIG_PROPERTY(int, islandHeight, 290)
     CONFIG_PROPERTY(int, logoSize, 30)
     CONFIG_PROPERTY(int, uptimeSize, 30)
     CONFIG_PROPERTY(int, dateTimeWidth, 110)

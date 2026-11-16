@@ -89,7 +89,7 @@ CustomMouseArea {
                 root.panels.osd.hovered = false;
             }
 
-            if (!dashboardShortcutActive)
+            if (!dashboardShortcutActive && !screenState.dashboardSticky)
                 screenState.dashboard = false;
             panels.dashboard.peeking = false;
 
@@ -116,7 +116,7 @@ CustomMouseArea {
         function onWindowDraggingChanged(): void {
             if (!Hypr.windowDragging)
                 return;
-            if (!root.dashboardShortcutActive)
+            if (!root.dashboardShortcutActive && !root.screenState.dashboardSticky)
                 root.screenState.dashboard = false;
             root.panels.dashboard.peeking = false;
             if (!root.osdShortcutActive) {
@@ -262,7 +262,7 @@ CustomMouseArea {
         panels.dashboard.peeking = showDashboard;
 
         if (!dashboardShortcutActive) {
-            if (!showDashboard)
+            if (!showDashboard && !screenState.dashboardSticky)
                 screenState.dashboard = false;
         } else if (showDashboard) {
             // If hovering over dashboard area while in shortcut mode, transition to hover control
