@@ -494,12 +494,26 @@ PageBase {
             visible: root.blurOn
             label: Tr.tr("Look")
             subtext: Tr.tr("Sets windows' strength (and so everything that follows it)")
-            menuItems: [nebulaBlur, strongBlur]
-            active: root.winBlurSize === 4 && root.winBlurPasses === 1 ? nebulaBlur : root.winBlurSize === 8 && root.winBlurPasses === 2 ? strongBlur : null
+            menuItems: [nebulaBlur, strongBlur, frostedBlur]
+            active: root.winBlurSize === 4 && root.winBlurPasses === 1 ? nebulaBlur : root.winBlurSize === 8 && root.winBlurPasses === 2 ? strongBlur : root.winBlurSize === 8 && root.winBlurPasses === 3 && root.frostedPanels ? frostedBlur : null
             fallbackText: Tr.tr("Your own")
             onSelected: item => {
                 HyprSettings.setOption("decoration:blur:size", item.value[0]);
                 HyprSettings.setOption("decoration:blur:passes", item.value[1]);
+                const t = GlobalConfig.appearance.transparency;
+                const b = GlobalConfig.appearance.blur;
+                if (item === frostedBlur) {
+                    // Deep glass like DankMaterialShell: see-through panels over a heavy blur
+                    t.enabled = true;
+                    t.base = root.frostedBase;
+                    t.layers = 0.3;
+                    b.shellSize = 12;
+                    b.shellPasses = 4;
+                } else if (root.frostedPanels) {
+                    // Back from Frosted: the panels' usual opacity
+                    t.base = 0.85;
+                    t.layers = 0.4;
+                }
             }
 
             MenuItem {
@@ -514,6 +528,13 @@ PageBase {
 
                 text: Tr.tr("Strong: frosted")
                 value: [8, 2]
+            }
+
+            MenuItem {
+                id: frostedBlur
+
+                text: Tr.tr("Deep glass: see-through panels, heavy blur")
+                value: [8, 3]
             }
         }
 
@@ -566,6 +587,9 @@ PageBase {
     }
 
     readonly property bool blurOn: HyprSettings.value("decoration:blur:enabled", true)
+    // The Deep glass look's panel opacity (its other values are in the Look menu)
+    readonly property real frostedBase: 0.55
+    readonly property bool frostedPanels: GlobalConfig.appearance.transparency.enabled && Math.abs(GlobalConfig.appearance.transparency.base - frostedBase) < 0.005
     readonly property int winBlurSize: HyprSettings.value("decoration:blur:size", 8)
     readonly property int winBlurPasses: HyprSettings.value("decoration:blur:passes", 2)
 

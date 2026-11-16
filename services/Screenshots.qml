@@ -18,9 +18,9 @@ Singleton {
     readonly property bool copy: prefs.copy ?? true
     readonly property bool save: prefs.save ?? true
     readonly property bool showNotification: prefs.notify ?? true
-    readonly property bool openEditor: prefs.edit ?? false
     readonly property bool sound: prefs.sound ?? false
-    readonly property string editor: prefs.editor || "swappy"
+    // "caelestia": the shell's own Paint (modules/paint); or an installed editor's command
+    readonly property string editor: prefs.editor || "caelestia"
     readonly property string defaultFolder: Quickshell.env("CAELESTIA_SCREENSHOTS_DIR") || `${Paths.pictures}/Screenshots`
     readonly property string folder: prefs.folder || defaultFolder
 
@@ -29,6 +29,14 @@ Singleton {
         next[key] = value;
         prefs = next;
         file.setText(JSON.stringify(next, null, 4) + "\n");
+    }
+
+    // Open a screenshot in the chosen editor
+    function edit(path: string): void {
+        if (editor === "caelestia")
+            Paint.open(path);
+        else
+            Quickshell.execDetached(editCommand(path));
     }
 
     function editCommand(path: string): list<string> {
@@ -51,8 +59,6 @@ Singleton {
         Quickshell.execDetached(["sh", "-c", steps.join("; "), "sh", tmp, dest]);
         if (sound)
             Quickshell.execDetached(["pw-play", "/usr/share/sounds/freedesktop/stereo/camera-shutter.oga"]);
-        if (openEditor && !clipboardOnly)
-            Qt.callLater(() => Quickshell.execDetached(editCommand(dest)));
         if (showNotification)
             notifComp.createObject(root, {
                 path: dest,
@@ -92,12 +98,13 @@ Singleton {
             required property bool copied
 
             running: true
-            command: ["notify-send", "-a", "Screenshot", "-i", path, "-h", `string:image-path:${path}`, "--action=edit=Edit", ...(saved ? ["--action=open=Open", "--action=folder=Show in folder"] : []), saved ? (copied ? "Screenshot saved and copied" : "Screenshot saved") : "Screenshot copied", saved ? Paths.shortenHome(path) : "In the clipboard, ready to paste"]
+            command: ["notify-send", "-a", "Screenshot", "-i", path, "-h", `string:image-path:${path}`, "--action=default=Edit", ...(saved ? ["--action=open=Open", "--action=folder=Show in folder"] : []), saved ? (copied ? "Screenshot saved and copied" : "Screenshot saved") : "Screenshot copied", saved ? Paths.shortenHome(path) : "In the clipboard, ready to paste"]
             stdout: StdioCollector {
                 onStreamFinished: {
                     const action = text.trim();
-                    if (action === "edit")
-                        Quickshell.execDetached(root.editCommand(notif.path));
+                    // A click on the notification opens the editor (never on its own)
+                    if (action === "default" || action === "edit")
+                        root.edit(notif.path);
                     else if (action === "open")
                         Quickshell.execDetached(["xdg-open", notif.path]);
                     else if (action === "folder")

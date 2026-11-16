@@ -53,7 +53,7 @@ PageBase {
             running: true
             command: ["sh", "-c", "for e in swappy satty ksnip gimp krita pinta; do command -v $e >/dev/null && echo $e; done"]
             stdout: StdioCollector {
-                onStreamFinished: root.editors = text.split("\n").filter(e => e)
+                onStreamFinished: root.editors = ["caelestia", ...text.split("\n").filter(e => e)]
             }
         }
 
@@ -84,21 +84,14 @@ PageBase {
 
         ToggleRow {
             text: Tr.tr("Notification")
-            subtext: Tr.tr("With Edit, Open and Show in folder")
+            subtext: Tr.tr("Click it to draw on the screenshot; with Open and Show in folder")
             checked: Screenshots.showNotification
             onToggled: Screenshots.set("notify", checked)
         }
 
-        ToggleRow {
-            text: Tr.tr("Open in the editor right away")
-            subtext: Tr.tr("Off: only from the notification's Edit")
-            checked: Screenshots.openEditor
-            onToggled: Screenshots.set("edit", checked)
-        }
-
         SelectRow {
             label: Tr.tr("Editor")
-            subtext: root.editors.length === 0 ? Tr.tr("None installed (swappy or satty, for example)") : ""
+            subtext: Screenshots.editor === "caelestia" ? Tr.tr("The shell's Paint: pen, arrows, shapes, text, crop") : ""
             menuItems: editorItems.instances
             active: editorItems.instances.find(i => i.value === Screenshots.editor) ?? null
             fallbackText: Screenshots.editor
@@ -112,7 +105,7 @@ PageBase {
                 MenuItem {
                     required property string modelData
 
-                    text: modelData.charAt(0).toUpperCase() + modelData.slice(1)
+                    text: modelData === "caelestia" ? Tr.tr("Paint (built in)") : modelData.charAt(0).toUpperCase() + modelData.slice(1)
                     value: modelData
                 }
             }

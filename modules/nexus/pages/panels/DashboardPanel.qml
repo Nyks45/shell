@@ -73,6 +73,13 @@ PageBase {
             onToggled: GlobalConfig.dashboard.showWeather = checked
         }
 
+        ToggleRow {
+            text: Tr.tr("Wallpapers")
+            subtext: Tr.tr("Pick a picture or a live wallpaper from the dashboard")
+            checked: Config.dashboard.showWallpapers
+            onToggled: GlobalConfig.dashboard.showWallpapers = checked
+        }
+
         // Performance widgets
         SectionHeader {
             text: Tr.tr("Performance widgets")

@@ -112,7 +112,7 @@ if("shell" IN_LIST ENABLE_MODULES)
     install(FILES assets/org.caelestia.shell.admin.policy DESTINATION "${CMAKE_INSTALL_DATADIR}/polkit-1/actions")
 
     # The settings app (Nexus) in app launchers
-    install(FILES assets/caelestia-settings.desktop DESTINATION "${INSTALL_APPDIR}")
+    install(FILES assets/caelestia-settings.desktop assets/caelestia-paint.desktop DESTINATION "${INSTALL_APPDIR}")
 
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/shell.qml")
     file(READ shell.qml SHELL_QML)

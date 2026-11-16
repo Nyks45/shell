@@ -25,7 +25,7 @@ Region {
     R {
         panel: root.panels.dashboard
         y: 0
-        height: panel.height * (1 - root.panels.dashboard.offsetScale) + root.borderThickness
+        height: panel.height + root.borderThickness // (its height is the animated one)
     }
 
     R {

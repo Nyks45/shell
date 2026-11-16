@@ -136,6 +136,19 @@ Scope {
         target: "drawers"
     }
 
+    // Paint: `caelestia shell paint open` (a blank page) or `paint file <path>`
+    IpcHandler {
+        function open(): void {
+            Paint.open("");
+        }
+
+        function file(path: string): void {
+            Paint.open(path);
+        }
+
+        target: "paint"
+    }
+
     IpcHandler {
         function open(): void {
             WindowFactory.create();

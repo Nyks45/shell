@@ -95,7 +95,9 @@ Singleton {
         // Nebula's desktop widgets and their menus: their glass shapes are blurred behind, following each
         // shape's outline (ignore_alpha 0.1, as in Nebula's own rules)
         const neb = Hypr.usingLua ? `eval hl.layer_rule({ match = { namespace = "caelestia-nebula-(widgets|widgetmenu)" }, blur = true, ignore_alpha = 0.1 })` : "keyword layerrule blur on, match:namespace caelestia-nebula-(widgets|widgetmenu)";
-        Hypr.extras.batchMessage([rule.arg("blur").arg(trEnabled), rule.arg("ignore_alpha").arg(Math.max(0, transparency.base - 0.03)), neb]);
+        // Paint's page is solid (the windows' see-through opacity would show the desktop through it)
+        const paint = Hypr.usingLua ? [`eval hl.window_rule({ match = { class = "org.quickshell", title = "^Paint" }, opacity = "1 override" })`] : [];
+        Hypr.extras.batchMessage([rule.arg("blur").arg(trEnabled), rule.arg("ignore_alpha").arg(Math.max(0, transparency.base - 0.03)), neb, ...paint]);
 
         // Their own blur strength (Wallpaper & style > Blur; 0 = as windows): layer rules of the
         // shell's own Hyprland build. Sent apart, so a Hyprland without them keeps the rules above.
@@ -117,12 +119,6 @@ Singleton {
             root.requestReloadHyprRules();
         }
         function onWidgetsPassesChanged(): void {
-            root.requestReloadHyprRules();
-        }
-        function onLauncherSizeChanged(): void {
-            root.requestReloadHyprRules();
-        }
-        function onLauncherPassesChanged(): void {
             root.requestReloadHyprRules();
         }
 

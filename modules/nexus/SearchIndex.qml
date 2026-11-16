@@ -1700,6 +1700,20 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Wallpapers",
+            "ctx": "",
+            "sub": "Pick a picture or a live wallpaper from the dashboard",
+            "section": "Tabs",
+            "page": 3,
+            "path": [
+                1
+            ],
+            "trail": [
+                "Dashboard"
+            ],
+            "keywords": ""
+        },
+        {
             "label": "Battery",
             "ctx": "",
             "sub": "",
@@ -4406,17 +4420,7 @@ QtObject {
         {
             "label": "Notification",
             "ctx": "",
-            "sub": "With Edit, Open and Show in folder",
-            "section": "After a screenshot",
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Open in the editor right away",
-            "ctx": "",
-            "sub": "Off: only from the notification's Edit",
+            "sub": "Click it to draw on the screenshot; with Open and Show in folder",
             "section": "After a screenshot",
             "page": 12,
             "path": [],
@@ -4426,7 +4430,7 @@ QtObject {
         {
             "label": "Editor",
             "ctx": "",
-            "sub": "None installed (swappy or satty, for example)",
+            "sub": "The shell's Paint: pen, arrows, shapes, text, crop",
             "section": "After a screenshot",
             "page": 12,
             "path": [],

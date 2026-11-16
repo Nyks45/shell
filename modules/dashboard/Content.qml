@@ -53,6 +53,12 @@ Item {
                 iconName: "cloud",
                 text: Tr.tr("Weather"),
                 enabled: Config.dashboard.showWeather
+            },
+            {
+                component: wallpapersComponent,
+                iconName: "wallpaper",
+                text: Tr.tr("Wallpapers"),
+                enabled: Config.dashboard.showWallpapers
             }
         ];
         return allTabs.filter(tab => tab.enabled);
@@ -196,6 +202,14 @@ Item {
                 id: weatherComponent
 
                 WeatherTab {}
+            }
+
+            Component {
+                id: wallpapersComponent
+
+                WallpapersTab {
+                    screenState: root.screenState
+                }
             }
 
             Behavior on contentX {

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Paint
+GenericName=Drawing
+Comment=Draw on a blank page, a picture or a screenshot
+Exec=caelestia shell paint open
+Icon=applications-graphics
+Terminal=false
+Categories=Graphics;2DGraphics;RasterGraphics;
+Keywords=paint;draw;sketch;annotate;screenshot;markup;
