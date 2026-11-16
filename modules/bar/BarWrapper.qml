@@ -149,11 +149,13 @@ Item {
 
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        anchors.right: parent.right
+        // The pill stays put a gap from the edge (it grows in place); the classic bar slides in
+        x: root.pill ? root.pillGap : root.width - width
 
         active: root.shouldBeVisible || (root.pill && root.reveal > 0.01)
         // The pill's contents fade in as it comes out
-        opacity: root.pill ? Math.min(1, Math.max(0, (root.reveal - 0.3) / 0.6)) : 1
+        opacity: root.pill ? Math.min(1, Math.max(0, (root.reveal - 0.4) / 0.5)) : 1
+        scale: root.pill ? 0.85 + 0.15 * Math.min(1, Math.max(0, root.reveal)) : 1
 
         sourceComponent: Bar {
             width: root.contentWidth

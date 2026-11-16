@@ -165,9 +165,24 @@ StyledWindow {
             shadowColor: Qt.alpha(Colours.palette.m3shadow, Math.max(0, root.shadowOpacity))
         }
 
-        // The dashboard island's own group: drawn like the panels, never melted into the frame
+        // The islands' own groups: drawn like the panels, never melted into the frame or into
+        // each other (the dashboard island; the pill bar; its menus)
         BlobGroup {
             id: islandGroup
+
+            color: root.surfaceColour
+            smoothing: root.contentItem.Config.border.smoothing
+        }
+
+        BlobGroup {
+            id: pillGroup
+
+            color: root.surfaceColour
+            smoothing: root.contentItem.Config.border.smoothing
+        }
+
+        BlobGroup {
+            id: popoutIslandGroup
 
             color: root.surfaceColour
             smoothing: root.contentItem.Config.border.smoothing
@@ -241,15 +256,17 @@ StyledWindow {
         // The bar as a pill (Config.bar.pill): an island of its own on the left edge
         BlobRect {
             readonly property real fullH: Math.max(0, bar.pillBottom - bar.pillTop)
-            // grows out of the edge: slides in while it lengthens from half its height
-            readonly property real grow: 0.5 + 0.5 * Math.min(1, Math.max(0, bar.reveal))
+            readonly property real r: Math.min(1, Math.max(0, bar.reveal))
+            // grows in place from its centre, like the top island out of its pill
+            readonly property real growW: 0.3 + 0.7 * r
+            readonly property real growH: 0.5 + 0.5 * r
 
             visible: bar.pill && bar.reveal > 0.002
-            group: islandGroup
-            x: bar.pillX
-            y: bar.pillTop + fullH * (1 - grow) / 2
-            implicitWidth: bar.contentWidth
-            implicitHeight: fullH * grow
+            group: pillGroup
+            x: bar.pillX + bar.contentWidth * (1 - growW) / 2
+            y: bar.pillTop + fullH * (1 - growH) / 2
+            implicitWidth: bar.contentWidth * growW
+            implicitHeight: fullH * growH
             radius: width / 2
         }
 
@@ -279,7 +296,9 @@ StyledWindow {
             property real extraWidth: panels.popouts.isDetached || bar.pill ? 0 : 0.2
 
             // With the pill bar: an island of its own (glass like the top's), apart from the edge
-            group: bar.pill && !panels.popouts.isDetached ? islandGroup : blobGroup
+            group: bar.pill && !panels.popouts.isDetached ? popoutIslandGroup : blobGroup
+            // (closed, its sliver would melt into whatever is next to it)
+            visible: !bar.pill || panels.popoutsWrapper.width > 1
             panel: panels.popoutsWrapper
             deformAmount: panels.popouts.isDetached ? 0.05 : panels.popouts.hasCurrent ? 0.15 : 0.1
             x: panels.popoutsWrapper.x + panels.popouts.x + bar.implicitWidth - panels.popouts.width * extraWidth
