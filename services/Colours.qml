@@ -92,20 +92,17 @@ Singleton {
             rule = "keyword layerrule %1 %2, match:namespace caelestia-drawers";
             trEnabled = transparency.enabled ? 1 : 0;
         }
-        // Nebula's parts (Settings > Style): their glass shapes are blurred behind, following each
+        // Nebula's desktop widgets and their menus: their glass shapes are blurred behind, following each
         // shape's outline (ignore_alpha 0.1, as in Nebula's own rules)
-        const neb = Hypr.usingLua ? `eval hl.layer_rule({ match = { namespace = "caelestia-nebula-(widgets|widgetcorner|widgetmenu)" }, blur = true, ignore_alpha = 0.1 })` : "keyword layerrule blur on, match:namespace caelestia-nebula-(widgets|widgetcorner|widgetmenu)";
-        // Nebula's launcher: the whole screen behind the ring is blurred (Nebula: blur, no
-        // ignore_alpha) and it opens without the compositor's layer animation (its own intro)
-        const nebLauncher = Hypr.usingLua ? [`eval hl.layer_rule({ match = { namespace = "caelestia-nebula-launcher" }, blur = true, no_anim = true })`] : ["keyword layerrule blur on, match:namespace caelestia-nebula-launcher", "keyword layerrule no_anim on, match:namespace caelestia-nebula-launcher"];
-        Hypr.extras.batchMessage([rule.arg("blur").arg(trEnabled), rule.arg("ignore_alpha").arg(Math.max(0, transparency.base - 0.03)), neb, ...nebLauncher]);
+        const neb = Hypr.usingLua ? `eval hl.layer_rule({ match = { namespace = "caelestia-nebula-(widgets|widgetmenu)" }, blur = true, ignore_alpha = 0.1 })` : "keyword layerrule blur on, match:namespace caelestia-nebula-(widgets|widgetmenu)";
+        Hypr.extras.batchMessage([rule.arg("blur").arg(trEnabled), rule.arg("ignore_alpha").arg(Math.max(0, transparency.base - 0.03)), neb]);
 
         // Their own blur strength (Wallpaper & style > Blur; 0 = as windows): layer rules of the
         // shell's own Hyprland build. Sent apart, so a Hyprland without them keeps the rules above.
         if (Hypr.usingLua) {
             const b = GlobalConfig.appearance.blur;
             const strength = (ns, size, passes) => `eval hl.layer_rule({ match = { namespace = "${ns}" }, blur_size = ${Math.max(0, size)}, blur_passes = ${Math.max(0, passes)} })`;
-            Hypr.extras.batchMessage([strength("caelestia-drawers", b.shellSize, b.shellPasses), strength("caelestia-nebula-(widgets|widgetcorner|widgetmenu)", b.widgetsSize, b.widgetsPasses), strength("caelestia-nebula-launcher", b.launcherSize, b.launcherPasses)]);
+            Hypr.extras.batchMessage([strength("caelestia-drawers", b.shellSize, b.shellPasses), strength("caelestia-nebula-(widgets|widgetmenu)", b.widgetsSize, b.widgetsPasses)]);
         }
     }
 

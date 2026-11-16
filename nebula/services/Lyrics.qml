@@ -11,7 +11,7 @@ Singleton {
     property string status: "none"
 
     readonly property bool synced: status === "synced"
-    readonly property bool wanted: Settings.bar.lyrics || Lock.wanted || Widgets.list.some(w => w.type === "lyrics" && w.enabled === true)
+    readonly property bool wanted: Widgets.list.some(w => w.type === "lyrics" && w.enabled === true)
     function clock() {
         return Media.playing && syncedAt > 0 ? basePosition + (Date.now() - syncedAt) / 1000 : position;
     }

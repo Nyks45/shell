@@ -31,18 +31,6 @@ PageBase {
             onToggled: GlobalConfig.launcher.enabled = checked
         }
 
-        RowButton {
-            Layout.fillWidth: true
-            icon: GlobalConfig.appearance.style.launcher === "nebula" ? "filter_vintage" : "view_list"
-            text: Tr.tr("Style: %1").arg(GlobalConfig.appearance.style.launcher === "nebula" ? Tr.tr("Nebula ring") : Tr.tr("Caelestia list"))
-            subtext: Tr.tr("Chosen in Wallpaper & style > Nebula. Apps, hidden apps, actions and opening apply to both")
-            onClicked: root.nState.goTo({
-                page: PageRegistry.find("wallpaper"),
-                path: [9],
-                text: Tr.tr("Launcher")
-            })
-        }
-
         ToggleRow {
             text: Tr.tr("Show on hover")
             subtext: Tr.tr("Reveal when the cursor reaches the screen edge")
@@ -113,8 +101,7 @@ PageBase {
 
         StepperRow {
             label: Tr.tr("Max items shown")
-            subtext: GlobalConfig.appearance.style.launcher === "nebula" ? Tr.tr("List style only (the ring shows 8)") : ""
-            value: Config.launcher.maxShown
+                        value: Config.launcher.maxShown
             from: 1
             to: 20
             stepSize: 1
@@ -123,8 +110,7 @@ PageBase {
 
         StepperRow {
             label: Tr.tr("Max wallpapers")
-            subtext: GlobalConfig.appearance.style.launcher === "nebula" ? Tr.tr("List style only (the ring shows 8)") : ""
-            value: Config.launcher.maxWallpapers
+                        value: Config.launcher.maxWallpapers
             from: 1
             to: 30
             stepSize: 1
@@ -162,7 +148,7 @@ PageBase {
 
         // Fuzzy search
         SectionHeader {
-            text: GlobalConfig.appearance.style.launcher === "nebula" ? Tr.tr("Fuzzy search (list style only)") : Tr.tr("Fuzzy search")
+            text: Tr.tr("Fuzzy search")
         }
 
         ToggleRow {

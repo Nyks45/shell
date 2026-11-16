@@ -49,13 +49,6 @@ Scope {
 
         NebulaDesktop {}
     }
-
-    // Launcher style "Nebula" (Wallpaper & style > Nebula): the Clover ring
-    LazyLoader {
-        active: GlobalConfig.appearance.style.launcher === "nebula"
-
-        NebulaLauncher {}
-    }
     Drawers {}
     AreaPicker {}
     PolkitOverlay {}

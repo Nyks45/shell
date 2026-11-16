@@ -210,18 +210,6 @@ PageBase {
                 verticalPadding: Tokens.padding.medium
                 onClicked: root.nState.openSubPage(3) // Colours page
             }
-
-            IconTextButton {
-                icon: "auto_awesome"
-                text: Tr.tr("Nebula")
-                font: Tokens.font.body.large
-                isRound: true
-                shapeMorph: true
-                type: IconTextButton.Tonal
-                horizontalPadding: Tokens.padding.extraLarge
-                verticalPadding: Tokens.padding.medium
-                onClicked: root.nState.openSubPage(9) // Nebula: desktop widgets, glass
-            }
         }
 
         ToggleRow {
@@ -447,6 +435,46 @@ PageBase {
             onToggled: GlobalConfig.background.visualiser.autoHide = checked
         }
 
+        // Desktop widgets (from Nebula, see NEBULA.md): clock, calendar, weather... in glass shapes
+        SectionHeader {
+            text: Tr.tr("Desktop widgets")
+        }
+
+        ToggleRow {
+            text: Tr.tr("Desktop widgets")
+            subtext: Tr.tr("Clock, calendar, weather, battery, now playing, lyrics, pictures, notes and system info in Material shapes on the desktop")
+            checked: GlobalConfig.appearance.style.desktopWidgets
+            onToggled: GlobalConfig.appearance.style.desktopWidgets = checked
+        }
+
+        RowButton {
+            Layout.fillWidth: true
+            visible: GlobalConfig.appearance.style.desktopWidgets
+            icon: "widgets"
+            text: Tr.tr("Widgets and layouts")
+            subtext: Tr.tr("Add, change and arrange them. On the desktop: right-click for the menu; Super+Shift+E to edit")
+            onClicked: root.nState.openSubPage(9)
+        }
+
+        SliderRow {
+            visible: GlobalConfig.appearance.style.desktopWidgets
+            icon: "blur_on"
+            label: Tr.tr("Glass tint")
+            valueLabel: `${Math.round(GlobalConfig.appearance.glass.tint * 100)}%`
+            // 30% (clear) .. 100% (solid)
+            value: (GlobalConfig.appearance.glass.tint - 0.3) / 0.7
+            onMoved: v => GlobalConfig.appearance.glass.tint = Math.round((0.3 + v * 0.7) * 100) / 100
+        }
+
+        SliderRow {
+            visible: GlobalConfig.appearance.style.desktopWidgets
+            icon: "wb_twilight"
+            label: Tr.tr("Light across the top")
+            valueLabel: `${Math.round(GlobalConfig.appearance.glass.topLight * 100)}%`
+            // 0 .. 30%
+            value: GlobalConfig.appearance.glass.topLight / 0.3
+            onMoved: v => GlobalConfig.appearance.glass.topLight = Math.round(v * 30) / 100
+        }
 
         // Every blur setting, in one place: what each one blurs is in its text. Windows' blur is
         // Hyprland's (decoration:blur); the shell's surfaces can have their own strength (layer
@@ -477,7 +505,7 @@ PageBase {
             MenuItem {
                 id: nebulaBlur
 
-                text: Tr.tr("Nebula: soft, shapes show through")
+                text: Tr.tr("Soft: shapes show through")
                 value: [4, 1]
             }
 
@@ -503,7 +531,7 @@ PageBase {
         BlurRow {
             visible: root.blurOn
             label: Tr.tr("Panels and bar")
-            subtext: GlobalConfig.appearance.style.launcher === "nebula" ? Tr.tr("The shell's bar, dashboard, sidebar, notifications and popouts") : Tr.tr("The shell's bar, dashboard, launcher, sidebar, notifications and popouts")
+            subtext: Tr.tr("The shell's bar, dashboard, launcher, sidebar, notifications and popouts")
             size: GlobalConfig.appearance.blur.shellSize
             passes: GlobalConfig.appearance.blur.shellPasses
             onSizeMoved: v => GlobalConfig.appearance.blur.shellSize = v
@@ -513,21 +541,11 @@ PageBase {
         BlurRow {
             visible: root.blurOn
             label: Tr.tr("Desktop widgets")
-            subtext: Tr.tr("Nebula's widgets, their menus and the widgets corner")
+            subtext: Tr.tr("The desktop widgets and their menus")
             size: GlobalConfig.appearance.blur.widgetsSize
             passes: GlobalConfig.appearance.blur.widgetsPasses
             onSizeMoved: v => GlobalConfig.appearance.blur.widgetsSize = v
             onPassesMoved: v => GlobalConfig.appearance.blur.widgetsPasses = v
-        }
-
-        BlurRow {
-            visible: root.blurOn && GlobalConfig.appearance.style.launcher === "nebula"
-            label: Tr.tr("Nebula launcher")
-            subtext: Tr.tr("The screen behind Nebula's ring launcher")
-            size: GlobalConfig.appearance.blur.launcherSize
-            passes: GlobalConfig.appearance.blur.launcherPasses
-            onSizeMoved: v => GlobalConfig.appearance.blur.launcherSize = v
-            onPassesMoved: v => GlobalConfig.appearance.blur.launcherPasses = v
         }
 
         ToggleRow {

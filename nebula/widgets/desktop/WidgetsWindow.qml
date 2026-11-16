@@ -241,11 +241,7 @@ Variants {
             }
         }
 
-        SnapGrid {
-            anchors.fill: parent
-            z: -1
-            screenName: window.modelData.name
-        }
+        // (No dotted grid: the grid button still snaps to it, without drawing it; user, 2026-11-16)
 
         SnapGuides {
             anchors.fill: parent

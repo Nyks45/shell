@@ -118,6 +118,47 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Desktop widgets",
+            "ctx": "",
+            "sub": "Clock, calendar, weather, battery, now playing, lyrics, pictures, notes and system info in Material shapes on the desktop",
+            "section": "Desktop widgets",
+            "page": 0,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Widgets and layouts",
+            "ctx": "",
+            "sub": "Add, change and arrange them. On the desktop: right-click for the menu; Super+Shift+E to edit",
+            "section": "Desktop widgets",
+            "opens": 9,
+            "page": 0,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Glass tint",
+            "ctx": "",
+            "sub": "",
+            "section": "Desktop widgets",
+            "page": 0,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Light across the top",
+            "ctx": "",
+            "sub": "",
+            "section": "Desktop widgets",
+            "page": 0,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Blur",
             "ctx": "",
             "sub": "Frosted glass behind everything see-through: windows, panels, the bar, widgets, title bars",
@@ -150,7 +191,7 @@ QtObject {
         {
             "label": "Panels and bar",
             "ctx": "",
-            "sub": "The shell's bar, dashboard, sidebar, notifications and popouts",
+            "sub": "The shell's bar, dashboard, launcher, sidebar, notifications and popouts",
             "section": "Blur",
             "page": 0,
             "path": [],
@@ -160,17 +201,7 @@ QtObject {
         {
             "label": "Desktop widgets",
             "ctx": "",
-            "sub": "Nebula's widgets, their menus and the widgets corner",
-            "section": "Blur",
-            "page": 0,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Nebula launcher",
-            "ctx": "",
-            "sub": "The screen behind Nebula's ring launcher",
+            "sub": "The desktop widgets and their menus",
             "section": "Blur",
             "page": 0,
             "path": [],
@@ -741,7 +772,7 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Nebula",
+            "label": "Widget",
             "ctx": "",
             "sub": "",
             "section": "",
@@ -750,92 +781,6 @@ QtObject {
                 9
             ],
             "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Desktop widgets",
-            "ctx": "",
-            "sub": "Clock, calendar, weather, battery, now playing, lyrics, pictures, notes and system info in Material shapes on the desktop",
-            "section": "Desktop widgets",
-            "page": 0,
-            "path": [
-                9
-            ],
-            "trail": [
-                "Nebula"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Widgets and layouts",
-            "ctx": "",
-            "sub": "Add, change and arrange them. On the desktop: right-click for the menu; Super+Shift+E to edit",
-            "section": "Desktop widgets",
-            "opens": 10,
-            "page": 0,
-            "path": [
-                9
-            ],
-            "trail": [
-                "Nebula"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Launcher",
-            "ctx": "",
-            "sub": "A ring of apps around a search pill. Type > for commands; Theme, Variant, Wallpaper and Calculator open pickers in the ring",
-            "section": "Launcher",
-            "page": 0,
-            "path": [
-                9
-            ],
-            "trail": [
-                "Nebula"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Glass tint",
-            "ctx": "",
-            "sub": "",
-            "section": "Glass",
-            "page": 0,
-            "path": [
-                9
-            ],
-            "trail": [
-                "Nebula"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Light across the top",
-            "ctx": "",
-            "sub": "",
-            "section": "Glass",
-            "page": 0,
-            "path": [
-                9
-            ],
-            "trail": [
-                "Nebula"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Widget",
-            "ctx": "",
-            "sub": "",
-            "section": "",
-            "page": 0,
-            "path": [
-                9,
-                10
-            ],
-            "trail": [
-                "Nebula"
-            ],
             "keywords": ""
         },
         {
@@ -2054,20 +1999,6 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Launcher",
-            "ctx": "",
-            "sub": "Chosen in Wallpaper & style > Nebula. Apps, hidden apps, actions and opening apply to both",
-            "section": "General",
-            "page": 3,
-            "path": [
-                3
-            ],
-            "trail": [
-                "Launcher"
-            ],
-            "keywords": ""
-        },
-        {
             "label": "Show on hover",
             "ctx": "",
             "sub": "Reveal when the cursor reaches the screen edge",
@@ -2112,7 +2043,7 @@ QtObject {
         {
             "label": "Max items shown",
             "ctx": "",
-            "sub": "List style only (the ring shows 8)",
+            "sub": "",
             "section": "Display",
             "page": 3,
             "path": [
@@ -2126,7 +2057,7 @@ QtObject {
         {
             "label": "Max wallpapers",
             "ctx": "",
-            "sub": "List style only (the ring shows 8)",
+            "sub": "",
             "section": "Display",
             "page": 3,
             "path": [
@@ -2183,7 +2114,7 @@ QtObject {
             "label": "Apps",
             "ctx": "",
             "sub": "",
-            "section": "Fuzzy search (list style only)",
+            "section": "Fuzzy search",
             "page": 3,
             "path": [
                 3
@@ -2197,7 +2128,7 @@ QtObject {
             "label": "Actions",
             "ctx": "",
             "sub": "",
-            "section": "Fuzzy search (list style only)",
+            "section": "Fuzzy search",
             "page": 3,
             "path": [
                 3
@@ -2211,7 +2142,7 @@ QtObject {
             "label": "Schemes",
             "ctx": "",
             "sub": "",
-            "section": "Fuzzy search (list style only)",
+            "section": "Fuzzy search",
             "page": 3,
             "path": [
                 3
@@ -2225,7 +2156,7 @@ QtObject {
             "label": "Variants",
             "ctx": "",
             "sub": "",
-            "section": "Fuzzy search (list style only)",
+            "section": "Fuzzy search",
             "page": 3,
             "path": [
                 3
@@ -2239,7 +2170,7 @@ QtObject {
             "label": "Wallpapers",
             "ctx": "",
             "sub": "",
-            "section": "Fuzzy search (list style only)",
+            "section": "Fuzzy search",
             "page": 3,
             "path": [
                 3
