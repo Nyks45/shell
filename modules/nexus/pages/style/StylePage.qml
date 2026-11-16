@@ -87,34 +87,6 @@ PageBase {
         }
 
         SectionHeader {
-            text: Tr.tr("Animations")
-        }
-
-        SelectRow {
-            label: Tr.tr("Panels and popouts")
-            subtext: GlobalConfig.appearance.style.shellAnim === "wave" ? Tr.tr("Panels rise out of their edge where you click or hover (the middle when opened with a shortcut) and spread along it like a wave") : Tr.tr("Caelestia's own motion")
-            menuItems: [caelestiaAnim, dropAnim]
-            active: GlobalConfig.appearance.style.shellAnim === "wave" ? dropAnim : caelestiaAnim
-            onSelected: item => GlobalConfig.appearance.style.shellAnim = item.value
-
-            MenuItem {
-                id: caelestiaAnim
-
-                icon: "animation"
-                text: Tr.tr("Caelestia")
-                value: "caelestia"
-            }
-
-            MenuItem {
-                id: dropAnim
-
-                icon: "waves"
-                text: Tr.tr("Wave")
-                value: "wave"
-            }
-        }
-
-        SectionHeader {
             text: Tr.tr("Glass")
         }
 

@@ -46,9 +46,7 @@ Item {
         anchors.rightMargin: sessionWrapper.anchors.rightMargin + session.width * (1 - session.offsetScale)
         clip: sidebar.visible || session.visible
 
-        readonly property real dropRadius: osd.dropRadius
-        anchors.verticalCenterOffset: osd.drop.offset
-        implicitWidth: osd.drop.active ? osd.implicitWidth : osd.implicitWidth * (1 - osd.offsetScale)
+        implicitWidth: osd.implicitWidth * (1 - osd.offsetScale)
         implicitHeight: osd.implicitHeight
 
         Osd.Wrapper {
@@ -84,9 +82,7 @@ Item {
         anchors.rightMargin: sidebar.width * (1 - sidebar.offsetScale)
         clip: sidebar.visible
 
-        readonly property real dropRadius: session.dropRadius
-        anchors.verticalCenterOffset: session.drop.offset
-        implicitWidth: session.drop.active ? session.implicitWidth : session.implicitWidth * (1 - session.offsetScale)
+        implicitWidth: session.implicitWidth * (1 - session.offsetScale)
         implicitHeight: session.implicitHeight
 
         Session.Wrapper {
@@ -154,10 +150,6 @@ Item {
         anchors.top: notifications.bottom
         anchors.bottom: utilities.top
         anchors.right: parent.right
-        anchors.topMargin: -notifications.anchors.topMargin + dropInsetTop
-        anchors.bottomMargin: dropInsetBottom
-        // (the Wave motion grows it within this span)
-        dropFullTop: notifications.y + notifications.height - notifications.anchors.topMargin
-        dropFullBottom: utilities.y
+        anchors.topMargin: -notifications.anchors.topMargin
     }
 }

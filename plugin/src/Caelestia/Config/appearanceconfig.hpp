@@ -301,9 +301,6 @@ class AppearanceStyle : public settings::ObjectNode {
     CONFIG_GLOBAL_PROPERTY(bool, desktopWidgets, false)
     // "caelestia" (the drawer list) or "nebula" (Nebula's Clover ring)
     CONFIG_GLOBAL_PROPERTY(QString, launcher, u"caelestia"_s)
-    // How panels open: "caelestia" (its own motion) or "wave" (rises out of its edge where it was
-    // opened from and spreads along it). Wallpaper & style > Nebula > Animations.
-    CONFIG_GLOBAL_PROPERTY(QString, shellAnim, u"caelestia"_s)
 };
 
 class AppearanceConfig : public settings::ObjectNode {

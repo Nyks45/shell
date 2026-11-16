@@ -65,16 +65,7 @@ CustomMouseArea {
     acceptedButtons: fullscreen ? Qt.NoButton : Qt.AllButtons
     hoverEnabled: true
 
-    function notePointer(x: real, y: real): void {
-        screenState.pointerX = x;
-        screenState.pointerY = y;
-        screenState.pointerTime = Date.now();
-    }
-
-    onPressed: event => {
-        dragStart = Qt.point(event.x, event.y);
-        notePointer(event.x, event.y);
-    }
+    onPressed: event => dragStart = Qt.point(event.x, event.y)
     onContainsMouseChanged: {
         if (!containsMouse) {
             // Only hide if not activated by shortcut
@@ -130,7 +121,6 @@ CustomMouseArea {
     }
 
     onPositionChanged: event => {
-        notePointer(event.x, event.y);
         if (popouts.isDetached || Hypr.windowDragging)
             return;
 

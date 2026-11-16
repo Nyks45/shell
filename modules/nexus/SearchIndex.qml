@@ -796,20 +796,6 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Panels and popouts",
-            "ctx": "",
-            "sub": "Panels rise out of their edge where you click or hover (the middle when opened with a shortcut) and spread along it like a wave",
-            "section": "Animations",
-            "page": 0,
-            "path": [
-                9
-            ],
-            "trail": [
-                "Nebula"
-            ],
-            "keywords": ""
-        },
-        {
             "label": "Glass tint",
             "ctx": "",
             "sub": "",

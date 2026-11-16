@@ -14,12 +14,6 @@ PersistentProperties {
     property bool utilities
     property bool sidebar
 
-    // Last pointer position in the drawers window (scene coordinates) and when it was there:
-    // the Wave motion grows a panel from the point it was opened from
-    property real pointerX: -1
-    property real pointerY: -1
-    property real pointerTime: 0
-
     // Dashboard state
     property int dashboardTab
     property date dashboardDate: new Date()
