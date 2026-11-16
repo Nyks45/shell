@@ -152,12 +152,14 @@ CustomMouseArea {
         }
 
         // Show bar in non-exclusive mode on hover
-        if (!screenState.bar && Config.bar.showOnHover && x < bar.clampedWidth) {
-            // The pill comes out where the edge was touched
-            if (!bar.isHovered && bar.reveal < 0.05)
-                bar.pillCenter = y;
+        // The pill (centred) comes out from the middle part of the left edge (its corners are
+        // for other things); the classic bar from all of it
+        if (!screenState.bar && Config.bar.showOnHover && x < bar.clampedWidth && (!bar.pill || bar.isHovered || (y > height * 0.15 && y < height * 0.85)))
             bar.isHovered = true;
-        }
+        // ... and goes once the pointer leaves both that part and the pill itself along the edge
+        // (towards a corner), unless one of its menus is open
+        if (bar.pill && bar.isHovered && !screenState.bar && x < bar.clampedWidth && !popouts.hasCurrent && (y < height * 0.15 || y > height * 0.85) && (y < bar.pillTop - Tokens.padding.large || y > bar.pillBottom + Tokens.padding.large))
+            bar.isHovered = false;
 
         // Show/hide bar on drag
         if (pressed && dragStart.x < bar.clampedWidth) {

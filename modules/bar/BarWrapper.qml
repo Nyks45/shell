@@ -30,11 +30,12 @@ Item {
     readonly property real pillTop: (content.item as Bar)?.pillTop ?? height / 2
     readonly property real pillBottom: (content.item as Bar)?.pillBottom ?? height / 2
     readonly property real reveal: revealSpring.value
-    // Where the pill shows: the height the edge was touched at (Interactions)
-    property real pillCenter: height / 2
+    // The pill sits in the middle of the edge
+    readonly property real pillCenter: height / 2
     // Desktop mode (hyprflow) keeps the bar, with its taskbar, always shown.
     readonly property bool persistent: Config.bar.persistent
-    readonly property int exclusiveZone: !disabled && (persistent || screenState.bar) ? contentWidth + pillGap : Config.border.thickness
+    // (the pill has a gap on both sides: the one after it is where its menus start)
+    readonly property int exclusiveZone: !disabled && (persistent || screenState.bar) ? contentWidth + pillGap * 2 : Config.border.thickness
     // The power menu opens from the bar's power button (a popout, not the
     // drawer at the right edge) when the bar has one
     readonly property bool sessionAtBar: !disabled && Config.session.enabled && Config.bar.entries.values.some(e => e.enabled && e.id === "power")
@@ -111,7 +112,7 @@ Item {
 
     clip: !pill
     visible: width > Config.border.thickness
-    implicitWidth: fullscreen ? 0 : pill ? Config.border.thickness + (contentWidth + pillGap - Config.border.thickness) * Math.max(0, reveal) : Config.border.thickness
+    implicitWidth: fullscreen ? 0 : pill ? Config.border.thickness + (contentWidth + pillGap * 2 - Config.border.thickness) * Math.max(0, reveal) : Config.border.thickness
 
     states: State {
         name: "visible"
@@ -155,7 +156,7 @@ Item {
         active: root.shouldBeVisible || (root.pill && root.reveal > 0.01)
         // The pill's contents fade in as it comes out
         opacity: root.pill ? Math.min(1, Math.max(0, (root.reveal - 0.4) / 0.5)) : 1
-        scale: root.pill ? 0.85 + 0.15 * Math.min(1, Math.max(0, root.reveal)) : 1
+        scale: root.pill ? 0.6 + 0.4 * Math.min(1, Math.max(0, root.reveal)) : 1
 
         sourceComponent: Bar {
             width: root.contentWidth

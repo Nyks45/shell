@@ -224,7 +224,9 @@ StyledRect {
         attachSideY: Menu.Top
         thisSideX: Menu.Left
         thisSideY: Menu.Top
-        marginX: Tokens.spacing.large
+        // (with the pill: past its edge, a gap away like the previews)
+        // (with the pill: the same small gap as the previews)
+        marginX: Config.bar.pill ? Tokens.spacing.medium + Tokens.padding.small : Tokens.spacing.large
         active: null
     }
 

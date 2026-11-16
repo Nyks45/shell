@@ -258,8 +258,11 @@ StyledWindow {
             readonly property real fullH: Math.max(0, bar.pillBottom - bar.pillTop)
             readonly property real r: Math.min(1, Math.max(0, bar.reveal))
             // grows in place from its centre, like the top island out of its pill
-            readonly property real growW: 0.3 + 0.7 * r
-            readonly property real growH: 0.5 + 0.5 * r
+            // (a small capsule growing into the pill, not a thin stick)
+            // (and over the last bit it shrinks away to nothing: no sliver left behind)
+            readonly property real tail: Math.min(1, r / 0.25)
+            readonly property real growW: (0.45 + 0.55 * r) * tail
+            readonly property real growH: (0.45 + 0.55 * r) * tail
 
             visible: bar.pill && bar.reveal > 0.002
             group: pillGroup
@@ -298,11 +301,27 @@ StyledWindow {
             // With the pill bar: an island of its own (glass like the top's), apart from the edge
             group: bar.pill && !panels.popouts.isDetached ? popoutIslandGroup : blobGroup
             // (closed, its sliver would melt into whatever is next to it)
-            visible: !bar.pill || panels.popoutsWrapper.width > 1
+            visible: !bar.pill || (panels.popoutsWrapper.width > 1 && (!fromPill || m > 0.01))
             panel: panels.popoutsWrapper
             deformAmount: panels.popouts.isDetached ? 0.05 : panels.popouts.hasCurrent ? 0.15 : 0.1
-            x: panels.popoutsWrapper.x + panels.popouts.x + bar.implicitWidth - panels.popouts.width * extraWidth
-            implicitWidth: panels.popouts.width * (1 + extraWidth)
+
+            // With the pill: grows out of the hovered icon (a small capsule on the pill) to its
+            // place a gap away, and shrinks back into it
+            readonly property bool fromPill: bar.pill && !panels.popouts.isDetached
+            readonly property real m: Math.min(1, Math.max(0, panels.popoutsWrapper.morph))
+            // The start capsule itself shrinks away over the last bit (nothing left on the icon)
+            readonly property real tail: Math.min(1, m / 0.2)
+            readonly property real startW: bar.contentWidth * 0.6 * tail
+            readonly property real startH: 40 * tail
+            readonly property real startX: bar.pillX + (bar.contentWidth - startW) / 2
+            readonly property real startY: panels.popouts.currentCenter - startH / 2
+            readonly property real endX: panels.popoutsWrapper.x + bar.implicitWidth
+            readonly property real endY: panels.popoutsWrapper.y + root.borderThickness
+
+            x: fromPill ? startX + (endX - startX) * m : panels.popoutsWrapper.x + panels.popouts.x + bar.implicitWidth - panels.popouts.width * extraWidth
+            y: fromPill ? startY + (endY - startY) * m : panels.popoutsWrapper.y + root.borderThickness
+            implicitWidth: fromPill ? startW + (panels.popoutsWrapper.width - startW) * m : panels.popouts.width * (1 + extraWidth)
+            implicitHeight: fromPill ? startH + (panels.popoutsWrapper.height - startH) * m : panels.popoutsWrapper.height
 
             Behavior on extraWidth {
                 Anim {}

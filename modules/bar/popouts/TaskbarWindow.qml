@@ -143,7 +143,7 @@ Item {
         }
 
         Row {
-            spacing: Tokens.spacing.small
+            spacing: Tokens.spacing.large
             visible: root.cardCount > 0
 
             Repeater {
@@ -176,13 +176,10 @@ Item {
         implicitWidth: previewW
         implicitHeight: previewH
 
-        scale: pointerOn ? 1.03 : 1
+        // (no growing on hover: it would run into its neighbour; the ring shows it)
         opacity: 0
         Component.onCompleted: opacity = 1
 
-        Behavior on scale {
-            Anim {}
-        }
         Behavior on opacity {
             Anim {
                 type: Anim.DefaultEffects

@@ -14,7 +14,7 @@ StyledRect {
     readonly property alias items: items
     readonly property alias expandIcon: expandIcon
 
-    readonly property int padding: Config.bar.tray.background ? Tokens.padding.medium : Tokens.padding.extraSmall
+    readonly property int padding: Config.bar.tray.background || Config.bar.pill ? Tokens.padding.small : Tokens.padding.extraSmall
     readonly property int spacing: Config.bar.tray.background ? Tokens.spacing.medium : Tokens.spacing.extraSmall
 
     property bool expanded
@@ -34,7 +34,9 @@ StyledRect {
     implicitWidth: Tokens.sizes.bar.innerWidth
     implicitHeight: nonAnimHeight
 
-    color: Qt.alpha(Colours.tPalette.m3surfaceContainer, (Config.bar.tray.background && items.count > 0) ? Colours.tPalette.m3surfaceContainer.a : 0)
+    // In the pill the tray sits on a tinted capsule of its own, telling its icons apart from the
+    // apps
+    color: Config.bar.pill && items.count > 0 ? Qt.alpha(Colours.palette.m3secondaryContainer, 0.55) : Qt.alpha(Colours.tPalette.m3surfaceContainer, (Config.bar.tray.background && items.count > 0) ? Colours.tPalette.m3surfaceContainer.a : 0)
     radius: Tokens.rounding.full
 
     Column {

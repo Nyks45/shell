@@ -96,18 +96,38 @@ MouseArea {
             return item.mapToItem(root.parent, 0, off).y + root.marginY;
         }
 
-        radius: Tokens.rounding.large
+        // In the islands' style: glass with a soft edge, opening from the corner it's attached
+        // to (scale and fade, on the islands' spring)
+        radius: Tokens.rounding.extraLarge
         level: 2
 
-        implicitWidth: Math.max(200, column.implicitWidth + column.anchors.margins * 2)
+        implicitWidth: Math.max(170, column.implicitWidth + column.anchors.margins * 2)
         implicitHeight: column.implicitHeight + column.anchors.margins * 2
 
+        opacity: root.expanded ? 1 : 0
+
+        Behavior on opacity {
+            Anim {
+                type: Anim.DefaultEffects
+            }
+        }
+
         transform: Scale {
-            yScale: root.expanded ? 1 : 0.1
+            xScale: root.expanded ? 1 : 0.85
+            yScale: root.expanded ? 1 : 0.7
+            origin.x: root.thisSideX === Menu.Right ? menu.width : 0
             origin.y: root.thisSideY === Menu.Bottom ? menu.height : 0
 
+            Behavior on xScale {
+                Anim {
+                    type: Anim.DefaultSpatial
+                }
+            }
+
             Behavior on yScale {
-                Anim {}
+                Anim {
+                    type: Anim.DefaultSpatial
+                }
             }
         }
 
@@ -120,14 +140,16 @@ MouseArea {
         StyledRect {
             anchors.fill: parent
             radius: parent.radius
-            color: Colours.palette.m3surfaceContainerLow
+            color: Colours.tPalette.m3surfaceContainer
+            border.width: 1
+            border.color: Qt.alpha(Colours.palette.m3outlineVariant, 0.5)
 
             ColumnLayout {
                 id: column
 
                 anchors.fill: parent
-                anchors.margins: Tokens.padding.extraSmall
-                spacing: 0
+                anchors.margins: Tokens.padding.small
+                spacing: 2
 
                 Repeater {
                     id: repeater
@@ -142,16 +164,14 @@ MouseArea {
                         readonly property bool active: modelData === root?.active
 
                         Layout.fillWidth: true
+                        // compact rows
                         implicitWidth: menuOptionRow.implicitWidth + Tokens.padding.medium * 2
-                        implicitHeight: menuOptionRow.implicitHeight + Tokens.padding.medium * 2
+                        implicitHeight: menuOptionRow.implicitHeight + Tokens.padding.small * 2
 
-                        radius: active ? Tokens.rounding.medium : Tokens.rounding.extraSmall
-                        topLeftRadius: index === 0 ? Tokens.rounding.medium : radius
-                        topRightRadius: index === 0 ? Tokens.rounding.medium : radius
-                        bottomLeftRadius: index === repeater?.count - 1 ? Tokens.rounding.medium : radius
-                        bottomRightRadius: index === repeater?.count - 1 ? Tokens.rounding.medium : radius
+                        // Rows are pills
+                        radius: height / 2
 
-                        color: Qt.alpha(Colours.palette.m3tertiaryContainer, active ? 1 : 0)
+                        color: Qt.alpha(Colours.palette.m3secondaryContainer, active ? 1 : 0)
 
                         Behavior on radius {
                             Anim {}
@@ -163,7 +183,7 @@ MouseArea {
                             bottomLeftRadius: parent.bottomLeftRadius
                             bottomRightRadius: parent.bottomRightRadius
 
-                            color: item.active ? Colours.palette.m3onTertiaryContainer : Colours.palette.m3onSurface
+                            color: item.active ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
                             disabled: !root.expanded
                             onClicked: {
                                 root.itemSelected(item.modelData);
@@ -177,20 +197,23 @@ MouseArea {
                             id: menuOptionRow
 
                             anchors.fill: parent
-                            anchors.margins: Tokens.padding.medium
+                            anchors.leftMargin: Tokens.padding.medium
+                            anchors.rightMargin: Tokens.padding.medium
                             spacing: Tokens.spacing.small
 
                             MaterialIcon {
                                 Layout.alignment: Qt.AlignVCenter
                                 text: item.modelData?.icon ?? ""
-                                color: item.active ? Colours.palette.m3onTertiaryContainer : Colours.palette.m3onSurfaceVariant
+                                fontStyle: Tokens.font.icon.small
+                                color: item.active ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3primary
                             }
 
                             StyledText {
                                 Layout.alignment: Qt.AlignVCenter
                                 Layout.fillWidth: true
                                 text: item.modelData?.text ?? ""
-                                color: item.active ? Colours.palette.m3onTertiaryContainer : Colours.palette.m3onSurface
+                                font: Tokens.font.body.small
+                                color: item.active ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
                             }
 
                             Loader {
@@ -201,7 +224,7 @@ MouseArea {
 
                                 sourceComponent: MaterialIcon {
                                     text: item.modelData.trailingIcon
-                                    color: item.active ? Colours.palette.m3onTertiaryContainer : Colours.palette.m3onSurfaceVariant
+                                    color: item.active ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurfaceVariant
                                 }
                             }
                         }
