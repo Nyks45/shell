@@ -118,60 +118,121 @@ VerticalFadeFlickable {
             wrapMode: Text.WordWrap
         }
 
+        // Grouped by page like the pages' tree (the page with the best match first); the first
+        // match is a filled pill (Enter opens it)
         Repeater {
-            model: root.results
+            model: {
+                const groups = [];
+                root.results.forEach((r, i) => {
+                    let g = groups.find(x => x.page === r.page);
+                    if (!g) {
+                        g = {
+                            page: r.page,
+                            items: []
+                        };
+                        groups.push(g);
+                    }
+                    g.items.push(Object.assign({}, r, {
+                        rank: i
+                    }));
+                });
+                return groups;
+            }
 
-            StyledRect {
-                id: item
+            ColumnLayout {
+                id: group
 
                 required property var modelData
                 required property int index
+                readonly property var page: PageRegistry.pages[modelData.page]
 
                 Layout.fillWidth: true
-                implicitHeight: layout.implicitHeight + layout.anchors.margins * 2
-
-                color: index === 0 ? Colours.palette.m3secondaryContainer : Colours.layer(Colours.palette.m3surfaceContainerHigh, 2)
-                radius: index === 0 ? Tokens.rounding.extraLarge : Tokens.rounding.medium
-
-                StateLayer {
-                    anchors.fill: parent
-                    radius: parent.radius
-                    onClicked: root.nState.goTo(item.modelData)
-                }
+                Layout.topMargin: index === 0 ? Tokens.padding.small : Tokens.spacing.small
+                spacing: Tokens.spacing.extraSmall / 2
 
                 RowLayout {
-                    id: layout
-
-                    anchors.fill: parent
-                    anchors.margins: Tokens.padding.large
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Tokens.padding.medium
+                    Layout.rightMargin: Tokens.padding.medium
+                    Layout.topMargin: Tokens.padding.extraSmall
+                    Layout.bottomMargin: Tokens.padding.extraSmall
                     spacing: Tokens.spacing.medium
 
                     MaterialIcon {
-                        Layout.alignment: Qt.AlignVCenter
-                        text: item.modelData.icon || "tune"
-                        color: Colours.palette.m3onSurfaceVariant
-                        fontStyle: Tokens.font.icon.medium
-                        fill: item.modelData.icon ? 1 : 0
+                        text: group.page?.icon ?? "tune"
+                        color: Colours.palette.m3primary
+                        fontStyle: Tokens.font.icon.small
                     }
 
-                    ColumnLayout {
+                    StyledText {
                         Layout.fillWidth: true
-                        spacing: 0
+                        text: group.page?.label ?? ""
+                        color: Colours.palette.m3primary
+                        font: Tokens.font.label.large
+                        elide: Text.ElideRight
+                    }
+                }
 
-                        StyledText {
-                            Layout.fillWidth: true
-                            text: item.modelData.title
-                            font: Tokens.font.body.medium
-                            elide: Text.ElideRight
+                Repeater {
+                    model: group.modelData.items
+
+                    StyledRect {
+                        id: item
+
+                        required property var modelData
+                        readonly property bool best: modelData.rank === 0
+                        // The place, without the page's name (it's the group's)
+                        readonly property string where: {
+                            const w = modelData.where ?? "";
+                            const name = group.page?.label ?? "";
+                            return w.startsWith(name + " › ") ? w.slice(name.length + 3) : w === name ? "" : w;
                         }
 
-                        StyledText {
-                            Layout.fillWidth: true
-                            visible: text
-                            text: item.modelData.where
-                            color: Colours.palette.m3onSurfaceVariant
-                            font: Tokens.font.label.small
-                            elide: Text.ElideRight
+                        Layout.fillWidth: true
+                        implicitHeight: layout.implicitHeight + Tokens.padding.small * 2
+                        radius: Tokens.rounding.full
+                        color: best ? Colours.palette.m3primary : "transparent"
+
+                        StateLayer {
+                            color: item.best ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface
+                            onClicked: root.nState.goTo(item.modelData)
+                        }
+
+                        RowLayout {
+                            id: layout
+
+                            anchors.fill: parent
+                            anchors.leftMargin: Tokens.padding.largeIncreased + Tokens.padding.small
+                            anchors.rightMargin: Tokens.padding.medium
+                            spacing: Tokens.spacing.medium
+
+                            MaterialIcon {
+                                text: item.modelData.path.length === 0 ? (item.modelData.icon || "tune") : item.modelData.icon ? "subdirectory_arrow_right" : "tune"
+                                color: item.best ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
+                                fontStyle: Tokens.font.icon.small
+                            }
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 0
+
+                                StyledText {
+                                    Layout.fillWidth: true
+                                    text: item.modelData.title
+                                    color: item.best ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface
+                                    font: Tokens.font.body.small
+                                    elide: Text.ElideRight
+                                }
+
+                                StyledText {
+                                    Layout.fillWidth: true
+                                    visible: text
+                                    text: item.where
+                                    color: item.best ? Qt.alpha(Colours.palette.m3onPrimary, 0.75) : Colours.palette.m3onSurfaceVariant
+                                    font: Tokens.font.label.small
+                                    elide: Text.ElideRight
+                                }
+                            }
                         }
                     }
                 }

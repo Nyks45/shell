@@ -33,7 +33,7 @@ TextFieldBase {
             cursorShape: Qt.IBeamCursor
             disabled: root.activeFocus
             manualPressOverride: tapHandler.pressed
-            onClicked: root.focus = true
+            onClicked: root.forceActiveFocus()
         }
     }
 
