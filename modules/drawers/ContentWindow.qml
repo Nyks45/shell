@@ -354,7 +354,8 @@ StyledWindow {
         y: panel.y + root.borderThickness
         implicitWidth: panel.width
         implicitHeight: panel.height
-        radius: Tokens.rounding.extraLarge
+        // (the Drop motion rounds it into a droplet while it grows)
+        radius: panel.dropRadius ?? Tokens.rounding.extraLarge
         deformScale: (deformAmount * Config.appearance.deformScale) / 10000
     }
 }

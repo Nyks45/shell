@@ -17,10 +17,21 @@ Item {
     readonly property Brightness.Monitor monitor: Brightness.getMonitorForScreen(root.screen)
     readonly property bool shouldBeActive: screenState.osd && Config.osd.enabled && !(screenState.utilities && Config.utilities.enabled)
     property real offsetScale: 1
-    // Nebula motion (Wallpaper & style > Nebula > Animations > Shell): expands out of the edge like
-    // Nebula's media island, its content revealed in place, instead of sliding in
-    readonly property bool expandStyle: GlobalConfig.appearance.style.shellAnim === "nebula" || GlobalConfig.appearance.style.shellAnim === "island"
-    readonly property real openT: 1 - offsetScale
+    // Drop motion: grows out of where it was opened from (components/DropMotion.qml)
+    readonly property DropMotion drop: DropMotion {
+        panel: root
+        screenState: root.screenState
+        edge: "right"
+        fullAlong: root.content.implicitHeight || 0
+        fullDepth: root.content.implicitWidth
+        space: root.parent?.parent ?? null
+        finalCenter: (space?.height ?? 0) / 2
+        offsetScale: root.offsetScale
+        open: root.shouldBeActive
+    }
+    readonly property real dropRadius: drop.radius
+    readonly property alias content: content
+
     property real sidebarOffset: sidebarOrSessionVisible ? 12 : 0
 
     property real volume
@@ -43,13 +54,11 @@ Item {
     }
 
     visible: offsetScale < 1
-    anchors.rightMargin: expandStyle ? 0 : (-implicitWidth - 5 - sidebarOffset) * offsetScale
-    implicitWidth: content.implicitWidth * (expandStyle ? openT : 1)
-    clip: true // (always: switching it on and off left the rounded-clip textures black)
-    implicitHeight: content.implicitHeight
-    opacity: expandStyle ? 1 : 1 - offsetScale
-    // (No fade on the content: it holds rounded masks that capture it into a texture, and Qt
-    // doesn't capture anything at opacity 0, so they stayed black. Expanding reveals it in place.)
+    anchors.rightMargin: drop.active ? 0 : (-implicitWidth - 5 - sidebarOffset) * offsetScale
+    implicitWidth: drop.active ? drop.depth : content.implicitWidth
+    clip: true // (the drop reveals the content; always on: toggling it left rounded masks black)
+    implicitHeight: drop.active ? drop.along : content.implicitHeight
+    opacity: drop.active ? 1 : 1 - offsetScale
 
     ShellMotion {
         target: root
@@ -102,12 +111,12 @@ Item {
     Loader {
         id: content
 
-
+        opacity: root.drop.contentOpacity
+        // Where it sits: one expression (never swapped anchors); with the drop, at its final
+        // place while the droplet grows over it
+        x: root.drop.active ? root.width - root.drop.fullDepth : 0
         anchors.verticalCenter: parent.verticalCenter
-        // Where it sits: one x/y expression, never swapped anchors (swapping fixed its size at 0
-        // after a style switch: an empty dashboard and notification list)
-        // (expanding: stays put at the right edge and is revealed; sliding: moves with the panel)
-        x: 0
+        anchors.verticalCenterOffset: -root.drop.offset
 
         asynchronous: true
         active: root.shouldBeActive || root.visible

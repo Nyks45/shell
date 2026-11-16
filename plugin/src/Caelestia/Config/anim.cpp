@@ -106,25 +106,6 @@ void AnimTokens::rebuildCurves() {
     m_expressiveDefaultEffects = buildCurve(m_curves->expressiveDefaultEffects());
     m_expressiveSlowEffects = buildCurve(m_curves->expressiveSlowEffects());
 
-    // Nebula's motion (appearance.style.shellAnim): everything moves and resizes with its
-    // decelerating curve and fades with its standard curve. No overshoot anywhere (it looked out
-    // of place in the shell's panels, the user said).
-    // The other styles (components/ShellMotion.qml) use the same calm curves for everything inside
-    // the panels; "glide" its long soft ease-out for movement
-    const auto STYLE = ConfigSingleton::instance()->appearance()->style()->shellAnim();
-    if (STYLE != QStringLiteral("caelestia") && !STYLE.isEmpty()) {
-        const auto DECEL = buildCurve({ 0.05, 0.7, 0.1, 1, 1, 1 });
-        const auto STANDARD = buildCurve({ 0.2, 0, 0, 1, 1, 1 });
-        const auto SPATIAL = STYLE == QStringLiteral("glide") ? buildCurve({ 0.23, 1, 0.32, 1, 1, 1 }) : DECEL;
-        m_expressiveFastSpatial = SPATIAL;
-        m_expressiveDefaultSpatial = SPATIAL;
-        m_expressiveSlowSpatial = SPATIAL;
-        m_expressiveFastEffects = STANDARD;
-        m_expressiveDefaultEffects = STANDARD;
-        m_expressiveSlowEffects = STANDARD;
-        m_emphasized = DECEL;
-    }
-
     emit curvesChanged();
 }
 
@@ -133,8 +114,6 @@ void AnimTokens::bindCurves(AnimCurves* curves) {
 
     // Rebuild when any curve control points change
     connect(curves, &AnimCurves::optionChanged, this, &AnimTokens::rebuildCurves);
-    // ...and when the shell's motion style changes
-    connect(ConfigSingleton::instance()->appearance()->style(), &AppearanceStyle::optionChanged, this, &AnimTokens::rebuildCurves);
 
     rebuildCurves();
 }

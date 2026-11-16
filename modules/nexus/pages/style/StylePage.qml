@@ -91,99 +91,27 @@ PageBase {
         }
 
         SelectRow {
-            id: shellAnimRow
-
-            readonly property var descriptions: ({
-                    caelestia: Tr.tr("Panels, popouts, settings and the launcher: Caelestia's own motion"),
-                    nebula: Tr.tr("Panels grow out of their edge like Nebula's media island, content settling in"),
-                    island: Tr.tr("Like Nebula, on a spring: grows out of its edge, keeps its momentum"),
-                    spring: Tr.tr("A physics spring: slides in and settles without bouncing, reverses smoothly mid-way"),
-                    m3spring: Tr.tr("Material 3 Expressive's springs, settling without a bounce"),
-                    glide: Tr.tr("A long, soft glide: quick start, gentle landing")
-                })
-
             label: Tr.tr("Panels and popouts")
-            subtext: descriptions[GlobalConfig.appearance.style.shellAnim] ?? descriptions.caelestia
-            menuItems: shellAnimItems.instances
-            active: shellAnimItems.instances.find(i => i.value === GlobalConfig.appearance.style.shellAnim) ?? shellAnimItems.instances[0] ?? null
+            subtext: GlobalConfig.appearance.style.shellAnim === "drop" ? Tr.tr("A droplet grows out of where you click or hover (from the middle when opened with a shortcut) and swells into the panel") : Tr.tr("Caelestia's own motion")
+            menuItems: [caelestiaAnim, dropAnim]
+            active: GlobalConfig.appearance.style.shellAnim === "drop" ? dropAnim : caelestiaAnim
             onSelected: item => GlobalConfig.appearance.style.shellAnim = item.value
 
-            Variants {
-                id: shellAnimItems
+            MenuItem {
+                id: caelestiaAnim
 
-                model: [
-                    {
-                        value: "caelestia",
-                        icon: "animation",
-                        text: Tr.tr("Caelestia")
-                    },
-                    {
-                        value: "nebula",
-                        icon: "filter_vintage",
-                        text: Tr.tr("Nebula expand")
-                    },
-                    {
-                        value: "island",
-                        icon: "pill",
-                        text: Tr.tr("Island morph")
-                    },
-                    {
-                        value: "spring",
-                        icon: "airwave",
-                        text: Tr.tr("Spring")
-                    },
-                    {
-                        value: "m3spring",
-                        icon: "motion_mode",
-                        text: Tr.tr("M3 springs")
-                    },
-                    {
-                        value: "glide",
-                        icon: "air",
-                        text: Tr.tr("Fluid glide")
-                    }
-                ]
-
-                MenuItem {
-                    required property var modelData
-
-                    icon: modelData.icon
-                    text: modelData.text
-                    value: modelData.value
-                }
+                icon: "animation"
+                text: Tr.tr("Caelestia")
+                value: "caelestia"
             }
-        }
 
-        AnimRow {
-            label: Tr.tr("Windows")
-            what: Tr.tr("opening, closing, moving and resizing")
-            style: HyprSettings.animStyle("windows")
-            onPicked: v => HyprSettings.setAnimStyle("windows", v)
-        }
+            MenuItem {
+                id: dropAnim
 
-        AnimRow {
-            label: Tr.tr("Workspaces")
-            what: Tr.tr("switching workspaces and the special workspace")
-            style: HyprSettings.animStyle("workspaces")
-            onPicked: v => HyprSettings.setAnimStyle("workspaces", v)
-        }
-
-        AnimRow {
-            label: Tr.tr("Other shell surfaces")
-            what: Tr.tr("notifications, menus and overlays")
-            style: HyprSettings.animStyle("layers")
-            onPicked: v => HyprSettings.setAnimStyle("layers", v)
-        }
-
-        StyledText {
-            Layout.fillWidth: true
-            Layout.leftMargin: Tokens.padding.normal
-            Layout.bottomMargin: Tokens.spacing.small
-            // TRANSLATORS: where the one speed setting for all animations is
-            text: Tr.tr("Nebula's widgets and launcher always move their own way. How fast everything moves (or no animations): Accessibility.")
-            wrapMode: Text.WordWrap
-            color: Colours.palette.m3outline
-            font: Tokens.font.label.small
+                icon: "water_drop"
+                text: Tr.tr("Drop")
+                value: "drop"
+            }
         }
 
         SectionHeader {
@@ -217,74 +145,6 @@ PageBase {
             // 0 .. 30%
             value: GlobalConfig.appearance.glass.topLight / 0.3
             onMoved: v => GlobalConfig.appearance.glass.topLight = Math.round(v * 30) / 100
-        }
-    }
-
-    // One area's animation style: the same six choices as the shell's panels
-    component AnimRow: SelectRow {
-        id: animRow
-
-        required property string what
-        required property string style
-        readonly property var styleNames: ({
-                caelestia: Tr.tr("Caelestia's own"),
-                nebula: Tr.tr("Nebula's decelerating curve"),
-                island: Tr.tr("an island spring, growing from the centre"),
-                spring: Tr.tr("a physics spring, no bounce"),
-                m3spring: Tr.tr("Material 3 Expressive springs, no bounce"),
-                glide: Tr.tr("a long, soft glide")
-            })
-
-        signal picked(string value)
-
-        subtext: `${what}: ${styleNames[style] ?? styleNames.caelestia}`
-        menuItems: animItems.instances
-        active: animItems.instances.find(i => i.value === style) ?? animItems.instances[0] ?? null
-        onSelected: item => picked(item.value)
-
-        Variants {
-            id: animItems
-
-            model: [
-                {
-                    value: "caelestia",
-                    icon: "animation",
-                    text: Tr.tr("Caelestia")
-                },
-                {
-                    value: "nebula",
-                    icon: "filter_vintage",
-                    text: Tr.tr("Nebula")
-                },
-                {
-                    value: "island",
-                    icon: "pill",
-                    text: Tr.tr("Island morph")
-                },
-                {
-                    value: "spring",
-                    icon: "airwave",
-                    text: Tr.tr("Spring")
-                },
-                {
-                    value: "m3spring",
-                    icon: "motion_mode",
-                    text: Tr.tr("M3 springs")
-                },
-                {
-                    value: "glide",
-                    icon: "air",
-                    text: Tr.tr("Fluid glide")
-                }
-            ]
-
-            MenuItem {
-                required property var modelData
-
-                icon: modelData.icon
-                text: modelData.text
-                value: modelData.value
-            }
         }
     }
 }

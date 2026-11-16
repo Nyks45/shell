@@ -1,54 +1,45 @@
 import QtQuick
 import Caelestia.Config
 
-// How the shell's panels open and close (Wallpaper & style > Nebula > Animations > Panels and
-// popouts): animates `target.offsetScale` (1 hidden .. 0 shown) to `to`.
-//   caelestia  Caelestia's curves (default)
-//   nebula     Nebula's decelerating curve (the panels expand instead of sliding)
-//   island     a spring, expanding like Nebula's media island / Apple's Dynamic Island
-//   spring     a physics spring: settles without bouncing, keeps its momentum when reversed
-//   m3spring   Material 3 Expressive's spatial spring, tuned to settle without bouncing
-//   glide      a long, soft ease-out
+// How the shell's panels open and close (Wallpaper & style > Nebula > Animations > Panels):
+// animates `target.offsetScale` (1 hidden .. 0 shown) to `to`.
+//   caelestia  Caelestia's own motion (default)
+//   drop       the panel grows out of where it was opened from as a droplet
+//              (components/DropMotion.qml)
 // (Explicit animations, not a Behavior: a Behavior can't switch animations once set.)
+// Other styles are kept on the motion-styles branch.
 QtObject {
     id: root
 
     required property Item target
     required property real to
 
-    readonly property string style: GlobalConfig.appearance.style.shellAnim
-    readonly property bool springy: style === "spring" || style === "island" || style === "m3spring"
-    // Animation speed (Accessibility) scales the springs too
-    readonly property real speed: 1 / Math.max(0.05, GlobalConfig.appearance.anim.durations.scale)
+    readonly property bool drop: GlobalConfig.appearance.style.shellAnim === "drop"
 
-    readonly property SpringAnimation springAnim: SpringAnimation {
+    // Drop: a timed curve that starts gently (the droplet is seen swelling) and lands softly
+    readonly property NumberAnimation dropAnim: NumberAnimation {
         target: root.target
         property: "offsetScale"
-        spring: (root.style === "m3spring" ? 5.2 : root.style === "island" ? 4.2 : 3.6) * root.speed * root.speed
-        damping: root.style === "m3spring" ? 0.42 : 0.38
-        mass: 1
-        epsilon: 0.0005
+        duration: (root.to === 0 ? 620 : 460) * GlobalConfig.appearance.anim.durations.scale
+        easing.type: Easing.BezierSpline
+        easing.bezierCurve: root.to === 0 ? [0.42, 0, 0.18, 1, 1, 1] : [0.4, 0, 0.6, 1, 1, 1]
     }
 
     readonly property Anim curveAnim: Anim {
         target: root.target
         property: "offsetScale"
-        type: Anim.DefaultSpatial
-        duration: root.style === "glide" ? Tokens.anim.durations.expressiveSlowSpatial * 1.25 : Tokens.anim.durations.expressiveDefaultSpatial
     }
 
     function run(): void {
         // (set here, not only by binding: when `to` changes, this handler can run before the
         // animations' bindings update, and they'd head for the old state)
-        springAnim.to = to;
+        dropAnim.to = to;
         curveAnim.to = to;
-        if (springy) {
+        if (drop) {
             curveAnim.stop();
-            // a running spring just follows the new target (keeping its velocity)
-            if (!springAnim.running)
-                springAnim.start();
+            dropAnim.restart();
         } else {
-            springAnim.stop();
+            dropAnim.stop();
             curveAnim.restart();
         }
     }

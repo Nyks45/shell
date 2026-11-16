@@ -12,16 +12,12 @@ Item {
     required property real borderThickness
 
     readonly property alias content: content
-    property real offsetScale: x > 0 || content.hasCurrent ? 0 : 1
+    readonly property bool shouldBeActive: x > 0 || content.hasCurrent
+    property real offsetScale: 1
 
-    visible: width > 0 && height > 0
-    clip: true
-
-    implicitWidth: content.implicitWidth * (1 - offsetScale)
-    implicitHeight: content.implicitHeight
-
-    x: content.isDetached ? (parent.width - content.nonAnimWidth) / 2 : 0
-    y: {
+    // Drop motion: the popout grows as a droplet out of the bar at its button
+    // (components/DropMotion.qml)
+    readonly property real finalTop: {
         if (content.isDetached)
             return (parent.height - content.nonAnimHeight) / 2;
 
@@ -31,9 +27,33 @@ Item {
             return off + diff;
         return Math.max(off, 0);
     }
+    readonly property DropMotion drop: DropMotion {
+        panel: root
+        screenState: null
+        edge: "left"
+        fullAlong: root.content.nonAnimHeight
+        fullDepth: root.content.nonAnimWidth
+        finalCenter: root.finalTop + root.content.nonAnimHeight / 2
+        origin: root.content.currentCenter - root.borderThickness
+        offsetScale: root.offsetScale
+        open: root.shouldBeActive && !root.content.isDetached
+    }
+    readonly property real dropRadius: drop.radius
+    readonly property bool dropping: drop.active && !content.isDetached
 
-    Behavior on offsetScale {
-        Anim {}
+    visible: width > 0 && height > 0
+    clip: true
+
+    implicitWidth: dropping ? drop.depth : content.implicitWidth * (1 - offsetScale)
+    implicitHeight: dropping ? drop.along : content.implicitHeight
+
+    x: content.isDetached ? (parent.width - content.nonAnimWidth) / 2 : 0
+    // (dropping: centred on the droplet, which moves from the button to the popout's place)
+    y: dropping ? finalTop + (content.nonAnimHeight - height) / 2 + drop.offset : finalTop
+
+    ShellMotion {
+        target: root
+        to: root.shouldBeActive ? 0 : 1
     }
 
     Behavior on x {
@@ -44,7 +64,8 @@ Item {
     }
 
     Behavior on y {
-        enabled: root.offsetScale < 1
+        // (moving between popouts; not while the drop grows: it sets y itself)
+        enabled: root.offsetScale < 1 && (!root.dropping || root.offsetScale < 0.01)
 
         Anim {
             duration: content.animLength
@@ -58,8 +79,11 @@ Item {
         screen: root.screen
         offsetScale: root.offsetScale
 
+        opacity: root.dropping ? root.drop.contentOpacity : 1
         anchors.verticalCenter: parent.verticalCenter
+        // (dropping: still at its place while the droplet grows over it)
+        anchors.verticalCenterOffset: root.dropping ? -root.drop.offset : 0
         anchors.left: parent.left
-        anchors.leftMargin: (-implicitWidth - 5) * root.offsetScale
+        anchors.leftMargin: root.dropping ? 0 : (-implicitWidth - 5) * root.offsetScale
     }
 }

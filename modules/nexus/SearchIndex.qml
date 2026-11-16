@@ -796,37 +796,9 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Windows",
+            "label": "Panels and popouts",
             "ctx": "",
-            "sub": "",
-            "section": "Animations",
-            "page": 0,
-            "path": [
-                9
-            ],
-            "trail": [
-                "Nebula"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Workspaces",
-            "ctx": "",
-            "sub": "",
-            "section": "Animations",
-            "page": 0,
-            "path": [
-                9
-            ],
-            "trail": [
-                "Nebula"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Other shell surfaces",
-            "ctx": "",
-            "sub": "",
+            "sub": "A droplet grows out of where you click or hover (from the middle when opened with a shortcut) and swells into the panel",
             "section": "Animations",
             "page": 0,
             "path": [

@@ -29,27 +29,32 @@ Item {
     readonly property real totalPadding: content.anchors.margins + CUtils.clamp(content.anchors.margins - Config.border.thickness, 0, content.anchors.margins)
     readonly property real nonAnimHeight: ((content.item as Item)?.nonAnimHeight ?? 0) + totalPadding
     property real offsetScale: 1
-    // Nebula motion (Wallpaper & style > Nebula > Animations > Shell): expands out of the edge like
-    // Nebula's media island, its content revealed in place, instead of sliding in
-    readonly property bool expandStyle: GlobalConfig.appearance.style.shellAnim === "nebula" || GlobalConfig.appearance.style.shellAnim === "island"
-    readonly property real openT: 1 - offsetScale
     property real sidebarLerp
 
+    // Its own width (under the sidebar: the sidebar's)
+    readonly property real normalWidth: sidebar.width * (1 - sidebar.offsetScale) * horizontalStretch * sidebarLerp + Tokens.sizes.utilities.width * (1 - sidebarLerp)
+    // Drop motion: grows out of where it was opened from (components/DropMotion.qml)
+    readonly property DropMotion drop: DropMotion {
+        panel: root
+        screenState: root.screenState
+        edge: "bottom"
+        fullAlong: root.normalWidth
+        fullDepth: root.content.implicitHeight + root.totalPadding
+        finalCenter: (root.parent?.width ?? 0) - root.normalWidth / 2
+        offsetScale: root.offsetScale
+        open: root.shouldBeActive
+    }
+    readonly property real dropRadius: drop.radius
+    readonly property alias content: content
+
     visible: offsetScale < 1
-    anchors.bottomMargin: expandStyle ? 0 : (-implicitHeight - 5) * offsetScale
-    implicitHeight: (content.implicitHeight + totalPadding) * (expandStyle ? openT : 1)
-    clip: true // (always: switching it on and off left the rounded-clip textures black)
-    // Expanding with the sidebar: one body. Attached, it widens exactly with the sidebar (whose
-    // width already grows) and doesn't grow on its own; its content keeps its final width and is
-    // revealed from the right edge, not reflowed while the panel grows.
-    readonly property real fullWidth: attached ? Tokens.sizes.sidebar.width * horizontalStretch : Tokens.sizes.utilities.width
-    // (the sidebar on screen, opening or closing: its own transition doesn't matter then)
-    // (it opens on its own now: attached only while it is actually open with the sidebar)
-    readonly property bool attached: expandStyle && shouldBeActive && sidebar.offsetScale < 1
-    implicitWidth: attached ? sidebar.width * horizontalStretch : expandStyle ? Tokens.sizes.utilities.width : sidebar.width * (1 - sidebar.offsetScale) * horizontalStretch * sidebarLerp + Tokens.sizes.utilities.width * (1 - sidebarLerp)
-    opacity: expandStyle ? 1 : 1 - offsetScale
-    // (No fade on the content: it holds rounded masks that capture it into a texture, and Qt
-    // doesn't capture anything at opacity 0, so they stayed black. Expanding reveals it in place.)
+    anchors.bottomMargin: drop.active ? 0 : (-implicitHeight - 5) * offsetScale
+    // (right-anchored: the drop's shift along the edge as a margin)
+    anchors.rightMargin: drop.active ? Math.max(0, (drop.fullAlong - drop.along) / 2 - drop.offset) : 0
+    implicitHeight: drop.active ? drop.depth : content.implicitHeight + totalPadding
+    implicitWidth: drop.active ? drop.along : normalWidth
+    clip: true // (the drop reveals the content; always on: toggling it left rounded masks black)
+    opacity: drop.active ? 1 : 1 - offsetScale
 
     states: State {
         name: "attachedToSidebar"
@@ -89,11 +94,10 @@ Item {
     Loader {
         id: content
 
-
         function ensureSource(): void {
             if (active && !source.toString())
                 setSource(Qt.resolvedUrl("Content.qml"), {
-                    implicitWidth: Qt.binding(() => (root.expandStyle ? root.fullWidth : root.implicitWidth) - root.totalPadding),
+                    implicitWidth: Qt.binding(() => (root.drop.active ? root.normalWidth : root.implicitWidth) - root.totalPadding),
                     props: root.props,
                     screenState: root.screenState,
                     popouts: root.popouts,
@@ -101,13 +105,13 @@ Item {
                 });
         }
 
-        // Where it sits: one x/y expression, never swapped anchors (swapping fixed its size at 0
-        // after a style switch: an empty dashboard and notification list)
-        // (expanding: stays put at the bottom right and is revealed; sliding: moves with the panel)
+        opacity: root.drop.contentOpacity
+        // Where it sits: one expression each (never swapped anchors); with the drop, at its final
+        // place while the droplet grows over it
         readonly property real m: Tokens.padding.large
         anchors.margins: m // (read by totalPadding)
-        x: m
-        y: m
+        x: m + (root.drop.active ? root.width + root.anchors.rightMargin - root.drop.fullAlong : 0)
+        y: m + (root.drop.active ? root.height - root.drop.fullDepth : 0)
 
         asynchronous: true
         active: root.shouldBeActive || root.visible
