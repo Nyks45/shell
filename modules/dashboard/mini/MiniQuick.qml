@@ -217,13 +217,6 @@ Item {
                                         Recorder.start(["-sr"]);
                                 }
                             }
-
-                            RoundToggle {
-                                icon: "settings"
-                                text: Tr.tr("Settings")
-                                on: false
-                                onToggled: WindowFactory.create()
-                            }
                         }
 
                         Item {
