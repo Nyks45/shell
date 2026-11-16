@@ -1812,6 +1812,20 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Pill",
+            "ctx": "",
+            "sub": "A floating pill with the launcher, open apps and tray, where you touch the left edge. Off: the classic bar",
+            "section": "Behaviour",
+            "page": 3,
+            "path": [
+                2
+            ],
+            "trail": [
+                "Taskbar"
+            ],
+            "keywords": ""
+        },
+        {
             "label": "Persistent",
             "ctx": "",
             "sub": "Keep the bar visible at all times",

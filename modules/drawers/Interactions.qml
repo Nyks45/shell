@@ -152,8 +152,12 @@ CustomMouseArea {
         }
 
         // Show bar in non-exclusive mode on hover
-        if (!screenState.bar && Config.bar.showOnHover && x < bar.clampedWidth)
+        if (!screenState.bar && Config.bar.showOnHover && x < bar.clampedWidth) {
+            // The pill comes out where the edge was touched
+            if (!bar.isHovered && bar.reveal < 0.05)
+                bar.pillCenter = y;
             bar.isHovered = true;
+        }
 
         // Show/hide bar on drag
         if (pressed && dragStart.x < bar.clampedWidth) {

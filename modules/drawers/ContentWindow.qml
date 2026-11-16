@@ -185,7 +185,9 @@ StyledWindow {
             anchors.margins: -50 // Make border thicker to smooth out bulge from closed drawers
             group: blobGroup
             radius: root.borderRounding
-            borderLeft: bar.implicitWidth - anchors.margins - root.sdfBorderOffset
+            // (with the pill bar, the frame's left edge is as thin as the others: the pill is
+            // its own shape below)
+            borderLeft: (bar.pill ? root.borderThickness : bar.implicitWidth) - anchors.margins - root.sdfBorderOffset
             borderRight: root.borderThickness - anchors.margins - root.sdfBorderOffset
             borderTop: root.borderThickness - anchors.margins - root.sdfBorderOffset
             borderBottom: root.borderThickness - anchors.margins - root.sdfBorderOffset
@@ -236,6 +238,21 @@ StyledWindow {
             implicitWidth: panels.osd.width
         }
 
+        // The bar as a pill (Config.bar.pill): an island of its own on the left edge
+        BlobRect {
+            readonly property real fullH: Math.max(0, bar.pillBottom - bar.pillTop)
+            // grows out of the edge: slides in while it lengthens from half its height
+            readonly property real grow: 0.5 + 0.5 * Math.min(1, Math.max(0, bar.reveal))
+
+            visible: bar.pill && bar.reveal > 0.002
+            group: islandGroup
+            x: bar.pillX
+            y: bar.pillTop + fullH * (1 - grow) / 2
+            implicitWidth: bar.contentWidth
+            implicitHeight: fullH * grow
+            radius: width / 2
+        }
+
         // The incoming notifications have no panel behind them: each is its own card
         // (notifications/Notification.qml); this shape stays empty, for the deform transform
         PanelBg {
@@ -259,8 +276,10 @@ StyledWindow {
             id: popoutBg
 
             // Extra width to prevent vertical movement deformation partially detaching panel from bar
-            property real extraWidth: panels.popouts.isDetached ? 0 : 0.2
+            property real extraWidth: panels.popouts.isDetached || bar.pill ? 0 : 0.2
 
+            // With the pill bar: an island of its own (glass like the top's), apart from the edge
+            group: bar.pill && !panels.popouts.isDetached ? islandGroup : blobGroup
             panel: panels.popoutsWrapper
             deformAmount: panels.popouts.isDetached ? 0.05 : panels.popouts.hasCurrent ? 0.15 : 0.1
             x: panels.popoutsWrapper.x + panels.popouts.x + bar.implicitWidth - panels.popouts.width * extraWidth

@@ -5,6 +5,7 @@ import "components/workspaces"
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Services.SystemTray
 import Caelestia.Config
 import qs.components
 import qs.services
@@ -20,6 +21,46 @@ ColumnLayout {
     readonly property int vPadding: Tokens.padding.large
     // The power button (its menu opens from it)
     property Item powerButton
+
+    // The pill (Config.bar.pill): the launcher, the open apps and the tray, centred (the bar
+    // keeps its full height, so the hover menus line up as before); its shape is drawn around
+    // just them (pillTop .. pillBottom)
+    readonly property bool pill: Config.bar.pill
+    readonly property var pillIds: ["logo", "taskbar", "tray"]
+    // Where the pill sits: centred on where the edge was touched (BarWrapper.pillCenter)
+    property real pillCenter: height / 2
+    readonly property real pillContentH: {
+        void repeater.count;
+        let h = 0, n = 0;
+        for (let i = 0; i < repeater.count; i++) {
+            const it = repeater.itemAt(i) as Item;
+            if (it && it.entryId !== "spacer" && it.visible) {
+                h += it.implicitHeight;
+                n++;
+            }
+        }
+        return h + Math.max(0, n - 1) * spacing;
+    }
+    readonly property real pillLead: Math.max(vPadding * 2, Math.min(height - pillContentH - vPadding * 2, pillCenter - pillContentH / 2)) - spacing
+
+    readonly property real pillTop: {
+        void repeater.count;
+        for (let i = 0; i < repeater.count; i++) {
+            const it = repeater.itemAt(i) as Item;
+            if (it && it.entryId !== "spacer" && it.visible)
+                return it.y - vPadding;
+        }
+        return height / 2;
+    }
+    readonly property real pillBottom: {
+        void repeater.count;
+        for (let i = repeater.count - 1; i >= 0; i--) {
+            const it = repeater.itemAt(i) as Item;
+            if (it && it.entryId !== "spacer" && it.visible)
+                return it.y + it.height + vPadding;
+        }
+        return height / 2;
+    }
 
     function closeTray(): void {
         if (!Config.bar.tray.compact)
@@ -113,7 +154,18 @@ ColumnLayout {
         id: repeater
 
         model: ScriptModel {
-            values: root.Config.bar.entries.values.filter(e => e.enabled)
+            values: {
+                const on = root.Config.bar.entries.values.filter(e => e.enabled);
+                if (!root.pill)
+                    return on;
+                const spacer = {
+                    id: "spacer",
+                    enabled: true
+                };
+                // (the tray only when something's in it: no empty space in the pill)
+                const ids = root.pillIds.filter(id => id !== "tray" || SystemTray.items.values.length > 0);
+                return [spacer, ...on.filter(e => ids.includes(e.id)), spacer];
+            }
         }
 
         DelegateChooser {
@@ -122,7 +174,9 @@ ColumnLayout {
             DelegateChoice {
                 roleValue: "spacer"
                 delegate: EntryWrapper {
-                    Layout.fillHeight: true
+                    // (the pill's first spacer sets its height on the edge)
+                    Layout.fillHeight: !(root.pill && index === 0)
+                    Layout.preferredHeight: root.pill && index === 0 ? Math.max(0, root.pillLead) : -1
                 }
             }
             DelegateChoice {

@@ -21,9 +21,20 @@ Item {
     readonly property int clampedWidth: Math.max(Config.border.minThickness, implicitWidth)
     readonly property int padding: Math.max(Tokens.padding.small, Config.border.thickness)
     readonly property int contentWidth: Tokens.sizes.bar.innerWidth + padding * 2
+    // The pill (Config.bar.pill): it floats this far from the edge, springs out like the top
+    // island, and its shape (drawn by the drawers, ContentWindow) spans pillTop .. pillBottom
+    readonly property bool pill: Config.bar.pill
+    readonly property int pillGap: pill ? Tokens.spacing.medium : 0
+    readonly property Item barItem: content.item
+    readonly property real pillX: content.x
+    readonly property real pillTop: (content.item as Bar)?.pillTop ?? height / 2
+    readonly property real pillBottom: (content.item as Bar)?.pillBottom ?? height / 2
+    readonly property real reveal: revealSpring.value
+    // Where the pill shows: the height the edge was touched at (Interactions)
+    property real pillCenter: height / 2
     // Desktop mode (hyprflow) keeps the bar, with its taskbar, always shown.
     readonly property bool persistent: Config.bar.persistent
-    readonly property int exclusiveZone: !disabled && (persistent || screenState.bar) ? contentWidth : Config.border.thickness
+    readonly property int exclusiveZone: !disabled && (persistent || screenState.bar) ? contentWidth + pillGap : Config.border.thickness
     // The power menu opens from the bar's power button (a popout, not the
     // drawer at the right edge) when the bar has one
     readonly property bool sessionAtBar: !disabled && Config.session.enabled && Config.bar.entries.values.some(e => e.enabled && e.id === "power")
@@ -90,13 +101,21 @@ Item {
         target: root.popouts
     }
 
-    clip: true
+    SpringValue {
+        id: revealSpring
+
+        stiffness: 300
+        damping: 33
+        target: root.shouldBeVisible ? 1 : 0
+    }
+
+    clip: !pill
     visible: width > Config.border.thickness
-    implicitWidth: fullscreen ? 0 : Config.border.thickness
+    implicitWidth: fullscreen ? 0 : pill ? Config.border.thickness + (contentWidth + pillGap - Config.border.thickness) * Math.max(0, reveal) : Config.border.thickness
 
     states: State {
         name: "visible"
-        when: root.shouldBeVisible
+        when: root.shouldBeVisible && !root.pill
 
         PropertyChanges {
             root.implicitWidth: root.contentWidth
@@ -132,10 +151,13 @@ Item {
         anchors.bottom: parent.bottom
         anchors.right: parent.right
 
-        active: root.shouldBeVisible
+        active: root.shouldBeVisible || (root.pill && root.reveal > 0.01)
+        // The pill's contents fade in as it comes out
+        opacity: root.pill ? Math.min(1, Math.max(0, (root.reveal - 0.3) / 0.6)) : 1
 
         sourceComponent: Bar {
             width: root.contentWidth
+            pillCenter: root.pillCenter
             screen: root.screen
             screenState: root.screenState
             popouts: root.popouts

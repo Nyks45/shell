@@ -24,6 +24,13 @@ PageBase {
         }
 
         ToggleRow {
+            text: Tr.tr("Pill")
+            subtext: Tr.tr("A floating pill with the launcher, open apps and tray, where you touch the left edge. Off: the classic bar")
+            checked: Config.bar.pill
+            onToggled: GlobalConfig.bar.pill = checked
+        }
+
+        ToggleRow {
             text: Tr.tr("Persistent")
             subtext: Tr.tr("Keep the bar visible at all times")
             checked: Config.bar.persistent

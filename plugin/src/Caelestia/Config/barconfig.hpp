@@ -108,6 +108,9 @@ class BarConfig : public settings::ObjectNode {
     CONFIG_NODE(BarConfig, settings::ObjectNode)
 
     CONFIG_PROPERTY(bool, persistent, true)
+    // A floating pill on the left edge (the launcher, the open apps, the tray), springing out
+    // like the top island; off: the classic bar along the edge
+    CONFIG_PROPERTY(bool, pill, true)
     CONFIG_PROPERTY(bool, showOnHover, true)
     CONFIG_PROPERTY(int, dragThreshold, 20)
     CONFIG_SUBOBJECT(BarScrollActions, scrollActions)

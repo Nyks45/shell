@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Caelestia.Config
 import qs.components
 import qs.modules.bar.popouts // Need to import this module so the Wrapper type is the same as others
 
@@ -12,7 +13,9 @@ Item {
     required property real borderThickness
 
     readonly property alias content: content
-    property real offsetScale: x > 0 || content.hasCurrent ? 0 : 1
+    property real offsetScale: content.isDetached || content.hasCurrent ? 0 : 1
+    // With the pill bar the popouts are islands of their own, a gap away from it
+    readonly property real gap: Config.bar.pill ? Tokens.spacing.medium : 0
 
     visible: width > 0 && height > 0
     clip: true
@@ -20,7 +23,7 @@ Item {
     implicitWidth: content.implicitWidth * (1 - offsetScale)
     implicitHeight: content.implicitHeight
 
-    x: content.isDetached ? (parent.width - content.nonAnimWidth) / 2 : 0
+    x: content.isDetached ? (parent.width - content.nonAnimWidth) / 2 : gap
     y: {
         if (content.isDetached)
             return (parent.height - content.nonAnimHeight) / 2;
