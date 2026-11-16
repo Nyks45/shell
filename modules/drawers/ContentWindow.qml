@@ -197,7 +197,10 @@ StyledWindow {
             smoothing: root.contentItem.Config.border.smoothing
         }
 
+        // The frame around the screen (its rounded corners): none with the floating pill bar,
+        // where everything is an island of its own
         BlobInvertedRect {
+            visible: !bar.pill
             anchors.fill: parent
             anchors.margins: -50 // Make border thicker to smooth out bulge from closed drawers
             group: blobGroup
