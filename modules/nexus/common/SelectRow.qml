@@ -17,6 +17,11 @@ ConnectedRect {
     property alias fallbackIcon: splitButton.fallbackIcon
     property alias menuOnTop: splitButton.menuOnTop
 
+    // Three or fewer short choices show as segmented buttons (like DankMaterialShell's
+    // settings), a check on the chosen one; longer lists keep the drop-down
+    property bool segmentedAllowed: true
+    readonly property bool segmented: segmentedAllowed && menuItems.length > 0 && menuItems.length <= 3 && Array.from(menuItems).every(i => (i.text ?? "").length <= 16)
+
     signal selected(item: MenuItem)
 
     Layout.fillWidth: true
@@ -55,9 +60,61 @@ ConnectedRect {
             }
         }
 
+        Row {
+            visible: root.segmented
+            spacing: Tokens.spacing.extraSmall
+
+            Repeater {
+                model: root.segmented ? Array.from(root.menuItems) : []
+
+                StyledRect {
+                    id: seg
+
+                    required property var modelData
+                    readonly property bool chosen: root.active === modelData
+
+                    implicitWidth: segRow.implicitWidth + Tokens.padding.medium * 2
+                    implicitHeight: segRow.implicitHeight + Tokens.padding.small * 2
+                    radius: height / 2
+                    color: chosen ? Colours.palette.m3primary : Colours.layer(Colours.palette.m3surfaceContainerHighest, 2)
+
+                    StateLayer {
+                        color: seg.chosen ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface
+                        onClicked: {
+                            if (!seg.chosen)
+                                root.selected(seg.modelData);
+                        }
+                    }
+
+                    Row {
+                        id: segRow
+
+                        anchors.centerIn: parent
+                        spacing: Tokens.spacing.extraSmall
+
+                        MaterialIcon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: seg.chosen
+                            text: "check"
+                            color: Colours.palette.m3onPrimary
+                            fontStyle: Tokens.font.icon.small
+                        }
+
+                        StyledText {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: seg.modelData.text ?? ""
+                            color: seg.chosen ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
+                            font: Tokens.font.label.medium
+                        }
+                    }
+                }
+            }
+        }
+
         SplitButton {
             id: splitButton
 
+            visible: !root.segmented
             type: SplitButton.Tonal
             stateLayer.onClicked: splitButton.expanded = !splitButton.expanded
             menu.onItemSelected: item => root.selected(item)

@@ -3,17 +3,104 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Caelestia.Config
+import Caelestia.I18n
 import qs.components
 import qs.components.containers
 import qs.services
 import qs.modules.nexus
 
+// The pages, as a tree like DankMaterialShell's settings: groups (an icon, a name and a
+// chevron; a click folds it) with their pages under them; the page shown is a filled pill.
 VerticalFadeFlickable {
     id: root
 
     required property NexusState nState
 
-    topMargin: Tokens.padding.large
+    // Categories folded away (by key), for as long as the window is open
+    property var folded: ({})
+
+    // The order, like DankMaterialShell's: the look first, then the shell's panels, work,
+    // hardware, connections, and the system last. A page left out lands in "More".
+    readonly property var groups: {
+        const spec = [
+            {
+                key: "look",
+                label: Tr.tr("Personalise"),
+                icon: "palette",
+                ids: ["wallpaper", "themes", "windows", "time"]
+            },
+            {
+                key: "shell",
+                label: Tr.tr("Panels & notifications"),
+                icon: "dashboard",
+                ids: ["panels", "notifications"]
+            },
+            {
+                key: "work",
+                label: Tr.tr("Workspaces & apps"),
+                icon: "apps",
+                ids: ["workspaces", "apps", "gaming"]
+            },
+            {
+                key: "hardware",
+                label: Tr.tr("Display & sound"),
+                icon: "monitor",
+                ids: ["display", "audio"]
+            },
+            {
+                key: "connect",
+                label: Tr.tr("Network & devices"),
+                icon: "wifi",
+                ids: ["network", "devices"]
+            },
+            {
+                key: "system",
+                label: Tr.tr("System"),
+                icon: "computer",
+                ids: ["power", "storage", "account", "privacy", "accessibility", "system", "about"]
+            }
+        ];
+        const used = new Set();
+        const out = spec.map(g => {
+            const pages = [];
+            for (const id of g.ids) {
+                const i = PageRegistry.find(id);
+                if (i >= 0) {
+                    used.add(i);
+                    pages.push({
+                        index: i,
+                        page: PageRegistry.pages[i]
+                    });
+                }
+            }
+            return Object.assign({}, g, {
+                pages: pages
+            });
+        });
+        const rest = PageRegistry.pages.map((p, i) => ({
+                    index: i,
+                    page: p
+                })).filter(e => !used.has(e.index));
+        if (rest.length)
+            out.push({
+                key: "more",
+                label: Tr.tr("More"),
+                icon: "more_horiz",
+                pages: rest
+            });
+        return out.filter(g => g.pages.length > 0);
+    }
+
+    function toggle(key: string): void {
+        const next = Object.assign({}, folded);
+        if (next[key])
+            delete next[key];
+        else
+            next[key] = true;
+        folded = next;
+    }
+
+    topMargin: Tokens.padding.small
     bottomMargin: Tokens.padding.large
     contentHeight: content.implicitHeight
 
@@ -27,109 +114,138 @@ VerticalFadeFlickable {
 
         anchors.left: parent.left
         anchors.right: parent.right
-        spacing: Tokens.spacing.extraSmall
+        spacing: Tokens.spacing.extraSmall / 2
 
         Repeater {
-            id: list
+            model: root.groups
 
-            model: PageRegistry.pages
-
-            StyledRect {
-                id: item
+            ColumnLayout {
+                id: group
 
                 required property var modelData
                 required property int index
-
-                readonly property bool isCurrentPage: index === root.nState.currentPageIdx
-                readonly property bool isCategoryStart: index === 0 || PageRegistry.pages[index - 1].category !== modelData.category
-                readonly property bool isCategoryEnd: index === list.model.length - 1 || PageRegistry.pages[index + 1].category !== modelData.category
+                readonly property bool open: !root.folded[modelData.key]
+                readonly property bool hasCurrent: modelData.pages.some(p => p.index === root.nState.currentPageIdx)
 
                 Layout.fillWidth: true
-                Layout.topMargin: index !== 0 && isCategoryStart ? Tokens.spacing.medium : 0
-                implicitHeight: {
-                    const h = layout.implicitHeight + layout.anchors.margins * 2;
-                    return h % 2 === 0 ? h : h + 1;
-                }
+                Layout.topMargin: index === 0 ? 0 : Tokens.spacing.small
+                spacing: Tokens.spacing.extraSmall / 2
 
-                color: isCurrentPage ? Colours.palette.m3secondaryContainer : Colours.layer(Colours.palette.m3surfaceContainerHigh, 2)
+                // The category
+                StyledRect {
+                    Layout.fillWidth: true
+                    implicitHeight: headRow.implicitHeight + Tokens.padding.small * 2
+                    radius: Tokens.rounding.full
+                    color: "transparent"
 
-                topLeftRadius: stateLayer.pressed ? Tokens.rounding.medium : isCurrentPage ? Tokens.rounding.extraLargeIncreased : isCategoryStart ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
-                topRightRadius: stateLayer.pressed ? Tokens.rounding.medium : isCurrentPage ? Tokens.rounding.extraLargeIncreased : isCategoryStart ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
-                bottomLeftRadius: stateLayer.pressed ? Tokens.rounding.medium : isCurrentPage ? Tokens.rounding.extraLargeIncreased : isCategoryEnd ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
-                bottomRightRadius: stateLayer.pressed ? Tokens.rounding.medium : isCurrentPage ? Tokens.rounding.extraLargeIncreased : isCategoryEnd ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
+                    StateLayer {
+                        onClicked: root.toggle(group.modelData.key)
+                    }
 
-                RadiusBehavior on topLeftRadius {}
-                RadiusBehavior on topRightRadius {}
-                RadiusBehavior on bottomLeftRadius {}
-                RadiusBehavior on bottomRightRadius {}
+                    RowLayout {
+                        id: headRow
 
-                StateLayer {
-                    id: stateLayer
-
-                    anchors.fill: parent
-                    topLeftRadius: parent.topLeftRadius
-                    topRightRadius: parent.topRightRadius
-                    bottomLeftRadius: parent.bottomLeftRadius
-                    bottomRightRadius: parent.bottomRightRadius
-
-                    onClicked: root.nState.currentPageIdx = item.index
-                }
-
-                RowLayout {
-                    id: layout
-
-                    anchors.fill: parent
-                    anchors.margins: Tokens.padding.large
-                    spacing: Tokens.spacing.medium
-
-                    StyledRect {
-                        Layout.fillHeight: true
-                        Layout.topMargin: -1
-                        Layout.bottomMargin: -1
-                        implicitWidth: height
-
-                        radius: Tokens.rounding.full
-                        color: item.isCurrentPage ? Colours.palette.m3primary : Colours.palette.m3secondaryContainer
+                        anchors.fill: parent
+                        anchors.leftMargin: Tokens.padding.medium
+                        anchors.rightMargin: Tokens.padding.medium
+                        spacing: Tokens.spacing.medium
 
                         MaterialIcon {
-                            anchors.centerIn: parent
-                            anchors.verticalCenterOffset: 1
-
-                            text: item.modelData.icon
-                            color: item.isCurrentPage ? Colours.palette.m3onPrimary : Colours.palette.m3onSecondaryContainer
-                            fontStyle: Tokens.font.icon.builders.medium.weight(Font.Medium).build()
-                            grade: 25
-                            fill: item.modelData.noFill ? 0 : 1
+                            text: group.modelData.icon
+                            color: group.hasCurrent ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
+                            fontStyle: Tokens.font.icon.small
                         }
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: group.modelData.label
+                            color: group.hasCurrent ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
+                            font: Tokens.font.label.large
+                            elide: Text.ElideRight
+                        }
+
+                        MaterialIcon {
+                            text: "expand_less"
+                            rotation: group.open ? 0 : 180
+                            color: Colours.palette.m3onSurfaceVariant
+                            fontStyle: Tokens.font.icon.small
+
+                            Behavior on rotation {
+                                Anim {}
+                            }
+                        }
+                    }
+                }
+
+                // Its pages (folding away)
+                Item {
+                    Layout.fillWidth: true
+                    implicitHeight: group.open ? pageList.implicitHeight : 0
+                    clip: true
+
+                    Behavior on implicitHeight {
+                        Anim {}
                     }
 
                     ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 0
+                        id: pageList
 
-                        StyledText {
-                            Layout.fillWidth: true
-                            text: item.modelData.label
-                            font: Tokens.font.body.medium
-                            elide: Text.ElideRight
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        spacing: Tokens.spacing.extraSmall / 2
+                        opacity: group.open ? 1 : 0
+
+                        Behavior on opacity {
+                            Anim {}
                         }
 
-                        StyledText {
-                            Layout.fillWidth: true
-                            text: item.modelData.description
-                            color: Colours.palette.m3onSurfaceVariant
-                            font: Tokens.font.label.small
-                            elide: Text.ElideRight
+                        Repeater {
+                            model: group.modelData.pages
+
+                            StyledRect {
+                                id: item
+
+                                required property var modelData
+                                readonly property bool current: modelData.index === root.nState.currentPageIdx
+
+                                Layout.fillWidth: true
+                                implicitHeight: itemRow.implicitHeight + Tokens.padding.small * 2
+                                radius: Tokens.rounding.full
+                                color: current ? Colours.palette.m3primary : "transparent"
+
+                                StateLayer {
+                                    color: item.current ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface
+                                    onClicked: root.nState.currentPageIdx = item.modelData.index
+                                }
+
+                                RowLayout {
+                                    id: itemRow
+
+                                    anchors.fill: parent
+                                    anchors.leftMargin: Tokens.padding.largeIncreased + Tokens.padding.small
+                                    anchors.rightMargin: Tokens.padding.medium
+                                    spacing: Tokens.spacing.medium
+
+                                    MaterialIcon {
+                                        text: item.modelData.page.icon
+                                        color: item.current ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
+                                        fontStyle: Tokens.font.icon.small
+                                        fill: item.current ? 1 : 0
+                                    }
+
+                                    StyledText {
+                                        Layout.fillWidth: true
+                                        text: item.modelData.page.label
+                                        color: item.current ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface
+                                        font: Tokens.font.body.small
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
-    }
-
-    component RadiusBehavior: Behavior {
-        Anim {
-            type: Anim.DefaultEffects
         }
     }
 }

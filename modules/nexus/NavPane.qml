@@ -6,6 +6,7 @@ import Caelestia.I18n
 import qs.components
 import qs.components.controls
 import qs.services
+import qs.utils
 import qs.modules.nexus
 
 ColumnLayout {
@@ -13,7 +14,92 @@ ColumnLayout {
 
     required property NexusState nState
 
-    spacing: Tokens.spacing.large
+    spacing: Tokens.spacing.medium
+
+    // The window's title, like DankMaterialShell's settings
+    RowLayout {
+        Layout.fillWidth: true
+        Layout.leftMargin: Tokens.padding.small
+        spacing: Tokens.spacing.small
+
+        MaterialIcon {
+            text: "settings"
+            color: Colours.palette.m3primary
+            fontStyle: Tokens.font.icon.medium
+        }
+
+        StyledText {
+            Layout.fillWidth: true
+            text: Tr.tr("Settings")
+            font: Tokens.font.title.medium
+        }
+    }
+
+    // Who's signed in: a click opens the account page
+    StyledRect {
+        Layout.fillWidth: true
+        implicitHeight: profileRow.implicitHeight + Tokens.padding.medium * 2
+        radius: Tokens.rounding.extraLarge
+        color: Colours.tPalette.m3surfaceContainer
+
+        StateLayer {
+            onClicked: root.nState.currentPageIdx = PageRegistry.find("account")
+        }
+
+        RowLayout {
+            id: profileRow
+
+            anchors.fill: parent
+            anchors.margins: Tokens.padding.medium
+            spacing: Tokens.spacing.medium
+
+            ClipRect {
+                implicitWidth: 44
+                implicitHeight: 44
+                radius: 22
+                color: Colours.palette.m3secondaryContainer
+
+                MaterialIcon {
+                    anchors.centerIn: parent
+                    visible: face.status !== Image.Ready
+                    text: "person"
+                    color: Colours.palette.m3onSecondaryContainer
+                    fontStyle: Tokens.font.icon.medium
+                }
+
+                Image {
+                    id: face
+
+                    anchors.fill: parent
+                    source: Paths.faceSource ? `file://${Paths.faceSource}` : ""
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    cache: false
+                    sourceSize.width: 88
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 0
+
+                StyledText {
+                    Layout.fillWidth: true
+                    text: SysInfo.user
+                    font: Tokens.font.body.medium
+                    elide: Text.ElideRight
+                }
+
+                StyledText {
+                    Layout.fillWidth: true
+                    text: SysInfo.hostname
+                    color: Colours.palette.m3onSurfaceVariant
+                    font: Tokens.font.label.small
+                    elide: Text.ElideRight
+                }
+            }
+        }
+    }
 
     SearchBar {
         id: searchField
@@ -22,7 +108,7 @@ ColumnLayout {
         Layout.fillWidth: true
 
         placeholderText: Tr.tr("Search settings")
-        font: Tokens.font.body.large
+        font: Tokens.font.body.medium
 
         bg.color: Colours.tPalette.m3surfaceContainerLowest
         bg.border.color: Colours.palette.m3outlineVariant
