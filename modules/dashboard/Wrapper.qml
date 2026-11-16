@@ -22,6 +22,9 @@ Item {
 
     readonly property real fullWidth: content.implicitWidth || 854 // Hard coded fallback for first open
     readonly property real fullHeight: content.implicitHeight
+    // Where hovering the top edge opens it (and keeps it open): its full width, centred, even
+    // while its shape is small or closed (drawers/Interactions.qml)
+    readonly property real hoverWidth: fullWidth
     // The pill it grows from
     readonly property real pillWidth: Math.min(fullWidth, 240)
 

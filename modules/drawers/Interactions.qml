@@ -44,6 +44,14 @@ CustomMouseArea {
     }
 
     function inTopPanel(panel: Item, x: real, y: real): bool {
+        // A panel can give its own hover strip (the dashboard: its full width, centred, while
+        // its shape is small or closed), else its shape's
+        const hoverWidth = panel.hoverWidth; // qmllint disable missing-property
+        if (hoverWidth !== undefined) {
+            const centre = bar.implicitWidth + panel.x + panel.width / 2;
+            const inWidth = Math.abs(x - centre) <= hoverWidth / 2 + Config.border.rounding;
+            return inWidth && y < Math.max(Config.border.minThickness, Config.border.thickness + panel.height);
+        }
         const panelHeight = panel.height * (1 - (panel.offsetScale ?? 0)); // qmllint disable missing-property
         return y < Math.max(Config.border.minThickness, Config.border.thickness + panelHeight) && withinPanelWidth(panel, x, y);
     }
@@ -251,7 +259,7 @@ CustomMouseArea {
         }
 
         // Show/hide dashboard on drag (for touchscreen devices)
-        if (pressed && inTopPanel(panels.dashboard, dragStart.x, dragStart.y) && withinPanelWidth(panels.dashboard, x, y)) {
+        if (pressed && inTopPanel(panels.dashboard, dragStart.x, dragStart.y) && Math.abs(x - (bar.implicitWidth + panels.dashboard.x + panels.dashboard.width / 2)) <= panels.dashboard.hoverWidth / 2 + Config.border.rounding) {
             if (dragY > Config.dashboard.dragThreshold)
                 screenState.dashboard = true;
             else if (dragY < -Config.dashboard.dragThreshold)
