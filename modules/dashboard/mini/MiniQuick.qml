@@ -310,100 +310,129 @@ Item {
                                 }
                             }
 
-                            // The volume: a thick slider with its icon and the output's name inside
-                            // (a click on the icon mutes; the arrow opens the outputs)
-                            Item {
+                            // The volume: the speaker icon (a click mutes), a smooth bar with a knob
+                            // (drag or wheel), and the arrow to the outputs. No text.
+                            RowLayout {
                                 id: vol
 
                                 readonly property real level: Audio.muted ? 0 : Math.max(0, Math.min(1, Audio.volume))
 
                                 Layout.fillWidth: true
-                                implicitHeight: 38
+                                spacing: Tokens.spacing.small
 
                                 StyledRect {
-                                    anchors.fill: parent
-                                    radius: height / 2
-                                    color: Colours.tPalette.m3surfaceContainerHigh
-                                }
+                                    implicitWidth: 38
+                                    implicitHeight: 38
+                                    radius: 19
+                                    color: Audio.muted ? Colours.tPalette.m3surfaceContainerHigh : Colours.palette.m3primaryContainer
 
-                                StyledRect {
-                                    width: Math.max(height, (parent.width - volMore.width) * vol.level)
-                                    height: parent.height
-                                    radius: height / 2
-                                    color: Colours.palette.m3primary
-
-                                    Behavior on width {
-                                        enabled: !volArea.pressed
-
-                                        Anim {}
-                                    }
-                                }
-
-                                MouseArea {
-                                    id: volArea
-
-                                    function set(x: real): void {
-                                        Audio.setVolume(Math.max(0, Math.min(1, x / width)));
+                                    Behavior on color {
+                                        CAnim {}
                                     }
 
-                                    anchors.fill: parent
-                                    anchors.rightMargin: volMore.width
-                                    cursorShape: Qt.PointingHandCursor
-                                    onPressed: event => {
-                                        if (event.x < height) {
+                                    StateLayer {
+                                        radius: 19
+                                        onClicked: {
                                             const audio = Audio.sink?.audio;
                                             if (audio)
                                                 audio.muted = !audio.muted;
-                                        } else {
-                                            set(event.x);
                                         }
                                     }
-                                    onPositionChanged: event => {
-                                        if (pressed && event.x >= height)
-                                            set(event.x);
+
+                                    MaterialIcon {
+                                        anchors.centerIn: parent
+                                        text: Audio.muted ? "volume_off" : vol.level < 0.34 ? "volume_mute" : vol.level < 0.67 ? "volume_down" : "volume_up"
+                                        color: Audio.muted ? Colours.palette.m3onSurfaceVariant : Colours.palette.m3onPrimaryContainer
+                                        fontStyle: Tokens.font.icon.small
+                                        fill: 1
                                     }
-                                    onWheel: event => Audio.setVolume(Math.max(0, Math.min(1, Audio.volume + (event.angleDelta.y > 0 ? 0.05 : -0.05))))
                                 }
 
-                                MaterialIcon {
-                                    anchors.left: parent.left
-                                    anchors.leftMargin: (parent.height - width) / 2
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: Audio.muted ? "volume_off" : vol.level < 0.34 ? "volume_mute" : vol.level < 0.67 ? "volume_down" : "volume_up"
-                                    color: Colours.palette.m3onPrimary
-                                    fontStyle: Tokens.font.icon.small
-                                }
+                                Item {
+                                    id: track
 
-                                StyledText {
-                                    anchors.left: parent.left
-                                    anchors.leftMargin: parent.height + Tokens.spacing.small
-                                    anchors.right: volPct.left
-                                    anchors.rightMargin: Tokens.spacing.small
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: Audio.sink?.description || Audio.sink?.nickname || Tr.tr("Volume")
-                                    color: vol.level > 0.3 ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
-                                    font: Tokens.font.label.medium
-                                    elide: Text.ElideRight
-                                }
+                                    Layout.fillWidth: true
+                                    implicitHeight: 38
 
-                                StyledText {
-                                    id: volPct
+                                    // The groove
+                                    StyledRect {
+                                        anchors.left: parent.left
+                                        anchors.right: parent.right
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        height: 12
+                                        radius: 6
+                                        color: Colours.tPalette.m3surfaceContainerHigh
+                                    }
 
-                                    anchors.right: volMore.left
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: Audio.muted ? Tr.tr("Muted") : `${Math.round(Audio.volume * 100)}%`
-                                    color: Colours.palette.m3onSurfaceVariant
-                                    font: Tokens.font.label.medium
+                                    // The fill, a soft gradient
+                                    Rectangle {
+                                        anchors.left: parent.left
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: Math.max(height, knob.x + knob.width / 2)
+                                        height: 12
+                                        radius: 6
+                                        opacity: Audio.muted ? 0.35 : 1
+                                        gradient: Gradient {
+                                            orientation: Gradient.Horizontal
+
+                                            GradientStop {
+                                                position: 0
+                                                color: Colours.palette.m3primary
+                                            }
+                                            GradientStop {
+                                                position: 1
+                                                color: Colours.palette.m3tertiary
+                                            }
+                                        }
+                                    }
+
+                                    // The knob: grows while held
+                                    StyledRect {
+                                        id: knob
+
+                                        x: (track.width - width) * vol.level
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: volArea.pressed ? 26 : volArea.containsMouse ? 22 : 18
+                                        height: width
+                                        radius: width / 2
+                                        color: Colours.palette.m3onSurface
+                                        border.width: 3
+                                        border.color: Colours.palette.m3primary
+
+                                        Behavior on x {
+                                            enabled: !volArea.pressed
+
+                                            Anim {}
+                                        }
+
+                                        Behavior on width {
+                                            Anim {}
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        id: volArea
+
+                                        function set(x: real): void {
+                                            Audio.setVolume(Math.max(0, Math.min(1, x / width)));
+                                        }
+
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onPressed: event => set(event.x)
+                                        onPositionChanged: event => {
+                                            if (pressed)
+                                                set(event.x);
+                                        }
+                                        onWheel: event => Audio.setVolume(Math.max(0, Math.min(1, Audio.volume + (event.angleDelta.y > 0 ? 0.05 : -0.05))))
+                                    }
                                 }
 
                                 IconButton {
-                                    id: volMore
-
-                                    anchors.right: parent.right
-                                    anchors.verticalCenter: parent.verticalCenter
                                     type: IconButton.Text
                                     icon: "chevron_right"
-                                    onClicked: detail.open("audio", vol)
+                                    onClicked: detail.open("audio", track)
                                 }
                             }
                         }
@@ -462,11 +491,14 @@ Item {
                             target: root
                         }
 
-                        // Glass like the tiles it grows from (the tiles fade out under it)
+                        // See-through: the island's own blurred glass shows, with a soft rim (the
+                        // tiles fade out under it)
                         StyledRect {
                             anchors.fill: parent
                             radius: Tokens.rounding.large + (Tokens.rounding.extraLarge - Tokens.rounding.large) * detail.t
-                            color: Colours.tPalette.m3surfaceContainerHigh
+                            color: Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.25)
+                            border.width: 1
+                            border.color: Qt.alpha(Colours.palette.m3outlineVariant, 0.35)
                         }
 
                         QuickDetail {
