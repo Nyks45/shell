@@ -25,7 +25,7 @@ Region {
     // The dashboard island: from the edge down through its gap to its shape; its full size while
     // it opens (the pointer can run ahead of it)
     R {
-        readonly property real w: root.panels.dashboard.shouldBeActive ? Math.max(panel.width, panel.hoverWidth) : panel.width
+        readonly property real w: panel.width > 0 ? Math.max(panel.width, panel.hoverWidth) : 0
 
         panel: root.panels.dashboard
         x: root.bar.implicitWidth + panel.x + panel.width / 2 - w / 2

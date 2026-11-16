@@ -6,8 +6,9 @@ import qs.components
 import qs.services
 
 // The dashboard as a hiding island: touching the top edge brings out a small pill with the time
-// and a button per page; a button opens that page alone; resting the pointer on the pill (1.5 s),
-// clicking the time or the shortcut opens the overview page alone (there are no tabs). Moving away shrinks it
+// and date and a button per page; a button opens that page alone; resting the pointer on the pill
+// (1.5 s) or the shortcut opens the overview page alone (there are no tabs); clicking the time
+// and date opens the quick settings and notifications page. Moving away shrinks it
 // back into the edge. The shortcut opens the dashboard at once. It grows like Nebula's media island: the shape eases
 // out over about half a second, revealing the page at full size, which fades in near the end.
 Item {
@@ -17,7 +18,8 @@ Item {
 
     // Set by the drawers (drawers/Interactions.qml): the pointer is at the top edge / on the pill
     property bool peeking
-    property bool pointerOnPill
+    // The pointer is on the pill itself (its buttons included)
+    readonly property bool pointerOnPill: pillHover.hovered && morph < 0.05
 
     readonly property real nonAnimHeight: (content.item as Item)?.nonAnimHeight ?? 0
     readonly property bool dashEnabled: Config.dashboard.enabled
@@ -69,9 +71,14 @@ Item {
             key: "wallpapers",
             icon: "wallpaper",
             on: Config.dashboard.showWallpapers
+        },
+        {
+            key: "quick",
+            icon: "tune",
+            on: true
         }
     ].filter(p => p.on)
-    readonly property var pillButtons: pages.filter(p => p.key !== "dashboard")
+    readonly property var pillButtons: pages.filter(p => p.key !== "dashboard" && p.key !== "quick")
 
     // One page alone, at once
     function openPage(key: string): void {
@@ -97,6 +104,11 @@ Item {
         }
     }
 
+    // A click on the pill: the quick settings and notifications page
+    function openNotifications(): void {
+        openPage("quick");
+    }
+
     // Closed: the next opening picks its page again
     onMorphChanged: {
         if (morph < 0.002 && !shouldBeActive && screenState.dashboardSolo)
@@ -111,6 +123,10 @@ Item {
 
     // The opening: like Nebula's media island, about half a second, slowing to a stop with no
     // bounce (a spring just past critical, so turning around mid-way stays smooth)
+    HoverHandler {
+        id: pillHover
+    }
+
     SpringValue {
         id: spring
 
@@ -148,21 +164,39 @@ Item {
             PillButton {}
         }
 
-        StyledText {
+        // The time and date: a click opens the notifications and quick settings
+        StyledRect {
             id: clock
 
             anchors.verticalCenter: parent.verticalCenter
-            leftPadding: Tokens.padding.small
-            rightPadding: Tokens.padding.small
-            text: Time.timeStr.replace(/:(AM|PM)$/i, " $1")
-            font: Tokens.font.title.medium
-            color: Colours.palette.m3onSurface
+            implicitWidth: clockRow.implicitWidth + Tokens.padding.medium * 2
+            implicitHeight: clockRow.implicitHeight + Tokens.padding.extraSmall
+            radius: height / 2
+            color: "transparent"
 
-            // The time opens the whole dashboard
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.openAll()
+            StateLayer {
+                onClicked: root.openNotifications()
+            }
+
+            Column {
+                id: clockRow
+
+                anchors.centerIn: parent
+                spacing: -2
+
+                StyledText {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: Time.timeStr.replace(/:(AM|PM)$/i, " $1")
+                    font: Tokens.font.title.medium
+                    color: Colours.palette.m3onSurface
+                }
+
+                StyledText {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: Time.format("ddd d MMM")
+                    font: Tokens.font.label.small
+                    color: Colours.palette.m3onSurfaceVariant
+                }
             }
         }
 

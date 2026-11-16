@@ -11,7 +11,7 @@ import qs.components.controls
 import qs.services
 import qs.modules.nexus
 
-// Dashboard > Wallpapers: pick a live wallpaper (your Wallpaper Engine library, most recently
+// Dashboard > Wallpapers (the island's page size, one row): pick a live wallpaper (your Wallpaper Engine library, most recently
 // used first; shown first) or a picture (the wallpaper folder). A click applies it; Random picks one of
 // the kind shown; the settings button opens Wallpaper & style for everything else.
 Item {
@@ -29,13 +29,13 @@ Item {
     }
     readonly property bool liveOn: !!LiveWallpaper.currentInfo
 
-    implicitWidth: 620
-    implicitHeight: 380
+    implicitWidth: Tokens.sizes.dashboard.islandWidth
+    implicitHeight: Tokens.sizes.dashboard.islandHeight
 
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: Tokens.padding.medium
-        spacing: Tokens.spacing.medium
+        spacing: Tokens.spacing.small
 
         RowLayout {
             Layout.fillWidth: true
@@ -85,13 +85,21 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            cellWidth: Math.floor(width / 3)
-            cellHeight: Math.floor(cellWidth * 9 / 16) + 30
+            // Two rows, scrolling sideways (the island's page size); the wheel scrolls it too
+            flow: GridView.FlowTopToBottom
+            cellHeight: Math.floor(height / 2)
+            cellWidth: Math.floor((cellHeight - 24) * 16 / 9) + 8
             boundsBehavior: Flickable.StopAtBounds
             model: root.kind === "live" ? root.lives : root.pictures
 
-            StyledScrollBar.vertical: StyledScrollBar {
-                flickable: grid
+            // The wheel scrolls it sideways
+            WheelHandler {
+                target: null
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                onWheel: event => {
+                    const d = event.angleDelta.x || event.angleDelta.y;
+                    grid.contentX = Math.max(grid.originX, Math.min(grid.originX + grid.contentWidth - grid.width, grid.contentX - d));
+                }
             }
 
             delegate: Item {

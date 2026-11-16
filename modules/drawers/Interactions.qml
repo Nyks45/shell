@@ -92,7 +92,6 @@ CustomMouseArea {
             if (!dashboardShortcutActive)
                 screenState.dashboard = false;
             panels.dashboard.peeking = false;
-            panels.dashboard.pointerOnPill = false;
 
             if (!utilitiesShortcutActive)
                 screenState.utilities = false;
@@ -120,7 +119,6 @@ CustomMouseArea {
             if (!root.dashboardShortcutActive)
                 root.screenState.dashboard = false;
             root.panels.dashboard.peeking = false;
-            root.panels.dashboard.pointerOnPill = false;
             if (!root.osdShortcutActive) {
                 root.screenState.osd = false;
                 root.panels.osd.hovered = false;
@@ -262,7 +260,6 @@ CustomMouseArea {
         // pill opens it (dashboard/Wrapper.qml); leaving the area hides both
         const showDashboard = Config.dashboard.showOnHover && inTopPanel(panels.dashboard, x, y);
         panels.dashboard.peeking = showDashboard;
-        panels.dashboard.pointerOnPill = showDashboard && onDashboardPill(x, y);
 
         if (!dashboardShortcutActive) {
             if (!showDashboard)

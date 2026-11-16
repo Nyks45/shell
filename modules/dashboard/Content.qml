@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 
+import "mini"
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
@@ -59,6 +60,13 @@ Item {
                 iconName: "wallpaper",
                 text: Tr.tr("Wallpapers"),
                 enabled: Config.dashboard.showWallpapers
+            },
+            {
+                // The island's pill, clicked: quick settings and notifications
+                component: quickComponent,
+                iconName: "tune",
+                text: Tr.tr("Quick settings"),
+                enabled: true
             }
         ];
         return allTabs.filter(tab => tab.enabled);
@@ -188,30 +196,31 @@ Item {
             Component {
                 id: dashComponent
 
-                Dash {
-                    screenState: root.screenState
-                    facePicker: root.facePicker
-                }
+                MiniOverview {}
             }
 
             Component {
                 id: mediaComponent
 
-                Media {
-                    screenState: root.screenState
-                }
+                MiniMedia {}
             }
 
             Component {
                 id: performanceComponent
 
-                Performance {}
+                MiniPerformance {}
             }
 
             Component {
                 id: weatherComponent
 
-                WeatherTab {}
+                MiniWeather {}
+            }
+
+            Component {
+                id: quickComponent
+
+                MiniQuick {}
             }
 
             Component {
