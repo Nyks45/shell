@@ -10,6 +10,7 @@ import Caelestia.State
 import qs.components
 import qs.components.controls
 import qs.services
+import qs.modules.nexus
 
 // The island's page from a click on its pill: quick settings and notifications, side by side
 // as two panes switched left and right (the header, the wheel or a swipe)
@@ -85,28 +86,37 @@ Item {
                     Anim {}
                 }
 
-                // Quick settings
+                // Quick settings: the network and Bluetooth as wide tiles, the other switches as
+                // round buttons, the volume as a thick slider
                 ColumnLayout {
                     width: parent.parent.width
                     height: parent.height
                     spacing: Tokens.spacing.small
 
-                    GridLayout {
+                    RowLayout {
                         Layout.fillWidth: true
-                        columns: 3
-                        rowSpacing: Tokens.spacing.extraSmall
-                        columnSpacing: Tokens.spacing.extraSmall
+                        spacing: Tokens.spacing.small
 
-                        Tile {
-                            icon: "wifi"
-                            text: Tr.tr("Wi-Fi")
-                            on: Nmcli.wifiEnabled
-                            onToggled: Nmcli.toggleWifi()
+                        // The network: Wi-Fi, or the cable when that's what's connected
+                        WideTile {
+                            readonly property bool wired: !!Nmcli.activeEthernet && !Nmcli.active
+
+                            icon: wired ? "lan" : Nmcli.wifiEnabled ? "wifi" : "wifi_off"
+                            text: wired ? Tr.tr("Ethernet") : Tr.tr("Wi-Fi")
+                            sub: wired ? (Nmcli.activeEthernet.connection || Tr.tr("Connected")) : Nmcli.active?.ssid || (Nmcli.wifiEnabled ? Tr.tr("Not connected") : Tr.tr("Off"))
+                            on: wired || Nmcli.wifiEnabled
+                            onToggled: {
+                                if (!wired)
+                                    Nmcli.toggleWifi();
+                            }
                         }
 
-                        Tile {
-                            icon: "bluetooth"
+                        WideTile {
+                            readonly property var connected: Bluetooth.devices.values.filter(d => d.connected)
+
+                            icon: (Bluetooth.defaultAdapter?.enabled ?? false) ? "bluetooth" : "bluetooth_disabled"
                             text: Tr.tr("Bluetooth")
+                            sub: !(Bluetooth.defaultAdapter?.enabled ?? false) ? Tr.tr("Off") : connected.length === 1 ? (connected[0].name || connected[0].deviceName) : connected.length > 1 ? Tr.tr("%1 devices").arg(connected.length) : Tr.tr("On")
                             on: Bluetooth.defaultAdapter?.enabled ?? false
                             onToggled: {
                                 const a = Bluetooth.defaultAdapter;
@@ -114,10 +124,15 @@ Item {
                                     a.enabled = !a.enabled;
                             }
                         }
+                    }
 
-                        Tile {
-                            icon: "mic"
-                            text: Tr.tr("Microphone")
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+
+                        RoundToggle {
+                            icon: Audio.sourceMuted ? "mic_off" : "mic"
+                            text: Tr.tr("Mic")
                             on: !Audio.sourceMuted
                             onToggled: {
                                 const audio = Audio.source?.audio;
@@ -126,67 +141,131 @@ Item {
                             }
                         }
 
-                        Tile {
+                        RoundToggle {
                             icon: "notifications_off"
                             text: Tr.tr("Silent")
                             on: PersistentState.doNotDisturb
                             onToggled: PersistentState.doNotDisturb = !PersistentState.doNotDisturb
                         }
 
-                        Tile {
-                            icon: "gamepad"
-                            text: Tr.tr("Game mode")
+                        RoundToggle {
+                            icon: "sports_esports"
+                            text: Tr.tr("Game")
                             on: RuntimeState.gameMode
                             onToggled: RuntimeState.gameMode = !RuntimeState.gameMode
                         }
 
-                        Tile {
+                        RoundToggle {
                             icon: "vpn_key"
                             text: Tr.tr("VPN")
                             on: VPN.connected
                             onToggled: VPN.toggle()
                         }
+
+                        RoundToggle {
+                            icon: "smart_display"
+                            text: Tr.tr("Wallpaper")
+                            on: PersistentState.wallpaperPlaying
+                            onToggled: PersistentState.wallpaperPlaying = !PersistentState.wallpaperPlaying
+                        }
+
+                        RoundToggle {
+                            icon: "coffee"
+                            text: Tr.tr("Awake")
+                            on: RuntimeState.inhibitIdle
+                            onToggled: RuntimeState.inhibitIdle = !RuntimeState.inhibitIdle
+                        }
+
+                        // The screen recorder: a click records the screen (with sound), a right
+                        // click a region; while recording, a click stops it
+                        RoundToggle {
+                            icon: Recorder.running ? "stop_circle" : "screen_record"
+                            text: Recorder.running ? Tr.tr("Stop") : Tr.tr("Record")
+                            on: Recorder.running
+                            onToggled: Recorder.running ? Recorder.stop() : Recorder.start(["-s"])
+                            onAltToggled: {
+                                if (!Recorder.running)
+                                    Recorder.start(["-sr"]);
+                            }
+                        }
+
+                        RoundToggle {
+                            icon: "settings"
+                            text: Tr.tr("Settings")
+                            on: false
+                            onToggled: WindowFactory.create()
+                        }
                     }
 
-                    // Volume
-                    StyledRect {
-                        Layout.fillWidth: true
-                        implicitHeight: volRow.implicitHeight + Tokens.padding.small * 2
-                        radius: Tokens.rounding.large
-                        color: Colours.tPalette.m3surfaceContainerHigh
+                    // The volume: a thick slider with its icon inside (a click on the icon mutes)
+                    Item {
+                        id: vol
 
-                        RowLayout {
-                            id: volRow
+                        readonly property real level: Audio.muted ? 0 : Math.max(0, Math.min(1, Audio.volume))
+
+                        Layout.fillWidth: true
+                        implicitHeight: 38
+
+                        StyledRect {
+                            anchors.fill: parent
+                            radius: height / 2
+                            color: Colours.tPalette.m3surfaceContainerHigh
+                        }
+
+                        StyledRect {
+                            width: Math.max(height, parent.width * vol.level)
+                            height: parent.height
+                            radius: height / 2
+                            color: Colours.palette.m3primary
+
+                            Behavior on width {
+                                enabled: !volArea.pressed
+
+                                Anim {}
+                            }
+                        }
+
+                        MouseArea {
+                            id: volArea
+
+                            function set(x: real): void {
+                                Audio.setVolume(Math.max(0, Math.min(1, x / width)));
+                            }
 
                             anchors.fill: parent
-                            anchors.margins: Tokens.padding.small
-                            anchors.rightMargin: Tokens.padding.medium
-                            spacing: Tokens.spacing.small
-
-                            IconButton {
-                                type: IconButton.Tonal
-                                icon: Audio.muted ? "volume_off" : "volume_up"
-                                onClicked: {
+                            cursorShape: Qt.PointingHandCursor
+                            onPressed: event => {
+                                if (event.x < height) {
                                     const audio = Audio.sink?.audio;
                                     if (audio)
                                         audio.muted = !audio.muted;
+                                } else {
+                                    set(event.x);
                                 }
                             }
-
-                            StyledSlider {
-                                Layout.fillWidth: true
-                                implicitHeight: 24
-                                value: Audio.volume
-                                onMoved: Audio.setVolume(value)
+                            onPositionChanged: event => {
+                                if (pressed && event.x >= height)
+                                    set(event.x);
                             }
+                            onWheel: event => Audio.setVolume(Math.max(0, Math.min(1, Audio.volume + (event.angleDelta.y > 0 ? 0.05 : -0.05))))
+                        }
 
-                            StyledText {
-                                Layout.preferredWidth: 38
-                                horizontalAlignment: Text.AlignRight
-                                text: `${Math.round(Audio.volume * 100)}%`
-                                color: Colours.palette.m3onSurfaceVariant
-                                font: Tokens.font.label.medium
-                            }
+                        MaterialIcon {
+                            anchors.left: parent.left
+                            anchors.leftMargin: (parent.height - width) / 2
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: Audio.muted ? "volume_off" : vol.level < 0.34 ? "volume_mute" : vol.level < 0.67 ? "volume_down" : "volume_up"
+                            color: Colours.palette.m3onPrimary
+                            fontStyle: Tokens.font.icon.small
+                        }
+
+                        StyledText {
+                            anchors.right: parent.right
+                            anchors.rightMargin: Tokens.padding.medium
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: Audio.muted ? Tr.tr("Muted") : `${Math.round(Audio.volume * 100)}%`
+                            color: vol.level > 0.85 ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
+                            font: Tokens.font.label.medium
                         }
                     }
 
@@ -207,6 +286,8 @@ Item {
                         clip: true
                         spacing: Tokens.spacing.extraSmall
                         model: root.notifs
+                        // Scrolls whole cards
+                        snapMode: ListView.SnapToItem
                         boundsBehavior: Flickable.StopAtBounds
 
                         delegate: StyledRect {
@@ -215,7 +296,8 @@ Item {
                             required property var modelData
 
                             width: list.width
-                            implicitHeight: cardRow.implicitHeight + Tokens.padding.small * 2
+                            // Fixed: three always fit whole in the pane
+                            implicitHeight: Math.floor((list.height - list.spacing * 2) / 3)
                             radius: Tokens.rounding.large
                             color: Colours.tPalette.m3surfaceContainerHigh
 
@@ -236,8 +318,8 @@ Item {
 
                                 // The app's icon, or the notification's picture
                                 ClipRect {
-                                    implicitWidth: 36
-                                    implicitHeight: 36
+                                    implicitWidth: 34
+                                    implicitHeight: 34
                                     radius: Tokens.rounding.medium
                                     color: Colours.palette.m3secondaryContainer
 
@@ -255,23 +337,16 @@ Item {
                                         anchors.fill: parent
                                         anchors.margins: card.modelData.image ? 0 : 6
                                         source: card.modelData.image || (card.modelData.appIcon ? Quickshell.iconPath(card.modelData.appIcon, true) : "")
-                                        fillMode: Image.PreserveAspectCrop
+                                        fillMode: card.modelData.image ? Image.PreserveAspectCrop : Image.PreserveAspectFit
                                         asynchronous: true
                                         sourceSize.width: 72
                                     }
                                 }
 
+                                // Two lines: what it says, then the app, when and the rest
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     spacing: 0
-
-                                    StyledText {
-                                        Layout.fillWidth: true
-                                        text: `${card.modelData.appName || Tr.tr("App")} · ${card.modelData.timeStr}`
-                                        color: Colours.palette.m3primary
-                                        font: Tokens.font.label.small
-                                        elide: Text.ElideRight
-                                    }
 
                                     StyledText {
                                         Layout.fillWidth: true
@@ -282,8 +357,10 @@ Item {
 
                                     StyledText {
                                         Layout.fillWidth: true
-                                        visible: text !== ""
-                                        text: card.modelData.body.replace(/<[^>]*>/g, "").replace(/\n/g, " ")
+                                        text: {
+                                            const body = card.modelData.body.replace(/<[^>]*>/g, "").replace(/\n/g, " ");
+                                            return `${card.modelData.appName || Tr.tr("App")} · ${card.modelData.timeStr}${body ? " — " + body : ""}`;
+                                        }
                                         color: Colours.palette.m3onSurfaceVariant
                                         font: Tokens.font.label.small
                                         elide: Text.ElideRight
@@ -362,19 +439,20 @@ Item {
         }
     }
 
-    // A quick setting: its icon in a circle, its name and state
-    component Tile: StyledRect {
-        id: tile
+    // A wide tile: its icon in a circle, its name and what it's on (the network, the device)
+    component WideTile: StyledRect {
+        id: wt
 
         property string icon
         property string text
+        property string sub
         property bool on
 
         signal toggled
 
         Layout.fillWidth: true
         Layout.preferredWidth: 1
-        implicitHeight: tileRow.implicitHeight + Tokens.padding.small * 2
+        implicitHeight: 56
         radius: Tokens.rounding.large
         color: on ? Colours.palette.m3primaryContainer : Colours.tPalette.m3surfaceContainerHigh
 
@@ -383,29 +461,28 @@ Item {
         }
 
         StateLayer {
-            color: tile.on ? Colours.palette.m3onPrimaryContainer : Colours.palette.m3onSurface
-            onClicked: tile.toggled()
+            color: wt.on ? Colours.palette.m3onPrimaryContainer : Colours.palette.m3onSurface
+            onClicked: wt.toggled()
         }
 
         RowLayout {
-            id: tileRow
-
             anchors.fill: parent
             anchors.margins: Tokens.padding.small
+            anchors.rightMargin: Tokens.padding.medium
             spacing: Tokens.spacing.small
 
             StyledRect {
-                implicitWidth: 32
-                implicitHeight: 32
-                radius: 16
-                color: tile.on ? Colours.palette.m3primary : Colours.layer(Colours.palette.m3surfaceContainerHighest, 2)
+                implicitWidth: 40
+                implicitHeight: 40
+                radius: 20
+                color: wt.on ? Colours.palette.m3primary : Colours.layer(Colours.palette.m3surfaceContainerHighest, 2)
 
                 MaterialIcon {
                     anchors.centerIn: parent
-                    text: tile.icon
-                    color: tile.on ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
-                    fontStyle: Tokens.font.icon.small
-                    fill: tile.on ? 1 : 0
+                    text: wt.icon
+                    color: wt.on ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
+                    fontStyle: Tokens.font.icon.medium
+                    fill: wt.on ? 1 : 0
                 }
             }
 
@@ -415,20 +492,75 @@ Item {
 
                 StyledText {
                     Layout.fillWidth: true
-                    text: tile.text
-                    color: tile.on ? Colours.palette.m3onPrimaryContainer : Colours.palette.m3onSurface
+                    text: wt.text
+                    color: wt.on ? Colours.palette.m3onPrimaryContainer : Colours.palette.m3onSurface
                     font: Tokens.font.label.large
                     elide: Text.ElideRight
                 }
 
                 StyledText {
                     Layout.fillWidth: true
-                    text: tile.on ? Tr.tr("On") : Tr.tr("Off")
-                    color: tile.on ? Colours.palette.m3onPrimaryContainer : Colours.palette.m3onSurfaceVariant
+                    text: wt.sub
+                    color: wt.on ? Colours.palette.m3onPrimaryContainer : Colours.palette.m3onSurfaceVariant
                     opacity: 0.8
                     font: Tokens.font.label.small
+                    elide: Text.ElideRight
                 }
             }
+        }
+    }
+
+    // A round switch with its name under it
+    component RoundToggle: ColumnLayout {
+        id: rt
+
+        property string icon
+        property string text
+        property bool on
+
+        signal toggled
+        signal altToggled
+
+        Layout.fillWidth: true
+        Layout.preferredWidth: 1
+        Layout.maximumWidth: 10000
+        spacing: 2
+
+        StyledRect {
+            Layout.alignment: Qt.AlignHCenter
+            implicitWidth: 44
+            implicitHeight: 40
+            radius: rt.on ? Tokens.rounding.medium : 20
+            color: rt.on ? Colours.palette.m3primary : Colours.tPalette.m3surfaceContainerHigh
+
+            Behavior on radius {
+                Anim {}
+            }
+
+            Behavior on color {
+                CAnim {}
+            }
+
+            StateLayer {
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                color: rt.on ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface
+                onClicked: event => event.button === Qt.RightButton ? rt.altToggled() : rt.toggled()
+            }
+
+            MaterialIcon {
+                anchors.centerIn: parent
+                text: rt.icon
+                color: rt.on ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
+                fontStyle: Tokens.font.icon.small
+                fill: rt.on ? 1 : 0
+            }
+        }
+
+        StyledText {
+            Layout.alignment: Qt.AlignHCenter
+            text: rt.text
+            color: Colours.palette.m3onSurfaceVariant
+            font: Tokens.font.label.small
         }
     }
 }

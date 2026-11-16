@@ -22,15 +22,34 @@ StyledRect {
     readonly property int nonAnimHeight: summary.implicitHeight + (root.expanded ? Tokens.spacing.extraSmall * 2 + appName.height + body.height + actions.height + actions.anchors.topMargin : bodyPreview.height) + inner.anchors.margins * 2
     property bool expanded: Config.notifs.openExpanded
 
+    // A card of its own, like the dashboard island's (no panel behind it)
     color: root.modelData?.urgency === NotificationUrgency.Critical ? Colours.palette.m3secondaryContainer : Colours.tPalette.m3surfaceContainer
-    radius: Tokens.rounding.large
+    radius: Tokens.rounding.extraLarge
+    border.width: 1
+    border.color: Qt.alpha(Colours.palette.m3outlineVariant, 0.5)
 
     implicitHeight: inner.implicitHeight
 
-    x: implicitWidth
+    // Arriving: grows out of the top right corner and fades in, settling on a soft spring
+    transformOrigin: Item.TopRight
+    scale: 0.8
+    opacity: 0
     Component.onCompleted: {
-        x = 0;
+        scale = 1;
+        opacity = 1;
         modelData.lock(this);
+    }
+
+    Behavior on scale {
+        Anim {
+            type: Anim.DefaultSpatial
+        }
+    }
+
+    Behavior on opacity {
+        Anim {
+            type: Anim.DefaultEffects
+        }
     }
     Component.onDestruction: modelData.unlock(this)
 

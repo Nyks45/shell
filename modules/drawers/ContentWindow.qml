@@ -234,9 +234,13 @@ StyledWindow {
             implicitWidth: panels.osd.width
         }
 
+        // The incoming notifications have no panel behind them: each is its own card
+        // (notifications/Notification.qml); this shape stays empty, for the deform transform
         PanelBg {
             id: notifsBg
 
+            group: null
+            visible: false
             panel: panels.notifications
         }
 

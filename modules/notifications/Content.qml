@@ -31,7 +31,8 @@ Item {
         if (count === 0)
             return 0;
 
-        let height = (count - 1) * Tokens.spacing.medium;
+        // (plus room under the last card, which has no panel around it now)
+        let height = (count - 1) * Tokens.spacing.medium + Tokens.padding.small;
         for (let i = 0; i < count; i++)
             height += (list.itemAtIndex(i) as NotifWrapper)?.nonAnimHeight ?? 0;
 
@@ -173,20 +174,41 @@ Item {
             }
             PropertyAction {
                 target: wrapper
-                property: "implicitHeight"
-                value: 0
-            }
-            PropertyAction {
-                target: wrapper
                 property: "z"
                 value: 1
             }
-            Anim {
-                target: notif
-                property: "x"
-                to: (notif.x >= 0 ? root.implicitWidth : -root.implicitWidth) * 2
-                duration: Tokens.anim.durations.normal
-                easing: Tokens.anim.emphasized
+            // Leaving: swiped away, it keeps going that way; dismissed or timed out, it shrinks
+            // back into the corner and fades
+            ParallelAnimation {
+                // Its space closes as it goes (the ones under it move up with it)
+                Anim {
+                    target: wrapper
+                    property: "implicitHeight"
+                    to: 0
+                    duration: Tokens.anim.durations.normal
+                    easing: Tokens.anim.emphasized
+                }
+                Anim {
+                    target: notif
+                    property: "x"
+                    to: notif.x > 4 ? root.implicitWidth * 2 : notif.x < -4 ? -root.implicitWidth * 2 : 0
+                    duration: Tokens.anim.durations.normal
+                    easing: Tokens.anim.emphasizedAccel
+                }
+                Anim {
+                    target: notif
+                    property: "scale"
+                    to: Math.abs(notif.x) > 4 ? 1 : 0.8
+                    duration: Tokens.anim.durations.normal
+                    easing: Tokens.anim.emphasizedDecel
+                }
+                Anim {
+                    target: notif
+                    property: "opacity"
+                    to: 0
+                    duration: Tokens.anim.durations.small
+                    easing: Tokens.anim.standard
+                }
             }
             PropertyAction {
                 target: wrapper
