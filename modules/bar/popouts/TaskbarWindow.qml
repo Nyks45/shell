@@ -143,7 +143,7 @@ Item {
         }
 
         Row {
-            spacing: Tokens.spacing.large
+            spacing: Tokens.spacing.small
             visible: root.cardCount > 0
 
             Repeater {
