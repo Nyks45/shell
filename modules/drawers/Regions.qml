@@ -22,10 +22,16 @@ Region {
     height: win.height - clampedThickness * 2 - win.dragMaskPadding * 2
     intersection: Intersection.Xor
 
+    // The dashboard island: from the edge down through its gap to its shape; its full size while
+    // it opens (the pointer can run ahead of it)
     R {
+        readonly property real w: root.panels.dashboard.shouldBeActive ? Math.max(panel.width, panel.hoverWidth) : panel.width
+
         panel: root.panels.dashboard
+        x: root.bar.implicitWidth + panel.x + panel.width / 2 - w / 2
         y: 0
-        height: panel.height + root.borderThickness // (its height is the animated one)
+        width: w
+        height: panel.floatGap + panel.hoverHeight + root.borderThickness
     }
 
     R {

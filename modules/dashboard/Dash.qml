@@ -11,12 +11,27 @@ GridLayout {
     required property ScreenState screenState
     required property FileDialog facePicker
 
-    rowSpacing: Tokens.spacing.medium
-    columnSpacing: Tokens.spacing.medium
+    rowSpacing: Tokens.spacing.small
+    columnSpacing: Tokens.spacing.small
+
+    // The overview, compact: weather and the account on top, the calendar under them. The time,
+    // media and the gauges have their own places (the island's pill and its pages).
+    Rect {
+        Layout.row: 0
+        Layout.column: 0
+        Layout.preferredWidth: Tokens.sizes.dashboard.weatherWidth
+        Layout.preferredHeight: Math.max(weather.implicitHeight, user.implicitHeight)
+
+        radius: Tokens.rounding.extraLarge
+
+        SmallWeather {
+            id: weather
+        }
+    }
 
     Rect {
-        Layout.column: 2
-        Layout.columnSpan: 3
+        Layout.row: 0
+        Layout.column: 1
         Layout.preferredWidth: Tokens.sizes.dashboard.userWidth
         Layout.fillHeight: true
 
@@ -31,34 +46,9 @@ GridLayout {
     }
 
     Rect {
-        Layout.row: 0
+        Layout.row: 1
+        Layout.column: 0
         Layout.columnSpan: 2
-        Layout.preferredWidth: Tokens.sizes.dashboard.weatherWidth
-        Layout.preferredHeight: weather.implicitHeight
-
-        radius: Tokens.rounding.extraLarge * 1.5
-
-        SmallWeather {
-            id: weather
-        }
-    }
-
-    Rect {
-        Layout.row: 1
-        Layout.preferredWidth: dateTime.implicitWidth
-        Layout.fillHeight: true
-
-        radius: Tokens.rounding.large
-
-        DateTime {
-            id: dateTime
-        }
-    }
-
-    Rect {
-        Layout.row: 1
-        Layout.column: 1
-        Layout.columnSpan: 3
         Layout.fillWidth: true
         Layout.preferredHeight: calendar.implicitHeight
 
@@ -68,33 +58,6 @@ GridLayout {
             id: calendar
 
             screenState: root.screenState
-        }
-    }
-
-    Rect {
-        Layout.row: 1
-        Layout.column: 4
-        Layout.preferredWidth: resources.implicitWidth
-        Layout.fillHeight: true
-
-        radius: Tokens.rounding.large
-
-        Resources {
-            id: resources
-        }
-    }
-
-    Rect {
-        Layout.row: 0
-        Layout.column: 5
-        Layout.rowSpan: 2
-        Layout.preferredWidth: media.implicitWidth
-        Layout.fillHeight: true
-
-        radius: Tokens.rounding.extraLarge * 2
-
-        Media {
-            id: media
         }
     }
 

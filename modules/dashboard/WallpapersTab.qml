@@ -29,8 +29,8 @@ Item {
     }
     readonly property bool liveOn: !!LiveWallpaper.currentInfo
 
-    implicitWidth: 840
-    implicitHeight: 440
+    implicitWidth: 620
+    implicitHeight: 380
 
     ColumnLayout {
         anchors.fill: parent
@@ -85,7 +85,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            cellWidth: Math.floor(width / 4)
+            cellWidth: Math.floor(width / 3)
             cellHeight: Math.floor(cellWidth * 9 / 16) + 30
             boundsBehavior: Flickable.StopAtBounds
             model: root.kind === "live" ? root.lives : root.pictures

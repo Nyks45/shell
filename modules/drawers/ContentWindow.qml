@@ -163,6 +163,14 @@ StyledWindow {
             shadowColor: Qt.alpha(Colours.palette.m3shadow, Math.max(0, root.shadowOpacity))
         }
 
+        // The dashboard island's own group: drawn like the panels, never melted into the frame
+        BlobGroup {
+            id: islandGroup
+
+            color: root.surfaceColour
+            smoothing: root.contentItem.Config.border.smoothing
+        }
+
         BlobGroup {
             id: blobGroup
 
@@ -184,8 +192,11 @@ StyledWindow {
         PanelBg {
             id: dashBg
 
+            // An island: its own shape, not melted into the frame
+            group: islandGroup
             panel: panels.dashboard
             deformAmount: 0.1
+            radius: Math.min(Tokens.rounding.extraLarge, height / 2)
         }
 
         PanelBg {

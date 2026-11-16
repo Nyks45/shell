@@ -43,6 +43,13 @@ CustomMouseArea {
         return x > Math.min(width - Config.border.minThickness, bar.implicitWidth + panel.x) && withinPanelHeight(panel, x, y);
     }
 
+    // On the dashboard's pill (its shape while it peeks out of the top edge)
+    function onDashboardPill(x: real, y: real): bool {
+        const panel = panels.dashboard;
+        const centre = bar.implicitWidth + panel.x + panel.width / 2;
+        return panel.width > 0 && Math.abs(x - centre) <= panel.width / 2 && y < Config.border.thickness + panel.floatGap + panel.height;
+    }
+
     function inTopPanel(panel: Item, x: real, y: real): bool {
         // A panel can give its own hover strip (the dashboard: its full width, centred, while
         // its shape is small or closed), else its shape's
@@ -50,7 +57,7 @@ CustomMouseArea {
         if (hoverWidth !== undefined) {
             const centre = bar.implicitWidth + panel.x + panel.width / 2;
             const inWidth = Math.abs(x - centre) <= hoverWidth / 2 + Config.border.rounding;
-            return inWidth && y < Math.max(Config.border.minThickness, Config.border.thickness + panel.height);
+            return inWidth && y < Math.max(Config.border.minThickness, Config.border.thickness + (panel.floatGap ?? 0) + (panel.hoverHeight ?? panel.height)); // qmllint disable missing-property
         }
         const panelHeight = panel.height * (1 - (panel.offsetScale ?? 0)); // qmllint disable missing-property
         return y < Math.max(Config.border.minThickness, Config.border.thickness + panelHeight) && withinPanelWidth(panel, x, y);
@@ -84,6 +91,8 @@ CustomMouseArea {
 
             if (!dashboardShortcutActive)
                 screenState.dashboard = false;
+            panels.dashboard.peeking = false;
+            panels.dashboard.pointerOnPill = false;
 
             if (!utilitiesShortcutActive)
                 screenState.utilities = false;
@@ -110,6 +119,8 @@ CustomMouseArea {
                 return;
             if (!root.dashboardShortcutActive)
                 root.screenState.dashboard = false;
+            root.panels.dashboard.peeking = false;
+            root.panels.dashboard.pointerOnPill = false;
             if (!root.osdShortcutActive) {
                 root.screenState.osd = false;
                 root.panels.osd.hovered = false;
@@ -247,12 +258,15 @@ CustomMouseArea {
                 screenState.launcher = false;
         }
 
-        // Show dashboard on hover
+        // The dashboard on hover: the top edge brings out its pill (the time); resting on the
+        // pill opens it (dashboard/Wrapper.qml); leaving the area hides both
         const showDashboard = Config.dashboard.showOnHover && inTopPanel(panels.dashboard, x, y);
+        panels.dashboard.peeking = showDashboard;
+        panels.dashboard.pointerOnPill = showDashboard && onDashboardPill(x, y);
 
-        // Always update visibility based on hover if not in shortcut mode
         if (!dashboardShortcutActive) {
-            screenState.dashboard = showDashboard;
+            if (!showDashboard)
+                screenState.dashboard = false;
         } else if (showDashboard) {
             // If hovering over dashboard area while in shortcut mode, transition to hover control
             dashboardShortcutActive = false;

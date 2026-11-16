@@ -65,7 +65,12 @@ Item {
     }
 
     readonly property real nonAnimWidth: view.implicitWidth + viewWrapper.anchors.margins * 2
-    readonly property real nonAnimHeight: tabs.implicitHeight + tabs.anchors.topMargin + view.implicitHeight + viewWrapper.anchors.margins * 2
+    // One page alone (the island's buttons): no tabs
+    readonly property bool solo: true // one page at a time, opened from the island (Wrapper.qml)
+    // Its own size and page-slide animations, only once fully open (while the island grows or
+    // shrinks, it heads straight for its size: set by Wrapper)
+    property bool animateSize: true
+    readonly property real nonAnimHeight: (solo ? 0 : tabs.implicitHeight + tabs.anchors.topMargin) + view.implicitHeight + viewWrapper.anchors.margins * 2
 
     implicitWidth: nonAnimWidth
     implicitHeight: nonAnimHeight
@@ -82,12 +87,13 @@ Item {
         nonAnimWidth: root.nonAnimWidth - anchors.margins * 2
         screenState: root.screenState
         tabs: root.dashboardTabs
+        visible: !root.solo
     }
 
     ClipRect {
         id: viewWrapper
 
-        anchors.top: tabs.bottom
+        anchors.top: root.solo ? parent.top : tabs.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
@@ -108,12 +114,16 @@ Item {
             anchors.fill: parent
 
             flickableDirection: Flickable.HorizontalFlick
+            // One page alone: no swiping to the others
+            interactive: !root.solo
 
             implicitWidth: currentItem?.implicitWidth ?? 0
             implicitHeight: currentItem?.implicitHeight ?? 0
 
             contentX: currentItem?.x ?? 0
-            contentWidth: row.implicitWidth
+            // At least up to the page shown: a page opened directly (the island's buttons) isn't
+            // built yet, and past the end the view would snap back to the first page
+            contentWidth: Math.max(row.implicitWidth, (currentItem?.x ?? 0) + width)
             contentHeight: row.implicitHeight
 
             onContentXChanged: {
@@ -213,16 +223,22 @@ Item {
             }
 
             Behavior on contentX {
+                enabled: root.animateSize
+
                 Anim {}
             }
         }
     }
 
     Behavior on implicitWidth {
+        enabled: root.animateSize
+
         Anim {}
     }
 
     Behavior on implicitHeight {
+        enabled: root.animateSize
+
         Anim {}
     }
 }

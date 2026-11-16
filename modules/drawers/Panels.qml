@@ -114,6 +114,7 @@ Item {
 
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
+        anchors.topMargin: floatGap
     }
 
     BarPopouts.ClipWrapper {

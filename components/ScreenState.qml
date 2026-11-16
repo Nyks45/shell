@@ -16,5 +16,7 @@ PersistentProperties {
 
     // Dashboard state
     property int dashboardTab
+    // Opened at one page from the island's buttons: that page alone, no tabs
+    property bool dashboardSolo
     property date dashboardDate: new Date()
 }

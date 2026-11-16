@@ -11,7 +11,7 @@ Item {
 
     readonly property var today: Weather.forecast && Weather.forecast.length > 0 ? Weather.forecast[0] : null
 
-    implicitWidth: layout.implicitWidth > 800 ? layout.implicitWidth : 840
+    implicitWidth: Math.max(layout.implicitWidth, 620)
     implicitHeight: layout.implicitHeight
     Component.onCompleted: Weather.reload()
 
