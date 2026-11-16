@@ -32,7 +32,7 @@ Item {
             return 0;
 
         // (plus room under the last card, which has no panel around it now)
-        let height = (count - 1) * Tokens.spacing.medium + Tokens.padding.small;
+        let height = (count - 1) * Tokens.spacing.small + Tokens.padding.small;
         for (let i = 0; i < count; i++)
             height += (list.itemAtIndex(i) as NotifWrapper)?.nonAnimHeight ?? 0;
 
@@ -104,9 +104,9 @@ Item {
 
                     let height = 0;
                     for (let i = 0; i < count; i++) {
-                        height += ((list.itemAtIndex(i) as NotifWrapper)?.nonAnimHeight ?? 0) + Tokens.spacing.medium;
+                        height += ((list.itemAtIndex(i) as NotifWrapper)?.nonAnimHeight ?? 0) + Tokens.spacing.small;
 
-                        if (height - Tokens.spacing.medium >= scrollY)
+                        if (height - Tokens.spacing.small >= scrollY)
                             return i;
                     }
 
@@ -125,9 +125,9 @@ Item {
 
                     let height = 0;
                     for (let i = count - 1; i >= 0; i--) {
-                        height += ((list.itemAtIndex(i) as NotifWrapper)?.nonAnimHeight ?? 0) + Tokens.spacing.medium;
+                        height += ((list.itemAtIndex(i) as NotifWrapper)?.nonAnimHeight ?? 0) + Tokens.spacing.small;
 
-                        if (height - Tokens.spacing.medium >= scrollY)
+                        if (height - Tokens.spacing.small >= scrollY)
                             return count - i - 1;
                     }
 
@@ -155,7 +155,7 @@ Item {
         }
 
         implicitWidth: notif.implicitWidth
-        implicitHeight: notif.implicitHeight + (idx === 0 ? 0 : Tokens.spacing.medium)
+        implicitHeight: notif.implicitHeight + (idx === 0 ? 0 : Tokens.spacing.small)
 
         ListView.onRemove: removeAnim.start()
 
@@ -219,7 +219,7 @@ Item {
 
         ClipRect {
             anchors.top: parent.top
-            anchors.topMargin: wrapper.idx === 0 ? 0 : Tokens.spacing.medium
+            anchors.topMargin: wrapper.idx === 0 ? 0 : Tokens.spacing.small
 
             color: "transparent"
             radius: notif.radius
