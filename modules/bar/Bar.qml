@@ -281,6 +281,8 @@ ColumnLayout {
 
         implicitWidth: item?.implicitWidth ?? 0
         implicitHeight: item?.implicitHeight ?? 0
+        // An empty entry (no apps open, an empty tray) takes no gap either
+        visible: entryId === "spacer" || implicitHeight > 0
 
         children: item
     }

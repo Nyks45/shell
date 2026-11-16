@@ -22,6 +22,8 @@ Item {
     required property string kind
 
     signal closeRequested
+    // "Open in settings": the island's settings, at this page
+    signal settingsRequested(id: string)
 
     readonly property bool wired: !!Nmcli.activeEthernet && !Nmcli.active
     readonly property bool btOn: Bluetooth.defaultAdapter?.enabled ?? false
@@ -111,10 +113,7 @@ Item {
             IconButton {
                 type: IconButton.Text
                 icon: "open_in_new"
-                onClicked: {
-                    WindowFactory.createAt(root.kind === "audio" ? "audio" : root.kind === "bluetooth" ? "devices" : "network", []);
-                    root.closeRequested();
-                }
+                onClicked: root.settingsRequested(root.kind === "audio" ? "audio" : root.kind === "bluetooth" ? "bluetooth" : "network")
             }
 
             IconButton {
@@ -216,8 +215,7 @@ Item {
                                 else
                                     NetworkConnection.handleConnect(row.d, null, () => {
                                         // A password is needed: in the settings
-                                        WindowFactory.createAt("network", []);
-                                        root.closeRequested();
+                                        root.settingsRequested("network");
                                     });
                                 break;
                             case "eth":

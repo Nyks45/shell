@@ -19,8 +19,16 @@ import qs.modules.nexus
 Item {
     id: root
 
+    required property ScreenState screenState
+
     // 0 quick settings, 1 notifications
     property int pane: 0
+
+    // The island turns into the settings, at this page
+    function openSettings(id: string): void {
+        screenState.dashboardSettingsPage = id;
+        screenState.dashboardRequest = "settings";
+    }
     readonly property var notifs: Notifs.notClosed
 
     implicitWidth: Tokens.sizes.dashboard.islandWidth
@@ -507,6 +515,7 @@ Item {
                             kind: detail.kind || "network"
                             opacity: Math.max(0, (detail.t - 0.5) * 2)
                             onCloseRequested: detail.close()
+                            onSettingsRequested: id => root.openSettings(id)
                         }
                     }
                 }

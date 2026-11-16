@@ -21,5 +21,9 @@ PersistentProperties {
     // The island shows a page to work in (the settings): it stays open when the pointer leaves,
     // takes the keyboard, and closes on Escape or a click outside
     property bool dashboardSticky
+    // A page of the island asked for (e.g. "settings" from the quick settings' lists), and the
+    // settings page to show there (a page id, PageRegistry)
+    property string dashboardRequest
+    property string dashboardSettingsPage
     property date dashboardDate: new Date()
 }

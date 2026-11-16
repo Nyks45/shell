@@ -120,6 +120,18 @@ Item {
         openPage("quick");
     }
 
+    // Another page asked for from inside the island (the quick settings' "open in settings")
+    Connections {
+        function onDashboardRequestChanged(): void {
+            if (root.screenState.dashboardRequest === "")
+                return;
+            root.openPage(root.screenState.dashboardRequest);
+            root.screenState.dashboardRequest = "";
+        }
+
+        target: root.screenState
+    }
+
     // Closed: the next opening picks its page again
     onMorphChanged: {
         if (morph < 0.002 && !shouldBeActive && screenState.dashboardSolo) {

@@ -181,9 +181,32 @@ Item {
                     Nexus {
                         id: nexusInner
 
+                        // Opened at a page (the quick settings' "open in settings"): go there
+                        function showRequested(): void {
+                            const id = root.screenState.dashboardSettingsPage;
+                            if (!id)
+                                return;
+                            const t = PageRegistry.target(id);
+                            nState.goTo({
+                                page: Math.max(0, t.page),
+                                path: [],
+                                tab: t.tab
+                            });
+                            root.screenState.dashboardSettingsPage = "";
+                        }
+
                         anchors.fill: parent
                         nState.screen: (QsWindow.window as QsWindow)?.screen ?? null
                         onClose: root.screenState.dashboard = false
+                        Component.onCompleted: showRequested()
+
+                        Connections {
+                            function onDashboardSettingsPageChanged(): void {
+                                nexusInner.showRequested();
+                            }
+
+                            target: root.screenState
+                        }
                     }
 
                     Shortcut {
@@ -202,7 +225,9 @@ Item {
             Component {
                 id: quickComponent
 
-                MiniQuick {}
+                MiniQuick {
+                    screenState: root.screenState
+                }
             }
 
             Component {
