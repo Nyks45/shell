@@ -16,9 +16,11 @@ Region {
     readonly property real borderThickness: win.contentItem.Config.border.thickness
     readonly property real clampedThickness: win.contentItem.Config.border.clampedThickness
 
-    x: bar.clampedWidth + win.dragMaskPadding
+    // (the pill's whole strip from the moment it starts coming out: a pointer ahead of its
+    // growing shape would otherwise reach a window's border under it)
+    x: (bar.shouldBeVisible ? bar.contentWidth + bar.pillGap * 2 : bar.clampedWidth) + win.dragMaskPadding
     y: clampedThickness + win.dragMaskPadding
-    width: win.width - bar.clampedWidth - clampedThickness - win.dragMaskPadding * 2
+    width: win.width - x - clampedThickness - win.dragMaskPadding
     height: win.height - clampedThickness * 2 - win.dragMaskPadding * 2
     intersection: Intersection.Xor
 

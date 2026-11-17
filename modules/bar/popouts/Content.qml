@@ -78,7 +78,10 @@ Item {
         readonly property bool shouldBeActive: root.popouts.currentName === name
         property bool ready: true
 
-        anchors.centerIn: parent
+        // (pinned to the island's left, by the pill: while the island grows or shrinks to the
+        // next one's size, it's revealed or covered from the right, never spilling over the pill)
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
 
         opacity: 0
         active: false

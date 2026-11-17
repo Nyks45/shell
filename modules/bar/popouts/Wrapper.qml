@@ -36,6 +36,8 @@ Item {
 
     implicitWidth: nonAnimWidth
     implicitHeight: nonAnimHeight
+    // (its contents stay inside the island while it changes size)
+    clip: true
 
     focus: hasCurrent
     Keys.onEscapePressed: close()
