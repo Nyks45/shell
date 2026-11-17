@@ -24,7 +24,7 @@ class SessionCommands : public settings::ObjectNode {
 
     CONFIG_PROPERTY(QStringList, logout, { u"logout"_s })
     CONFIG_PROPERTY(QStringList, shutdown, { u"poweroff"_s })
-    CONFIG_PROPERTY(QStringList, sleep, { u"suspend"_s })
+    CONFIG_PROPERTY(QStringList, sleep, DEFAULT_ARG({ u"systemctl"_s, u"suspend"_s }))
     CONFIG_PROPERTY(QStringList, reboot, { u"reboot"_s })
 };
 
