@@ -18,14 +18,18 @@ StyledRect {
     readonly property int spacing: Config.bar.tray.background ? Tokens.spacing.medium : Tokens.spacing.extraSmall
 
     property bool expanded
+    // In the pill: a short rule above the tray's icons (small and single-coloured there, status
+    // icons rather than apps), setting them apart from the open apps over it
+    readonly property bool pill: Config.bar.pill
+    readonly property real lead: pill && items.count > 0 ? divider.height + Tokens.spacing.small : 0
 
     readonly property real nonAnimHeight: {
         if (!Config.bar.tray.compact)
-            return layout.implicitHeight + padding * 2;
+            return layout.implicitHeight + padding * 2 + lead;
         const pad = (Config.bar.tray.background ? Tokens.padding.extraSmall : 0) + padding;
         if (expanded)
-            return expandIcon.implicitHeight + layout.implicitHeight + spacing + pad;
-        return Math.max(Config.bar.tray.background ? width : 0, expandIcon.implicitHeight + pad);
+            return expandIcon.implicitHeight + layout.implicitHeight + spacing + pad + lead;
+        return Math.max(Config.bar.tray.background ? width : 0, expandIcon.implicitHeight + pad) + lead;
     }
 
     clip: true
@@ -34,17 +38,28 @@ StyledRect {
     implicitWidth: Tokens.sizes.bar.innerWidth
     implicitHeight: nonAnimHeight
 
-    // In the pill the tray sits on a tinted capsule of its own, telling its icons apart from the
-    // apps
-    color: Config.bar.pill && items.count > 0 ? Qt.alpha(Colours.palette.m3secondaryContainer, 0.55) : Qt.alpha(Colours.tPalette.m3surfaceContainer, (Config.bar.tray.background && items.count > 0) ? Colours.tPalette.m3surfaceContainer.a : 0)
+    color: pill ? "transparent" : Qt.alpha(Colours.tPalette.m3surfaceContainer, (Config.bar.tray.background && items.count > 0) ? Colours.tPalette.m3surfaceContainer.a : 0)
     radius: Tokens.rounding.full
+
+    StyledRect {
+        id: divider
+
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: root.padding
+        visible: root.lead > 0
+        implicitWidth: 16
+        implicitHeight: 2
+        radius: 1
+        color: Qt.alpha(Colours.palette.m3outline, 0.6)
+    }
 
     Column {
         id: layout
 
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
-        anchors.topMargin: root.padding
+        anchors.topMargin: root.padding + root.lead
         spacing: Tokens.spacing.small
 
         opacity: root.expanded || !Config.bar.tray.compact ? 1 : 0
