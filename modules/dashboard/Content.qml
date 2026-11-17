@@ -284,7 +284,9 @@ Item {
             Component {
                 id: mediaComponent
 
-                MiniMedia {}
+                MiniMedia {
+                    screenState: root.screenState
+                }
             }
 
             Component {

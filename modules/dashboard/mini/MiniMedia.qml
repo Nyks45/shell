@@ -17,10 +17,11 @@ import "../media"
 Item {
     id: root
 
+    property var screenState: null
     readonly property var player: Players.active
     readonly property bool hasPlayer: !!player
     readonly property real progress: player && player.length > 0 ? player.position / player.length : 0
-    // "playlists", "recent" or "lyrics"
+    // "playlists", "recent", "lyrics" or "search"
     property string libTab: "playlists"
 
     function mmss(sec: real): string {
@@ -263,6 +264,10 @@ Item {
                             {
                                 key: "lyrics",
                                 text: Tr.tr("Lyrics")
+                            },
+                            {
+                                key: "search",
+                                icon: "search"
                             }
                         ]
 
@@ -272,21 +277,34 @@ Item {
                             required property var modelData
                             readonly property bool chosen: root.libTab === modelData.key
 
-                            implicitWidth: libText.implicitWidth + Tokens.padding.medium * 2
+                            implicitWidth: modelData.icon ? implicitHeight : libText.implicitWidth + Tokens.padding.medium * 2
                             implicitHeight: libText.implicitHeight + Tokens.padding.extraSmall * 2
                             radius: height / 2
                             color: chosen ? Colours.palette.m3primary : "transparent"
 
                             StateLayer {
                                 radius: libChip.height / 2
-                                onClicked: root.libTab = libChip.modelData.key
+                                onClicked: {
+                                    root.libTab = libChip.modelData.key;
+                                    if (libChip.modelData.key === "search")
+                                        Qt.callLater(() => searchField.forceActiveFocus());
+                                }
+                            }
+
+                            MaterialIcon {
+                                anchors.centerIn: parent
+                                visible: !!libChip.modelData.icon
+                                text: libChip.modelData.icon ?? ""
+                                color: libChip.chosen ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
+                                fontStyle: Tokens.font.icon.small
                             }
 
                             StyledText {
                                 id: libText
 
                                 anchors.centerIn: parent
-                                text: libChip.modelData.text
+                                text: libChip.modelData.text ?? ""
+                                opacity: libChip.modelData.icon ? 0 : 1
                                 color: libChip.chosen ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
                                 font: Tokens.font.label.medium
                             }
@@ -302,6 +320,26 @@ Item {
                         type: IconButton.Filled
                         icon: "play_arrow"
                         onClicked: Music.play(Music.openList.context || `spotify:playlist:${Music.openList.id}`)
+                    }
+                }
+
+                // A search of Spotify: songs, then artists, albums and playlists
+                SearchBar {
+                    id: searchField
+
+                    Layout.fillWidth: true
+                    visible: root.libTab === "search" && !Music.openList
+                    placeholderText: Tr.tr("Songs, artists, albums")
+                    font: Tokens.font.body.small
+                    topPadding: Tokens.padding.small
+                    bottomPadding: Tokens.padding.small
+                    bg.color: Qt.alpha(Colours.palette.m3surfaceContainerHighest, 0.5)
+                    Component.onCompleted: text = Music.query
+                    onTextChanged: Music.search(text)
+                    // (typing needs the keyboard: the island stays open while it's used)
+                    onActiveFocusChanged: {
+                        if (activeFocus && root.screenState)
+                            root.screenState.dashboardSticky = true;
                     }
                 }
 
@@ -321,22 +359,35 @@ Item {
                     clip: true
                     spacing: 2
                     boundsBehavior: Flickable.StopAtBounds
-                    model: Music.openList ? (Music.openList.tracks ?? []) : root.libTab === "recent" ? Music.recent : Music.playlists
+                    model: Music.openList ? (Music.openList.tracks ?? []) : root.libTab === "recent" ? Music.recent : root.libTab === "search" ? Music.results : Music.playlists
 
                     delegate: StyledRect {
                         id: row
 
                         required property var modelData
                         readonly property bool isList: !Music.openList && root.libTab === "playlists"
+                        readonly property bool isHeader: !!modelData.header
+                        readonly property string kind: modelData.kind ?? ""
 
                         width: lib.width
-                        implicitHeight: 42
+                        implicitHeight: isHeader ? 24 : 42
                         radius: Tokens.rounding.medium
                         color: rowLayer.containsMouse ? Qt.alpha(Colours.palette.m3surfaceContainerHighest, 0.6) : "transparent"
+
+                        StyledText {
+                            anchors.left: parent.left
+                            anchors.bottom: parent.bottom
+                            anchors.leftMargin: Tokens.padding.small
+                            visible: row.isHeader
+                            text: row.modelData.header ?? ""
+                            color: Colours.palette.m3primary
+                            font: Tokens.font.label.medium
+                        }
 
                         StateLayer {
                             id: rowLayer
 
+                            visible: !row.isHeader
                             radius: Tokens.rounding.medium
                             onClicked: {
                                 if (row.isList)
@@ -347,6 +398,7 @@ Item {
                         }
 
                         RowLayout {
+                            visible: !row.isHeader
                             anchors.fill: parent
                             anchors.leftMargin: 4
                             anchors.rightMargin: Tokens.padding.small
@@ -355,13 +407,13 @@ Item {
                             ClipRect {
                                 implicitWidth: 34
                                 implicitHeight: 34
-                                radius: Tokens.rounding.small
+                                radius: row.kind === "artist" ? 17 : Tokens.rounding.small
                                 color: row.modelData.id === "liked" ? Colours.palette.m3primary : Qt.alpha(Colours.palette.m3surfaceContainerHighest, 0.7)
 
                                 MaterialIcon {
                                     anchors.centerIn: parent
                                     visible: rowArt.status !== Image.Ready
-                                    text: row.modelData.id === "liked" ? "favorite" : row.isList ? "queue_music" : "music_note"
+                                    text: row.modelData.id === "liked" ? "favorite" : row.isList || row.kind === "playlist" ? "queue_music" : row.kind === "artist" ? "person" : row.kind === "album" ? "album" : "music_note"
                                     color: row.modelData.id === "liked" ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
                                     fontStyle: Tokens.font.icon.small
                                     fill: 1
@@ -391,7 +443,7 @@ Item {
 
                                 StyledText {
                                     Layout.fillWidth: true
-                                    text: row.isList ? Tr.tr("%1 songs").arg(row.modelData.count ?? 0) : (row.modelData.artist ?? "")
+                                    text: row.isList ? Tr.tr("%1 songs").arg(row.modelData.count ?? 0) : row.kind === "artist" ? Tr.tr("Artist") : row.kind === "album" ? Tr.tr("Album · %1").arg(row.modelData.artist ?? "") : row.kind === "playlist" ? Tr.tr("Playlist · %1").arg(row.modelData.artist ?? "") : (row.modelData.artist ?? "")
                                     color: Colours.palette.m3onSurfaceVariant
                                     font: Tokens.font.label.small
                                     elide: Text.ElideRight
@@ -414,7 +466,7 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
                         visible: lib.count === 0
-                        text: Music.openList ? (Music.openList.restricted ? Tr.tr("Spotify doesn't let apps list the songs of playlists you follow. Play it as a whole with ▶.") : Music.openList.loaded ? Tr.tr("No songs") : Tr.tr("Loading…")) : Music.loading ? Tr.tr("Loading…") : Tr.tr("Nothing here")
+                        text: Music.openList ? (Music.openList.restricted ? Tr.tr("Spotify doesn't let apps list the songs of playlists you follow. Play it as a whole with ▶.") : Music.openList.loaded ? Tr.tr("No songs") : Tr.tr("Loading…")) : root.libTab === "search" ? (Music.searching ? Tr.tr("Searching…") : Music.query ? Tr.tr("Nothing found") : Tr.tr("Find a song to play")) : Music.loading ? Tr.tr("Loading…") : Tr.tr("Nothing here")
                         color: Colours.palette.m3onSurfaceVariant
                         font: Tokens.font.label.medium
                     }

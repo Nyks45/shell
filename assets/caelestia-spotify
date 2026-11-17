@@ -7,6 +7,7 @@
   caelestia-spotify playlists         your playlists (and "Liked songs" first)
   caelestia-spotify tracks <id|liked> a playlist's tracks (the first 100)
   caelestia-spotify recent            recently played tracks
+  caelestia-spotify search <query>    songs, artists, albums and playlists matching it
 
 The client ID (not secret: PKCE) is in ~/.config/caelestia/spotify.json; the refresh token is in
 the keyring (secret-tool, service caelestia-spotify), never in a file. Output is JSON. Playback is
@@ -217,7 +218,23 @@ def c_recent(_):
     out(res)
 
 
-CMDS = {"login": c_login, "logout": c_logout, "status": c_status, "playlists": c_playlists, "tracks": c_tracks, "recent": c_recent}
+def c_search(args):
+    q = " ".join(args).strip()
+    if not q:
+        return out({"tracks": [], "artists": [], "albums": [], "playlists": []})
+    r = api("/search?" + urllib.parse.urlencode({"q": q, "type": "track,artist,album,playlist", "limit": 8}))
+    items = lambda k: [i for i in (r.get(k) or {}).get("items", []) if i]
+    out({
+        "tracks": [track_obj(t) for t in items("tracks")],
+        "artists": [{"name": a["name"], "uri": a["uri"], "image": image(a.get("images") or []), "kind": "artist"} for a in items("artists")[:4]],
+        "albums": [{"name": a["name"], "uri": a["uri"], "image": image(a.get("images") or []), "kind": "album",
+                    "artist": ", ".join(x["name"] for x in a.get("artists", []))} for a in items("albums")[:4]],
+        "playlists": [{"name": p["name"], "uri": p["uri"], "image": image(p.get("images") or []), "kind": "playlist",
+                       "artist": (p.get("owner") or {}).get("display_name") or ""} for p in items("playlists")[:4]],
+    })
+
+
+CMDS = {"login": c_login, "logout": c_logout, "status": c_status, "playlists": c_playlists, "tracks": c_tracks, "recent": c_recent, "search": c_search}
 
 if __name__ == "__main__":
     if len(sys.argv) < 2 or sys.argv[1] not in CMDS:

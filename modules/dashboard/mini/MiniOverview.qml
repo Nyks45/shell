@@ -21,6 +21,21 @@ Item {
     required property ScreenState screenState
 
     readonly property var player: Players.active
+
+    // The lyrics follow what's playing (like the dashboard's lyrics)
+    readonly property var _lyricsTrack: {
+        const p = Players.active;
+        if (p)
+            Lyrics.setTrack(p.trackArtist, p.trackTitle, p.trackAlbum, p.length);
+        return 0;
+    }
+
+    Timer {
+        running: root.player?.isPlaying ?? false
+        interval: 500
+        repeat: true
+        onTriggered: root.player?.positionChanged()
+    }
     readonly property var latest: Notifs.notClosed.slice(0, 2)
     readonly property var pinned: Array.from(TaskbarApps.pinned).map(id => DesktopEntries.byId(id)).filter(e => !!e).slice(0, 8)
 
@@ -49,84 +64,136 @@ Item {
             Layout.fillHeight: true
             spacing: Tokens.spacing.small
 
-            // What's playing
+            // What's playing: a compact row (cover, song, controls) and the synced lyrics under it
             Card {
                 Layout.preferredWidth: 1
                 Layout.fillWidth: true
 
-                RowLayout {
+                ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: Tokens.padding.small
-                    spacing: Tokens.spacing.small
+                    spacing: Tokens.spacing.extraSmall
 
-                    ClipRect {
-                        Layout.alignment: Qt.AlignVCenter
-                        Layout.preferredWidth: 64
-                        Layout.preferredHeight: 64
-                        radius: Tokens.rounding.medium
-                        color: Colours.tPalette.m3surfaceContainerHighest
-
-                        MaterialIcon {
-                            anchors.centerIn: parent
-                            visible: art.status !== Image.Ready
-                            text: root.player ? "music_note" : "music_off"
-                            color: Colours.palette.m3onSurfaceVariant
-                            fontStyle: Tokens.font.icon.medium
-                        }
-
-                        Image {
-                            id: art
-
-                            anchors.fill: parent
-                            source: root.player ? Players.getArtUrl(root.player) : (Music.last?.art ?? "")
-                            fillMode: Image.PreserveAspectCrop
-                            asynchronous: true
-                            sourceSize.width: 160
-                        }
-                    }
-
-                    ColumnLayout {
+                    RowLayout {
                         Layout.fillWidth: true
-                        spacing: 0
+                        spacing: Tokens.spacing.small
 
-                        StyledText {
-                            Layout.fillWidth: true
-                            text: root.player?.trackTitle || Music.last?.title || Tr.tr("Nothing playing")
-                            font: Tokens.font.body.small
-                            elide: Text.ElideRight
+                        ClipRect {
+                            implicitWidth: 44
+                            implicitHeight: 44
+                            radius: Tokens.rounding.medium
+                            color: Qt.alpha(Colours.palette.m3surfaceContainerHighest, 0.7)
+
+                            MaterialIcon {
+                                anchors.centerIn: parent
+                                visible: art.status !== Image.Ready
+                                text: "music_note"
+                                color: Colours.palette.m3onSurfaceVariant
+                                fontStyle: Tokens.font.icon.small
+                            }
+
+                            Image {
+                                id: art
+
+                                anchors.fill: parent
+                                source: root.player ? Players.getArtUrl(root.player) : (Music.last?.art ?? "")
+                                fillMode: Image.PreserveAspectCrop
+                                asynchronous: true
+                                sourceSize.width: 88
+                            }
                         }
 
-                        StyledText {
+                        ColumnLayout {
                             Layout.fillWidth: true
-                            text: root.player ? (root.player.trackArtist || Players.getIdentity(root.player)) : Music.last ? Tr.tr("Last played · %1").arg(Music.last.artist) : Tr.tr("Play your liked songs")
-                            color: Colours.palette.m3onSurfaceVariant
-                            font: Tokens.font.label.small
-                            elide: Text.ElideRight
+                            spacing: -2
+
+                            StyledText {
+                                Layout.fillWidth: true
+                                text: root.player?.trackTitle || Music.last?.title || Tr.tr("Nothing playing")
+                                font: Tokens.font.label.large
+                                elide: Text.ElideRight
+                            }
+
+                            StyledText {
+                                Layout.fillWidth: true
+                                text: root.player ? (root.player.trackArtist || Players.getIdentity(root.player)) : Music.last ? Tr.tr("Last played · %1").arg(Music.last.artist) : Tr.tr("Play your liked songs")
+                                color: Colours.palette.m3onSurfaceVariant
+                                font: Tokens.font.label.small
+                                elide: Text.ElideRight
+                            }
                         }
 
                         // (nothing playing: play continues the last song, starting Spotify)
-                        Row {
-                            spacing: 0
+                        StyledRect {
+                            implicitWidth: 34
+                            implicitHeight: 34
+                            radius: 17
+                            color: Colours.palette.m3primary
 
-                            IconButton {
-                                type: IconButton.Text
-                                icon: "skip_previous"
-                                disabled: !root.player
-                                onClicked: root.player?.previous()
-                            }
-
-                            IconButton {
-                                type: IconButton.Text
-                                icon: root.player?.isPlaying ? "pause" : "play_arrow"
+                            StateLayer {
+                                radius: 17
+                                color: Colours.palette.m3onPrimary
                                 onClicked: Music.toggle()
                             }
 
-                            IconButton {
-                                type: IconButton.Text
-                                icon: "skip_next"
-                                disabled: !root.player
-                                onClicked: root.player?.next()
+                            MaterialIcon {
+                                anchors.centerIn: parent
+                                text: root.player?.isPlaying ? "pause" : "play_arrow"
+                                color: Colours.palette.m3onPrimary
+                                fontStyle: Tokens.font.icon.small
+                                fill: 1
                             }
+                        }
+
+                        IconButton {
+                            type: IconButton.Text
+                            icon: "skip_next"
+                            disabled: !root.player
+                            onClicked: root.player?.next()
+                        }
+                    }
+
+                    // The lyrics: the line being sung, with the one before and after
+                    Item {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        clip: true
+
+                        readonly property var lines: Lyrics.lyrics
+                        // (before the first line: -1, a note in the middle and the first line under it)
+                        readonly property bool ready: !!root.player && Lyrics.hasLyrics && lines.length > 0
+                        readonly property int at: ready ? Lyrics.indexForTime(root.player.position) : -1
+
+                        Column {
+                            anchors.centerIn: parent
+                            width: parent.width
+                            spacing: 2
+                            visible: parent.ready
+
+                            Repeater {
+                                model: [-1, 0, 1]
+
+                                StyledText {
+                                    required property int modelData
+                                    readonly property int line: parent.parent.at + modelData
+
+                                    width: parent.width
+                                    horizontalAlignment: Text.AlignHCenter
+                                    text: line < 0 ? (modelData === 0 ? "♪" : "") : (parent.parent.lines[line] ?? "")
+                                    color: modelData === 0 ? Colours.palette.m3onSurface : Colours.palette.m3onSurfaceVariant
+                                    opacity: modelData === 0 ? 1 : 0.5
+                                    font: modelData === 0 ? Tokens.font.label.large : Tokens.font.label.small
+                                    elide: Text.ElideRight
+                                }
+                            }
+                        }
+
+                        StyledText {
+                            anchors.centerIn: parent
+                            visible: !parent.ready
+                            text: !root.player ? "" : Lyrics.loading ? Tr.tr("Finding the lyrics…") : Tr.tr("No lyrics for this song")
+                            color: Colours.palette.m3outline
+                            font: Tokens.font.label.small
                         }
                     }
                 }

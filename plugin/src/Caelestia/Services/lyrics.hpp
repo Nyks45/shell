@@ -84,6 +84,10 @@ private:
 
     void tryLocal(int reqId);
     void tryLrclib(int reqId);
+    // LRCLIB's search (cleaned title/artist, any album, nearest length) when its exact /get misses
+    void tryLrclibSearch(int reqId);
+    // Plain (untimed) lyrics as lines spread over the song: the last resort
+    [[nodiscard]] QVector<LyricLine> plainToLines(const QString& text) const;
     void tryNetEase(int reqId);
     void chainNext(LyricsBackend justFailed, int reqId);
 
@@ -135,6 +139,8 @@ private:
     QString m_title;
     QString m_album;
     qreal m_duration = 0.0;
+    // Plain lyrics found on the way (no synced ones yet): shown if nothing synced turns up
+    QString m_plainFallback;
 
     int m_currentRequestId = 0;
     QHash<int, QList<QPointer<QNetworkReply>>> m_pendingReplies;

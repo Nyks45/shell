@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Mpris
+import Caelestia.I18n
 import qs.services
 import qs.utils
 
@@ -24,6 +25,11 @@ Singleton {
     property var recent: []
     // The playlist opened in the library: {id, name, context, tracks}
     property var openList: null
+
+    // A search: its text and the results (songs, artists, albums, playlists in one list)
+    property string query
+    property var results: []
+    property bool searching
 
     // The last thing played (any player), kept in the state dir
     property var last: null
@@ -53,6 +59,29 @@ Singleton {
             return;
         listsProc.running = true;
         recentProc.running = true;
+    }
+
+    // Searched as it's typed (a short pause first; the newest search wins)
+    function search(text: string): void {
+        query = text.trim();
+        if (!query) {
+            results = [];
+            searchDelay.stop();
+            return;
+        }
+        searchDelay.restart();
+    }
+
+    Timer {
+        id: searchDelay
+
+        interval: 350
+        onTriggered: {
+            searchProc.running = false;
+            searchProc.asked = root.query;
+            searchProc.command = [root.helper, "search", root.query];
+            searchProc.running = true;
+        }
     }
 
     function openPlaylist(p: var): void {
@@ -223,6 +252,30 @@ Singleton {
             onStreamFinished: {
                 try {
                     root.recent = JSON.parse(text);
+                } catch (e) {}
+            }
+        }
+    }
+
+    Process {
+        id: searchProc
+
+        property string asked
+
+        onRunningChanged: root.searching = running
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (searchProc.asked !== root.query)
+                    return;
+                try {
+                    const r = JSON.parse(text);
+                    // Songs first, then the rest under their own headings
+                    const head = (key, title) => r[key]?.length ? [
+                        {
+                            header: title
+                        }
+                    ].concat(r[key]) : [];
+                    root.results = r.tracks.concat(head("artists", Tr.tr("Artists")), head("albums", Tr.tr("Albums")), head("playlists", Tr.tr("Playlists")));
                 } catch (e) {}
             }
         }
