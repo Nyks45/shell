@@ -2,30 +2,42 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
+import Quickshell.Widgets
 import Caelestia.Config
 import Caelestia.I18n
+import Caelestia.Services
 import qs.components
+import qs.components.controls
 import qs.services
 import qs.utils
 
-// Dashboard > overview, small (the island's page size): the date, the weather now and who's
-// signed in, over this week with today marked
+// The island's overview: what's useful right now, nothing the pill or the other pages already
+// show. What's playing (with its controls), the system at a glance, the latest notifications
+// (a click opens them), and the pinned apps to start.
 Item {
     id: root
 
-    readonly property date now: Time.date
-    // This week, Monday first
-    readonly property var week: {
-        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const monday = new Date(d);
-        monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-        return Array.from({
-            length: 7
-        }, (_, i) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i));
-    }
+    required property ScreenState screenState
+
+    readonly property var player: Players.active
+    readonly property var latest: Notifs.notClosed.slice(0, 2)
+    readonly property var pinned: Array.from(TaskbarApps.pinned).map(id => DesktopEntries.byId(id)).filter(e => !!e).slice(0, 8)
 
     implicitWidth: Tokens.sizes.dashboard.islandWidth
     implicitHeight: Tokens.sizes.dashboard.islandHeight
+
+    ServiceRef {
+        service: Cpu
+    }
+
+    ServiceRef {
+        service: Gpu
+    }
+
+    ServiceRef {
+        service: Memory
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -37,69 +49,9 @@ Item {
             Layout.fillHeight: true
             spacing: Tokens.spacing.small
 
-            // The date
+            // What's playing
             Card {
-                Layout.preferredWidth: 110
-
-                ColumnLayout {
-                    anchors.centerIn: parent
-                    spacing: 0
-
-                    StyledText {
-                        Layout.alignment: Qt.AlignHCenter
-                        text: root.now.toLocaleDateString(Qt.locale(), "dddd")
-                        color: Colours.palette.m3primary
-                        font: Tokens.font.label.medium
-                    }
-
-                    StyledText {
-                        Layout.alignment: Qt.AlignHCenter
-                        text: root.now.getDate()
-                        font: Tokens.font.headline.medium
-                    }
-
-                    StyledText {
-                        Layout.alignment: Qt.AlignHCenter
-                        text: root.now.toLocaleDateString(Qt.locale(), "MMMM")
-                        color: Colours.palette.m3onSurfaceVariant
-                        font: Tokens.font.label.small
-                    }
-                }
-            }
-
-            // The weather now
-            Card {
-                Layout.fillWidth: true
-
-                RowLayout {
-                    anchors.centerIn: parent
-                    spacing: Tokens.spacing.small
-
-                    MaterialIcon {
-                        text: Weather.icon
-                        color: Colours.palette.m3primary
-                        fontStyle: Tokens.font.icon.large
-                    }
-
-                    ColumnLayout {
-                        spacing: 0
-
-                        StyledText {
-                            text: Weather.temp
-                            font: Tokens.font.title.large
-                        }
-
-                        StyledText {
-                            text: Weather.description
-                            color: Colours.palette.m3onSurfaceVariant
-                            font: Tokens.font.label.small
-                        }
-                    }
-                }
-            }
-
-            // Who's signed in
-            Card {
+                Layout.preferredWidth: 1
                 Layout.fillWidth: true
 
                 RowLayout {
@@ -108,27 +60,28 @@ Item {
                     spacing: Tokens.spacing.small
 
                     ClipRect {
-                        implicitWidth: 40
-                        implicitHeight: 40
-                        radius: 20
-                        color: Colours.palette.m3secondaryContainer
+                        Layout.alignment: Qt.AlignVCenter
+                        Layout.preferredWidth: 64
+                        Layout.preferredHeight: 64
+                        radius: Tokens.rounding.medium
+                        color: Colours.tPalette.m3surfaceContainerHighest
 
                         MaterialIcon {
                             anchors.centerIn: parent
-                            visible: face.status !== Image.Ready
-                            text: "person"
-                            color: Colours.palette.m3onSecondaryContainer
+                            visible: art.status !== Image.Ready
+                            text: root.player ? "music_note" : "music_off"
+                            color: Colours.palette.m3onSurfaceVariant
+                            fontStyle: Tokens.font.icon.medium
                         }
 
                         Image {
-                            id: face
+                            id: art
 
                             anchors.fill: parent
-                            source: Paths.faceSource ? `file://${Paths.faceSource}` : ""
+                            source: root.player ? Players.getArtUrl(root.player) : ""
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
-                            cache: false
-                            sourceSize.width: 80
+                            sourceSize.width: 160
                         }
                     }
 
@@ -138,61 +91,183 @@ Item {
 
                         StyledText {
                             Layout.fillWidth: true
-                            text: SysInfo.user
+                            text: root.player?.trackTitle || Tr.tr("Nothing playing")
                             font: Tokens.font.body.small
                             elide: Text.ElideRight
                         }
 
                         StyledText {
                             Layout.fillWidth: true
-                            text: Tr.tr("Up %1").arg(SysInfo.uptimeShort || SysInfo.uptime)
+                            visible: !!root.player
+                            text: root.player?.trackArtist || Players.getIdentity(root.player)
                             color: Colours.palette.m3onSurfaceVariant
                             font: Tokens.font.label.small
                             elide: Text.ElideRight
                         }
+
+                        Row {
+                            visible: !!root.player
+                            spacing: 0
+
+                            IconButton {
+                                type: IconButton.Text
+                                icon: "skip_previous"
+                                onClicked: root.player?.previous()
+                            }
+
+                            IconButton {
+                                type: IconButton.Text
+                                icon: root.player?.isPlaying ? "pause" : "play_arrow"
+                                onClicked: root.player?.togglePlaying()
+                            }
+
+                            IconButton {
+                                type: IconButton.Text
+                                icon: "skip_next"
+                                onClicked: root.player?.next()
+                            }
+                        }
+                    }
+                }
+            }
+
+            // The system at a glance
+            Card {
+                Layout.preferredWidth: 1
+                Layout.fillWidth: true
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: Tokens.padding.medium
+                    spacing: Tokens.spacing.extraSmall
+
+                    Stat {
+                        icon: "memory"
+                        label: Tr.tr("CPU")
+                        value: Cpu.percentage
+                        extra: Cpu.temperature > 0 ? `${Math.round(Cpu.temperature)}°` : ""
+                    }
+
+                    Stat {
+                        icon: "developer_board"
+                        label: Tr.tr("GPU")
+                        value: Gpu.percentage
+                        extra: Gpu.temperature > 0 ? `${Math.round(Gpu.temperature)}°` : ""
+                        colour: Colours.palette.m3secondary
+                    }
+
+                    Stat {
+                        icon: "memory_alt"
+                        label: Tr.tr("RAM")
+                        value: Memory.percentage
+                        extra: `${(Memory.used / 1048576).toFixed(1)} GB`
+                        colour: Colours.palette.m3tertiary
                     }
                 }
             }
         }
 
-        // This week
-        RowLayout {
+        // The latest notifications: a click opens them
+        Card {
             Layout.fillWidth: true
-            spacing: Tokens.spacing.extraSmall
+            Layout.fillHeight: false
+            implicitHeight: notifCol.implicitHeight + Tokens.padding.small * 2
 
-            Repeater {
-                model: root.week
+            StateLayer {
+                radius: Tokens.rounding.large
+                onClicked: root.screenState.dashboardRequest = "notifications"
+            }
 
-                StyledRect {
-                    id: dayCell
+            ColumnLayout {
+                id: notifCol
 
-                    required property var modelData
-                    readonly property bool today: modelData.toDateString() === root.now.toDateString()
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.margins: Tokens.padding.medium
+                spacing: 2
 
-                    Layout.fillWidth: true
-                    implicitHeight: dayCol.implicitHeight + Tokens.padding.small * 2
-                    radius: Tokens.rounding.medium
-                    color: today ? Colours.palette.m3primary : Colours.tPalette.m3surfaceContainerHigh
+                Repeater {
+                    model: root.latest
 
-                    ColumnLayout {
-                        id: dayCol
+                    RowLayout {
+                        id: nrow
 
-                        anchors.centerIn: parent
-                        spacing: 0
+                        required property var modelData
+
+                        Layout.fillWidth: true
+                        spacing: Tokens.spacing.small
+
+                        MaterialIcon {
+                            text: nrow.modelData.hints?.["x-caelestia-icon"] || "notifications"
+                            color: Colours.palette.m3primary
+                            fontStyle: Tokens.font.icon.small
+                        }
 
                         StyledText {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: dayCell.modelData.toLocaleDateString(Qt.locale(), "ddd")
-                            color: dayCell.today ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
+                            text: nrow.modelData.appName || Tr.tr("App")
+                            color: Colours.palette.m3primary
+                            font: Tokens.font.label.medium
+                        }
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: nrow.modelData.summary
+                            font: Tokens.font.label.medium
+                            elide: Text.ElideRight
+                        }
+
+                        StyledText {
+                            text: nrow.modelData.timeStr
+                            color: Colours.palette.m3outline
                             font: Tokens.font.label.small
                         }
+                    }
+                }
 
-                        StyledText {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: dayCell.modelData.getDate()
-                            color: dayCell.today ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface
-                            font: Tokens.font.label.large
+                StyledText {
+                    visible: root.latest.length === 0
+                    text: Tr.tr("No notifications")
+                    color: Colours.palette.m3onSurfaceVariant
+                    font: Tokens.font.label.medium
+                }
+            }
+        }
+
+        // The pinned apps
+        Row {
+            Layout.alignment: Qt.AlignHCenter
+            visible: root.pinned.length > 0
+            spacing: Tokens.spacing.small
+
+            Repeater {
+                model: root.pinned
+
+                StyledRect {
+                    id: app
+
+                    required property var modelData
+
+                    implicitWidth: 40
+                    implicitHeight: 40
+                    radius: Tokens.rounding.large
+                    color: Colours.tPalette.m3surfaceContainerHigh
+
+                    StateLayer {
+                        radius: Tokens.rounding.large
+                        onClicked: {
+                            TaskbarApps.launch({
+                                entry: app.modelData
+                            });
+                            root.screenState.dashboard = false;
                         }
+                    }
+
+                    IconImage {
+                        anchors.centerIn: parent
+                        implicitSize: 24
+                        asynchronous: true
+                        source: Quickshell.iconPath(app.modelData.icon, "application-x-executable")
                     }
                 }
             }
@@ -203,5 +278,64 @@ Item {
         Layout.fillHeight: true
         radius: Tokens.rounding.large
         color: Colours.tPalette.m3surfaceContainerHigh
+    }
+
+    // A usage line: icon, name, a slim bar and its number
+    component Stat: RowLayout {
+        id: stat
+
+        property string icon
+        property string label
+        property real value
+        property string extra
+        property color colour: Colours.palette.m3primary
+
+        Layout.fillWidth: true
+        spacing: Tokens.spacing.small
+
+        MaterialIcon {
+            text: stat.icon
+            color: stat.colour
+            fontStyle: Tokens.font.icon.small
+        }
+
+        StyledText {
+            Layout.preferredWidth: 34
+            text: stat.label
+            font: Tokens.font.label.medium
+        }
+
+        StyledRect {
+            Layout.fillWidth: true
+            implicitHeight: 6
+            radius: 3
+            color: Colours.tPalette.m3surfaceContainerHighest
+
+            StyledRect {
+                width: parent.width * Math.max(0, Math.min(1, stat.value))
+                height: parent.height
+                radius: 3
+                color: stat.colour
+
+                Behavior on width {
+                    Anim {}
+                }
+            }
+        }
+
+        StyledText {
+            Layout.preferredWidth: 34
+            horizontalAlignment: Text.AlignRight
+            text: `${Math.round(stat.value * 100)}%`
+            font: Tokens.font.label.medium
+        }
+
+        StyledText {
+            Layout.preferredWidth: 46
+            horizontalAlignment: Text.AlignRight
+            text: stat.extra
+            color: Colours.palette.m3onSurfaceVariant
+            font: Tokens.font.label.small
+        }
     }
 }

@@ -21,8 +21,10 @@ Item {
 
     required property ScreenState screenState
 
-    // 0 quick settings, 1 notifications
-    property int pane: 0
+    // 0 quick settings, 1 notifications; a page of its own shows one (fixedPane) without the
+    // switch
+    property int fixedPane: -1
+    property int pane: fixedPane >= 0 ? fixedPane : 0
 
     // The island turns into the settings, at this page
     function openSettings(id: string): void {
@@ -45,15 +47,25 @@ Item {
             spacing: Tokens.spacing.extraSmall
 
             PaneButton {
+                visible: root.fixedPane < 0
                 index: 0
                 icon: "tune"
                 text: Tr.tr("Quick settings")
             }
 
             PaneButton {
+                visible: root.fixedPane < 0
                 index: 1
                 icon: "notifications"
                 text: root.notifs.length ? Tr.tr("Notifications (%1)").arg(root.notifs.length) : Tr.tr("Notifications")
+            }
+
+            // (a page of its own: just its title)
+            StyledText {
+                visible: root.fixedPane === 1
+                leftPadding: Tokens.padding.small
+                text: root.notifs.length ? Tr.tr("Notifications (%1)").arg(root.notifs.length) : Tr.tr("Notifications")
+                font: Tokens.font.title.small
             }
 
             Item {

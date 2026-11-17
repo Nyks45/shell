@@ -68,6 +68,11 @@ Item {
             on: Config.dashboard.showWeather
         },
         {
+            key: "notifications",
+            icon: "notifications",
+            on: true
+        },
+        {
             key: "quick",
             icon: "tune",
             on: true
@@ -115,7 +120,7 @@ Item {
         }
     }
 
-    // A click on the pill: the quick settings and notifications page
+    // A click on the pill's time: the quick settings
     function openNotifications(): void {
         openPage("quick");
     }

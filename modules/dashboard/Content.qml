@@ -62,7 +62,14 @@ Item {
                 enabled: Config.dashboard.showWeather
             },
             {
-                // The island's pill, clicked: quick settings and notifications
+                key: "notifications",
+                component: notificationsComponent,
+                iconName: "notifications",
+                text: Tr.tr("Notifications"),
+                enabled: true
+            },
+            {
+                // The island's pill, clicked: quick settings
                 key: "quick",
                 component: quickComponent,
                 iconName: "tune",
@@ -175,7 +182,7 @@ Item {
 
                     MaterialIcon {
                         anchors.centerIn: parent
-                        text: tab.modelData.key === "quick" ? "notifications" : tab.modelData.iconName
+                        text: tab.modelData.key === "quick" ? "tune" : tab.modelData.iconName
                         color: tab.isCurrent ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
                         fontStyle: Tokens.font.icon.small
                         fill: tab.isCurrent ? 1 : 0
@@ -269,7 +276,9 @@ Item {
             Component {
                 id: dashComponent
 
-                MiniOverview {}
+                MiniOverview {
+                    screenState: root.screenState
+                }
             }
 
             Component {
@@ -350,6 +359,16 @@ Item {
 
                 MiniQuick {
                     screenState: root.screenState
+                    fixedPane: 0
+                }
+            }
+
+            Component {
+                id: notificationsComponent
+
+                MiniQuick {
+                    screenState: root.screenState
+                    fixedPane: 1
                 }
             }
 
