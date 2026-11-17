@@ -37,28 +37,27 @@ Singleton {
 
     // Waiting for Spotify to start, to play this
     property string pendingUri
-    // Spotify started by the shell: it goes straight to its tray (its window is closed the moment
-    // it appears; with Spotify's "minimize to tray" it keeps running there, and plays)
+    // Spotify started by the shell to play: its window is never seen. It opens on a hidden
+    // workspace (only while it starts: closing it earlier makes Spotify show it again) and, once
+    // playing, is closed to the tray (Spotify's "minimize to tray": it keeps running there). Its
+    // tray's "Show Spotify" then opens it normally, on the current workspace.
+    readonly property string holdWs: "special:caelestia-hold"
     property bool hideNext
 
-    function closeSpotifyWindow(address: string): void {
-        Hypr.dispatch(Hypr.usingLua ? `hl.dsp.window.close({ window = "address:0x${address}" })` : `closewindow address:0x${address}`);
+    // Its window, if it's still in the hidden holding place (never one the user brought up)
+    function closeHeldWindow(): void {
+        hideNext = false;
+        const t = Hyprland.toplevels.values.find(t => /spotify/i.test(t.lastIpcObject?.class ?? "") && t.workspace?.name === holdWs);
+        if (t)
+            Hypr.dispatch(`hl.dsp.window.close({ window = "address:0x${t.address}" })`);
     }
 
-    Connections {
-        function onRawEvent(event: HyprlandEvent): void {
-            if (!root.hideNext || event.name !== "openwindow")
-                return;
-            // openwindow>>ADDRESS,WORKSPACE,CLASS,TITLE
-            const parts = event.data.split(",");
-            if (/spotify/i.test(parts[2] ?? "") || /^Spotify/.test(parts.slice(3).join(","))) {
-                // (just that first window: its tray's "Show Spotify" opens it again later)
-                root.hideNext = false;
-                root.closeSpotifyWindow(parts[0]);
-            }
-        }
+    Timer {
+        id: closeHeld
 
-        target: Hyprland
+        // (after the song was handed to it, playLater: Spotify has settled by then)
+        interval: 2500
+        onTriggered: root.closeHeldWindow()
     }
 
     function refresh(): void {
@@ -129,13 +128,10 @@ Singleton {
             return;
         }
         pendingUri = uri;
-        // Started for this, so out of sight: straight to its tray icon (no special workspace:
-        // Spotify opened by hand belongs on the current one)
+        // Started for this, so out of sight (see holdWs; launch rules only apply to this first
+        // window, so Spotify opened later is a normal window)
         hideNext = true;
-        // (its first window never shows: transparent, off screen, unfocused and without an
-        // animation until it's closed to the tray a moment later; launch rules apply to that
-        // window only, so the tray's "Show Spotify" opens it normally)
-        Hypr.dispatch(`hl.dsp.exec_cmd("spotify", { float = true, move = "-10000 -10000", opacity = "0 override", no_initial_focus = true, no_focus = true, no_anim = true, no_shadow = true, no_blur = true })`);
+        Hypr.dispatch(`hl.dsp.exec_cmd("spotify", { workspace = "${holdWs} silent", no_initial_focus = true, no_focus = true, no_anim = true })`);
         pendingTimeout.restart();
     }
 
@@ -169,6 +165,8 @@ Singleton {
             root.spotify?.openUri(uri);
             if (root.spotify)
                 Players.manualActive = root.spotify;
+            if (root.hideNext)
+                closeHeld.restart();
         }
     }
 
