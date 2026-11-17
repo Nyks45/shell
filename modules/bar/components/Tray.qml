@@ -48,7 +48,7 @@ StyledRect {
         anchors.top: parent.top
         anchors.topMargin: root.padding
         visible: root.lead > 0
-        implicitWidth: 16
+        implicitWidth: 22
         implicitHeight: 2
         radius: 1
         color: Qt.alpha(Colours.palette.m3outline, 0.6)

@@ -14,8 +14,8 @@ MouseArea {
 
     acceptedButtons: Qt.LeftButton | Qt.RightButton
     // (in the pill: smaller than the apps' icons, and single-coloured)
-    implicitWidth: Tokens.font.body.small.pointSize * (Config.bar.pill ? 1.45 : 2)
-    implicitHeight: Tokens.font.body.small.pointSize * (Config.bar.pill ? 1.45 : 2)
+    implicitWidth: Tokens.font.body.small.pointSize * (Config.bar.pill ? 1.7 : 2)
+    implicitHeight: Tokens.font.body.small.pointSize * (Config.bar.pill ? 1.7 : 2)
 
     onClicked: event => {
         if (event.button === Qt.LeftButton)
