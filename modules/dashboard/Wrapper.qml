@@ -22,6 +22,7 @@ Item {
 
     readonly property real nonAnimHeight: (content.item as Item)?.nonAnimHeight ?? 0
     readonly property bool dashEnabled: Config.dashboard.enabled
+    readonly property bool pillBar: Config.bar.pill
     readonly property bool shouldBeActive: screenState.dashboard && dashEnabled
 
     // 0 closed .. 1 open (may pass 1 by a hair while settling)
@@ -37,7 +38,8 @@ Item {
     // full width, centred, even while its shape is small or closed (drawers/Interactions.qml)
     readonly property real hoverWidth: fullWidth
     // and as tall as it's going to be (the pointer can run ahead of it while it grows)
-    readonly property real hoverHeight: shouldBeActive ? Math.max(height, fullHeight) : height
+    // (the pill's settings tab under it counts too)
+    readonly property real hoverHeight: shouldBeActive ? Math.max(height, fullHeight) : height + (peek > 0.05 ? settingsTab.height + settingsTab.anchors.topMargin : 0)
     // It floats this far below the top edge, as an island (its shape stays apart from the frame)
     readonly property real floatGap: Tokens.spacing.medium
     // The pill: the time, with buttons that open one page alone either side
@@ -125,6 +127,33 @@ Item {
     // A click on the pill's time: the quick settings
     function openNotifications(): void {
         openPage("quick");
+    }
+
+    // With the pill bar, the island replaces the old edge panels: asked for (shortcuts, IPC),
+    // they open its page instead (the notifications sidebar, the quick toggles, the power menu)
+    Connections {
+        function onSidebarChanged(): void {
+            if (root.pillBar && root.screenState.sidebar) {
+                root.screenState.sidebar = false;
+                root.openPage("notifications");
+            }
+        }
+
+        function onUtilitiesChanged(): void {
+            if (root.pillBar && root.screenState.utilities) {
+                root.screenState.utilities = false;
+                root.openPage("quick");
+            }
+        }
+
+        function onSessionChanged(): void {
+            if (root.pillBar && root.screenState.session && !root.screenState.sessionAtBar) {
+                root.screenState.session = false;
+                root.openPage("power");
+            }
+        }
+
+        target: root.screenState
     }
 
     // Another page asked for from inside the island (the quick settings' "open in settings")
@@ -240,6 +269,62 @@ Item {
                 model: root.pillRight
 
                 PillButton {}
+            }
+        }
+    }
+
+    // The settings: a small tab hanging under the pill's clock (a gear and an arrow down), shown
+    // with the pill; a click grows the island into the settings
+    StyledRect {
+        id: settingsTab
+
+        readonly property real showT: Math.max(0, Math.min(1, root.peek)) * Math.max(0, 1 - root.morph * 8)
+
+        anchors.top: parent.bottom
+        anchors.topMargin: 4
+        anchors.horizontalCenter: parent.horizontalCenter
+        implicitWidth: tabRow.implicitWidth + Tokens.padding.medium * 2
+        implicitHeight: tabRow.implicitHeight + 6
+        radius: height / 2
+        color: tabLayer.containsMouse ? Colours.palette.m3primaryContainer : Qt.alpha(Colours.palette.m3surface, 0.6)
+        border.width: 1
+        border.color: Qt.alpha(Colours.palette.m3outlineVariant, 0.4)
+        visible: showT > 0.01
+        opacity: showT
+        transform: Translate {
+            y: -8 * (1 - settingsTab.showT)
+        }
+
+        Behavior on color {
+            CAnim {}
+        }
+
+        StateLayer {
+            id: tabLayer
+
+            radius: settingsTab.height / 2
+            color: Colours.palette.m3onPrimaryContainer
+            onClicked: root.openPage("settings")
+        }
+
+        Row {
+            id: tabRow
+
+            anchors.centerIn: parent
+            spacing: 2
+
+            MaterialIcon {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "settings"
+                color: tabLayer.containsMouse ? Colours.palette.m3onPrimaryContainer : Colours.palette.m3onSurfaceVariant
+                fontStyle: Tokens.font.icon.small
+            }
+
+            MaterialIcon {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "keyboard_arrow_down"
+                color: tabLayer.containsMouse ? Colours.palette.m3onPrimaryContainer : Colours.palette.m3onSurfaceVariant
+                fontStyle: Tokens.font.icon.small
             }
         }
     }

@@ -186,7 +186,7 @@ CustomMouseArea {
             const showSidebar = pressed && dragStart.x > Math.min(width - Config.border.minThickness, bar.implicitWidth + panels.sidebar.x);
 
             // Show sidebar on hover (top-right corner, bounded by notification panel height)
-            if (Config.sidebar.showOnHover && Config.sidebar.enabled) {
+            if (Config.sidebar.showOnHover && Config.sidebar.enabled && !bar.pill) {
                 const sidebarTriggerY = Math.max(Config.sidebar.minHoverThreshold, panels.notifications.y + panels.notifications.height + borderThickness);
                 const showSidebarHover = x > Math.min(width - Config.border.minThickness, bar.implicitWidth + panels.sidebar.x) && y <= sidebarTriggerY;
                 if (showSidebarHover && !screenState.sidebar)
@@ -194,7 +194,7 @@ CustomMouseArea {
             }
 
             // Show/hide session on drag
-            if (pressed && !screenState.sessionAtBar && inRightPanel(panels.sessionWrapper, dragStart.x, dragStart.y) && withinPanelHeight(panels.sessionWrapper, x, y)) {
+            if (pressed && !bar.pill && !screenState.sessionAtBar && inRightPanel(panels.sessionWrapper, dragStart.x, dragStart.y) && withinPanelHeight(panels.sessionWrapper, x, y)) {
                 if (dragX < -Config.session.dragThreshold)
                     screenState.session = true;
                 else if (dragX > Config.session.dragThreshold)
@@ -203,7 +203,7 @@ CustomMouseArea {
                 // Show sidebar on drag if in session area and session is nearly fully visible
                 if (showSidebar && panels.session.offsetScale <= 0 && dragX < -Config.sidebar.dragThreshold)
                     screenState.sidebar = true;
-            } else if (showSidebar && dragX < -Config.sidebar.dragThreshold) {
+            } else if (showSidebar && !bar.pill && dragX < -Config.sidebar.dragThreshold) {
                 // Show sidebar on drag if not in session area
                 screenState.sidebar = true;
             }
@@ -223,7 +223,7 @@ CustomMouseArea {
             }
 
             // Show/hide session on drag
-            if (pressed && outOfSidebar && !screenState.sessionAtBar && inRightPanel(panels.sessionWrapper, dragStart.x, dragStart.y) && withinPanelHeight(panels.sessionWrapper, x, y)) {
+            if (pressed && outOfSidebar && !bar.pill && !screenState.sessionAtBar && inRightPanel(panels.sessionWrapper, dragStart.x, dragStart.y) && withinPanelHeight(panels.sessionWrapper, x, y)) {
                 if (dragX < -Config.session.dragThreshold)
                     screenState.session = true;
                 else if (dragX > Config.session.dragThreshold)
@@ -231,7 +231,7 @@ CustomMouseArea {
             }
 
             // Show/hide sidebar on hover
-            if (Config.sidebar.showOnHover && Config.sidebar.enabled && !pressed) {
+            if (Config.sidebar.showOnHover && Config.sidebar.enabled && !pressed && !bar.pill) {
                 const sidebarTriggerY = Math.max(Config.sidebar.minHoverThreshold, panels.notifications.y + panels.notifications.height + borderThickness);
                 const showSidebarHover = x > Math.min(width - Config.border.minThickness, bar.implicitWidth + panels.sidebar.x) && y <= sidebarTriggerY;
                 if (showSidebarHover && !screenState.sidebar) {
@@ -284,7 +284,8 @@ CustomMouseArea {
         }
 
         // Show utilities on hover
-        const showUtilities = inBottomPanel(panels.utilities, x, y, true);
+        // (with the pill bar the quick settings are on the top island: the corner does nothing)
+        const showUtilities = !bar.pill && inBottomPanel(panels.utilities, x, y, true);
 
         // Always update visibility based on hover if not in shortcut mode
         if (!utilitiesShortcutActive) {

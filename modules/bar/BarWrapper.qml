@@ -38,7 +38,8 @@ Item {
     readonly property int exclusiveZone: !disabled && (persistent || screenState.bar) ? contentWidth + pillGap * 2 : Config.border.thickness
     // The power menu opens from the bar's power button (a popout, not the
     // drawer at the right edge) when the bar has one
-    readonly property bool sessionAtBar: !disabled && Config.session.enabled && Config.bar.entries.values.some(e => e.enabled && e.id === "power")
+    // (the pill has no power button: its power page is on the top island)
+    readonly property bool sessionAtBar: !disabled && !pill && Config.session.enabled && Config.bar.entries.values.some(e => e.enabled && e.id === "power")
     readonly property bool sessionOpen: sessionAtBar && screenState.session
     // (kept shown while its power menu is open, the pointer being on the menu)
     readonly property bool shouldBeVisible: !fullscreen && !disabled && (persistent || screenState.bar || isHovered || sessionOpen)
