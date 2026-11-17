@@ -273,7 +273,7 @@ Item {
                                 implicitWidth: cell * modes.length + 6
                                 implicitHeight: cell + 6
                                 radius: height / 2
-                                color: Colours.tPalette.m3surfaceContainerHigh
+                                color: Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.45)
 
                                 StyledRect {
                                     x: 3 + modesBox.chosen * modesBox.cell
@@ -343,7 +343,7 @@ Item {
                                     implicitWidth: 38
                                     implicitHeight: 38
                                     radius: 19
-                                    color: Audio.muted ? Colours.tPalette.m3surfaceContainerHigh : Colours.palette.m3primaryContainer
+                                    color: Audio.muted ? Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.45) : Colours.palette.m3primaryContainer
 
                                     Behavior on color {
                                         CAnim {}
@@ -380,7 +380,7 @@ Item {
                                         anchors.verticalCenter: parent.verticalCenter
                                         height: 12
                                         radius: 6
-                                        color: Colours.tPalette.m3surfaceContainerHigh
+                                        color: Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.45)
                                     }
 
                                     // The fill, a soft gradient
@@ -557,7 +557,7 @@ Item {
                             // Fixed: three always fit whole in the pane
                             implicitHeight: Math.floor((list.height - list.spacing * 2) / 3)
                             radius: Tokens.rounding.large
-                            color: Colours.tPalette.m3surfaceContainerHigh
+                            color: Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.45)
 
                             StateLayer {
                                 onClicked: {
@@ -717,7 +717,7 @@ Item {
         Layout.horizontalStretchFactor: expandable ? 6 : 4
         implicitHeight: 58
         radius: Tokens.rounding.extraLarge
-        color: on ? Colours.palette.m3primaryContainer : Colours.tPalette.m3surfaceContainerHigh
+        color: on ? Colours.palette.m3primaryContainer : Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.45)
 
         Behavior on color {
             CAnim {}
@@ -802,7 +802,7 @@ Item {
             implicitWidth: 48
             implicitHeight: 42
             radius: rt.on ? Tokens.rounding.large : 21
-            color: rt.on ? Colours.palette.m3primary : Colours.tPalette.m3surfaceContainerHigh
+            color: rt.on ? Colours.palette.m3primary : Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.45)
 
             Behavior on radius {
                 Anim {}

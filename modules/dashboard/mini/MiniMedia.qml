@@ -41,7 +41,7 @@ Item {
             Layout.preferredWidth: height
             Layout.fillHeight: true
             radius: Tokens.rounding.large
-            color: Colours.tPalette.m3surfaceContainerHigh
+            color: Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.45)
 
             MaterialIcon {
                 anchors.centerIn: parent

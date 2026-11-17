@@ -129,7 +129,7 @@ Item {
         Layout.preferredWidth: 1
         Layout.fillHeight: true
         radius: Tokens.rounding.large
-        color: Colours.tPalette.m3surfaceContainerHigh
+        color: Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.45)
 
         ColumnLayout {
             anchors.fill: parent

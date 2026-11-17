@@ -203,7 +203,7 @@ Item {
                     anchors.bottom: parent.bottom
                     height: 44
                     radius: Tokens.rounding.large
-                    color: row.active ? Colours.palette.m3secondaryContainer : Colours.tPalette.m3surfaceContainerHigh
+                    color: row.active ? Colours.palette.m3secondaryContainer : Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.45)
 
                     StateLayer {
                         disabled: row.busy

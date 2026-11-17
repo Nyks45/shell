@@ -251,7 +251,7 @@ Item {
                     implicitWidth: 40
                     implicitHeight: 40
                     radius: Tokens.rounding.large
-                    color: Colours.tPalette.m3surfaceContainerHigh
+                    color: Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.45)
 
                     StateLayer {
                         radius: Tokens.rounding.large
@@ -277,7 +277,7 @@ Item {
     component Card: StyledRect {
         Layout.fillHeight: true
         radius: Tokens.rounding.large
-        color: Colours.tPalette.m3surfaceContainerHigh
+        color: Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.45)
     }
 
     // A usage line: icon, name, a slim bar and its number

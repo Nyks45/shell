@@ -43,8 +43,9 @@ StyledWindow {
     readonly property real borderLayoutThickness: hasFullscreen ? 0 : contentItem.Config.border.thickness
 
     property color surfaceColour: Colours.tPalette.m3surface
-    // The islands (dashboard, pill, its menus): the panels' glass (readable over anything)
-    readonly property color islandColour: root.surfaceColour
+    // The islands (dashboard, pill, its menus): lighter glass than the panels, more of the blurred
+    // picture behind showing through (their cards keep their own tint, so text stays readable)
+    readonly property color islandColour: Qt.alpha(Colours.palette.m3surface, Math.min(root.surfaceColour.a, 0.6))
 
     readonly property int dragMaskPadding: {
         if (focusGrab.active || panels.popouts.isDetached)

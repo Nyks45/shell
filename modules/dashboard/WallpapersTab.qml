@@ -123,7 +123,7 @@ Item {
                     anchors.margins: 4
                     height: width * 9 / 16
                     radius: Tokens.rounding.medium
-                    color: Colours.tPalette.m3surfaceContainerHigh
+                    color: Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.45)
 
                     // A picture or a video (the settings' thumbnails; a video plays on hover)
                     Visual {

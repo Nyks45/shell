@@ -6,9 +6,8 @@ import qs.components
 import qs.services
 
 // The dashboard as a hiding island: touching the top edge brings out a small pill with the time
-// and date and a button per page; a button opens that page alone, clicking the time and date
-// opens the quick settings and notifications page, the shortcut the overview (hovering only
-// shows the pill). Moving away shrinks it
+// and date and a button per page (two rows a side); a button opens that page alone, clicking
+// the time and date or the shortcut the overview (hovering only shows the pill). Moving away shrinks it
 // back into the edge. The shortcut opens the dashboard at once. It grows like Nebula's media island: the shape eases
 // out over about half a second, revealing the page at full size, which fades in near the end.
 Item {
@@ -93,7 +92,7 @@ Item {
             on: true
         }
     ].filter(p => p.on)
-    readonly property var pillButtons: pages.filter(p => p.key !== "dashboard" && p.key !== "quick")
+    readonly property var pillButtons: pages.filter(p => p.key !== "dashboard")
 
     // One page alone, at once
     function openPage(key: string): void {
@@ -176,15 +175,24 @@ Item {
         id: face
 
         anchors.centerIn: parent
-        spacing: Tokens.spacing.small
+        spacing: Tokens.spacing.medium
         opacity: Math.max(0, Math.min(1, root.peek) - root.morph * 5)
         scale: 0.6 + 0.4 * Math.max(0, Math.min(1, root.peek))
         visible: opacity > 0.01
 
-        Repeater {
-            model: root.pillButtons.slice(0, Math.floor(root.pillButtons.length / 2))
+        // (two rows a side: the pill stays narrow)
+        Grid {
+            anchors.verticalCenter: parent.verticalCenter
+            rows: 2
+            flow: Grid.TopToBottom
+            rowSpacing: Tokens.spacing.extraSmall
+            columnSpacing: Tokens.spacing.small
 
-            PillButton {}
+            Repeater {
+                model: root.pillButtons.slice(0, Math.floor(root.pillButtons.length / 2))
+
+                PillButton {}
+            }
         }
 
         // The time and date: a click opens the notifications and quick settings
@@ -198,7 +206,7 @@ Item {
             color: "transparent"
 
             StateLayer {
-                onClicked: root.openNotifications()
+                onClicked: root.openAll()
             }
 
             Column {
@@ -223,10 +231,19 @@ Item {
             }
         }
 
-        Repeater {
-            model: root.pillButtons.slice(Math.floor(root.pillButtons.length / 2))
+        // (two rows a side: the pill stays narrow)
+        Grid {
+            anchors.verticalCenter: parent.verticalCenter
+            rows: 2
+            flow: Grid.TopToBottom
+            rowSpacing: Tokens.spacing.extraSmall
+            columnSpacing: Tokens.spacing.small
 
-            PillButton {}
+            Repeater {
+                model: root.pillButtons.slice(Math.floor(root.pillButtons.length / 2))
+
+                PillButton {}
+            }
         }
     }
 
@@ -235,9 +252,9 @@ Item {
 
         required property var modelData
 
-        anchors.verticalCenter: parent?.verticalCenter
-        implicitWidth: 30
-        implicitHeight: 30
+        // (placed by its grid)
+        implicitWidth: 26
+        implicitHeight: 26
         radius: height / 2
         color: Colours.layer(Colours.palette.m3surfaceContainerHigh, 2)
 

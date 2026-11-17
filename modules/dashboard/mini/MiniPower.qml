@@ -32,7 +32,7 @@ Item {
                 implicitWidth: 112
                 implicitHeight: 112
                 radius: 56
-                color: Colours.tPalette.m3surfaceContainerHigh
+                color: Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.45)
 
                 AnimatedImage {
                     anchors.fill: parent
@@ -150,7 +150,7 @@ Item {
             implicitWidth: 64
             implicitHeight: 56
             radius: actArea.containsMouse ? height / 2 : Tokens.rounding.large
-            color: act.danger ? (actArea.containsMouse ? Colours.palette.m3error : Colours.palette.m3errorContainer) : (actArea.containsMouse ? Colours.palette.m3primary : Colours.tPalette.m3surfaceContainerHigh)
+            color: act.danger ? (actArea.containsMouse ? Colours.palette.m3error : Colours.palette.m3errorContainer) : (actArea.containsMouse ? Colours.palette.m3primary : Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.45))
 
             Behavior on radius {
                 Anim {}

@@ -117,7 +117,7 @@ Item {
                     Layout.fillHeight: true
                     Layout.preferredWidth: 1
                     radius: Tokens.rounding.large
-                    color: index === 0 ? Colours.palette.m3secondaryContainer : Colours.tPalette.m3surfaceContainerHigh
+                    color: index === 0 ? Colours.palette.m3secondaryContainer : Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.45)
 
                     ColumnLayout {
                         anchors.centerIn: parent
