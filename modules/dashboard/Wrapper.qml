@@ -340,15 +340,45 @@ Item {
         radius: height / 2
         color: Colours.layer(Colours.palette.m3surfaceContainerHigh, 2)
 
+        // The notifications button shows when there are some: a filled bell in the accent
+        // colour and a count badge on its corner
+        readonly property int unread: btn.modelData.key === "notifications" ? Notifs.notClosed.length : 0
+
         StateLayer {
             onClicked: root.openPage(btn.modelData.key)
         }
 
         MaterialIcon {
             anchors.centerIn: parent
-            text: btn.modelData.icon
-            color: Colours.palette.m3onSurfaceVariant
+            text: btn.unread > 0 ? "notifications_unread" : btn.modelData.icon
+            color: btn.unread > 0 ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
             fontStyle: Tokens.font.icon.small
+            fill: btn.unread > 0 ? 1 : 0
+        }
+
+        StyledRect {
+            visible: btn.unread > 0
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.topMargin: -3
+            anchors.rightMargin: -4
+            implicitWidth: Math.max(implicitHeight, countText.implicitWidth + 8)
+            implicitHeight: 15
+            radius: implicitHeight / 2
+            color: Colours.palette.m3primary
+            border.width: 2
+            border.color: Qt.alpha(Colours.palette.m3surface, 0.9)
+
+            StyledText {
+                id: countText
+
+                anchors.centerIn: parent
+                text: btn.unread > 99 ? "99+" : btn.unread
+                color: Colours.palette.m3onPrimary
+                font.family: Tokens.font.label.small.family
+                font.pixelSize: 9
+                font.weight: Font.Bold
+            }
         }
     }
 
