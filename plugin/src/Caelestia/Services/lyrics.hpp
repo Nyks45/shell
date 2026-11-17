@@ -97,6 +97,8 @@ private:
     // Plain (untimed) lyrics as lines spread over the song: the last resort
     [[nodiscard]] QVector<LyricLine> plainToLines(const QString& text) const;
     void tryNetEase(int reqId);
+    // Untimed lyrics from lyrics.ovh (a free public API): the last resort, spread over the song
+    void tryLyricsOvh(int reqId);
     void chainNext(LyricsBackend justFailed, int reqId);
 
     void searchLrclibCandidates(int reqId);
@@ -149,6 +151,7 @@ private:
     qreal m_duration = 0.0;
     // Plain lyrics found on the way (no synced ones yet): shown if nothing synced turns up
     QString m_plainFallback;
+    bool m_triedOvh = false;
 
     int m_currentRequestId = 0;
     QHash<int, QList<QPointer<QNetworkReply>>> m_pendingReplies;

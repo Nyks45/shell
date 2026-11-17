@@ -7,6 +7,7 @@
 import QtQuick
 import Quickshell
 import Caelestia.Config
+import Caelestia.Services
 import qs.services
 import qs.modules
 import qs.modules.lock
@@ -52,6 +53,9 @@ ShellRoot {
     }
 
     Component.onCompleted: {
+        // The lyrics service from the start: it listens for Spotify's lyrics (the Spicetify
+        // extension sends them when a song starts, before any lyrics view is opened)
+        void Lyrics.loading;
         // Non-boot sessions instantiate desktop modules right away; boot-lock starts Lock first.
         if (desktopReady)
             loadDesktop();

@@ -436,6 +436,7 @@ void Lyrics::scheduleLoad() {
 
 int Lyrics::newRequestId() {
     m_plainFallback.clear();
+    m_triedOvh = false;
     return ++m_currentRequestId;
 }
 
@@ -536,6 +537,12 @@ void Lyrics::chainNext(LyricsBackend justFailed, int reqId) {
         return;
     case LyricsBackend::NetEase:
     default:
+        // Nothing synced anywhere and no plain lyrics yet: lyrics.ovh's
+        if (m_plainFallback.isEmpty() && !m_triedOvh) {
+            m_triedOvh = true;
+            tryLyricsOvh(reqId);
+            return;
+        }
         // Nothing synced anywhere: the plain lyrics, spread over the song
         if (!m_plainFallback.isEmpty()) {
             const auto lines = plainToLines(m_plainFallback);
@@ -629,6 +636,26 @@ void Lyrics::tryLrclibSearch(int reqId) {
             persistTrackPrefs();
         }
         setLoading(false);
+    });
+}
+
+void Lyrics::tryLyricsOvh(int reqId) {
+    if (reqId != m_currentRequestId)
+        return;
+    QUrl url(u"https://api.lyrics.ovh/v1/"_s + QString::fromUtf8(QUrl::toPercentEncoding(cleanArtist(m_artist))) + u'/' +
+        QString::fromUtf8(QUrl::toPercentEncoding(cleanTitle(m_title))));
+    auto* reply = getJson(url, {});
+    trackReply(reqId, reply);
+    QObject::connect(reply, &QNetworkReply::finished, this, [this, reply, reqId] {
+        reply->deleteLater();
+        if (reqId != m_currentRequestId)
+            return;
+        if (reply->error() == QNetworkReply::NoError) {
+            const auto text = QJsonDocument::fromJson(reply->readAll()).object().value(u"lyrics"_s).toString();
+            if (!text.trimmed().isEmpty())
+                m_plainFallback = text;
+        }
+        chainNext(LyricsBackend::NetEase, reqId);
     });
 }
 
