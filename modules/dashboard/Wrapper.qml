@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import "Reveal.js" as Reveal
 import Caelestia.Config
 import qs.components
 import qs.services
@@ -28,17 +27,7 @@ Item {
     // 0 closed .. 1 open (may pass 1 by a hair while settling)
     readonly property real morph: spring.value
     // 0 hidden .. 1 the pill
-    // 0 hidden .. 1 the pill: runs at a steady pace (the reveal's own timing shapes it), and
-    // closing plays it backwards
-    property real peek: (peeking || shouldBeActive) && dashEnabled ? 1 : 0
-
-    Behavior on peek {
-        SmoothedAnimation {
-            velocity: 0.85
-            maximumEasingTime: 0
-            reversingMode: SmoothedAnimation.Immediate
-        }
-    }
+    readonly property real peek: peekSpring.value
     // For the drawers that still read it (1 hidden .. 0 shown)
     readonly property real offsetScale: 1 - Math.min(1, Math.max(0, morph))
 
@@ -55,13 +44,6 @@ Item {
     // The pill: the time, with buttons that open one page alone either side
     readonly property real pillWidth: Math.min(fullWidth, face.implicitWidth + Tokens.padding.medium * 2)
     readonly property real pillHeight: face.implicitHeight + Tokens.padding.small * 2
-
-    // The reveal, a contained overload: a circle with a comet spinning up in its ring, the ring
-    // heating and shaking, then a flash inside, a shockwave pushing the pill's sides out, sparks
-    // bouncing off its rim; closing, the same backwards (Reveal.js has the timeline)
-    readonly property var rv: Reveal.at(peek, pillHeight, pillWidth)
-    readonly property real peekWidth: rv.width
-    readonly property real peekHeight: rv.height
 
     // The pages (as the dashboard lists them: its tab order, the ones turned on)
     readonly property var pages: [
@@ -195,8 +177,8 @@ Item {
 
     visible: morph > 0.002 || peek > 0.002 || shouldBeActive || peeking
     // The page is revealed by the growing shape (not scaled with it)
-    implicitWidth: visible ? peekWidth + (fullWidth - peekWidth) * morph : 0
-    implicitHeight: Math.max(0, peekHeight + (fullHeight - peekHeight) * morph)
+    implicitWidth: visible ? pillWidth * Math.max(0, peek) + (fullWidth - pillWidth * Math.max(0, peek)) * morph : 0
+    implicitHeight: Math.max(0, pillHeight * Math.max(0, peek) + (fullHeight - pillHeight * Math.max(0, peek)) * morph)
 
     // The opening: like Nebula's media island, about half a second, slowing to a stop with no
     // bounce (a spring just past critical, so turning around mid-way stays smooth)
@@ -212,27 +194,12 @@ Item {
         target: root.shouldBeActive ? 1 : 0
     }
 
+    SpringValue {
+        id: peekSpring
 
-
-    // The reveal's light: the ring and its comet, the flash, the shockwave and the sparks, drawn
-    // inside the pill's shape
-    Canvas {
-        id: revealFx
-
-        anchors.fill: parent
-        visible: root.peek > 0.001 && root.peek < 0.999 && root.morph < 0.2
-        opacity: 1 - Math.min(1, root.morph * 5)
-        onPaint: Reveal.paint(getContext("2d"), width, height, root.peek, root.pillHeight, root.pillWidth)
-
-        Connections {
-            function onPeekChanged(): void {
-                if (revealFx.visible)
-                    revealFx.requestPaint();
-            }
-
-            target: root
-        }
+        target: (root.peeking || root.shouldBeActive) && root.dashEnabled ? 1 : 0
     }
+
 
     // The pill's face: page buttons, the time, page buttons
     Row {
@@ -240,8 +207,8 @@ Item {
 
         anchors.centerIn: parent
         spacing: Tokens.spacing.medium
-        opacity: Math.max(0, root.rv.face - root.morph * 5)
-        scale: 0.9 + 0.1 * root.rv.face
+        opacity: Math.max(0, Math.min(1, root.peek) - root.morph * 5)
+        scale: 0.6 + 0.4 * Math.max(0, Math.min(1, root.peek))
         visible: opacity > 0.01
 
         Grid {
@@ -310,7 +277,7 @@ Item {
     StyledRect {
         id: settingsTab
 
-        readonly property real showT: root.rv.face * Math.max(0, 1 - root.morph * 8)
+        readonly property real showT: Math.max(0, Math.min(1, root.peek)) * Math.max(0, 1 - root.morph * 8)
 
         anchors.top: parent.bottom
         anchors.topMargin: 4
