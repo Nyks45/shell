@@ -165,7 +165,7 @@ Singleton {
     function notify(title: string, body: string): void {
         if (!GlobalConfig.services.updateNotify)
             return;
-        notifyProc.command = ["notify-send", "-a", "Updates", "-i", "system-software-update", "--action=open=Open", title, body];
+        notifyProc.command = ["notify-send", "-a", "Updates", "-i", "system-software-update", "--action=default=Open", "--action=open=Open", title, body];
         notifyProc.running = true;
     }
 
@@ -243,7 +243,8 @@ Singleton {
         id: notifyProc
 
         stdout: StdioCollector {
-            onStreamFinished: if (text.trim() === "open")
+            // (a click on it, "default", or its Open button)
+            onStreamFinished: if (["open", "default"].includes(text.trim()))
                 Quickshell.execDetached(["caelestia", "shell", "nexus", "openPage", "updates", ""])
         }
     }
