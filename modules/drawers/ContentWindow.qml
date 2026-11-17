@@ -230,14 +230,17 @@ StyledWindow {
             id: launcherBg
 
             // With the pill bar: an island (glass, apart from the edge)
-            group: bar.pill ? islandGroup : blobGroup
-            visible: !bar.pill || panels.launcher.width > 1
+            // (and the centred launchers, in the middle of the screen, always)
+            readonly property bool island: bar.pill || panels.launcher.centred
+
+            group: island ? islandGroup : blobGroup
+            visible: !island || panels.launcher.width > 1
             panel: panels.launcher
             deformAmount: 0.1
-            radius: bar.pill ? Math.min(Tokens.rounding.extraLarge, height / 2) : Tokens.rounding.extraLarge
+            radius: island ? Math.min(Tokens.rounding.extraLarge, height / 2) : Tokens.rounding.extraLarge
 
             IslandEdge {
-                visible: bar.pill
+                visible: parent.island
             }
         }
 

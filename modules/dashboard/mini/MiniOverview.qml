@@ -191,7 +191,8 @@ Item {
                         StyledText {
                             anchors.centerIn: parent
                             visible: !parent.ready
-                            text: !root.player ? "" : Lyrics.loading ? Tr.tr("Finding the lyrics…") : Tr.tr("No lyrics for this song")
+                            // (nothing playing: what play does, not an empty card)
+                            text: !root.player ? (Music.last ? Tr.tr("Play continues where you left off") : Tr.tr("Play your liked songs")) : Lyrics.loading ? Tr.tr("Finding the lyrics…") : Tr.tr("No lyrics for this song")
                             color: Colours.palette.m3outline
                             font: Tokens.font.label.small
                         }

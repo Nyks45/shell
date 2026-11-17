@@ -42,6 +42,9 @@ class LauncherConfig : public settings::ObjectNode {
 
     CONFIG_PROPERTY(bool, enabled, true)
     CONFIG_PROPERTY(bool, showOnHover, false)
+    // "list" (at the bottom edge), "grid" (centred: search over a grid of apps) or "wallpaper"
+    // (centred: the wallpaper beside the search and the list)
+    CONFIG_PROPERTY(QString, style, u"list"_s)
     CONFIG_PROPERTY(int, maxShown, 7)
     CONFIG_PROPERTY(int, maxWallpapers, 9)
     CONFIG_GLOBAL_PROPERTY(QString, specialPrefix, u"@"_s)

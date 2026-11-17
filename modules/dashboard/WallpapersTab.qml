@@ -87,7 +87,8 @@ Item {
             clip: true
             // Two rows, scrolling sideways (the island's page size); the wheel scrolls it too
             flow: GridView.FlowTopToBottom
-            cellHeight: Math.floor(height / 2)
+            // (two rows in the island; more where there's room, e.g. the launcher's picker)
+            cellHeight: Math.floor(height / Math.max(2, Math.floor(height / 110)))
             cellWidth: Math.floor((cellHeight - 24) * 16 / 9) + 8
             boundsBehavior: Flickable.StopAtBounds
             model: root.kind === "live" ? root.lives : root.pictures
@@ -161,10 +162,13 @@ Item {
                     StateLayer {
                         radius: Tokens.rounding.medium
                         onClicked: {
-                            if (cell.live)
+                            if (cell.live) {
                                 LiveWallpaper.apply(cell.path, "*");
-                            else
+                            } else {
+                                // (a live one would keep covering the picture)
+                                LiveWallpaper.useStatic();
                                 Wallpapers.setWallpaper(cell.path);
+                            }
                         }
                     }
                 }

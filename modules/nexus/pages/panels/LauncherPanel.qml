@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import Caelestia.Config
 import Caelestia.I18n
+import qs.components.controls
 import qs.modules.nexus
 import qs.modules.nexus.common
 
@@ -36,6 +37,27 @@ PageBase {
             subtext: Tr.tr("Reveal when the cursor reaches the screen edge")
             checked: Config.launcher.showOnHover
             onToggled: GlobalConfig.launcher.showOnHover = checked
+        }
+
+        SelectRow {
+            label: Tr.tr("Style")
+            subtext: Tr.tr("Where the launcher opens and how it looks")
+            menuItems: [
+                MenuItem {
+                    text: Tr.tr("List at the bottom")
+                    value: "list"
+                },
+                MenuItem {
+                    text: Tr.tr("App grid in the middle")
+                    value: "grid"
+                },
+                MenuItem {
+                    text: Tr.tr("Wallpaper and list in the middle")
+                    value: "wallpaper"
+                }
+            ]
+            active: menuItems.find(i => i.value === Config.launcher.style) ?? menuItems[0]
+            onSelected: item => GlobalConfig.launcher.style = item.value
         }
 
         TextFieldRow {

@@ -2041,6 +2041,20 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Style",
+            "ctx": "",
+            "sub": "Where the launcher opens and how it looks",
+            "section": "General",
+            "page": 3,
+            "path": [
+                3
+            ],
+            "trail": [
+                "Launcher"
+            ],
+            "keywords": ""
+        },
+        {
             "label": "Action prefix",
             "ctx": "",
             "sub": "Prefix used to run actions in the launcher",

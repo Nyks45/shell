@@ -38,6 +38,10 @@ Item {
     anchors.margins: borderThickness
     anchors.leftMargin: bar.implicitWidth
 
+    // From this area's middle to the screen's (the bar on the left takes more than the border on
+    // the right): the islands centred on the screen stay put while the bar comes and goes
+    readonly property real screenCentreOffset: (borderThickness - bar.implicitWidth) / 2
+
     Item {
         id: osdWrapper
 
@@ -105,7 +109,11 @@ Item {
         panels: root
 
         anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
+        // (on the screen's middle, not this area's: it would move as the bar comes and goes)
+        anchors.horizontalCenterOffset: root.screenCentreOffset
+        // (the centred styles: in the middle of the screen)
+        anchors.bottom: launcher.centred ? undefined : parent.bottom
+        anchors.verticalCenter: launcher.centred ? parent.verticalCenter : undefined
     }
 
     Dashboard.Wrapper {
@@ -114,6 +122,7 @@ Item {
         screenState: root.screenState
 
         anchors.horizontalCenter: parent.horizontalCenter
+        anchors.horizontalCenterOffset: root.screenCentreOffset
         anchors.top: parent.top
         anchors.topMargin: floatGap
     }
