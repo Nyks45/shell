@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+"""The shell's style: compact (the pill: branch `pill`) or full (the classic shell: `main`).
+
+  caelestia-shell-style current          compact or full (the shell installed now)
+  caelestia-shell-style build STYLE      build that style's package (makepkg, as you); prints the
+                                         package file it made on its last line
+
+Installing it (root) is caelestia-admin's install-shell; the settings run both, then restart the
+shell. The package is built from ~/dotfiles/aur-local/caelestia-shell-nyks45 (or the folder in
+~/.config/caelestia/shell-style.json, "pkgbuild"), its PKGBUILD taking the branch from
+CAELESTIA_SHELL_BRANCH.
+"""
+import json
+import os
+import subprocess
+import sys
+
+BRANCHES = {"compact": "pill", "full": "main"}
+CONFIG = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config")), "caelestia", "shell-style.json")
+SHELL_DIRS = ["/etc/xdg/quickshell/caelestia", "/usr/share/quickshell/caelestia"]
+
+
+def pkgbuild_dir():
+    try:
+        d = json.load(open(CONFIG)).get("pkgbuild")
+        if d:
+            return os.path.expanduser(d)
+    except (OSError, ValueError):
+        pass
+    return os.path.expanduser("~/dotfiles/aur-local/caelestia-shell-nyks45")
+
+
+def c_current(_):
+    # The compact shell has the island's pages; the full one doesn't
+    for d in SHELL_DIRS:
+        if os.path.isdir(d):
+            print("compact" if os.path.isdir(os.path.join(d, "modules/dashboard/mini")) else "full")
+            return
+    print("full")
+
+
+def c_build(args):
+    if len(args) != 1 or args[0] not in BRANCHES:
+        sys.exit("usage: build compact|full")
+    d = pkgbuild_dir()
+    if not os.path.isfile(os.path.join(d, "PKGBUILD")):
+        sys.exit(f"no PKGBUILD in {d}")
+    env = dict(os.environ, CAELESTIA_SHELL_BRANCH=BRANCHES[args[0]])
+    # (progress on stderr, for the settings; -f: rebuild even when that version was built)
+    r = subprocess.run(["makepkg", "-f", "--noconfirm", "--noprogressbar"], cwd=d, env=env, stdout=sys.stderr)
+    if r.returncode != 0:
+        sys.exit(f"makepkg failed ({r.returncode})")
+    out = subprocess.run(["makepkg", "--packagelist"], cwd=d, env=env, capture_output=True, text=True)
+    files = [f for f in out.stdout.split() if os.path.isfile(f) and "-debug-" not in os.path.basename(f)]
+    if not files:
+        sys.exit("built, but the package file isn't where makepkg says")
+    print(files[0])
+
+
+CMDS = {"current": c_current, "build": c_build}
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2 or sys.argv[1] not in CMDS:
+        sys.exit(__doc__)
+    CMDS[sys.argv[1]](sys.argv[2:])

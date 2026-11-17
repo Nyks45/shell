@@ -159,6 +159,20 @@ def act_downgrade(args):
     run("pacman", "-U", "--noconfirm", "--", path)
 
 
+def act_install_shell(args):
+    """install-shell FILE: the shell's own package, built by the user (the settings' shell
+    style: compact or full). Only a caelestia-shell-nyks45 package file, nothing else."""
+    need(args, 1, "install-shell FILE")
+    path = os.path.realpath(args[0])
+    if not PKGFILE.match(os.path.basename(path)) or not os.path.isfile(path):
+        raise Refused("not a package file")
+    info = subprocess.run(["pacman", "-Qip", "--", path], capture_output=True, text=True)
+    name = next((l.split(":", 1)[1].strip() for l in info.stdout.splitlines() if l.startswith("Name")), "")
+    if info.returncode != 0 or name != "caelestia-shell-nyks45":
+        raise Refused("not the shell's package")
+    run("pacman", "-U", "--noconfirm", "--", path)
+
+
 def set_ignore(pkg, hold, path="/etc/pacman.conf"):
     """IgnorePkg in pacman.conf's [options]: add or drop one package (the
     first IgnorePkg line, commented or not, becomes the one line)."""
@@ -1180,6 +1194,7 @@ ACTIONS = {
     "upgrade": act_upgrade,
     "remove": act_remove,
     "downgrade": act_downgrade,
+    "install-shell": act_install_shell,
     "hold": act_hold,
     "unhold": act_unhold,
     "pacnew": act_pacnew,

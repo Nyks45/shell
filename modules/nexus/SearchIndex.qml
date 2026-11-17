@@ -78,6 +78,16 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Shell style",
+            "ctx": "",
+            "sub": "Building the other style… (about two minutes)",
+            "section": "Shell",
+            "page": 0,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Wallpaper transition",
             "ctx": "",
             "sub": "The effect when the wallpaper changes",
@@ -2178,7 +2188,7 @@ QtObject {
         {
             "label": "Enabled",
             "ctx": "toggle label",
-            "sub": "A slider at the screen edge when the volume or brightness changes",
+            "sub": "A small island at the right edge when the volume or brightness changes",
             "section": "General",
             "page": 3,
             "path": [

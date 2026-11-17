@@ -19,11 +19,7 @@ StyledRect {
     // The item that sits in the column: this, or the row this is the background of (ToggleRow)
     readonly property Item rowItem: parent && parent.isGroupRow === true ? parent : root
     // The column's gap above this row, filled when it continues a card
-    readonly property real gap: {
-        void Rows.revision;
-        const col = Rows.host(rowItem)?.parent;
-        return col?.spacing ?? 0;
-    }
+    readonly property real gap: Rows.gapAbove(rowItem)
 
     Component.onCompleted: Rows.bump()
     Component.onDestruction: Rows.bump()

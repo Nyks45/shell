@@ -271,6 +271,32 @@ PageBase {
             onMoved: v => GlobalConfig.appearance.rounding.scale = Math.round(v * 40) / 20
         }
 
+        // The shell's style: compact (the pill and islands) or full (the classic shell); each is
+        // its own build, so switching builds and installs the other, then restarts the shell
+        SectionHeader {
+            text: Tr.tr("Shell")
+        }
+
+        SelectRow {
+            label: Tr.tr("Shell style")
+            subtext: ShellStyle.step === "building" ? Tr.tr("Building the other style… (about two minutes)") + (ShellStyle.log ? `\n${ShellStyle.log.split("\n").pop()}` : "") : ShellStyle.step === "installing" ? Tr.tr("Installing it…") : ShellStyle.error ? Tr.tr("Couldn't switch: %1").arg(ShellStyle.error) : Tr.tr("Switching installs the other one and restarts the shell")
+            enabled: !ShellStyle.step
+            menuItems: [
+                MenuItem {
+                    text: Tr.tr("Compact (pill)")
+                    icon: "toggle_on"
+                    value: "compact"
+                },
+                MenuItem {
+                    text: Tr.tr("Full (classic)")
+                    icon: "dock_to_right"
+                    value: "full"
+                }
+            ]
+            active: menuItems.find(i => i.value === ShellStyle.current) ?? menuItems[0]
+            onSelected: item => ShellStyle.switchTo(item.value)
+        }
+
         // Wallpaper
         SectionHeader {
             text: Tr.tr("Wallpaper")
