@@ -46,12 +46,20 @@ Singleton {
 
     // A named window rule, on only while the shell has Spotify play without its window being
     // open (starting it, or from its tray, where playing makes Spotify show its window): its window
-    // opens there unfocused (no focus: no pointer jump to it), never seen
+    // opens there unfocused and cannot activate/warp the cursor while hidden
     function holdSpotify(on: bool): void {
+        if (on)
+            releaseHold.stop();
         // (twice: the music_player tag's rules run last, e.g. a "workspace = unset" one keeping
         // Spotify on the current workspace; one matching that tag too comes after them and wins)
-        const hold = `workspace = "${holdWs} silent", no_initial_focus = true, no_focus = true, no_anim = true`;
-        Hypr.extras.message(`eval hl.window_rule({ name = "caelestia-spotify-hold", enabled = ${on}, match = { class = "^Spotify$" }, ${hold} }); hl.window_rule({ name = "caelestia-spotify-hold-tag", enabled = ${on}, match = { tag = "music_player", class = "^Spotify$" }, ${hold} })`);
+        const hold = `workspace = "${holdWs} silent", no_initial_focus = true, no_focus = true, no_anim = true, focus_on_activate = false, suppress_event = "activate activatefocus"`;
+        const specs = [
+            ["caelestia-spotify-hold", 'class = "^Spotify$"'],
+            ["caelestia-spotify-hold-tag", 'tag = "music_player", class = "^Spotify$"'],
+            ["caelestia-spotify-hold-title", 'initial_title = "^Spotify( Free)?$"'],
+            ["caelestia-spotify-hold-tag-title", 'tag = "music_player", initial_title = "^Spotify( Free)?$"']
+        ];
+        Hypr.extras.message("eval " + specs.map(([name, m]) => `hl.window_rule({ name = "${name}", enabled = ${on}, match = { ${m} }, ${hold} })`).join("; "));
     }
 
     // Spotify running with no window of its own shown (in its tray)
@@ -60,7 +68,7 @@ Singleton {
     // Its window, if it's in the hidden holding place (never one the user brought up), to the tray
     function closeHeldWindow(): void {
         hideNext = false;
-        const t = Hyprland.toplevels.values.find(t => /spotify/i.test(t.lastIpcObject?.class ?? "") && t.workspace?.name === holdWs);
+        const t = Hyprland.toplevels.values.find(t => t.workspace?.name === holdWs && (/spotify/i.test(t.lastIpcObject?.class ?? "") || /^Spotify/.test(t.title ?? "")));
         if (t)
             Hypr.dispatch(`hl.dsp.window.close({ window = "address:0x${t.address}" })`);
         releaseHold.restart();
@@ -140,17 +148,20 @@ Singleton {
         tracksProc.running = true;
     }
 
+    function holdAndCloseSoon(): void {
+        holdSpotify(true);
+        hideNext = true;
+        closeHeld.restart();
+    }
+
     // Play a Spotify URI (a track, a playlist): in the running app, else start it hidden first
     function play(uri: string): void {
         if (!uri)
             return;
         if (spotify) {
             // In its tray: playing would make it show its window, so that one is held hidden
-            if (spotifyInTray) {
-                holdSpotify(true);
-                hideNext = true;
-                closeHeld.restart();
-            }
+            if (spotifyInTray)
+                holdAndCloseSoon();
             spotify.openUri(uri);
             Players.manualActive = spotify;
             return;
@@ -166,9 +177,12 @@ Singleton {
 
     // Play/pause: the active player; nothing playing, the last track (Spotify started hidden)
     function toggle(): void {
-        if (Players.active)
+        if (Players.active) {
+            // Waking Spotify from its tray can open and activate its window; hold it hidden too
+            if (Players.active === spotify && spotifyInTray && !Players.active.isPlaying)
+                holdAndCloseSoon();
             Players.active.togglePlaying();
-        else if (last?.uri)
+        } else if (last?.uri)
             play(last.uri);
         else
             play("spotify:collection:tracks");
