@@ -16,11 +16,43 @@ Region {
     readonly property real borderThickness: win.contentItem.Config.border.thickness
     readonly property real clampedThickness: win.contentItem.Config.border.clampedThickness
 
-    x: bar.clampedWidth + win.dragMaskPadding
+    // (the left edge takes no clicks of its own: only the pill's shape and its hover strip below)
+    readonly property real edge: Math.max(clampedThickness, win.dragMaskPadding)
+
+    x: edge
     y: clampedThickness + win.dragMaskPadding
-    width: win.width - bar.clampedWidth - clampedThickness - win.dragMaskPadding * 2
+    width: win.width - edge - clampedThickness - win.dragMaskPadding
     height: win.height - clampedThickness * 2 - win.dragMaskPadding * 2
     intersection: Intersection.Xor
+
+    // Where the pill comes out: a thin strip in the middle of the left edge (as Interactions
+    // reveals it), always
+    Region {
+        x: 0
+        y: root.win.height * 0.15
+        width: root.win.contentItem.Config.border.minThickness
+        height: root.win.height * 0.7
+        intersection: Intersection.Subtract
+    }
+
+    // The pill itself, as big as it's drawn at the moment (it grows from its middle), with the
+    // edge beside it; with one of its menus open, the gap to that menu too, along the menu's height
+    Region {
+        readonly property real fullH: Math.max(0, root.bar.pillBottom - root.bar.pillTop)
+        readonly property real r: Math.min(1, Math.max(0, root.bar.reveal))
+        readonly property real grow: (0.45 + 0.55 * r) * Math.min(1, r / 0.25)
+        readonly property bool menu: root.panels.popouts.hasCurrent && root.panels.popoutsWrapper.width > 1
+        readonly property real menuTop: root.panels.popoutsWrapper.y + root.borderThickness
+        readonly property real menuBottom: menuTop + root.panels.popoutsWrapper.height
+        readonly property real top: root.bar.pillTop + fullH * (1 - grow) / 2
+        readonly property real bottom: top + fullH * grow
+
+        x: 0
+        y: menu ? Math.min(top, menuTop) : top
+        width: root.bar.reveal > 0.002 ? (menu ? root.bar.implicitWidth : root.bar.pillX + root.bar.contentWidth * (0.5 + grow / 2)) : 0
+        height: root.bar.reveal > 0.002 ? (menu ? Math.max(bottom, menuBottom) : bottom) - y : 0
+        intersection: Intersection.Subtract
+    }
 
     // The dashboard island: from the edge down through its gap to its shape; its full size while
     // it opens (the pointer can run ahead of it)

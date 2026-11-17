@@ -107,11 +107,21 @@ Item {
                             Layout.fillWidth: true
                             spacing: -2
 
-                            StyledText {
+                            RowLayout {
                                 Layout.fillWidth: true
-                                text: root.player?.trackTitle || Music.last?.title || Tr.tr("Nothing playing")
-                                font: Tokens.font.label.large
-                                elide: Text.ElideRight
+                                spacing: Tokens.spacing.small
+
+                                PlayingBars {
+                                    visible: root.player?.isPlaying ?? false
+                                    playing: visible
+                                }
+
+                                StyledText {
+                                    Layout.fillWidth: true
+                                    text: root.player?.trackTitle || Music.last?.title || Tr.tr("Nothing playing")
+                                    font: Tokens.font.label.large
+                                    elide: Text.ElideRight
+                                }
                             }
 
                             StyledText {

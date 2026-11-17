@@ -136,6 +136,13 @@ Item {
                     Layout.fillWidth: true
                     spacing: 0
 
+                    PlayingBars {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.bottomMargin: 2
+                        visible: root.player?.isPlaying ?? false
+                        playing: visible
+                    }
+
                     StyledText {
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter

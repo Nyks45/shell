@@ -28,6 +28,24 @@ Item {
     readonly property real idleFade: 1 - Math.max(0, Math.min(1, morph * 3))
     readonly property real corner: 32
 
+    // The lyrics of what's playing (the island's lyrics service; set here too, since the island
+    // isn't open while locked)
+    readonly property var _lyricsTrack: {
+        const p = root.player;
+        if (p && root.visible)
+            Lyrics.setTrack(p.trackArtist, p.trackTitle, p.trackAlbum, p.length);
+        return 0;
+    }
+    readonly property bool hasLyrics: !!player && Lyrics.hasLyrics && Lyrics.lyrics.length > 0 && Lyrics.trackTitle === (player?.trackTitle ?? "")
+    readonly property int lyricAt: hasLyrics ? Lyrics.indexForTime(trackPos) : -1
+
+    Timer {
+        running: root.visible && root.playing && root.hasLyrics
+        interval: 400
+        repeat: true
+        onTriggered: root.trackPos = root.player?.position ?? 0
+    }
+
     readonly property var bars: {
         const v = Audio.cava.values;
         const n = NebulaTheme.lock.visualizerBars;
@@ -304,10 +322,45 @@ Item {
             tint: 0.45
             light: 0.06
 
+            // The lyrics: the line being sung, the one before and after, over the bars
+            Column {
+                anchors.centerIn: parent
+                width: parent.width - 32
+                spacing: 6
+                visible: root.hasLyrics
+                z: 1
+
+                Repeater {
+                    model: [-1, 0, 1]
+
+                    Text {
+                        required property int modelData
+                        readonly property int line: root.lyricAt + modelData
+
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        elide: Text.ElideRight
+                        text: line < 0 ? (modelData === 0 ? "♪" : "") : (Lyrics.lyrics[line] ?? "")
+                        font.family: NebulaTheme.font.family
+                        font.pixelSize: modelData === 0 ? NebulaTheme.font.large : NebulaTheme.font.normal
+                        font.weight: modelData === 0 ? Font.Medium : Font.Normal
+                        color: modelData === 0 ? NebulaTheme.colors.textOnPrimaryContainer : Qt.alpha(NebulaTheme.colors.textOnPrimaryContainer, 0.55)
+                    }
+                }
+            }
+
             Row {
                 anchors.fill: parent
                 anchors.margins: 16
                 spacing: Math.max(2, (width - count * 5) / Math.max(1, count - 1))
+                // (behind the lyrics, dimmed)
+                opacity: root.hasLyrics ? 0.3 : 1
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 250
+                    }
+                }
 
                 readonly property int count: NebulaTheme.lock.visualizerBars
 
