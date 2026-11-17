@@ -7,6 +7,8 @@
 #include <qsavefile.h>
 #include <qurlquery.h>
 #include <qregularexpression.h>
+#include <qjsondocument.h>
+#include <qtcpsocket.h>
 
 #include <algorithm>
 
@@ -87,6 +89,94 @@ Lyrics::Lyrics(QObject* parent)
     QObject::connect(paths, &config::UserPaths::lyricsDirChanged, this, &Lyrics::onLyricsDirChanged);
 
     loadLyricsMap();
+    startBridge();
+}
+
+// ---- Spotify's lyrics, from the Spicetify extension ---------------------------------------
+
+QString Lyrics::bridgeKey(const QString& artist, const QString& title) {
+    return artist.trimmed().toLower() + u'|' + title.trimmed().toLower();
+}
+
+void Lyrics::startBridge() {
+    m_bridge = new QTcpServer(this);
+    // (one shell listens; another one running at the same time just goes without)
+    if (!m_bridge->listen(QHostAddress::LocalHost, 47812)) {
+        qCDebug(lcLyrics) << "lyrics bridge: port 47812 taken";
+        return;
+    }
+    QObject::connect(m_bridge, &QTcpServer::newConnection, this, [this] {
+        while (auto* sock = m_bridge->nextPendingConnection()) {
+            auto buf = std::make_shared<QByteArray>();
+            QObject::connect(sock, &QTcpSocket::disconnected, sock, &QObject::deleteLater);
+            QObject::connect(sock, &QTcpSocket::readyRead, this, [this, sock, buf] {
+                buf->append(sock->readAll());
+                if (buf->size() > 2 * 1024 * 1024) {
+                    sock->abort();
+                    return;
+                }
+                const auto headerEnd = buf->indexOf("\r\n\r\n");
+                if (headerEnd < 0)
+                    return;
+                qsizetype length = 0;
+                for (const auto& line : buf->left(headerEnd).split('\n')) {
+                    if (line.trimmed().toLower().startsWith("content-length:"))
+                        length = line.mid(line.indexOf(':') + 1).trimmed().toLongLong();
+                }
+                if (buf->size() < headerEnd + 4 + length)
+                    return;
+                const auto body = buf->mid(headerEnd + 4, length);
+                sock->write("HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n");
+                sock->disconnectFromHost();
+                const auto doc = QJsonDocument::fromJson(body);
+                if (doc.isObject())
+                    onBridgePayload(doc.object());
+            });
+        }
+    });
+}
+
+void Lyrics::onBridgePayload(const QJsonObject& obj) {
+    const auto key = bridgeKey(obj.value(u"artist"_s).toString(), obj.value(u"title"_s).toString());
+    if (key == u"|"_s)
+        return;
+    const BridgeLyrics got{ obj.value(u"synced"_s).toBool(), obj.value(u"text"_s).toString() };
+    m_bridgeLyrics.insert(key, got);
+    if (m_bridgeLyrics.size() > 200)
+        m_bridgeLyrics.erase(m_bridgeLyrics.begin());
+
+    // For the song shown: Spotify's timed lyrics take over; untimed ones only if there's nothing
+    if (key != bridgeKey(m_artist, m_title) || m_fromBridge)
+        return;
+    if (got.synced && !got.text.trimmed().isEmpty()) {
+        applyBridge();
+    } else if (!got.text.trimmed().isEmpty() && !m_hasLyrics && !m_loading) {
+        const auto lines = plainToLines(got.text);
+        if (!lines.isEmpty())
+            setLines(lines, LyricsBackend::Local);
+    }
+}
+
+// Spotify's timed lyrics for the current song, if the extension sent them: shown, and the other
+// sources' requests dropped. Untimed ones are kept as the fallback for when nothing timed turns up.
+bool Lyrics::applyBridge() {
+    const auto it = m_bridgeLyrics.constFind(bridgeKey(m_artist, m_title));
+    if (it == m_bridgeLyrics.constEnd() || it->text.trimmed().isEmpty())
+        return false;
+    if (!it->synced) {
+        if (m_plainFallback.isEmpty())
+            m_plainFallback = it->text;
+        return false;
+    }
+    const auto lines = parseLrc(it->text);
+    if (lines.isEmpty())
+        return false;
+    cancelInFlight();
+    newRequestId(); // (whatever the other sources still answer is for an old request)
+    m_fromBridge = true;
+    setLines(lines, LyricsBackend::Local);
+    setLoading(false);
+    return true;
 }
 
 QStringList Lyrics::lyrics() const {
@@ -383,6 +473,11 @@ void Lyrics::doLoad() {
     setLoading(true);
     clearLines();
     clearCandidates();
+
+    // Spotify's own (the Spicetify extension sent them): nothing else to look for
+    m_fromBridge = false;
+    if (applyBridge())
+        return;
 
     // Restore per-track prefs (offset, last-selected backend/id)
     m_settingFromPrefs = true;

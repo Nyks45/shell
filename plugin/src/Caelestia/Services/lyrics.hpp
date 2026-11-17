@@ -5,6 +5,7 @@
 #include <qnetworkaccessmanager.h>
 #include <qnetworkreply.h>
 #include <qtimer.h>
+#include <qtcpserver.h>
 
 #include "lyriccandidate.hpp"
 
@@ -82,6 +83,13 @@ private:
     void cancelInFlight();
     int newRequestId();
 
+    // Spotify's own lyrics, handed over by the Spicetify extension (caelestia-lyrics.js) on
+    // 127.0.0.1:47812: used first for the song they're for
+    void startBridge();
+    void onBridgePayload(const QJsonObject& obj);
+    bool applyBridge();
+    [[nodiscard]] static QString bridgeKey(const QString& artist, const QString& title);
+
     void tryLocal(int reqId);
     void tryLrclib(int reqId);
     // LRCLIB's search (cleaned title/artist, any album, nearest length) when its exact /get misses
@@ -144,6 +152,15 @@ private:
 
     int m_currentRequestId = 0;
     QHash<int, QList<QPointer<QNetworkReply>>> m_pendingReplies;
+
+    QTcpServer* m_bridge = nullptr;
+    struct BridgeLyrics {
+        bool synced = false;
+        QString text;
+    };
+    QHash<QString, BridgeLyrics> m_bridgeLyrics;
+    // The lines shown came from the bridge (Spotify's): nothing else replaces them
+    bool m_fromBridge = false;
 
     QJsonObject m_lyricsMap;
     bool m_lyricsMapLoaded = false;
