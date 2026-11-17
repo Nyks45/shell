@@ -56,12 +56,16 @@ Item {
             Layout.fillHeight: true
 
             ColumnLayout {
+                id: nowCol
+
                 anchors.fill: parent
                 anchors.margins: Tokens.padding.medium
                 spacing: Tokens.spacing.small
 
                 // Several players: which one
                 Row {
+                    id: switcher
+
                     Layout.alignment: Qt.AlignHCenter
                     visible: Players.list.length > 1
                     spacing: Tokens.spacing.extraSmall
@@ -99,7 +103,9 @@ Item {
 
                 ClipRect {
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.preferredWidth: Math.min(118, parent.height - 110)
+                    // (what's left once the rest is in: the switcher, the song, the progress and
+                    // the controls always fit)
+                    Layout.preferredWidth: Math.max(40, Math.min(118, nowCol.height - songCol.implicitHeight - progressRow.implicitHeight - controlsRow.implicitHeight - (switcher.visible ? switcher.implicitHeight + nowCol.spacing : 0) - nowCol.spacing * 3))
                     Layout.preferredHeight: Layout.preferredWidth
                     radius: Tokens.rounding.large
                     color: Qt.alpha(Colours.palette.m3surfaceContainerHighest, 0.6)
@@ -125,6 +131,8 @@ Item {
                 }
 
                 ColumnLayout {
+                    id: songCol
+
                     Layout.fillWidth: true
                     spacing: 0
 
@@ -148,6 +156,8 @@ Item {
 
                 // Progress
                 RowLayout {
+                    id: progressRow
+
                     Layout.fillWidth: true
                     visible: root.hasPlayer
                     spacing: Tokens.spacing.extraSmall
@@ -191,6 +201,8 @@ Item {
 
                 // Controls
                 Row {
+                    id: controlsRow
+
                     Layout.alignment: Qt.AlignHCenter
                     spacing: Tokens.spacing.small
 

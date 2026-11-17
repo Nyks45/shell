@@ -48,7 +48,10 @@ Singleton {
     // open (starting it, or from its tray, where playing makes Spotify show its window): its window
     // opens there unfocused (no focus: no pointer jump to it), never seen
     function holdSpotify(on: bool): void {
-        Hypr.extras.message(`eval hl.window_rule({ name = "caelestia-spotify-hold", enabled = ${on}, match = { class = "^Spotify$" }, workspace = "${holdWs} silent", no_initial_focus = true, no_focus = true, no_anim = true })`);
+        // (twice: the music_player tag's rules run last, e.g. a "workspace = unset" one keeping
+        // Spotify on the current workspace; one matching that tag too comes after them and wins)
+        const hold = `workspace = "${holdWs} silent", no_initial_focus = true, no_focus = true, no_anim = true`;
+        Hypr.extras.message(`eval hl.window_rule({ name = "caelestia-spotify-hold", enabled = ${on}, match = { class = "^Spotify$" }, ${hold} }); hl.window_rule({ name = "caelestia-spotify-hold-tag", enabled = ${on}, match = { tag = "music_player", class = "^Spotify$" }, ${hold} })`);
     }
 
     // Spotify running with no window of its own shown (in its tray)
