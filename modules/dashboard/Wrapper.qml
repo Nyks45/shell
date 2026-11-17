@@ -34,7 +34,7 @@ Item {
 
     Behavior on peek {
         SmoothedAnimation {
-            velocity: 2.0
+            velocity: 0.85
             maximumEasingTime: 0
             reversingMode: SmoothedAnimation.Immediate
         }
