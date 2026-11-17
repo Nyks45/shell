@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Shapes
 import Quickshell
-import Quickshell.Hyprland
 import Quickshell.Services.Notifications
 import Caelestia.Components
 import Caelestia.Config
@@ -18,20 +17,6 @@ StyledRect {
 
     required property NotifData modelData
 
-    // The window of the app that sent it (its desktop entry or name against the windows'
-    // classes), brought to the front
-    function focusSender(): void {
-        const keys = [root.modelData.hints?.["desktop-entry"], root.modelData.appName].filter(k => !!k).map(k => String(k).toLowerCase().replace(/\.desktop$/, ""));
-        if (keys.length === 0)
-            return;
-        const matches = c => !!c && keys.some(k => c === k || c.endsWith("." + k) || k.endsWith("." + c));
-        const t = Hyprland.toplevels.values.find(t => {
-            const ipc = t.lastIpcObject ?? {};
-            return matches(String(ipc.class ?? "").toLowerCase()) || matches(String(ipc.initialClass ?? "").toLowerCase());
-        });
-        if (t)
-            TaskbarApps.hyprflow("activate", t);
-    }
     readonly property bool hasImage: modelData.image.length > 0
     readonly property bool hasAppIcon: modelData.appIcon.length > 0
     readonly property int bodyTextFormat: /[<*_`#\[\]]/.test(modelData.body) ? Text.MarkdownText : Text.PlainText
@@ -122,14 +107,7 @@ StyledRect {
             // The app's "default" action is what a click on the notification does (the
             // notification spec); otherwise, if set, its only action; otherwise the app that sent
             // it comes to the front (restored if it was minimized). Either way the popup goes.
-            const actions = root.modelData.actions;
-            const def = actions.find(a => a.identifier === "default");
-            if (def)
-                def.invoke();
-            else if (GlobalConfig.notifs.actionOnClick && actions.length === 1)
-                actions[0].invoke();
-            else
-                root.focusSender();
+            Notifs.activate(root.modelData);
             root.modelData.popup = false;
         }
 
@@ -532,7 +510,9 @@ StyledRect {
                         inactiveColour: root.modelData?.urgency === NotificationUrgency.Critical ? Colours.palette.m3secondary : Colours.layer(Colours.palette.m3surfaceContainerHighest, 2)
                         inactiveOnColour: root.modelData?.urgency === NotificationUrgency.Critical ? Colours.palette.m3onSecondary : Colours.palette.m3onSurfaceVariant
                         text: modelData.text
-                        onClicked: modelData.invoke()
+                        // (restored from history its sender is gone: nothing to run)
+                        onClicked: if (typeof modelData.invoke === "function")
+                            modelData.invoke()
 
                         label.horizontalAlignment: Text.AlignHCenter
                         label.anchors.left: left

@@ -76,9 +76,20 @@ Item {
                 visible: root.pane === 1 && root.notifs.length > 0
                 type: IconButton.Text
                 icon: "clear_all"
+                // The cards in view slide out one after another (to the right), the rest
+                // with them at once
                 onClicked: {
-                    for (const n of root.notifs.slice())
-                        n.close();
+                    const shown = [];
+                    for (let i = 0; i < list.count; i++) {
+                        const c = list.itemAtIndex(i);
+                        if (c)
+                            shown.push(c);
+                    }
+                    shown.forEach((c, i) => c.dismissAfter(i * 70));
+                    for (const n of root.notifs.slice()) {
+                        if (!shown.some(c => c.modelData === n))
+                            n.close();
+                    }
                 }
             }
         }
@@ -548,22 +559,120 @@ Item {
                         snapMode: ListView.SnapToItem
                         boundsBehavior: Flickable.StopAtBounds
 
+                        // The cards under a dismissed one glide up into its place
+                        displaced: Transition {
+                            Anim {
+                                property: "y"
+                            }
+                        }
+
                         delegate: StyledRect {
                             id: card
 
                             required property var modelData
+                            // Dragged sideways (and slid out when dismissed)
+                            property real dx
+                            property bool leaving
+                            property bool wasSticky
+                            readonly property real fullHeight: Math.floor((list.height - list.spacing * 2) / 3)
+
+                            // Away: slides out that way (dir -1 left, 1 right) fading, its space
+                            // closes, then it's gone
+                            function dismissAfter(ms: int): void {
+                                if (ms <= 0) {
+                                    dismiss(1);
+                                    return;
+                                }
+                                stagger.interval = ms;
+                                stagger.start();
+                            }
+
+                            Timer {
+                                id: stagger
+
+                                onTriggered: card.dismiss(1)
+                            }
+
+                            function dismiss(dir: int): void {
+                                if (leaving)
+                                    return;
+                                leaving = true;
+                                slideOut.to = dir * (width + Tokens.padding.large);
+                                leave.start();
+                            }
 
                             width: list.width
                             // Fixed: three always fit whole in the pane
-                            implicitHeight: Math.floor((list.height - list.spacing * 2) / 3)
+                            implicitHeight: fullHeight
                             radius: Tokens.rounding.large
                             color: Qt.alpha(Colours.palette.m3surfaceContainerHigh, 0.45)
+                            opacity: 1 - Math.min(1, Math.abs(dx) / width) * 0.9
+                            transform: Translate {
+                                x: card.dx
+                            }
+
+                            SequentialAnimation {
+                                id: leave
+
+                                Anim {
+                                    id: slideOut
+
+                                    target: card
+                                    property: "dx"
+                                    duration: Tokens.anim.durations.normal
+                                    easing: Tokens.anim.emphasizedAccel
+                                }
+                                Anim {
+                                    target: card
+                                    property: "implicitHeight"
+                                    to: 0
+                                    duration: Tokens.anim.durations.small
+                                    easing: Tokens.anim.emphasized
+                                }
+                                ScriptAction {
+                                    script: card.modelData.close()
+                                }
+                            }
+
+                            // Not dismissed: back into place
+                            Anim {
+                                id: settle
+
+                                target: card
+                                property: "dx"
+                                to: 0
+                                easing: Tokens.anim.emphasizedDecel
+                            }
 
                             StateLayer {
-                                onClicked: {
-                                    const def = card.modelData.actions.find(a => a.identifier === "default") ?? (card.modelData.actions.length === 1 ? card.modelData.actions[0] : null);
-                                    if (def)
-                                        def.invoke();
+                                enabled: !card.leaving
+                                onClicked: Notifs.activate(card.modelData)
+                            }
+
+                            // A sideways drag: past a third of its width it goes that way
+                            DragHandler {
+                                target: null
+                                enabled: !card.leaving
+                                xAxis.enabled: true
+                                yAxis.enabled: false
+                                onTranslationChanged: {
+                                    if (active)
+                                        card.dx = translation.x;
+                                }
+                                onActiveChanged: {
+                                    // (the island stays open while a card is dragged, even past its edge)
+                                    if (active) {
+                                        card.wasSticky = root.screenState.dashboardSticky;
+                                        root.screenState.dashboardSticky = true;
+                                        return;
+                                    }
+                                    root.screenState.dashboardSticky = card.wasSticky;
+                                    if (card.leaving)
+                                        return;
+                                    if (Math.abs(card.dx) > card.width / 3)
+                                        card.dismiss(card.dx < 0 ? -1 : 1);
+                                    else
+                                        settle.start();
                                 }
                             }
 
@@ -628,7 +737,7 @@ Item {
                                 IconButton {
                                     type: IconButton.Text
                                     icon: "close"
-                                    onClicked: card.modelData.close()
+                                    onClicked: card.dismiss(1)
                                 }
                             }
                         }

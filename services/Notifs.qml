@@ -4,6 +4,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import Quickshell.Services.Notifications
 import Caelestia
 import Caelestia.Config
@@ -21,6 +22,39 @@ Singleton {
     readonly property list<NotifData> popups: list.filter(n => n.popup)
 
     property bool loaded
+
+    // A click on a notification: the app's "default" action (the notification spec), else its
+    // only action when actionOnClick is set, else the app that sent it to the front. Restored
+    // from history (after a restart) its actions can't run any more (their sender is gone): the
+    // update notification opens Settings > Updates instead, the others bring their app forward.
+    function activate(n: var): void {
+        const actions = n?.actions ?? [];
+        const def = actions.find(a => a.identifier === "default") ?? (GlobalConfig.notifs.actionOnClick && actions.length === 1 ? actions[0] : null);
+        if (def && typeof def.invoke === "function") {
+            def.invoke();
+            return;
+        }
+        if (n?.appName === "Updates") {
+            Quickshell.execDetached(["caelestia", "shell", "nexus", "openPage", "updates", ""]);
+            return;
+        }
+        focusSender(n);
+    }
+
+    // The window of the app that sent it (its desktop entry or name against the windows'
+    // classes), brought to the front (restored if minimized)
+    function focusSender(n: var): void {
+        const keys = [n?.hints?.["desktop-entry"], n?.appName].filter(k => !!k).map(k => String(k).toLowerCase().replace(/\.desktop$/, ""));
+        if (keys.length === 0)
+            return;
+        const matches = c => !!c && keys.some(k => c === k || c.endsWith("." + k) || k.endsWith("." + c));
+        const t = Hyprland.toplevels.values.find(t => {
+            const ipc = t.lastIpcObject ?? {};
+            return matches(String(ipc.class ?? "").toLowerCase()) || matches(String(ipc.initialClass ?? "").toLowerCase());
+        });
+        if (t)
+            TaskbarApps.hyprflow("activate", t);
+    }
 
     function hasFullscreen(): bool {
         for (const monitor of Hypr.monitors.values) {
