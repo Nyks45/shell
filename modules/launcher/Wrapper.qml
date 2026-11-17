@@ -48,7 +48,8 @@ Item {
     //          coming in row by row
     //  "wallpaper": opens like a book out of its wallpaper, the search and list sliding out
     //          from under it
-    readonly property string style: Config.launcher.style
+    // (the old list at the bottom edge is gone: the grid unless the wallpaper one is chosen)
+    readonly property string style: Config.launcher.style === "wallpaper" ? "wallpaper" : "grid"
     readonly property bool centred: style === "grid" || style === "wallpaper"
     readonly property real zoom: 0.8 + 0.2 * open
     readonly property real bookWidth: (content.item as CentreContent)?.collapsedWidth ?? 320

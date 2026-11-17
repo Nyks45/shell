@@ -44,10 +44,6 @@ PageBase {
             subtext: Tr.tr("Where the launcher opens and how it looks")
             menuItems: [
                 MenuItem {
-                    text: Tr.tr("List at the bottom")
-                    value: "list"
-                },
-                MenuItem {
                     text: Tr.tr("App grid in the middle")
                     value: "grid"
                 },
@@ -56,7 +52,7 @@ PageBase {
                     value: "wallpaper"
                 }
             ]
-            active: menuItems.find(i => i.value === Config.launcher.style) ?? menuItems[0]
+            active: menuItems.find(i => i.value === Config.launcher.style) ?? menuItems[0] // (the old "list": the grid)
             onSelected: item => GlobalConfig.launcher.style = item.value
         }
 

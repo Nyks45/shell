@@ -35,7 +35,7 @@ Item {
     // Desktop mode (hyprflow) keeps the bar, with its taskbar, always shown.
     readonly property bool persistent: Config.bar.persistent
     // (the pill has a gap on both sides: the one after it is where its menus start)
-    readonly property int exclusiveZone: !disabled && (persistent || screenState.bar) ? contentWidth + pillGap * 2 : Config.border.thickness
+    readonly property int exclusiveZone: !disabled && (persistent || screenState.bar) ? contentWidth + pillGap * 2 : 0
     readonly property bool shouldBeVisible: !fullscreen && !disabled && (persistent || screenState.bar || isHovered || minimizePeek)
     property bool isHovered
     // A window minimizing into (or restoring out of) the pill while it's hidden (hyprflow's

@@ -12,27 +12,15 @@ Scope {
     required property ShellScreen screen
     required property Bar.BarWrapper bar
 
+    // No frame around the screen: only the pill, while it's kept out, takes room from windows
     ExclusionZone {
         anchors.left: true
         exclusiveZone: root.bar.exclusiveZone
     }
 
-    ExclusionZone {
-        anchors.top: true
-    }
-
-    ExclusionZone {
-        anchors.right: true
-    }
-
-    ExclusionZone {
-        anchors.bottom: true
-    }
-
     component ExclusionZone: StyledWindow {
         screen: root.screen
         name: "border-exclusion"
-        exclusiveZone: contentItem.Config.border.thickness
         mask: Region {}
         implicitWidth: 1
         implicitHeight: 1
