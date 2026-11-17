@@ -70,8 +70,10 @@ Item {
         spacing: Tokens.spacing.small
 
         // The app on one line: its icon, name and window count, its actions grouped on the right
+        // (as wide as its previews: the name gives way, never empty space beside them)
         RowLayout {
             Layout.fillWidth: true
+            Layout.preferredWidth: root.cardCount > 0 ? Math.max(cardsRow.implicitWidth - Tokens.padding.extraSmall, actionsCapsule.implicitWidth + 80) : -1
             Layout.leftMargin: Tokens.padding.extraSmall
             spacing: Tokens.spacing.small
 
@@ -85,6 +87,7 @@ Item {
                 text: root.appName
                 font: Tokens.font.label.large
                 elide: Text.ElideRight
+                Layout.fillWidth: true
                 Layout.maximumWidth: 220
             }
 
@@ -105,13 +108,10 @@ Item {
                 }
             }
 
-            Item {
-                Layout.fillWidth: true
-                implicitWidth: Tokens.spacing.medium
-            }
-
             // The actions, small, in one capsule
             StyledRect {
+                id: actionsCapsule
+
                 implicitWidth: actions.implicitWidth + 4
                 implicitHeight: actions.implicitHeight + 4
                 radius: height / 2
@@ -153,6 +153,10 @@ Item {
         }
 
         Row {
+            id: cardsRow
+
+            // (centred when the name and buttons over it need a little more room)
+            Layout.alignment: Qt.AlignHCenter
             spacing: Tokens.spacing.small
             visible: root.cardCount > 0
 
