@@ -37,28 +37,24 @@ Singleton {
 
     // Waiting for Spotify to start, to play this
     property string pendingUri
-    // Spotify started by the shell: its window is minimized when it appears
+    // Spotify started by the shell: its window closes once it plays (to its tray icon)
     property bool hideNext
 
-    // Its window, minimized (hyprflow; the class or title may only be there a moment after it
-    // opens: tried when it opens, its title changes and its player appears)
     function hideSpotifyWindow(): void {
         if (!hideNext)
             return;
-        const t = Hyprland.toplevels.values.find(t => /spotify/i.test(t.lastIpcObject?.class ?? "") || /^Spotify/.test(t.title ?? ""));
-        if (!t)
-            return;
         hideNext = false;
-        TaskbarApps.hyprflow("minimize", t);
+        const t = Hyprland.toplevels.values.find(t => /spotify/i.test(t.lastIpcObject?.class ?? "") || /^Spotify/.test(t.title ?? ""));
+        if (t)
+            TaskbarApps.close(t);
     }
 
-    Connections {
-        function onRawEvent(event: HyprlandEvent): void {
-            if (root.hideNext && ["openwindow", "windowtitle", "windowtitlev2"].includes(event.name))
-                Qt.callLater(root.hideSpotifyWindow);
-        }
+    Timer {
+        id: hideTimer
 
-        target: Hyprland
+        // (after the song was handed to it: playLater, 1.5 s)
+        interval: 3000
+        onTriggered: root.hideSpotifyWindow()
     }
 
     function refresh(): void {
@@ -129,8 +125,9 @@ Singleton {
             return;
         }
         pendingUri = uri;
-        // Started for this, so out of sight: minimized as soon as its window appears (no special
-        // workspace: Spotify opened by hand belongs on the current one, and the window rules say so)
+        // Started for this, so out of sight: once it plays, its window closes and it carries on
+        // in its tray icon (Spotify's "minimize to tray"; no special workspace: Spotify opened
+        // by hand belongs on the current one)
         hideNext = true;
         Hypr.dispatch(`hl.dsp.exec_cmd("spotify")`);
         pendingTimeout.restart();
@@ -147,8 +144,8 @@ Singleton {
     }
 
     onSpotifyChanged: {
-        if (spotify)
-            hideSpotifyWindow();
+        if (spotify && hideNext)
+            hideTimer.restart();
         if (spotify && pendingUri) {
             const uri = pendingUri;
             pendingUri = "";
