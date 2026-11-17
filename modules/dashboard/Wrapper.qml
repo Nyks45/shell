@@ -68,14 +68,14 @@ Item {
             on: Config.dashboard.showWeather
         },
         {
-            key: "wallpapers",
-            icon: "wallpaper",
-            on: Config.dashboard.showWallpapers
-        },
-        {
             key: "quick",
             icon: "tune",
             on: true
+        },
+        {
+            key: "wallpapers",
+            icon: "wallpaper",
+            on: Config.dashboard.showWallpapers
         },
         {
             key: "settings",
@@ -142,7 +142,6 @@ Item {
 
     visible: morph > 0.002 || peek > 0.002 || shouldBeActive || peeking
     // The page is revealed by the growing shape (not scaled with it)
-    clip: true
     implicitWidth: visible ? pillWidth * Math.max(0, peek) + (fullWidth - pillWidth * Math.max(0, peek)) * morph : 0
     implicitHeight: Math.max(0, pillHeight * Math.max(0, peek) + (fullHeight - pillHeight * Math.max(0, peek)) * morph)
 
@@ -249,6 +248,11 @@ Item {
         }
     }
 
+    // The page, revealed by the growing shape
+    Item {
+        anchors.fill: parent
+        clip: true
+
     Loader {
         id: content
 
@@ -272,4 +276,6 @@ Item {
         onLoaded: item.animateSize = Qt.binding(() => root.morph > 0.98 && root.shouldBeActive)
         Component.onCompleted: ensureSource()
     }
+    }
+
 }

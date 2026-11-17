@@ -9,6 +9,7 @@ import Caelestia.Config
 import Caelestia.I18n
 import qs.components
 import qs.components.filedialog
+import qs.services
 import qs.utils
 import qs.modules.nexus
 
@@ -33,44 +34,51 @@ Item {
     readonly property var dashboardTabs: {
         const allTabs = [
             {
+                key: "dashboard",
                 component: dashComponent,
                 iconName: "dashboard",
-                text: Tr.tr("Dashboard"),
+                text: Tr.tr("Overview"),
                 enabled: Config.dashboard.showDashboard
             },
             {
+                key: "media",
                 component: mediaComponent,
                 iconName: "queue_music",
                 text: Tr.tr("Media"),
                 enabled: Config.dashboard.showMedia
             },
             {
+                key: "performance",
                 component: performanceComponent,
                 iconName: "speed",
                 text: Tr.tr("Performance"),
                 enabled: Config.dashboard.showPerformance
             },
             {
+                key: "weather",
                 component: weatherComponent,
                 iconName: "cloud",
                 text: Tr.tr("Weather"),
                 enabled: Config.dashboard.showWeather
             },
             {
-                component: wallpapersComponent,
-                iconName: "wallpaper",
-                text: Tr.tr("Wallpapers"),
-                enabled: Config.dashboard.showWallpapers
-            },
-            {
                 // The island's pill, clicked: quick settings and notifications
+                key: "quick",
                 component: quickComponent,
                 iconName: "tune",
                 text: Tr.tr("Quick settings"),
                 enabled: true
             },
             {
+                key: "wallpapers",
+                component: wallpapersComponent,
+                iconName: "wallpaper",
+                text: Tr.tr("Wallpapers"),
+                enabled: Config.dashboard.showWallpapers
+            },
+            {
                 // The island's settings button: the settings, grown out of the pill
+                key: "settings",
                 component: settingsComponent,
                 iconName: "settings",
                 text: Tr.tr("Settings"),
@@ -78,6 +86,7 @@ Item {
             },
             {
                 // The island's power button: lock, sleep, log out, restart, shut down
+                key: "power",
                 component: powerComponent,
                 iconName: "power_settings_new",
                 text: Tr.tr("Power"),
@@ -90,13 +99,95 @@ Item {
     readonly property real nonAnimWidth: view.implicitWidth + viewWrapper.anchors.margins * 2
     // One page alone (the island's buttons): no tabs
     readonly property bool solo: true // one page at a time, opened from the island (Wrapper.qml)
+    // The page shown, and whether it has the page tabs (all but the settings)
+    readonly property string pageKey: dashboardTabs[screenState.dashboardTab]?.key ?? ""
+    readonly property bool showJump: pageKey !== "" && pageKey !== "settings"
     // Its own size and page-slide animations, only once fully open (while the island grows or
     // shrinks, it heads straight for its size: set by Wrapper)
     property bool animateSize: true
-    readonly property real nonAnimHeight: (solo ? 0 : tabs.implicitHeight + tabs.anchors.topMargin) + view.implicitHeight + viewWrapper.anchors.margins * 2
+    readonly property real nonAnimHeight: (showJump ? jump.implicitHeight + Tokens.padding.medium : 0) + view.implicitHeight + viewWrapper.anchors.margins * 2
 
     implicitWidth: nonAnimWidth
     implicitHeight: nonAnimHeight
+
+    // Jump to another page: a row of its icons (all but the settings), the one shown on a
+    // highlight that slides between them (fixed sizes, so nothing shifts); a click goes there
+    Item {
+        id: jump
+
+        readonly property var list: root.dashboardTabs.filter(t => t.key !== "settings")
+        readonly property int current: Math.max(0, list.findIndex(t => t.key === root.pageKey))
+        readonly property real cell: 40
+
+        anchors.top: parent.top
+        anchors.topMargin: Tokens.padding.medium
+        anchors.horizontalCenter: parent.horizontalCenter
+        visible: root.showJump
+        implicitWidth: cell * list.length + 6
+        implicitHeight: 34
+
+        StyledRect {
+            anchors.fill: parent
+            radius: height / 2
+            color: Colours.tPalette.m3surfaceContainerHigh
+        }
+
+        StyledRect {
+            x: 3 + jump.current * jump.cell
+            y: 3
+            width: jump.cell
+            height: jump.height - 6
+            radius: height / 2
+            color: Colours.palette.m3primary
+
+            Behavior on x {
+                Anim {
+                    type: Anim.DefaultSpatial
+                }
+            }
+        }
+
+        Row {
+            x: 3
+            y: 3
+
+            Repeater {
+                model: jump.list
+
+                Item {
+                    id: tab
+
+                    required property var modelData
+                    required property int index
+                    readonly property bool isCurrent: jump.current === index
+
+                    width: jump.cell
+                    height: jump.height - 6
+
+                    StateLayer {
+                        radius: height / 2
+                        color: tab.isCurrent ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface
+                        onClicked: {
+                            if (!tab.isCurrent)
+                                root.screenState.dashboardRequest = tab.modelData.key;
+                        }
+                    }
+
+                    MaterialIcon {
+                        anchors.centerIn: parent
+                        text: tab.modelData.key === "quick" ? "notifications" : tab.modelData.iconName
+                        color: tab.isCurrent ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
+                        fontStyle: Tokens.font.icon.small
+                        fill: tab.isCurrent ? 1 : 0
+
+                        Behavior on color {
+                            CAnim {}
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     Tabs {
         id: tabs
@@ -116,7 +207,7 @@ Item {
     ClipRect {
         id: viewWrapper
 
-        anchors.top: root.solo ? parent.top : tabs.bottom
+        anchors.top: root.showJump ? jump.bottom : parent.top
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
@@ -139,8 +230,40 @@ Item {
             Loader {
                 id: page
 
-                anchors.fill: parent
+                width: parent.width
+                height: parent.height
                 sourceComponent: root.dashboardTabs[view.currentIndex]?.component ?? null
+            }
+
+            // Switching pages: the new one slides in from the side of its tab and fades in
+            property int shownIndex: currentIndex
+            onCurrentIndexChanged: {
+                const dir = currentIndex > shownIndex ? 1 : -1;
+                shownIndex = currentIndex;
+                if (root.animateSize) {
+                    switchAnim.from = dir * 40;
+                    switchAnim.restart();
+                    fadeAnim.restart();
+                }
+            }
+
+            Anim {
+                id: switchAnim
+
+                target: page
+                property: "x"
+                to: 0
+                type: Anim.DefaultSpatial
+            }
+
+            Anim {
+                id: fadeAnim
+
+                target: page
+                property: "opacity"
+                from: 0
+                to: 1
+                type: Anim.DefaultEffects
             }
 
             Component {
