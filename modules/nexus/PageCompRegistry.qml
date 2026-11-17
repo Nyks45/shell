@@ -70,18 +70,10 @@ QtObject {
             "panels/DashboardPanel.qml",
             "panels/TaskbarPanel.qml",
             "panels/LauncherPanel.qml",
-            "panels/SidebarPanel.qml",
-            "panels/UtilitiesPanel.qml",
-            // Taskbar component sub-pages
-            "panels/taskbar/BarWorkspaces.qml",
-            "panels/taskbar/BarActiveWindow.qml",
+            // The pill's tray
             "panels/taskbar/BarTray.qml",
-            "panels/taskbar/BarStatusIcons.qml",
-            "panels/taskbar/BarClock.qml",
-            // Other panels (after the taskbar ones: their indices stay)
             "panels/LockPanel.qml",
-            "panels/OsdPanel.qml",
-            "panels/SessionPanel.qml"
+            "panels/OsdPanel.qml"
         ],
         // 4: Display
         [

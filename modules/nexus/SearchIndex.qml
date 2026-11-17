@@ -189,9 +189,9 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Panels and bar",
+            "label": "Islands and pill",
             "ctx": "",
-            "sub": "The shell's bar, dashboard, launcher, sidebar, notifications and popouts",
+            "sub": "The pill, the top island, the launcher, notifications and menus",
             "section": "Blur",
             "page": 0,
             "path": [],
@@ -1427,33 +1427,11 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Sidebar",
-            "ctx": "",
-            "sub": "Enabled",
-            "section": "",
-            "opens": 4,
-            "page": 3,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Utilities",
-            "ctx": "",
-            "sub": "Enabled",
-            "section": "",
-            "opens": 5,
-            "page": 3,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
             "label": "Lock screen",
             "ctx": "",
             "sub": "Wallpaper background",
             "section": "",
-            "opens": 11,
+            "opens": 5,
             "page": 3,
             "path": [],
             "trail": [],
@@ -1464,18 +1442,7 @@ QtObject {
             "ctx": "",
             "sub": "Enabled",
             "section": "",
-            "opens": 12,
-            "page": 3,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Power menu",
-            "ctx": "",
-            "sub": "Enabled",
-            "section": "",
-            "opens": 13,
+            "opens": 6,
             "page": 3,
             "path": [],
             "trail": [],
@@ -1630,24 +1597,10 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Show clock seconds",
-            "ctx": "",
-            "sub": "Display seconds for the clock in the main panel",
-            "section": "General",
-            "page": 3,
-            "path": [
-                1
-            ],
-            "trail": [
-                "Dashboard"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Dashboard",
+            "label": "Overview",
             "ctx": "",
             "sub": "",
-            "section": "Tabs",
+            "section": "Pages",
             "page": 3,
             "path": [
                 1
@@ -1661,7 +1614,7 @@ QtObject {
             "label": "Media",
             "ctx": "",
             "sub": "",
-            "section": "Tabs",
+            "section": "Pages",
             "page": 3,
             "path": [
                 1
@@ -1675,7 +1628,7 @@ QtObject {
             "label": "Performance",
             "ctx": "",
             "sub": "",
-            "section": "Tabs",
+            "section": "Pages",
             "page": 3,
             "path": [
                 1
@@ -1689,7 +1642,7 @@ QtObject {
             "label": "Weather",
             "ctx": "",
             "sub": "",
-            "section": "Tabs",
+            "section": "Pages",
             "page": 3,
             "path": [
                 1
@@ -1703,91 +1656,7 @@ QtObject {
             "label": "Wallpapers",
             "ctx": "",
             "sub": "Pick a picture or a live wallpaper from the dashboard",
-            "section": "Tabs",
-            "page": 3,
-            "path": [
-                1
-            ],
-            "trail": [
-                "Dashboard"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Battery",
-            "ctx": "",
-            "sub": "",
-            "section": "Performance widgets",
-            "page": 3,
-            "path": [
-                1
-            ],
-            "trail": [
-                "Dashboard"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "GPU",
-            "ctx": "",
-            "sub": "",
-            "section": "Performance widgets",
-            "page": 3,
-            "path": [
-                1
-            ],
-            "trail": [
-                "Dashboard"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "CPU",
-            "ctx": "",
-            "sub": "",
-            "section": "Performance widgets",
-            "page": 3,
-            "path": [
-                1
-            ],
-            "trail": [
-                "Dashboard"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Memory",
-            "ctx": "",
-            "sub": "",
-            "section": "Performance widgets",
-            "page": 3,
-            "path": [
-                1
-            ],
-            "trail": [
-                "Dashboard"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Storage",
-            "ctx": "",
-            "sub": "",
-            "section": "Performance widgets",
-            "page": 3,
-            "path": [
-                1
-            ],
-            "trail": [
-                "Dashboard"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Network",
-            "ctx": "",
-            "sub": "",
-            "section": "Performance widgets",
+            "section": "Pages",
             "page": 3,
             "path": [
                 1
@@ -1812,23 +1681,9 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Pill",
-            "ctx": "",
-            "sub": "A floating pill with the launcher, open apps and tray, where you touch the left edge. Off: the classic bar",
-            "section": "Behaviour",
-            "page": 3,
-            "path": [
-                2
-            ],
-            "trail": [
-                "Taskbar"
-            ],
-            "keywords": ""
-        },
-        {
             "label": "Persistent",
             "ctx": "",
-            "sub": "Keep the bar visible at all times",
+            "sub": "Keep the pill out at all times",
             "section": "Behaviour",
             "page": 3,
             "path": [
@@ -1842,7 +1697,7 @@ QtObject {
         {
             "label": "Show on hover",
             "ctx": "",
-            "sub": "Reveal the bar when the cursor reaches the screen edge",
+            "sub": "Bring the pill out when the cursor reaches the middle of the left edge",
             "section": "Behaviour",
             "page": 3,
             "path": [
@@ -1856,7 +1711,7 @@ QtObject {
         {
             "label": "Window previews",
             "ctx": "",
-            "sub": "Hovering an app on the taskbar shows its windows",
+            "sub": "Hovering an app on the pill shows its windows",
             "section": "Behaviour",
             "page": 3,
             "path": [
@@ -1870,7 +1725,7 @@ QtObject {
         {
             "label": "Over fullscreen apps",
             "ctx": "",
-            "sub": "Panels and the bar can open over a fullscreen window",
+            "sub": "The islands and the pill can open over a fullscreen window",
             "section": "Behaviour",
             "page": 3,
             "path": [
@@ -1884,38 +1739,8 @@ QtObject {
         {
             "label": "Drag threshold",
             "ctx": "",
-            "sub": "Pixels dragged before the bar reveals",
+            "sub": "Pixels dragged before the pill comes out",
             "section": "Behaviour",
-            "page": 3,
-            "path": [
-                2
-            ],
-            "trail": [
-                "Taskbar"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Workspaces",
-            "ctx": "",
-            "sub": "Indicators, window icons",
-            "section": "Components",
-            "opens": 6,
-            "page": 3,
-            "path": [
-                2
-            ],
-            "trail": [
-                "Taskbar"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Active window",
-            "ctx": "",
-            "sub": "Title display, popout",
-            "section": "Components",
-            "opens": 7,
             "page": 3,
             "path": [
                 2
@@ -1930,51 +1755,7 @@ QtObject {
             "ctx": "",
             "sub": "System tray icons",
             "section": "Components",
-            "opens": 8,
-            "page": 3,
-            "path": [
-                2
-            ],
-            "trail": [
-                "Taskbar"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Status icons",
-            "ctx": "",
-            "sub": "Visible indicators",
-            "section": "Components",
-            "opens": 9,
-            "page": 3,
-            "path": [
-                2
-            ],
-            "trail": [
-                "Taskbar"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Clock",
-            "ctx": "",
-            "sub": "Date, icon, background",
-            "section": "Components",
-            "opens": 10,
-            "page": 3,
-            "path": [
-                2
-            ],
-            "trail": [
-                "Taskbar"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Workspaces",
-            "ctx": "",
-            "sub": "Scroll over the workspace indicator to switch workspaces",
-            "section": "Scroll actions",
+            "opens": 4,
             "page": 3,
             "path": [
                 2
@@ -1987,7 +1768,7 @@ QtObject {
         {
             "label": "Volume",
             "ctx": "",
-            "sub": "Scroll on the top half of the bar to adjust volume",
+            "sub": "Scroll on the top half of the screen edge to adjust volume",
             "section": "Scroll actions",
             "page": 3,
             "path": [
@@ -2001,7 +1782,7 @@ QtObject {
         {
             "label": "Brightness",
             "ctx": "",
-            "sub": "Scroll on the bottom half of the bar to adjust brightness",
+            "sub": "Scroll on the bottom half of the screen edge to adjust brightness",
             "section": "Scroll actions",
             "page": 3,
             "path": [
@@ -2223,458 +2004,6 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Enabled",
-            "ctx": "toggle label",
-            "sub": "",
-            "section": "General",
-            "page": 3,
-            "path": [
-                4
-            ],
-            "trail": [
-                "Sidebar"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Show on hover",
-            "ctx": "",
-            "sub": "Reveal when the cursor reaches the screen edge",
-            "section": "General",
-            "page": 3,
-            "path": [
-                4
-            ],
-            "trail": [
-                "Sidebar"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Drag threshold",
-            "ctx": "",
-            "sub": "Pixels dragged before the sidebar opens",
-            "section": "General",
-            "page": 3,
-            "path": [
-                4
-            ],
-            "trail": [
-                "Sidebar"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Enabled",
-            "ctx": "toggle label",
-            "sub": "Show the utilities panel",
-            "section": "General",
-            "page": 3,
-            "path": [
-                5
-            ],
-            "trail": [
-                "Utilities"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Keep awake",
-            "ctx": "",
-            "sub": "Show the idle inhibitor card",
-            "section": "Cards",
-            "page": 3,
-            "path": [
-                5
-            ],
-            "trail": [
-                "Utilities"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Screen recorder",
-            "ctx": "",
-            "sub": "Show the screen recorder card",
-            "section": "Cards",
-            "page": 3,
-            "path": [
-                5
-            ],
-            "trail": [
-                "Utilities"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Quick toggles",
-            "ctx": "",
-            "sub": "Show the quick toggles card",
-            "section": "Cards",
-            "page": 3,
-            "path": [
-                5
-            ],
-            "trail": [
-                "Utilities"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Wi-Fi",
-            "ctx": "",
-            "sub": "Toggle wireless networking",
-            "section": "Quick toggles",
-            "page": 3,
-            "path": [
-                5
-            ],
-            "trail": [
-                "Utilities"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Bluetooth",
-            "ctx": "",
-            "sub": "Toggle the Bluetooth adapter",
-            "section": "Quick toggles",
-            "page": 3,
-            "path": [
-                5
-            ],
-            "trail": [
-                "Utilities"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Microphone",
-            "ctx": "",
-            "sub": "Mute or unmute the default source",
-            "section": "Quick toggles",
-            "page": 3,
-            "path": [
-                5
-            ],
-            "trail": [
-                "Utilities"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Settings",
-            "ctx": "",
-            "sub": "Open the settings window",
-            "section": "Quick toggles",
-            "page": 3,
-            "path": [
-                5
-            ],
-            "trail": [
-                "Utilities"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Game mode",
-            "ctx": "",
-            "sub": "Toggle game mode",
-            "section": "Quick toggles",
-            "page": 3,
-            "path": [
-                5
-            ],
-            "trail": [
-                "Utilities"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Do not disturb",
-            "ctx": "",
-            "sub": "Silence notifications",
-            "section": "Quick toggles",
-            "page": 3,
-            "path": [
-                5
-            ],
-            "trail": [
-                "Utilities"
-            ],
-            "keywords": "dnd silence mute notifications"
-        },
-        {
-            "label": "VPN",
-            "ctx": "",
-            "sub": "Connect or disconnect the VPN",
-            "section": "Quick toggles",
-            "page": 3,
-            "path": [
-                5
-            ],
-            "trail": [
-                "Utilities"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Shown",
-            "ctx": "bar workspaces",
-            "sub": "Number of workspaces displayed",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                6
-            ],
-            "trail": [
-                "Taskbar",
-                "Workspaces"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Active indicator",
-            "ctx": "bar workspaces",
-            "sub": "",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                6
-            ],
-            "trail": [
-                "Taskbar",
-                "Workspaces"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Active trail",
-            "ctx": "bar workspaces",
-            "sub": "",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                6
-            ],
-            "trail": [
-                "Taskbar",
-                "Workspaces"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Occupied background",
-            "ctx": "bar workspaces",
-            "sub": "",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                6
-            ],
-            "trail": [
-                "Taskbar",
-                "Workspaces"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Show unoccupied",
-            "ctx": "bar workspaces",
-            "sub": "Show workspaces that are inactive and empty",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                6
-            ],
-            "trail": [
-                "Taskbar",
-                "Workspaces"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Show windows",
-            "ctx": "bar workspaces",
-            "sub": "Show icons of open windows on each workspace",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                6
-            ],
-            "trail": [
-                "Taskbar",
-                "Workspaces"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Windows on special workspaces",
-            "ctx": "bar workspaces",
-            "sub": "",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                6
-            ],
-            "trail": [
-                "Taskbar",
-                "Workspaces"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Workspace style",
-            "ctx": "",
-            "sub": "",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                6
-            ],
-            "trail": [
-                "Taskbar",
-                "Workspaces"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Names in",
-            "ctx": "",
-            "sub": "",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                6
-            ],
-            "trail": [
-                "Taskbar",
-                "Workspaces"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Max window icons",
-            "ctx": "bar workspaces",
-            "sub": "",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                6
-            ],
-            "trail": [
-                "Taskbar",
-                "Workspaces"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Compact",
-            "ctx": "taskbar active window layout",
-            "sub": "",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                7
-            ],
-            "trail": [
-                "Taskbar",
-                "Active window"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Inverted",
-            "ctx": "taskbar active window: swap the title and class order",
-            "sub": "",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                7
-            ],
-            "trail": [
-                "Taskbar",
-                "Active window"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Show on hover",
-            "ctx": "",
-            "sub": "Only show the active window title while hovering",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                7
-            ],
-            "trail": [
-                "Taskbar",
-                "Active window"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Popout on hover",
-            "ctx": "",
-            "sub": "Show a window details popout when hovering",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                7
-            ],
-            "trail": [
-                "Taskbar",
-                "Active window"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Background",
-            "ctx": "taskbar tray: draw a background behind the tray",
-            "sub": "",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                8
-            ],
-            "trail": [
-                "Taskbar",
-                "Tray"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Recolour icons",
-            "ctx": "",
-            "sub": "",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                8
-            ],
-            "trail": [
-                "Taskbar",
-                "Tray"
-            ],
-            "keywords": ""
-        },
-        {
             "label": "Compact",
             "ctx": "taskbar tray layout",
             "sub": "",
@@ -2682,7 +2011,7 @@ QtObject {
             "page": 3,
             "path": [
                 2,
-                8
+                4
             ],
             "trail": [
                 "Taskbar",
@@ -2698,107 +2027,11 @@ QtObject {
             "page": 3,
             "path": [
                 2,
-                8
+                4
             ],
             "trail": [
                 "Taskbar",
                 "Tray"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Add entry",
-            "ctx": "",
-            "sub": "",
-            "section": "Visible icons",
-            "page": 3,
-            "path": [
-                2,
-                9
-            ],
-            "trail": [
-                "Taskbar",
-                "Status icons"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Popout on hover",
-            "ctx": "",
-            "sub": "Show a details popout when hovering the status icons",
-            "section": "Behaviour",
-            "page": 3,
-            "path": [
-                2,
-                9
-            ],
-            "trail": [
-                "Taskbar",
-                "Status icons"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Background",
-            "ctx": "taskbar clock: draw a background behind the clock",
-            "sub": "",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                10
-            ],
-            "trail": [
-                "Taskbar",
-                "Clock"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Show date",
-            "ctx": "",
-            "sub": "",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                10
-            ],
-            "trail": [
-                "Taskbar",
-                "Clock"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Show icon",
-            "ctx": "",
-            "sub": "",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                10
-            ],
-            "trail": [
-                "Taskbar",
-                "Clock"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Show seconds",
-            "ctx": "",
-            "sub": "",
-            "section": "",
-            "page": 3,
-            "path": [
-                2,
-                10
-            ],
-            "trail": [
-                "Taskbar",
-                "Clock"
             ],
             "keywords": ""
         },
@@ -2809,7 +2042,7 @@ QtObject {
             "section": "Look",
             "page": 3,
             "path": [
-                11
+                5
             ],
             "trail": [
                 "Lock screen"
@@ -2823,7 +2056,7 @@ QtObject {
             "section": "Look",
             "page": 3,
             "path": [
-                11
+                5
             ],
             "trail": [
                 "Lock screen"
@@ -2837,7 +2070,7 @@ QtObject {
             "section": "Look",
             "page": 3,
             "path": [
-                11
+                5
             ],
             "trail": [
                 "Lock screen"
@@ -2851,7 +2084,7 @@ QtObject {
             "section": "Look",
             "page": 3,
             "path": [
-                11
+                5
             ],
             "trail": [
                 "Lock screen"
@@ -2865,7 +2098,7 @@ QtObject {
             "section": "Unlocking",
             "page": 3,
             "path": [
-                11
+                5
             ],
             "trail": [
                 "Lock screen"
@@ -2879,7 +2112,7 @@ QtObject {
             "section": "Unlocking",
             "page": 3,
             "path": [
-                11
+                5
             ],
             "trail": [
                 "Lock screen"
@@ -2893,7 +2126,7 @@ QtObject {
             "section": "Unlocking",
             "page": 3,
             "path": [
-                11
+                5
             ],
             "trail": [
                 "Lock screen"
@@ -2907,7 +2140,7 @@ QtObject {
             "section": "Unlocking",
             "page": 3,
             "path": [
-                11
+                5
             ],
             "trail": [
                 "Lock screen"
@@ -2921,7 +2154,7 @@ QtObject {
             "section": "Unlocking",
             "page": 3,
             "path": [
-                11
+                5
             ],
             "trail": [
                 "Lock screen"
@@ -2935,7 +2168,7 @@ QtObject {
             "section": "Unlocking",
             "page": 3,
             "path": [
-                11
+                5
             ],
             "trail": [
                 "Lock screen"
@@ -2949,7 +2182,7 @@ QtObject {
             "section": "General",
             "page": 3,
             "path": [
-                12
+                6
             ],
             "trail": [
                 "On-screen display"
@@ -2963,7 +2196,7 @@ QtObject {
             "section": "General",
             "page": 3,
             "path": [
-                12
+                6
             ],
             "trail": [
                 "On-screen display"
@@ -2977,7 +2210,7 @@ QtObject {
             "section": "General",
             "page": 3,
             "path": [
-                12
+                6
             ],
             "trail": [
                 "On-screen display"
@@ -2991,52 +2224,10 @@ QtObject {
             "section": "General",
             "page": 3,
             "path": [
-                12
+                6
             ],
             "trail": [
                 "On-screen display"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Enabled",
-            "ctx": "toggle label",
-            "sub": "Log out, shut down, sleep and restart, from the screen's right edge",
-            "section": "General",
-            "page": 3,
-            "path": [
-                13
-            ],
-            "trail": [
-                "Power menu"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Vim keys",
-            "ctx": "",
-            "sub": "Move between the buttons with J and K",
-            "section": "General",
-            "page": 3,
-            "path": [
-                13
-            ],
-            "trail": [
-                "Power menu"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Drag threshold",
-            "ctx": "",
-            "sub": "Pixels dragged before the menu opens",
-            "section": "General",
-            "page": 3,
-            "path": [
-                13
-            ],
-            "trail": [
-                "Power menu"
             ],
             "keywords": ""
         },
@@ -3342,30 +2533,10 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Show in fullscreen",
-            "ctx": "",
-            "sub": "Whether toasts appear over fullscreen apps",
-            "section": "Toasts",
-            "page": 6,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Visible toasts",
-            "ctx": "",
-            "sub": "Maximum number of toasts shown at once",
-            "section": "Toasts",
-            "page": 6,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
             "label": "Charging changes",
             "ctx": "",
             "sub": "",
-            "section": "Toast events",
+            "section": "Shell messages",
             "page": 6,
             "path": [],
             "trail": [],
@@ -3375,7 +2546,7 @@ QtObject {
             "label": "Game mode changes",
             "ctx": "",
             "sub": "",
-            "section": "Toast events",
+            "section": "Shell messages",
             "page": 6,
             "path": [],
             "trail": [],
@@ -3385,7 +2556,7 @@ QtObject {
             "label": "Do not disturb changes",
             "ctx": "",
             "sub": "",
-            "section": "Toast events",
+            "section": "Shell messages",
             "page": 6,
             "path": [],
             "trail": [],
@@ -3395,7 +2566,7 @@ QtObject {
             "label": "Audio output changes",
             "ctx": "",
             "sub": "",
-            "section": "Toast events",
+            "section": "Shell messages",
             "page": 6,
             "path": [],
             "trail": [],
@@ -3405,7 +2576,7 @@ QtObject {
             "label": "Audio input changes",
             "ctx": "",
             "sub": "",
-            "section": "Toast events",
+            "section": "Shell messages",
             "page": 6,
             "path": [],
             "trail": [],
@@ -3415,7 +2586,7 @@ QtObject {
             "label": "Caps lock changes",
             "ctx": "",
             "sub": "",
-            "section": "Toast events",
+            "section": "Shell messages",
             "page": 6,
             "path": [],
             "trail": [],
@@ -3425,7 +2596,7 @@ QtObject {
             "label": "Num lock changes",
             "ctx": "",
             "sub": "",
-            "section": "Toast events",
+            "section": "Shell messages",
             "page": 6,
             "path": [],
             "trail": [],
@@ -3435,7 +2606,7 @@ QtObject {
             "label": "Keyboard layout changes",
             "ctx": "",
             "sub": "",
-            "section": "Toast events",
+            "section": "Shell messages",
             "page": 6,
             "path": [],
             "trail": [],
@@ -3445,7 +2616,7 @@ QtObject {
             "label": "Keyboard layout limit reached",
             "ctx": "",
             "sub": "",
-            "section": "Toast events",
+            "section": "Shell messages",
             "page": 6,
             "path": [],
             "trail": [],
@@ -3455,7 +2626,7 @@ QtObject {
             "label": "VPN changes",
             "ctx": "",
             "sub": "",
-            "section": "Toast events",
+            "section": "Shell messages",
             "page": 6,
             "path": [],
             "trail": [],
@@ -3465,7 +2636,7 @@ QtObject {
             "label": "Now playing",
             "ctx": "",
             "sub": "",
-            "section": "Toast events",
+            "section": "Shell messages",
             "page": 6,
             "path": [],
             "trail": [],

@@ -11,13 +11,11 @@ Item {
 
     required property ShellScreen screen
     required property ScreenState screenState
-    required property bool sidebarOrSessionVisible
 
     property bool hovered
     readonly property Brightness.Monitor monitor: Brightness.getMonitorForScreen(root.screen)
-    readonly property bool shouldBeActive: screenState.osd && Config.osd.enabled && !(screenState.utilities && Config.utilities.enabled)
+    readonly property bool shouldBeActive: screenState.osd && Config.osd.enabled
     property real offsetScale: shouldBeActive ? 0 : 1
-    property real sidebarOffset: sidebarOrSessionVisible ? 12 : 0
 
     property real volume
     property bool muted
@@ -38,9 +36,8 @@ Item {
         brightness = root.monitor?.brightness ?? 0;
     }
 
-    // With the pill bar: an island floating a gap from the right edge, grown out of a small
-    // capsule there (like the top island out of its pill)
-    readonly property bool island: Config.bar.pill
+    // An island floating a gap from the right edge, grown out of a small capsule there (like the
+    // top island out of its pill)
     readonly property real floatGap: Tokens.spacing.medium
     readonly property real open: 1 - offsetScale
     // (over the last bit the capsule itself shrinks away: nothing left on the edge)
@@ -57,12 +54,12 @@ Item {
     }
 
     visible: offsetScale < 1
-    anchors.rightMargin: island ? floatGap : (-implicitWidth - 5 - sidebarOffset) * offsetScale
-    implicitWidth: island ? fullWidth * (0.6 + 0.4 * open) * tail : fullWidth
-    implicitHeight: island ? fullHeight * (0.35 + 0.65 * open) * tail : fullHeight
-    clip: island
-    // (the island's contents fade in once it has grown enough to hold them)
-    opacity: island ? Math.min(1, Math.max(0, (open - 0.6) / 0.35)) : 1 - offsetScale
+    anchors.rightMargin: floatGap
+    implicitWidth: fullWidth * (0.6 + 0.4 * open) * tail
+    implicitHeight: fullHeight * (0.35 + 0.65 * open) * tail
+    clip: true
+    // (its contents fade in once it has grown enough to hold them)
+    opacity: Math.min(1, Math.max(0, (open - 0.6) / 0.35))
 
     Behavior on offsetScale {
         Anim {}
@@ -114,9 +111,7 @@ Item {
     Loader {
         id: content
 
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.left: root.island ? undefined : parent.left
-        anchors.horizontalCenter: root.island ? parent.horizontalCenter : undefined
+        anchors.centerIn: parent
 
         asynchronous: true
         active: root.shouldBeActive || root.visible
@@ -129,7 +124,6 @@ Item {
             sourceVolume: root.sourceVolume
             sourceMuted: root.sourceMuted
             brightness: root.brightness
-            island: root.island
         }
     }
 }

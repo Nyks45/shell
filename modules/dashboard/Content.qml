@@ -8,7 +8,6 @@ import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
-import qs.components.filedialog
 import qs.services
 import qs.utils
 import qs.modules.nexus
@@ -17,20 +16,6 @@ Item {
     id: root
 
     required property ScreenState screenState
-    readonly property FileDialog facePicker: FileDialog {
-        title: Tr.tr("Select a profile picture")
-        filterLabel: Tr.tr("Image files")
-        filters: Images.validImageExtensions
-        onAccepted: path => {
-            if (CUtils.copyFile(Qt.resolvedUrl(path), Qt.resolvedUrl(Paths.face)) && (Paths.reloadFace(), true))
-                // TRANSLATORS: %1 = a file path
-                Quickshell.execDetached(["notify-send", "-a", "caelestia-shell", "-u", "low", "-h", `STRING:image-path:${path}`, Tr.tr("Profile picture changed"), Tr.tr("Profile picture changed to %1").arg(Paths.shortenHome(path))]);
-            else
-                // TRANSLATORS: %1 = a file path
-                Quickshell.execDetached(["notify-send", "-a", "caelestia-shell", "-u", "critical", Tr.tr("Unable to change profile picture"), Tr.tr("Failed to change profile picture to %1").arg(Paths.shortenHome(path))]);
-        }
-    }
-
     readonly property var dashboardTabs: {
         const allTabs = [
             {
@@ -104,8 +89,6 @@ Item {
     }
 
     readonly property real nonAnimWidth: view.implicitWidth + viewWrapper.anchors.margins * 2
-    // One page alone (the island's buttons): no tabs
-    readonly property bool solo: true // one page at a time, opened from the island (Wrapper.qml)
     // The page shown, and whether it has the page tabs (all but the settings)
     readonly property string pageKey: dashboardTabs[screenState.dashboardTab]?.key ?? ""
     readonly property bool showJump: pageKey !== "" && pageKey !== "settings"
@@ -194,21 +177,6 @@ Item {
                 }
             }
         }
-    }
-
-    Tabs {
-        id: tabs
-
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.topMargin: CUtils.clamp(anchors.margins - Config.border.thickness, 0, anchors.margins)
-        anchors.margins: Tokens.padding.large
-
-        nonAnimWidth: root.nonAnimWidth - anchors.margins * 2
-        screenState: root.screenState
-        tabs: root.dashboardTabs
-        visible: !root.solo
     }
 
     ClipRect {

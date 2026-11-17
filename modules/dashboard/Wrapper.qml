@@ -22,7 +22,6 @@ Item {
 
     readonly property real nonAnimHeight: (content.item as Item)?.nonAnimHeight ?? 0
     readonly property bool dashEnabled: Config.dashboard.enabled
-    readonly property bool pillBar: Config.bar.pill
     readonly property bool shouldBeActive: screenState.dashboard && dashEnabled
 
     // 0 closed .. 1 open (may pass 1 by a hair while settling)
@@ -129,25 +128,25 @@ Item {
         openPage("quick");
     }
 
-    // With the pill bar, the island replaces the old edge panels: asked for (shortcuts, IPC),
+    // The island replaces the old edge panels: asked for (shortcuts, IPC),
     // they open its page instead (the notifications sidebar, the quick toggles, the power menu)
     Connections {
         function onSidebarChanged(): void {
-            if (root.pillBar && root.screenState.sidebar) {
+            if (root.screenState.sidebar) {
                 root.screenState.sidebar = false;
                 root.openPage("notifications");
             }
         }
 
         function onUtilitiesChanged(): void {
-            if (root.pillBar && root.screenState.utilities) {
+            if (root.screenState.utilities) {
                 root.screenState.utilities = false;
                 root.openPage("quick");
             }
         }
 
         function onSessionChanged(): void {
-            if (root.pillBar && root.screenState.session && !root.screenState.sessionAtBar) {
+            if (root.screenState.session) {
                 root.screenState.session = false;
                 root.openPage("power");
             }

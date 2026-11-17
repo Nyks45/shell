@@ -2,13 +2,10 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Hyprland
-import Quickshell.Wayland
 import Caelestia.Config
 import qs.components
-import qs.services
-import qs.modules.nexus
 
+// The pill's menus: a window's previews (the taskbar) and the tray's menus, one at a time
 Item {
     id: root
 
@@ -16,13 +13,10 @@ Item {
     required property real offsetScale
 
     readonly property alias content: content
-    readonly property alias winfo: winfo
-    readonly property alias nexus: nexus
 
-    readonly property real nonAnimWidth: children.find(c => c.shouldBeActive)?.implicitWidth ?? content.implicitWidth
-    readonly property real nonAnimHeight: children.find(c => c.shouldBeActive)?.implicitHeight ?? content.implicitHeight
+    readonly property real nonAnimWidth: content.implicitWidth
+    readonly property real nonAnimHeight: content.implicitHeight
     readonly property Item current: (content.item as Item)?.current ?? null
-    readonly property bool isDetached: detachedMode.length > 0
 
     property alias currentName: popoutState.currentName
     property alias hasCurrent: popoutState.hasCurrent
@@ -30,86 +24,34 @@ Item {
     property alias taskbarKey: popoutState.taskbarKey
     property real currentCenter
 
-    property string detachedMode
-    property string queuedMode
-
     // Dummy object so Tokens attached prop resolves to global config
     // Anim configs are not per-monitor
     readonly property QtObject dummy: QtObject {}
-    property int animLength: dummy.Tokens.anim.durations.expressiveDefaultSpatial
-    property var animCurve: dummy.Tokens.anim.expressiveDefaultSpatial // The easingCurve type is Qt 6.11+ so we gotta use var for now
-
-    function setAnims(detach: bool): void {
-        const type = `expressive${detach ? "Slow" : "Default"}Spatial`;
-        animLength = dummy.Tokens.anim.durations[type];
-        animCurve = dummy.Tokens.anim[type];
-    }
-
-    function detach(mode: string): void {
-        setAnims(true);
-        if (mode === "winfo") {
-            detachedMode = mode;
-        } else {
-            queuedMode = mode;
-            detachedMode = "any";
-        }
-        setAnims(false);
-        focus = true;
-    }
+    readonly property int animLength: dummy.Tokens.anim.durations.expressiveDefaultSpatial
+    readonly property var animCurve: dummy.Tokens.anim.expressiveDefaultSpatial // The easingCurve type is Qt 6.11+ so we gotta use var for now
 
     function close(): void {
         hasCurrent = false;
-        detachedMode = "";
     }
 
     implicitWidth: nonAnimWidth
     implicitHeight: nonAnimHeight
 
     focus: hasCurrent
-    Keys.onEscapePressed: {
-        // Forward escape to password popout if active, otherwise close
-        if (currentName === "wirelesspassword" && content.item) {
-            const passwordPopout = (content.item as Item)?.children.find(c => c.name === "wirelesspassword");
-            if (passwordPopout && passwordPopout.item) {
-                passwordPopout.item.closeDialog();
-                return;
-            }
-        }
-        close();
-    }
-
-    Keys.onPressed: event => {
-        // Don't intercept keys when password popout is active - let it handle them
-        if (currentName === "wirelesspassword") {
-            event.accepted = false;
-        }
-    }
+    Keys.onEscapePressed: close()
 
     PopoutState {
         id: popoutState
-
-        onDetachRequested: mode => root.detach(mode)
     }
 
-    HyprlandFocusGrab {
-        active: root.isDetached
-        windows: [QsWindow.window]
-        onCleared: root.close()
-    }
-
-    Binding {
-        when: root.isDetached || (root.hasCurrent && root.currentName === "wirelesspassword")
-
-        target: QsWindow.window
-        property: "WlrLayershell.keyboardFocus"
-        value: WlrKeyboardFocus.OnDemand
-    }
-
-    Comp {
+    Loader {
         id: content
 
-        shouldBeActive: root.hasCurrent && !root.detachedMode
+        readonly property bool shouldBeActive: root.hasCurrent
+
         anchors.fill: parent
+        active: false
+        opacity: 0
 
         onActiveChanged: {
             if (active && !source.toString())
@@ -117,84 +59,15 @@ Item {
                     popouts: popoutState
                 });
         }
-    }
-
-    Comp {
-        id: winfo
-
-        shouldBeActive: root.detachedMode === "winfo"
-        anchors.centerIn: parent
-
-        onActiveChanged: {
-            if (active && !source.toString())
-                setSource(Qt.resolvedUrl("../../windowinfo/WindowInfo.qml"), {
-                    screen: Qt.binding(() => root.screen),
-                    client: Qt.binding(() => Hypr.activeToplevel)
-                });
-        }
-    }
-
-    Comp {
-        id: nexus
-
-        shouldBeActive: root.detachedMode === "any"
-        anchors.centerIn: parent
-
-        sourceComponent: ClipRect {
-            radius: Tokens.rounding.extraLarge
-            implicitWidth: nexusInner.implicitWidth
-            implicitHeight: nexusInner.implicitHeight
-
-            Nexus {
-                id: nexusInner
-
-                anchors.fill: parent
-                nState.screen: root.screen
-                nState.animatingContainer: nexus.opacity < 1
-                // The popout's page, by id (indices move as pages are added)
-                nState.currentPageIdx: Math.max(0, PageRegistry.find(({
-                            appearance: "wallpaper",
-                            network: "network",
-                            bluetooth: "devices",
-                            audio: "audio"
-                        })[root.queuedMode] ?? ""))
-                onClose: root.close()
-            }
-        }
-    }
-
-    Behavior on implicitWidth {
-        Anim {
-            duration: root.animLength
-            easing: root.animCurve
-        }
-    }
-
-    Behavior on implicitHeight {
-        enabled: root.offsetScale < 1
-
-        Anim {
-            duration: root.animLength
-            easing: root.animCurve
-        }
-    }
-
-    component Comp: Loader {
-        id: comp
-
-        property bool shouldBeActive
-
-        active: false
-        opacity: 0
 
         // Makes the loader load on the same frame shouldBeActive becomes true, which ensures size is set
         states: State {
             name: "active"
-            when: comp.shouldBeActive
+            when: content.shouldBeActive
 
             PropertyChanges {
-                comp.opacity: 1
-                comp.active: true
+                content.opacity: 1
+                content.active: true
             }
         }
 
@@ -228,5 +101,21 @@ Item {
                 }
             }
         ]
+    }
+
+    Behavior on implicitWidth {
+        Anim {
+            duration: root.animLength
+            easing: root.animCurve
+        }
+    }
+
+    Behavior on implicitHeight {
+        enabled: root.offsetScale < 1
+
+        Anim {
+            duration: root.animLength
+            easing: root.animCurve
+        }
     }
 }

@@ -14,14 +14,13 @@ StyledRect {
     readonly property alias items: items
     readonly property alias expandIcon: expandIcon
 
-    readonly property int padding: Config.bar.tray.background || Config.bar.pill ? Tokens.padding.small : Tokens.padding.extraSmall
+    readonly property int padding: Tokens.padding.small
     readonly property int spacing: Config.bar.tray.background ? Tokens.spacing.medium : Tokens.spacing.extraSmall
 
     property bool expanded
-    // In the pill: a short rule above the tray's icons (small and single-coloured there, status
-    // icons rather than apps), setting them apart from the open apps over it
-    readonly property bool pill: Config.bar.pill
-    readonly property real lead: pill && items.count > 0 ? divider.height + Tokens.spacing.small : 0
+    // A short rule above the tray's icons (small and single-coloured, status icons rather than
+    // apps), setting them apart from the open apps over it
+    readonly property real lead: items.count > 0 ? divider.height + Tokens.spacing.small : 0
 
     readonly property real nonAnimHeight: {
         if (!Config.bar.tray.compact)
@@ -38,7 +37,7 @@ StyledRect {
     implicitWidth: Tokens.sizes.bar.innerWidth
     implicitHeight: nonAnimHeight
 
-    color: pill ? "transparent" : Qt.alpha(Colours.tPalette.m3surfaceContainer, (Config.bar.tray.background && items.count > 0) ? Colours.tPalette.m3surfaceContainer.a : 0)
+    color: "transparent"
     radius: Tokens.rounding.full
 
     StyledRect {

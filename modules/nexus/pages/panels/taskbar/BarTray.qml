@@ -20,19 +20,6 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         ToggleRow {
-            text: Tr.trCtx("Background", "taskbar tray: draw a background behind the tray")
-            checked: Config.bar.tray.background
-            onToggled: GlobalConfig.bar.tray.background = checked
-        }
-
-        ToggleRow {
-            // TRANSLATORS: tint system tray icons with the theme accent colour
-            text: Tr.tr("Recolour icons")
-            checked: Config.bar.tray.recolour
-            onToggled: GlobalConfig.bar.tray.recolour = checked
-        }
-
-        ToggleRow {
             text: Tr.trCtx("Compact", "taskbar tray layout")
             checked: Config.bar.tray.compact
             onToggled: GlobalConfig.bar.tray.compact = checked

@@ -36,38 +36,17 @@ PageBase {
         }
 
         NavRow {
-            icon: "dock_to_right"
-            text: Tr.tr("Sidebar")
-            subtext: Config.sidebar.enabled ? Tr.trCtx("Enabled", "panel status") : Tr.trCtx("Disabled", "panel status")
-            onClicked: root.nState.openSubPage(4)
-        }
-
-        NavRow {
-            icon: "construction"
-            text: Tr.tr("Utilities")
-            subtext: Config.utilities.enabled ? Tr.trCtx("Enabled", "panel status") : Tr.trCtx("Disabled", "panel status")
-            onClicked: root.nState.openSubPage(5)
-        }
-
-        NavRow {
             icon: "lock"
             text: Tr.tr("Lock screen")
             subtext: Config.lock.useWallpaper ? Tr.tr("Wallpaper background") : Tr.tr("Plain background")
-            onClicked: root.nState.openSubPage(11)
+            onClicked: root.nState.openSubPage(5)
         }
 
         NavRow {
             icon: "tune"
             text: Tr.tr("On-screen display")
             subtext: Config.osd.enabled ? Tr.trCtx("Enabled", "panel status") : Tr.trCtx("Disabled", "panel status")
-            onClicked: root.nState.openSubPage(12)
-        }
-
-        NavRow {
-            icon: "power_settings_new"
-            text: Tr.tr("Power menu")
-            subtext: Config.session.enabled ? Tr.trCtx("Enabled", "panel status") : Tr.trCtx("Disabled", "panel status")
-            onClicked: root.nState.openSubPage(13)
+            onClicked: root.nState.openSubPage(6)
         }
     }
 }

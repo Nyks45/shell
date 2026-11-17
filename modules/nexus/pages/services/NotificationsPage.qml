@@ -25,23 +25,6 @@ PageBase {
         }
     ]
 
-    // Toast fullscreen visibility, mapped to GlobalConfig.utilities.toasts.fullscreen
-    readonly property list<MenuItem> toastFullscreenItems: [
-        MenuItem {
-            text: Tr.trCtx("Off", "show toasts over fullscreen apps")
-            icon: "notifications_off"
-        },
-        MenuItem {
-            text: Tr.trCtx("Important", "show toasts over fullscreen apps: important ones only")
-            icon: "priority_high"
-        },
-        MenuItem {
-            text: Tr.trCtx("On", "show toasts over fullscreen apps")
-            icon: "notifications"
-        }
-    ]
-    readonly property list<string> toastFullscreenValues: ["off", "important", "all"]
-
     title: Tr.tr("Notifications")
     isSubPage: true
 
@@ -117,32 +100,10 @@ PageBase {
             onMoved: v => GlobalConfig.notifs.groupPreviewNum = Math.round(v)
         }
 
-        // Toasts
-        SectionHeader {
-            text: Tr.tr("Toasts")
-        }
-
-        SelectRow {
-            label: Tr.tr("Show in fullscreen")
-            subtext: Tr.tr("Whether toasts appear over fullscreen apps")
-            menuItems: root.toastFullscreenItems
-            active: root.toastFullscreenItems[Math.max(0, root.toastFullscreenValues.indexOf(GlobalConfig.utilities.toasts.fullscreen))]
-            onSelected: item => GlobalConfig.utilities.toasts.fullscreen = root.toastFullscreenValues[root.toastFullscreenItems.indexOf(item)]
-        }
-
-        StepperRow {
-            label: Tr.tr("Visible toasts")
-            subtext: Tr.tr("Maximum number of toasts shown at once")
-            value: GlobalConfig.utilities.maxToasts
-            from: 1
-            to: 10
-            stepSize: 1
-            onMoved: v => GlobalConfig.utilities.maxToasts = Math.round(v)
-        }
-
         // Toast events
+        // (the shell's own messages, as notifications)
         SectionHeader {
-            text: Tr.tr("Toast events")
+            text: Tr.tr("Shell messages")
         }
 
         ToggleRow {

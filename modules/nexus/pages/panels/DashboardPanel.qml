@@ -37,20 +37,13 @@ PageBase {
             onToggled: GlobalConfig.dashboard.showOnHover = checked
         }
 
-        ToggleRow {
-            text: Tr.tr("Show clock seconds")
-            subtext: Tr.tr("Display seconds for the clock in the main panel")
-            checked: Config.dashboard.showClockSeconds
-            onToggled: GlobalConfig.dashboard.showClockSeconds = checked
-        }
-
         // Tabs
         SectionHeader {
-            text: Tr.tr("Tabs")
+            text: Tr.tr("Pages")
         }
 
         ToggleRow {
-            text: Tr.tr("Dashboard")
+            text: Tr.tr("Overview")
             checked: Config.dashboard.showDashboard
             onToggled: GlobalConfig.dashboard.showDashboard = checked
         }
@@ -81,47 +74,6 @@ PageBase {
         }
 
         // Performance widgets
-        SectionHeader {
-            text: Tr.tr("Performance widgets")
-        }
-
-        ToggleRow {
-            text: Tr.tr("Battery")
-            checked: Config.dashboard.performance.showBattery
-            onToggled: GlobalConfig.dashboard.performance.showBattery = checked
-        }
-
-        ToggleRow {
-            text: Tr.tr("GPU")
-            checked: Config.dashboard.performance.showGpu
-            onToggled: GlobalConfig.dashboard.performance.showGpu = checked
-        }
-
-        ToggleRow {
-            text: Tr.tr("CPU")
-            checked: Config.dashboard.performance.showCpu
-            onToggled: GlobalConfig.dashboard.performance.showCpu = checked
-        }
-
-        ToggleRow {
-            text: Tr.tr("Memory")
-            checked: Config.dashboard.performance.showMemory
-            onToggled: GlobalConfig.dashboard.performance.showMemory = checked
-        }
-
-        ToggleRow {
-            text: Tr.tr("Storage")
-            checked: Config.dashboard.performance.showStorage
-            onToggled: GlobalConfig.dashboard.performance.showStorage = checked
-        }
-
-        ToggleRow {
-            text: Tr.tr("Network")
-            checked: Config.dashboard.performance.showNetwork
-            onToggled: GlobalConfig.dashboard.performance.showNetwork = checked
-        }
-
-        // Behaviour
         SectionHeader {
             text: Tr.tr("Behaviour")
         }

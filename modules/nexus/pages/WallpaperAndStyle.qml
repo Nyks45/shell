@@ -551,8 +551,8 @@ PageBase {
 
         BlurRow {
             visible: root.blurOn
-            label: Tr.tr("Panels and bar")
-            subtext: Tr.tr("The shell's bar, dashboard, launcher, sidebar, notifications and popouts")
+            label: Tr.tr("Islands and pill")
+            subtext: Tr.tr("The pill, the top island, the launcher, notifications and menus")
             size: GlobalConfig.appearance.blur.shellSize
             passes: GlobalConfig.appearance.blur.shellPasses
             onSizeMoved: v => GlobalConfig.appearance.blur.shellSize = v

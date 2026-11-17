@@ -13,9 +13,9 @@ MouseArea {
     required property SystemTrayItem modelData
 
     acceptedButtons: Qt.LeftButton | Qt.RightButton
-    // (in the pill: smaller than the apps' icons, and single-coloured)
-    implicitWidth: Tokens.font.body.small.pointSize * (Config.bar.pill ? 1.7 : 2)
-    implicitHeight: Tokens.font.body.small.pointSize * (Config.bar.pill ? 1.7 : 2)
+    // (smaller than the apps' icons, and single-coloured)
+    implicitWidth: Tokens.font.body.small.pointSize * 1.7
+    implicitHeight: Tokens.font.body.small.pointSize * 1.7
 
     onClicked: event => {
         if (event.button === Qt.LeftButton)
@@ -29,7 +29,7 @@ MouseArea {
 
         anchors.fill: parent
         source: Icons.getTrayIcon(root.modelData.id, root.modelData.icon)
-        colour: Config.bar.pill ? Colours.palette.m3onSurfaceVariant : Colours.palette.m3secondary
-        layer.enabled: Config.bar.tray.recolour || Config.bar.pill
+        colour: Colours.palette.m3onSurfaceVariant
+        layer.enabled: true
     }
 }

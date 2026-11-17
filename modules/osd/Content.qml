@@ -20,17 +20,14 @@ Item {
     required property real sourceVolume
     required property bool sourceMuted
     required property real brightness
-    // A floating island (the pill bar): even padding all round, no allowance for the edge
-    property bool island
-
-    implicitWidth: island ? layout.implicitWidth + Tokens.padding.medium * 2 : layout.implicitWidth + Tokens.padding.large + layout.anchors.horizontalCenterOffset * 2
-    implicitHeight: layout.implicitHeight + (island ? Tokens.padding.medium : Tokens.padding.large) * 2
+    // A floating island: even padding all round
+    implicitWidth: layout.implicitWidth + Tokens.padding.medium * 2
+    implicitHeight: layout.implicitHeight + Tokens.padding.medium * 2
 
     ColumnLayout {
         id: layout
 
         anchors.centerIn: parent
-        anchors.horizontalCenterOffset: root.island ? 0 : CUtils.clamp(Tokens.padding.large - Config.border.thickness, 0, Tokens.padding.large) / 2
         spacing: Tokens.spacing.medium
 
         // Speaker volume
@@ -57,7 +54,7 @@ Item {
 
         // Microphone volume
         WrappedLoader {
-            shouldBeActive: Config.osd.enableMicrophone && (!Config.osd.enableBrightness || !root.screenState.session)
+            shouldBeActive: Config.osd.enableMicrophone && !Config.osd.enableBrightness
 
             sourceComponent: CustomMouseArea {
                 function onWheel(event: WheelEvent) {
