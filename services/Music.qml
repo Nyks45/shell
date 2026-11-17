@@ -132,7 +132,10 @@ Singleton {
         // Started for this, so out of sight: straight to its tray icon (no special workspace:
         // Spotify opened by hand belongs on the current one)
         hideNext = true;
-        Hypr.dispatch(`hl.dsp.exec_cmd("spotify")`);
+        // (its first window never shows: transparent, off screen, unfocused and without an
+        // animation until it's closed to the tray a moment later; launch rules apply to that
+        // window only, so the tray's "Show Spotify" opens it normally)
+        Hypr.dispatch(`hl.dsp.exec_cmd("spotify", { float = true, move = "-10000 -10000", opacity = "0 override", no_initial_focus = true, no_focus = true, no_anim = true, no_shadow = true, no_blur = true })`);
         pendingTimeout.restart();
     }
 
