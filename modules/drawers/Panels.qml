@@ -46,8 +46,9 @@ Item {
         anchors.rightMargin: sessionWrapper.anchors.rightMargin + session.width * (1 - session.offsetScale)
         clip: sidebar.visible || session.visible
 
-        implicitWidth: osd.implicitWidth * (1 - osd.offsetScale)
-        implicitHeight: osd.implicitHeight
+        // (the island: its own size plus the gap; the full height either way, the hover zone)
+        implicitWidth: osd.island ? (osd.implicitWidth > 0 ? osd.implicitWidth + osd.floatGap : 0) : osd.implicitWidth * (1 - osd.offsetScale)
+        implicitHeight: osd.island ? osd.zoneHeight : osd.implicitHeight
 
         Osd.Wrapper {
             id: osd

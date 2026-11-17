@@ -24,18 +24,33 @@ Item {
 
     property real offsetScale: shouldBeActive ? 0 : 1
 
+    // With the pill bar: an island floating a gap above the bottom edge, grown out of a small
+    // capsule there (like the top island out of its pill), the search bar first
+    readonly property bool island: Config.bar.pill
+    readonly property real floatGap: Tokens.spacing.medium
+    readonly property real open: 1 - offsetScale
+    // (over the last bit the capsule itself shrinks away: nothing left on the edge)
+    readonly property real tail: Math.min(1, open / 0.2)
+    readonly property real capW: 180
+    readonly property real capH: 44
+    property real fullHeight: content.implicitHeight
+
     onShouldBeActiveChanged: {
         if (shouldBeActive)
-            implicitHeight = Qt.binding(() => content.implicitHeight);
+            fullHeight = Qt.binding(() => content.implicitHeight);
         else
-            implicitHeight = implicitHeight; // Break binding during close anim
+            fullHeight = fullHeight; // Break binding during close anim
     }
 
+    readonly property real fullWidth: content.implicitWidth || 630 // Hard coded fallback for first open
+
     visible: offsetScale < 1
-    anchors.bottomMargin: (-implicitHeight - 5) * offsetScale
-    implicitHeight: content.implicitHeight
-    implicitWidth: content.implicitWidth || 630 // Hard coded fallback for first open
-    opacity: 1 - offsetScale
+    anchors.bottomMargin: island ? floatGap : (-implicitHeight - 5) * offsetScale
+    implicitHeight: island ? (capH + (fullHeight - capH) * open) * tail : fullHeight
+    implicitWidth: island ? (capW + (fullWidth - capW) * open) * tail : fullWidth
+    clip: island
+    // (the island's contents fade in once it has grown enough to hold them)
+    opacity: island ? Math.min(1, Math.max(0, (open - 0.35) / 0.5)) : 1 - offsetScale
 
     Timer {
         interval: 300
@@ -59,7 +74,9 @@ Item {
                 });
         }
 
-        anchors.top: parent.top
+        // (the island reveals it from the bottom: the search bar first)
+        anchors.top: root.island ? undefined : parent.top
+        anchors.bottom: root.island ? parent.bottom : undefined
         anchors.horizontalCenter: parent.horizontalCenter
 
         active: root.shouldBeActive || root.visible

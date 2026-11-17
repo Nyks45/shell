@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
 import Caelestia.Config
 import qs.components
 import qs.services
@@ -42,8 +43,34 @@ Item {
     readonly property bool sessionAtBar: !disabled && !pill && Config.session.enabled && Config.bar.entries.values.some(e => e.enabled && e.id === "power")
     readonly property bool sessionOpen: sessionAtBar && screenState.session
     // (kept shown while its power menu is open, the pointer being on the menu)
-    readonly property bool shouldBeVisible: !fullscreen && !disabled && (persistent || screenState.bar || isHovered || sessionOpen)
+    readonly property bool shouldBeVisible: !fullscreen && !disabled && (persistent || screenState.bar || isHovered || sessionOpen || minimizePeek)
     property bool isHovered
+    // A window minimizing into (or restoring out of) the pill while it's hidden (hyprflow's
+    // genie): the pill comes out meanwhile, so the window pours into an icon that's there
+    property bool minimizePeek
+
+    Connections {
+        function onRawEvent(event: HyprlandEvent): void {
+            if (!root.pill || event.name !== "minimized")
+                return;
+            const address = event.data.split(",")[0];
+            const t = Hyprland.toplevels.values.find(t => t.address === address);
+            if (t && t.monitor?.name === root.screen?.name) {
+                root.minimizePeek = true;
+                peekTimer.restart();
+            }
+        }
+
+        target: Hyprland
+    }
+
+    Timer {
+        id: peekTimer
+
+        // (the genie's ~0.5 s, and a moment to see where it went)
+        interval: 1300
+        onTriggered: root.minimizePeek = false
+    }
 
     function closeTray(): void {
         (content.item as Bar)?.closeTray();

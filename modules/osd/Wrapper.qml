@@ -38,11 +38,31 @@ Item {
         brightness = root.monitor?.brightness ?? 0;
     }
 
+    // With the pill bar: an island floating a gap from the right edge, grown out of a small
+    // capsule there (like the top island out of its pill)
+    readonly property bool island: Config.bar.pill
+    readonly property real floatGap: Tokens.spacing.medium
+    readonly property real open: 1 - offsetScale
+    // (over the last bit the capsule itself shrinks away: nothing left on the edge)
+    readonly property real tail: Math.min(1, open / 0.2)
+    readonly property real fullWidth: content.implicitWidth
+    readonly property real fullHeight: content.implicitHeight
+    // Its height for the hover zone on the edge while it's closed (unloaded then: no size of
+    // its own), the last one it had, at first one slider's
+    property real zoneHeight: Tokens.sizes.osd.sliderHeight + Tokens.padding.large * 2
+
+    onFullHeightChanged: {
+        if (fullHeight > 0)
+            zoneHeight = fullHeight;
+    }
+
     visible: offsetScale < 1
-    anchors.rightMargin: (-implicitWidth - 5 - sidebarOffset) * offsetScale
-    implicitWidth: content.implicitWidth
-    implicitHeight: content.implicitHeight
-    opacity: 1 - offsetScale
+    anchors.rightMargin: island ? floatGap : (-implicitWidth - 5 - sidebarOffset) * offsetScale
+    implicitWidth: island ? fullWidth * (0.6 + 0.4 * open) * tail : fullWidth
+    implicitHeight: island ? fullHeight * (0.35 + 0.65 * open) * tail : fullHeight
+    clip: island
+    // (the island's contents fade in once it has grown enough to hold them)
+    opacity: island ? Math.min(1, Math.max(0, (open - 0.6) / 0.35)) : 1 - offsetScale
 
     Behavior on offsetScale {
         Anim {}
@@ -95,7 +115,8 @@ Item {
         id: content
 
         anchors.verticalCenter: parent.verticalCenter
-        anchors.left: parent.left
+        anchors.left: root.island ? undefined : parent.left
+        anchors.horizontalCenter: root.island ? parent.horizontalCenter : undefined
 
         asynchronous: true
         active: root.shouldBeActive || root.visible
@@ -108,6 +129,7 @@ Item {
             sourceVolume: root.sourceVolume
             sourceMuted: root.sourceMuted
             brightness: root.brightness
+            island: root.island
         }
     }
 }

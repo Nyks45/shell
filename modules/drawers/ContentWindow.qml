@@ -229,8 +229,16 @@ StyledWindow {
         PanelBg {
             id: launcherBg
 
+            // With the pill bar: an island (glass, apart from the edge)
+            group: bar.pill ? islandGroup : blobGroup
+            visible: !bar.pill || panels.launcher.width > 1
             panel: panels.launcher
             deformAmount: 0.1
+            radius: bar.pill ? Math.min(Tokens.rounding.extraLarge, height / 2) : Tokens.rounding.extraLarge
+
+            IslandEdge {
+                visible: bar.pill
+            }
         }
 
         PanelBg {
@@ -255,10 +263,19 @@ StyledWindow {
         PanelBg {
             id: osdBg
 
+            group: bar.pill ? islandGroup : blobGroup
+            visible: !bar.pill || panels.osd.width > 1
             panel: panels.osdWrapper
             deformAmount: 0.25
             x: panels.osdWrapper.x + panels.osd.x + bar.implicitWidth
+            y: panels.osdWrapper.y + panels.osd.y + root.borderThickness
             implicitWidth: panels.osd.width
+            implicitHeight: panels.osd.height
+            radius: bar.pill ? Math.min(Tokens.rounding.extraLarge, width / 2) : Tokens.rounding.extraLarge
+
+            IslandEdge {
+                visible: bar.pill
+            }
         }
 
         // The bar as a pill (Config.bar.pill): an island of its own on the left edge
