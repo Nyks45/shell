@@ -78,7 +78,7 @@ Item {
                             id: art
 
                             anchors.fill: parent
-                            source: root.player ? Players.getArtUrl(root.player) : ""
+                            source: root.player ? Players.getArtUrl(root.player) : (Music.last?.art ?? "")
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
                             sourceSize.width: 160
@@ -91,39 +91,40 @@ Item {
 
                         StyledText {
                             Layout.fillWidth: true
-                            text: root.player?.trackTitle || Tr.tr("Nothing playing")
+                            text: root.player?.trackTitle || Music.last?.title || Tr.tr("Nothing playing")
                             font: Tokens.font.body.small
                             elide: Text.ElideRight
                         }
 
                         StyledText {
                             Layout.fillWidth: true
-                            visible: !!root.player
-                            text: root.player?.trackArtist || Players.getIdentity(root.player)
+                            text: root.player ? (root.player.trackArtist || Players.getIdentity(root.player)) : Music.last ? Tr.tr("Last played · %1").arg(Music.last.artist) : Tr.tr("Play your liked songs")
                             color: Colours.palette.m3onSurfaceVariant
                             font: Tokens.font.label.small
                             elide: Text.ElideRight
                         }
 
+                        // (nothing playing: play continues the last song, starting Spotify)
                         Row {
-                            visible: !!root.player
                             spacing: 0
 
                             IconButton {
                                 type: IconButton.Text
                                 icon: "skip_previous"
+                                disabled: !root.player
                                 onClicked: root.player?.previous()
                             }
 
                             IconButton {
                                 type: IconButton.Text
                                 icon: root.player?.isPlaying ? "pause" : "play_arrow"
-                                onClicked: root.player?.togglePlaying()
+                                onClicked: Music.toggle()
                             }
 
                             IconButton {
                                 type: IconButton.Text
                                 icon: "skip_next"
+                                disabled: !root.player
                                 onClicked: root.player?.next()
                             }
                         }
