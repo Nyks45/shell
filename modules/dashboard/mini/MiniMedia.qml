@@ -51,9 +51,13 @@ Item {
         spacing: Tokens.spacing.medium
 
         // What's playing
-        Card {
+        ArtBackdrop {
+            id: nowCard
+
             Layout.preferredWidth: 220
             Layout.fillHeight: true
+            radius: Tokens.rounding.large
+            source: art.source
 
             ColumnLayout {
                 id: nowCol
@@ -82,7 +86,9 @@ Item {
                             implicitWidth: chipText.implicitWidth + Tokens.padding.medium * 2
                             implicitHeight: chipText.implicitHeight + 6
                             radius: height / 2
-                            color: chosen ? Colours.palette.m3primary : Qt.alpha(Colours.palette.m3surfaceContainerHighest, 0.6)
+                            color: chosen
+                                ? (nowCard.hasArt ? nowCard.accent : Colours.palette.m3primary)
+                                : (nowCard.hasArt ? Qt.rgba(1, 1, 1, 0.14) : Qt.alpha(Colours.palette.m3surfaceContainerHighest, 0.6))
 
                             StateLayer {
                                 radius: chip.height / 2
@@ -94,7 +100,9 @@ Item {
 
                                 anchors.centerIn: parent
                                 text: Players.getIdentity(chip.modelData)
-                                color: chip.chosen ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
+                                color: chip.chosen
+                                    ? (nowCard.hasArt ? nowCard.accentText : Colours.palette.m3onPrimary)
+                                    : (nowCard.hasArt ? Qt.rgba(1, 1, 1, 0.78) : Colours.palette.m3onSurfaceVariant)
                                 font: Tokens.font.label.small
                             }
                         }
@@ -141,12 +149,14 @@ Item {
                         Layout.bottomMargin: 2
                         visible: root.player?.isPlaying ?? false
                         playing: visible
+                        colour: nowCard.hasArt ? nowCard.accent : Colours.palette.m3primary
                     }
 
                     StyledText {
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
                         text: root.hasPlayer ? (root.player.trackTitle || Tr.tr("Unknown title")) : (Music.last?.title ?? Tr.tr("Nothing playing"))
+                        color: nowCard.hasArt ? "#ffffff" : Colours.palette.m3onSurface
                         font: Tokens.font.body.small
                         elide: Text.ElideRight
                     }
@@ -155,7 +165,7 @@ Item {
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
                         text: root.hasPlayer ? (root.player.trackArtist || Players.getIdentity(root.player)) : Music.last ? Tr.tr("Last played · %1").arg(Music.last.artist) : Tr.tr("Play your liked songs")
-                        color: Colours.palette.m3onSurfaceVariant
+                        color: nowCard.hasArt ? Qt.rgba(1, 1, 1, 0.72) : Colours.palette.m3onSurfaceVariant
                         font: Tokens.font.label.small
                         elide: Text.ElideRight
                     }
@@ -171,7 +181,7 @@ Item {
 
                     StyledText {
                         text: root.mmss(root.player?.position ?? 0)
-                        color: Colours.palette.m3onSurfaceVariant
+                        color: nowCard.hasArt ? Qt.rgba(1, 1, 1, 0.72) : Colours.palette.m3onSurfaceVariant
                         font: Tokens.font.label.small
                     }
 
@@ -179,13 +189,13 @@ Item {
                         Layout.fillWidth: true
                         implicitHeight: 4
                         radius: 2
-                        color: Qt.alpha(Colours.palette.m3surfaceContainerHighest, 0.7)
+                        color: nowCard.hasArt ? Qt.rgba(1, 1, 1, 0.22) : Qt.alpha(Colours.palette.m3surfaceContainerHighest, 0.7)
 
                         StyledRect {
                             width: parent.width * Math.max(0, Math.min(1, root.progress))
                             height: parent.height
                             radius: 2
-                            color: Colours.palette.m3primary
+                            color: nowCard.hasArt ? nowCard.accent : Colours.palette.m3primary
                         }
 
                         MouseArea {
@@ -201,7 +211,7 @@ Item {
 
                     StyledText {
                         text: root.mmss(root.player?.length ?? 0)
-                        color: Colours.palette.m3onSurfaceVariant
+                        color: nowCard.hasArt ? Qt.rgba(1, 1, 1, 0.72) : Colours.palette.m3onSurfaceVariant
                         font: Tokens.font.label.small
                     }
                 }
@@ -218,6 +228,8 @@ Item {
                         type: IconButton.Text
                         icon: "skip_previous"
                         disabled: !(root.player?.canGoPrevious ?? false)
+                        inactiveOnColour: nowCard.hasArt ? "#ffffff" : Colours.palette.m3onSurfaceVariant
+                        activeOnColour: nowCard.hasArt ? nowCard.accent : Colours.palette.m3primary
                         onClicked: root.player?.previous()
                     }
 
@@ -225,6 +237,10 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         type: IconButton.Filled
                         icon: root.player?.isPlaying ? "pause" : "play_arrow"
+                        inactiveColour: nowCard.hasArt ? nowCard.accent : Colours.palette.m3primary
+                        activeColour: inactiveColour
+                        inactiveOnColour: nowCard.hasArt ? nowCard.accentText : Colours.palette.m3onPrimary
+                        activeOnColour: inactiveOnColour
                         onClicked: Music.toggle()
                     }
 
@@ -233,6 +249,8 @@ Item {
                         type: IconButton.Text
                         icon: "skip_next"
                         disabled: !(root.player?.canGoNext ?? false)
+                        inactiveOnColour: nowCard.hasArt ? "#ffffff" : Colours.palette.m3onSurfaceVariant
+                        activeOnColour: nowCard.hasArt ? nowCard.accent : Colours.palette.m3primary
                         onClicked: root.player?.next()
                     }
                 }

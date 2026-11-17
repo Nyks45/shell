@@ -65,9 +65,14 @@ Item {
             spacing: Tokens.spacing.small
 
             // What's playing: a compact row (cover, song, controls) and the synced lyrics under it
-            Card {
+            ArtBackdrop {
+                id: musicCard
+
                 Layout.preferredWidth: 1
                 Layout.fillWidth: true
+                Layout.fillHeight: true
+                radius: Tokens.rounding.large
+                source: art.source
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -114,11 +119,13 @@ Item {
                                 PlayingBars {
                                     visible: root.player?.isPlaying ?? false
                                     playing: visible
+                                    colour: musicCard.hasArt ? musicCard.accent : Colours.palette.m3primary
                                 }
 
                                 StyledText {
                                     Layout.fillWidth: true
                                     text: root.player?.trackTitle || Music.last?.title || Tr.tr("Nothing playing")
+                                    color: musicCard.hasArt ? "#ffffff" : Colours.palette.m3onSurface
                                     font: Tokens.font.label.large
                                     elide: Text.ElideRight
                                 }
@@ -127,7 +134,7 @@ Item {
                             StyledText {
                                 Layout.fillWidth: true
                                 text: root.player ? (root.player.trackArtist || Players.getIdentity(root.player)) : Music.last ? Tr.tr("Last played · %1").arg(Music.last.artist) : Tr.tr("Play your liked songs")
-                                color: Colours.palette.m3onSurfaceVariant
+                                color: musicCard.hasArt ? Qt.rgba(1, 1, 1, 0.72) : Colours.palette.m3onSurfaceVariant
                                 font: Tokens.font.label.small
                                 elide: Text.ElideRight
                             }
@@ -138,18 +145,18 @@ Item {
                             implicitWidth: 34
                             implicitHeight: 34
                             radius: 17
-                            color: Colours.palette.m3primary
+                            color: musicCard.hasArt ? musicCard.accent : Colours.palette.m3primary
 
                             StateLayer {
                                 radius: 17
-                                color: Colours.palette.m3onPrimary
+                                color: musicCard.hasArt ? musicCard.accentText : Colours.palette.m3onPrimary
                                 onClicked: Music.toggle()
                             }
 
                             MaterialIcon {
                                 anchors.centerIn: parent
                                 text: root.player?.isPlaying ? "pause" : "play_arrow"
-                                color: Colours.palette.m3onPrimary
+                                color: musicCard.hasArt ? musicCard.accentText : Colours.palette.m3onPrimary
                                 fontStyle: Tokens.font.icon.small
                                 fill: 1
                             }
@@ -159,6 +166,8 @@ Item {
                             type: IconButton.Text
                             icon: "skip_next"
                             disabled: !root.player
+                            inactiveOnColour: musicCard.hasArt ? "#ffffff" : Colours.palette.m3onSurfaceVariant
+                            activeOnColour: musicCard.hasArt ? musicCard.accent : Colours.palette.m3primary
                             onClicked: root.player?.next()
                         }
                     }
@@ -190,8 +199,10 @@ Item {
                                     width: parent.width
                                     horizontalAlignment: Text.AlignHCenter
                                     text: line < 0 ? (modelData === 0 ? "♪" : "") : (parent.parent.lines[line] ?? "")
-                                    color: modelData === 0 ? Colours.palette.m3onSurface : Colours.palette.m3onSurfaceVariant
-                                    opacity: modelData === 0 ? 1 : 0.5
+                                    color: musicCard.hasArt
+                                        ? (modelData === 0 ? "#ffffff" : Qt.rgba(1, 1, 1, 0.72))
+                                        : (modelData === 0 ? Colours.palette.m3onSurface : Colours.palette.m3onSurfaceVariant)
+                                    opacity: modelData === 0 ? 1 : 0.65
                                     font: modelData === 0 ? Tokens.font.label.large : Tokens.font.label.small
                                     elide: Text.ElideRight
                                 }
@@ -203,7 +214,7 @@ Item {
                             visible: !parent.ready
                             // (nothing playing: what play does, not an empty card)
                             text: !root.player ? (Music.last ? Tr.tr("Play continues where you left off") : Tr.tr("Play your liked songs")) : Lyrics.loading ? Tr.tr("Finding the lyrics…") : Tr.tr("No lyrics for this song")
-                            color: Colours.palette.m3outline
+                            color: musicCard.hasArt ? Qt.rgba(1, 1, 1, 0.58) : Colours.palette.m3outline
                             font: Tokens.font.label.small
                         }
                     }
