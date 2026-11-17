@@ -92,7 +92,10 @@ Item {
             on: true
         }
     ].filter(p => p.on)
-    readonly property var pillButtons: pages.filter(p => p.key !== "dashboard")
+    // The pill keeps to what's reached for most (the other pages are a tab away inside): the
+    // notifications and media left of the time, the quick settings and power right of it
+    readonly property var pillLeft: ["notifications", "media"].map(k => pages.find(p => p.key === k)).filter(p => !!p)
+    readonly property var pillRight: ["quick", "power"].map(k => pages.find(p => p.key === k)).filter(p => !!p)
 
     // One page alone, at once
     function openPage(key: string): void {
@@ -180,16 +183,13 @@ Item {
         scale: 0.6 + 0.4 * Math.max(0, Math.min(1, root.peek))
         visible: opacity > 0.01
 
-        // (two rows a side: the pill stays narrow)
         Grid {
             anchors.verticalCenter: parent.verticalCenter
-            rows: 2
-            flow: Grid.TopToBottom
-            rowSpacing: Tokens.spacing.extraSmall
+            rows: 1
             columnSpacing: Tokens.spacing.small
 
             Repeater {
-                model: root.pillButtons.slice(0, Math.floor(root.pillButtons.length / 2))
+                model: root.pillLeft
 
                 PillButton {}
             }
@@ -231,16 +231,13 @@ Item {
             }
         }
 
-        // (two rows a side: the pill stays narrow)
         Grid {
             anchors.verticalCenter: parent.verticalCenter
-            rows: 2
-            flow: Grid.TopToBottom
-            rowSpacing: Tokens.spacing.extraSmall
+            rows: 1
             columnSpacing: Tokens.spacing.small
 
             Repeater {
-                model: root.pillButtons.slice(Math.floor(root.pillButtons.length / 2))
+                model: root.pillRight
 
                 PillButton {}
             }
@@ -253,8 +250,8 @@ Item {
         required property var modelData
 
         // (placed by its grid)
-        implicitWidth: 26
-        implicitHeight: 26
+        implicitWidth: 30
+        implicitHeight: 30
         radius: height / 2
         color: Colours.layer(Colours.palette.m3surfaceContainerHigh, 2)
 
