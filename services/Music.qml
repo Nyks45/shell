@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import Quickshell.Services.Mpris
 import Caelestia.I18n
 import qs.services
@@ -36,6 +37,29 @@ Singleton {
 
     // Waiting for Spotify to start, to play this
     property string pendingUri
+    // Spotify started by the shell: its window is minimized when it appears
+    property bool hideNext
+
+    // Its window, minimized (hyprflow; the class or title may only be there a moment after it
+    // opens: tried when it opens, its title changes and its player appears)
+    function hideSpotifyWindow(): void {
+        if (!hideNext)
+            return;
+        const t = Hyprland.toplevels.values.find(t => /spotify/i.test(t.lastIpcObject?.class ?? "") || /^Spotify/.test(t.title ?? ""));
+        if (!t)
+            return;
+        hideNext = false;
+        TaskbarApps.hyprflow("minimize", t);
+    }
+
+    Connections {
+        function onRawEvent(event: HyprlandEvent): void {
+            if (root.hideNext && ["openwindow", "windowtitle", "windowtitlev2"].includes(event.name))
+                Qt.callLater(root.hideSpotifyWindow);
+        }
+
+        target: Hyprland
+    }
 
     function refresh(): void {
         statusProc.running = true;
@@ -105,7 +129,10 @@ Singleton {
             return;
         }
         pendingUri = uri;
-        Hypr.dispatch(`hl.dsp.exec_cmd("spotify", { workspace = "special:music silent" })`);
+        // Started for this, so out of sight: minimized as soon as its window appears (no special
+        // workspace: Spotify opened by hand belongs on the current one, and the window rules say so)
+        hideNext = true;
+        Hypr.dispatch(`hl.dsp.exec_cmd("spotify")`);
         pendingTimeout.restart();
     }
 
@@ -120,6 +147,8 @@ Singleton {
     }
 
     onSpotifyChanged: {
+        if (spotify)
+            hideSpotifyWindow();
         if (spotify && pendingUri) {
             const uri = pendingUri;
             pendingUri = "";
@@ -146,7 +175,10 @@ Singleton {
         id: pendingTimeout
 
         interval: 30000
-        onTriggered: root.pendingUri = ""
+        onTriggered: {
+            root.pendingUri = "";
+            root.hideNext = false;
+        }
     }
 
     // Remember what's playing (Spotify's track URI when it's Spotify)
