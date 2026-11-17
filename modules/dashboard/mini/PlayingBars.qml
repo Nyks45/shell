@@ -8,7 +8,7 @@ import qs.services
 
 // Something's playing: a few slim bars moving with the sound (the audio visualiser, like the
 // lock screen's), resting low when it's paused
-Row {
+Item {
     id: root
 
     property bool playing
@@ -31,33 +31,38 @@ Row {
         return out;
     }
 
-    spacing: 2
+    implicitWidth: count * 3 + Math.max(0, count - 1) * 2
     implicitHeight: 14
 
     ServiceRef {
         service: root.visible && root.playing ? Audio.cava : null
     }
 
-    Repeater {
-        model: root.count
+    Row {
+        anchors.fill: parent
+        spacing: 2
 
-        Item {
-            required property int index
+        Repeater {
+            model: root.count
 
-            width: 3
-            height: root.height
+            Item {
+                required property int index
 
-            StyledRect {
-                anchors.verticalCenter: parent.verticalCenter
-                width: parent.width
-                height: Math.max(3, parent.height * (root.playing ? (root.levels[parent.index] ?? 0.15) : 0.15))
-                radius: width / 2
-                color: root.colour
+                width: 3
+                height: root.height
 
-                Behavior on height {
-                    NumberAnimation {
-                        duration: 85
-                        easing.type: Easing.OutCubic
+                StyledRect {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width
+                    height: Math.max(3, parent.height * (root.playing ? (root.levels[parent.index] ?? 0.15) : 0.15))
+                    radius: width / 2
+                    color: root.colour
+
+                    Behavior on height {
+                        NumberAnimation {
+                            duration: 85
+                            easing.type: Easing.OutCubic
+                        }
                     }
                 }
             }
