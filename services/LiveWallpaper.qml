@@ -216,8 +216,6 @@ Singleton {
             const sz = o.size ?? [0, 0];
             return !!mon && sz[0] >= mon.width / mon.scale * 0.95 && sz[1] >= mon.height / mon.scale * 0.85;
         };
-        if (running && !paused)
-            sendCover(screenCovered(wins));
         const playing = Players.list.filter(p => p.isPlaying);
         const active = Hypr.activeToplevel;
         const focused = !!active && wins.includes(active);
@@ -245,6 +243,10 @@ Singleton {
                 consider(r.action, Tr.tr("rule for %1").arg(r.app));
         }
         ruleReason = why;
+        // Covered: only while it draws (a pause or stop rule has it not drawing at all; a covered
+        // sent then would be undone the moment it's shown again)
+        if (running && !paused && (best === "run" || best === "mute"))
+            sendCover(screenCovered(wins));
         if (best === ruleAction)
             return;
         const prev = ruleAction;
