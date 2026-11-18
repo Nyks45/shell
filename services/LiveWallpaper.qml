@@ -154,6 +154,50 @@ Singleton {
         setQuiet("appRules", list);
     }
 
+    // Covered: the windows on a screen's shown workspace hide (nearly) all of it. The renderer then
+    // draws lighter (at most 60 fps, normal post-processing; SIGUSR1) and full again once shown
+    // (SIGUSR2). Only sent to a renderer that knows these (an older one would quit on them).
+    property bool coverSupported
+    property bool coverSent
+
+    function screenCovered(wins: var): bool {
+        for (const m of Hypr.monitors.values) {
+            const ws = m.activeWorkspace?.id;
+            const boxes = wins.filter(t => t.workspace?.id === ws).map(t => {
+                const o = t.lastIpcObject;
+                return [o.at?.[0] ?? 0, o.at?.[1] ?? 0, o.size?.[0] ?? 0, o.size?.[1] ?? 0];
+            });
+            if (boxes.length === 0)
+                continue;
+            const mx = m.x, my = m.y, mw = m.width / m.scale, mh = m.height / m.scale;
+            let hit = 0, n = 0;
+            for (let i = 0; i < 16; i++) {
+                for (let j = 0; j < 9; j++) {
+                    const x = mx + (i + 0.5) * mw / 16, y = my + (j + 0.5) * mh / 9;
+                    n++;
+                    if (boxes.some(b => x >= b[0] && x < b[0] + b[2] && y >= b[1] && y < b[1] + b[3]))
+                        hit++;
+                }
+            }
+            if (hit / n >= 0.9)
+                return true;
+        }
+        return false;
+    }
+
+    function sendCover(covered: bool): void {
+        if (!coverSupported || covered === coverSent)
+            return;
+        coverSent = covered;
+        Quickshell.execDetached(["pkill", covered ? "-USR1" : "-USR2", "-x", "linux-wallpaper"]);
+    }
+
+    Process {
+        running: true
+        command: ["grep", "-qa", "lighter post-processing", "/opt/linux-wallpaperengine/linux-wallpaperengine"]
+        onExited: code => root.coverSupported = code === 0
+    }
+
     function evaluateRules(): void {
         const rank = {
             run: 0,
@@ -172,6 +216,8 @@ Singleton {
             const sz = o.size ?? [0, 0];
             return !!mon && sz[0] >= mon.width / mon.scale * 0.95 && sz[1] >= mon.height / mon.scale * 0.85;
         };
+        if (running && !paused)
+            sendCover(screenCovered(wins));
         const playing = Players.list.filter(p => p.isPlaying);
         const active = Hypr.activeToplevel;
         const focused = !!active && wins.includes(active);
@@ -773,7 +819,7 @@ Singleton {
 
     // The playback rules, checked every second while a live wallpaper is on and rules are active
     Timer {
-        running: Object.keys(root.screens).length > 0 && (root.hasActiveRules || root.ruleAction !== "run")
+        running: Object.keys(root.screens).length > 0 && (root.hasActiveRules || root.ruleAction !== "run" || root.coverSupported)
         repeat: true
         interval: 1000
         onTriggered: root.evaluateRules()
@@ -849,8 +895,14 @@ Singleton {
     property bool seenRunning
     property int missing
 
-    onRunningChanged: if (running)
-        seenRunning = true
+    onRunningChanged: {
+        // (a new renderer starts drawing in full: covered is sent again if it still is)
+        coverSent = false;
+        if (running) {
+            seenRunning = true;
+            Qt.callLater(evaluateRules);
+        }
+    }
 
     Timer {
         running: root.seenRunning && Object.keys(root.screens).length > 0 && root.ruleAction !== "stop"
