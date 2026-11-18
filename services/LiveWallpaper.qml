@@ -194,7 +194,7 @@ Singleton {
 
     Process {
         running: true
-        command: ["grep", "-qa", "lighter post-processing", "/opt/linux-wallpaperengine/linux-wallpaperengine"]
+        command: ["grep", "-qa", "lighter post-processing", "/opt/linux-wallpaperengine/liblinux-wallpaperengine-lib.so"]
         onExited: code => root.coverSupported = code === 0
     }
 
