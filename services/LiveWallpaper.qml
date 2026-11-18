@@ -154,47 +154,32 @@ Singleton {
         setQuiet("appRules", list);
     }
 
-    // Covered: the windows on a screen's shown workspace hide (nearly) all of it. The renderer then
-    // draws lighter (at most 60 fps, normal post-processing; SIGUSR1) and full again once shown
-    // (SIGUSR2). Only sent to a renderer that knows these (an older one would quit on them).
+    // The frame cap applies to the whole renderer, so every wallpaper output must be covered.
     property bool coverSupported
     property bool coverSent
 
     function screenCovered(wins: var): bool {
-        for (const m of Hypr.monitors.values) {
-            const ws = m.activeWorkspace?.id;
-            const boxes = wins.filter(t => t.workspace?.id === ws).map(t => {
-                const o = t.lastIpcObject;
-                return [o.at?.[0] ?? 0, o.at?.[1] ?? 0, o.size?.[0] ?? 0, o.size?.[1] ?? 0];
+        const monitors = Hypr.monitors.values.filter(m => root.screens[m.name] || root.screens["*"]);
+        return monitors.length > 0 && monitors.every(m => {
+            const workspace = m.activeWorkspace?.id;
+            return workspace !== undefined && wins.some(t => {
+                const window = t.lastIpcObject;
+                return window?.fullscreen === 2 && window.monitor === m.id
+                    && !window.hidden && window.mapped !== false && t.workspace?.id === workspace;
             });
-            if (boxes.length === 0)
-                continue;
-            const mx = m.x, my = m.y, mw = m.width / m.scale, mh = m.height / m.scale;
-            let hit = 0, n = 0;
-            for (let i = 0; i < 16; i++) {
-                for (let j = 0; j < 9; j++) {
-                    const x = mx + (i + 0.5) * mw / 16, y = my + (j + 0.5) * mh / 9;
-                    n++;
-                    if (boxes.some(b => x >= b[0] && x < b[0] + b[2] && y >= b[1] && y < b[1] + b[3]))
-                        hit++;
-                }
-            }
-            if (hit / n >= 0.9)
-                return true;
-        }
-        return false;
+        });
     }
 
     function sendCover(covered: bool): void {
         if (!coverSupported || covered === coverSent)
             return;
         coverSent = covered;
-        Quickshell.execDetached(["pkill", covered ? "-USR1" : "-USR2", "-x", "linux-wallpaper"]);
+        Quickshell.execDetached(["live-wallpaper", covered ? "cover" : "uncover"]);
     }
 
     Process {
         running: true
-        command: ["grep", "-qa", "lighter post-processing", "/opt/linux-wallpaperengine/liblinux-wallpaperengine-lib.so"]
+        command: ["grep", "-qa", "Covered: ", "/opt/linux-wallpaperengine/liblinux-wallpaperengine-lib.so"]
         onExited: code => root.coverSupported = code === 0
     }
 

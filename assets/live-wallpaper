@@ -97,6 +97,17 @@ signal() {
     elif [[ -z "${LIVE_WALLPAPER_OWN_ONLY:-}" ]]; then pkill "-$1" -x linux-wallpaper 2>/dev/null || true; fi
 }
 
+signal_coverage() {
+    local pid caught number
+    [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] || return 0
+    pid="$(own_pid)" || return 0
+    caught="$(awk '$1=="SigCgt:" {print $2}' "/proc/$pid/status" 2>/dev/null)" || return 0
+    [[ "$caught" =~ ^[[:xdigit:]]+$ ]] || return 0
+    number="$(kill -l "$1")"
+    (( (16#$caught & (1 << (number - 1))) != 0 )) || return 0
+    kill "-$1" "$pid" 2>/dev/null || true
+}
+
 # Renderer arguments for what the GUI applied last, one per line; nothing if it
 # has no single wallpaper active (none yet, or a playlist).
 gui_args() {
@@ -401,5 +412,7 @@ case "${1:-}" in
     stop) stop ;;
     pause) signal STOP ;;
     resume) signal CONT ;;
+    cover) signal_coverage USR1 ;;
+    uncover) signal_coverage USR2 ;;
     *) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac
