@@ -17,8 +17,10 @@ struct ProcessInfo {
     QString name;    // comm (or the executable's file name when comm is cut short)
     QString command; // the full command line
     QString user;
+    QString unit; // its systemd unit (a .service or .scope), from its cgroup
     QChar state;
     int threads = 0;
+    int nice = 0;
     qreal cpu = 0.0;       // share of the whole machine, 0..1
     quint64 memory = 0;    // bytes: resident, not shared (RssAnon + RssShmem)
     quint64 resident = 0;  // bytes: all resident
@@ -117,6 +119,19 @@ public:
     // One process's details, or {} when it's gone
     Q_INVOKABLE QVariantMap info(int pid) const;
 
+    // The task manager's rows, like Windows': "Apps" (apps: [{key, name, icon, pids}], each
+    // with every process under its windows), "Background processes" (this user's other
+    // processes) and "System processes" (other users'); outside apps, a process is grouped
+    // with its children (not under systemd). Groups carry their totals; the keys in
+    // `expanded` list their processes below them. With a filter: the matching processes.
+    // Rows: {kind: section|app|group|proc, key, name, icon, depth, pid, user, state, cpu,
+    // memory, disk, count, expanded}
+    Q_INVOKABLE QVariantList tree(const QVariantList& apps, const QStringList& expanded, const QString& filter,
+        const QString& sortKey, bool ascending) const;
+
+    // Its priority (nice, -20..19); false when not allowed (raising it needs root)
+    Q_INVOKABLE bool setPriority(int pid, int nice);
+
     // signal: "term" (end), "kill" (force), "stop", "cont"; false when not allowed or gone
     Q_INVOKABLE bool signal(int pid, const QString& signal);
     // The same to a process and all its children (an app)
@@ -136,6 +151,11 @@ private:
     QHash<int, ProcessInfo> m_procs;
     QHash<int, QList<int>> m_children;
     QHash<uint, QString> m_users;
+    // Per process GPU use (0..1) and video memory (bytes), from `nvidia-smi pmon` (NVIDIA)
+    void readGpu();
+    QHash<int, QPair<qreal, qreal>> m_gpu;
+    bool m_gpuReading = false;
+    bool m_gpuMissing = false;
     quint64 m_lastTotalTicks = 0;
     qint64 m_lastTickMs = 0;
     int m_threads = 0;

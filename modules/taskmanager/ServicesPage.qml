@@ -17,6 +17,9 @@ Item {
 
     property bool user
     property var units: []
+    property var bootStates: ({}) // unit -> enabled / disabled / static ...
+    property string logUnit
+    property string logText
     property string selected
     property string filter
 
@@ -38,10 +41,43 @@ Item {
         actor.running = true;
     }
 
+    function showLog(unit: string): void {
+        logUnit = unit;
+        logText = qsTr("Loading…");
+        logger.command = ["journalctl", ...(user ? ["--user-unit", unit] : ["-u", unit]), "-n", "300", "--no-pager", "-o", "short-iso"];
+        logger.running = true;
+    }
+
     onUserChanged: {
         units = [];
         selected = "";
         refresh();
+        fileLister.running = true;
+    }
+
+    Process {
+        id: fileLister
+
+        command: ["systemctl", ...(root.user ? ["--user"] : []), "list-unit-files", "--type=service", "--output=json", "--no-pager"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const map = {};
+                    for (const f of JSON.parse(text))
+                        map[f.unit_file] = f.state;
+                    root.bootStates = map;
+                } catch (e) {}
+            }
+        }
+    }
+
+    Process {
+        id: logger
+
+        stdout: StdioCollector {
+            onStreamFinished: root.logText = text.trim() || qsTr("No log entries")
+        }
     }
 
     Process {
@@ -63,7 +99,10 @@ Item {
     Process {
         id: actor
 
-        onExited: root.refresh()
+        onExited: {
+            root.refresh();
+            fileLister.running = true;
+        }
     }
 
     Timer {
@@ -105,6 +144,8 @@ Item {
             }
 
             StyledText {
+                Layout.maximumWidth: 260
+                elide: Text.ElideRight
                 text: qsTr("%1 running · %2 in all").arg(root.units.filter(u => u.sub === "running").length).arg(root.units.length)
                 font: Tokens.font.label.medium
                 color: Colours.palette.m3onSurfaceVariant
@@ -174,6 +215,17 @@ Item {
                     }
 
                     StyledText {
+                        Layout.preferredWidth: 110
+                        horizontalAlignment: Text.AlignRight
+                        text: {
+                            const b = root.bootStates[row.modelData.unit] ?? "";
+                            return b === "enabled" ? qsTr("At boot") : b === "disabled" ? qsTr("Manual") : b === "static" ? qsTr("Static") : b;
+                        }
+                        font: Tokens.font.label.medium
+                        color: Colours.palette.m3onSurfaceVariant
+                    }
+
+                    StyledText {
                         Layout.preferredWidth: 140
                         horizontalAlignment: Text.AlignRight
                         text: `${row.modelData.active} (${row.modelData.sub})`
@@ -207,6 +259,22 @@ Item {
                 }
 
                 TabButton {
+                    usable: root.selectedUnit !== null
+                    label: qsTr("Logs")
+                    icon: "receipt_long"
+                    onClicked: root.showLog(root.selected)
+                }
+
+                TabButton {
+                    readonly property string boot: root.bootStates[root.selected] ?? ""
+
+                    visible: boot === "enabled" || boot === "disabled"
+                    label: boot === "enabled" ? qsTr("Don't start at boot") : qsTr("Start at boot")
+                    icon: boot === "enabled" ? "toggle_on" : "toggle_off"
+                    onClicked: root.act(boot === "enabled" ? "disable" : "enable")
+                }
+
+                TabButton {
                     usable: root.selectedUnit !== null && root.selectedUnit.active !== "active"
                     label: qsTr("Start")
                     icon: "play_arrow"
@@ -226,6 +294,83 @@ Item {
                     icon: "stop"
                     danger: true
                     onClicked: root.act("stop")
+                }
+            }
+        }
+    }
+
+    // A service's recent log (journalctl)
+    MouseArea {
+        anchors.fill: parent
+        visible: root.logUnit !== ""
+        onClicked: root.logUnit = ""
+    }
+
+    StyledRect {
+        visible: root.logUnit !== ""
+        anchors.fill: parent
+        anchors.margins: Tokens.padding.large
+        radius: Tokens.rounding.large
+        color: Colours.palette.m3surfaceContainerHigh
+        border.width: 1
+        border.color: Qt.alpha(Colours.palette.m3outlineVariant, 0.6)
+
+        MouseArea {
+            anchors.fill: parent
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: Tokens.padding.large
+            spacing: Tokens.spacing.medium
+
+            RowLayout {
+                Layout.fillWidth: true
+
+                StyledText {
+                    Layout.fillWidth: true
+                    text: qsTr("Log: %1").arg(root.logUnit)
+                    font: Tokens.font.title.medium
+                    color: Colours.palette.m3onSurface
+                }
+
+                TabButton {
+                    label: qsTr("Refresh")
+                    icon: "refresh"
+                    onClicked: root.showLog(root.logUnit)
+                }
+
+                TabButton {
+                    icon: "close"
+                    onClicked: root.logUnit = ""
+                }
+            }
+
+            Flickable {
+                id: logView
+
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                contentHeight: logLabel.implicitHeight
+                boundsBehavior: Flickable.StopAtBounds
+                onContentHeightChanged: contentY = Math.max(0, contentHeight - height)
+
+                StyledScrollBar.vertical: StyledScrollBar {
+                    flickable: logView
+                }
+
+                TextEdit {
+                    id: logLabel
+
+                    width: logView.width - 12
+                    readOnly: true
+                    selectByMouse: true
+                    wrapMode: Text.WrapAnywhere
+                    text: root.logText
+                    font.family: "monospace"
+                    font.pointSize: 9
+                    color: Colours.palette.m3onSurface
                 }
             }
         }

@@ -126,8 +126,8 @@ StyledWindow {
                 win.page = "processes";
                 processesLoader.item?.focusSearch();
                 event.accepted = true;
-            } else if (event.modifiers & Qt.ControlModifier && event.key >= Qt.Key_1 && event.key <= Qt.Key_3) {
-                win.page = ["processes", "performance", "services"][event.key - Qt.Key_1];
+            } else if (event.modifiers & Qt.ControlModifier && event.key >= Qt.Key_1 && event.key <= Qt.Key_4) {
+                win.page = ["processes", "performance", "startup", "services"][event.key - Qt.Key_1];
                 event.accepted = true;
             }
         }
@@ -174,6 +174,11 @@ StyledWindow {
                             icon: "speed"
                         },
                         {
+                            id: "startup",
+                            label: qsTr("Startup"),
+                            icon: "rocket_launch"
+                        },
+                        {
                             id: "services",
                             label: qsTr("Services"),
                             icon: "settings_applications"
@@ -195,6 +200,8 @@ StyledWindow {
                 }
 
                 StyledText {
+                    Layout.maximumWidth: 160
+                    elide: Text.ElideRight
                     text: qsTr("Up %1").arg(win.uptimeText(SystemStats.uptime))
                     font: Tokens.font.label.medium
                     color: Colours.palette.m3onSurfaceVariant
@@ -226,6 +233,17 @@ StyledWindow {
                 visible: active
 
                 sourceComponent: PerformancePage {
+                    window: win
+                }
+            }
+
+            Loader {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                active: win.page === "startup"
+                visible: active
+
+                sourceComponent: StartupPage {
                     window: win
                 }
             }
