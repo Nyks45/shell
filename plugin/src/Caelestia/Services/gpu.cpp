@@ -336,7 +336,7 @@ void Gpu::startNvidiaUsage() {
     m_nvidiaQuerying = true;
     const int generation = m_generation;
     runProcess(u"nvidia-smi"_s,
-        { u"--query-gpu=utilization.gpu,temperature.gpu"_s, u"--format=csv,noheader,nounits"_s },
+        { u"--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total"_s, u"--format=csv,noheader,nounits"_s },
         [this, generation](const QByteArray& out) {
             m_nvidiaQuerying = false;
 
@@ -360,6 +360,15 @@ void Gpu::startNvidiaUsage() {
             if (ok2 && std::abs(temp - m_temperature) > 0.05) {
                 m_temperature = temp;
                 emit temperatureChanged();
+            }
+            if (parts.size() >= 4) {
+                const qreal used = parts.at(2).trimmed().toDouble() * 1048576.0;
+                const qreal total = parts.at(3).trimmed().toDouble() * 1048576.0;
+                if (used != m_memoryUsed || total != m_memoryTotal) {
+                    m_memoryUsed = used;
+                    m_memoryTotal = total;
+                    emit memoryChanged();
+                }
             }
         });
 }

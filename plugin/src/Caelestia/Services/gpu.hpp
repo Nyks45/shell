@@ -21,6 +21,9 @@ class Gpu : public TickingService {
     Q_PROPERTY(bool detecting READ detecting NOTIFY detectingChanged)
     Q_PROPERTY(qreal percentage READ percentage NOTIFY percentageChanged)
     Q_PROPERTY(qreal temperature READ temperature NOTIFY temperatureChanged)
+    // Video memory in bytes (NVIDIA; 0 when unknown)
+    Q_PROPERTY(qreal memoryUsed READ memoryUsed NOTIFY memoryChanged)
+    Q_PROPERTY(qreal memoryTotal READ memoryTotal NOTIFY memoryChanged)
 
 public:
     explicit Gpu(QObject* parent = nullptr);
@@ -31,7 +34,11 @@ public:
     [[nodiscard]] qreal percentage() const;
     [[nodiscard]] qreal temperature() const;
 
+    [[nodiscard]] qreal memoryUsed() const { return m_memoryUsed; }
+    [[nodiscard]] qreal memoryTotal() const { return m_memoryTotal; }
+
 signals:
+    void memoryChanged();
     void typeChanged();
     void nameChanged();
     void detectingChanged();
@@ -74,6 +81,8 @@ private:
     bool m_detecting = false;
     qreal m_percentage = 0.0;
     qreal m_temperature = 0.0;
+    qreal m_memoryUsed = 0.0;
+    qreal m_memoryTotal = 0.0;
 
     // /sys/class/drm card busy files, enumerated once at construction (the card
     // set is static at runtime) and reused by resolution and the tick path.

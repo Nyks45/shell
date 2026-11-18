@@ -11,6 +11,7 @@ import qs.modules.lock
 import qs.modules.nebula
 import qs.modules.nexus
 import qs.modules.polkit
+import qs.modules.taskmanager
 import qs.daemons
 
 Scope {
@@ -52,6 +53,7 @@ Scope {
     Drawers {}
     AreaPicker {}
     PolkitOverlay {}
+    TaskManager {}
 
     // Daemons
     Shortcuts {}

@@ -13,6 +13,7 @@ qml_module(caelestia-services
         gpu.cpp
         memory.cpp
         processes.cpp
+        systemstats.cpp
         diskinfo.cpp
         storage.cpp
         lyriccandidate.cpp
