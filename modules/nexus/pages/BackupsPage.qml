@@ -12,14 +12,17 @@ import qs.services
 import qs.modules.nexus.common
 
 // System snapshots (snapper, btrfs): the list, making one, deleting, and
-// the automatic ones. Snapshots are in the boot menu (rEFInd), so the PC can
-// be started from one if an update breaks it. snapper only lets users listed
-// in its config (ALLOW_USERS) do this without sudo; the page offers to add
-// this account once.
+// the automatic ones. Root snapshots are in the boot menu (rEFInd), so the
+// PC can be started from one if an update breaks it. snapper only lets users
+// listed in its config (ALLOW_USERS) do this without sudo; the page offers to
+// add this account once, and can also set up snapshots for a btrfs /home.
 PageBase {
     id: root
 
     property string config: "root"
+    // [{ config, subvolume }]
+    property var configs: []
+    property bool homeIsBtrfs
     property bool allowed
     property bool checked
     property bool hasSnapper
@@ -29,8 +32,12 @@ PageBase {
     property string newDescription
 
     function refresh(): void {
+        listProc.running = false;
         listProc.running = true;
+        configProc.running = false;
         configProc.running = true;
+        configsProc.running = false;
+        configsProc.running = true;
     }
 
     function snapper(args: list<string>): void {
@@ -38,7 +45,15 @@ PageBase {
         snapperProc.running = true;
     }
 
-    title: Tr.tr("Backups")
+    function configLabel(c: var): string {
+        if (c.config === "root")
+            return Tr.tr("System (/)");
+        if (c.config === "home")
+            return Tr.tr("Home (/home)");
+        return `${c.config} (${c.subvolume})`;
+    }
+
+    title: Tr.tr("Snapshots")
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -52,10 +67,36 @@ PageBase {
             stdout: StdioCollector {
                 onStreamFinished: {
                     root.hasSnapper = text.includes("snapper");
-                    if (root.hasSnapper)
+                    if (root.hasSnapper) {
+                        homeFsProc.running = true;
                         root.refresh();
-                    else
+                    } else {
                         root.checked = true;
+                    }
+                }
+            }
+        }
+
+        Process {
+            id: homeFsProc
+
+            command: ["sh", "-c", "findmnt -n -o FSTYPE /home 2>/dev/null || true"]
+            stdout: StdioCollector {
+                onStreamFinished: root.homeIsBtrfs = text.trim() === "btrfs"
+            }
+        }
+
+        Process {
+            id: configsProc
+
+            command: ["snapper", "--jsonout", "list-configs"]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    try {
+                        root.configs = JSON.parse(text).configs ?? [];
+                    } catch (e) {
+                        root.configs = [];
+                    }
                 }
             }
         }
@@ -98,6 +139,34 @@ PageBase {
             id: snapperProc
 
             onExited: root.refresh()
+        }
+
+        Flow {
+            Layout.fillWidth: true
+            Layout.bottomMargin: Tokens.spacing.small
+            visible: root.hasSnapper && root.configs.length > 1
+            spacing: Tokens.spacing.small
+
+            Repeater {
+                model: root.configs
+
+                TextButton {
+                    required property var modelData
+
+                    text: root.configLabel(modelData)
+                    isToggle: true
+                    followChecked: true
+                    checked: root.config === modelData.config
+                    type: TextButton.Tonal
+                    onClicked: {
+                        if (root.config !== modelData.config) {
+                            root.config = modelData.config;
+                            root.checked = false;
+                            root.refresh();
+                        }
+                    }
+                }
+            }
         }
 
         RequirementRow {
@@ -162,15 +231,42 @@ PageBase {
         }
 
         SectionHeader {
+            visible: root.hasSnapper && root.homeIsBtrfs && !root.configs.some(c => c.config === "home")
+            text: Tr.tr("Home folder")
+        }
+
+        InfoRow {
+            visible: root.hasSnapper && root.homeIsBtrfs && !root.configs.some(c => c.config === "home")
+            icon: "folder_special"
+            label: Tr.tr("Home folder isn't included in system snapshots")
+            subtext: Tr.tr("/home is on its own Btrfs partition, so system snapshots only protect system files. Set up /home snapshots to protect your personal files too.")
+        }
+
+        RowButton {
+            readonly property string what: Tr.tr("Set up /home snapshots")
+            readonly property bool busy: Admin.jobs.some(j => j.what === what)
+
+            visible: root.hasSnapper && root.homeIsBtrfs && !root.configs.some(c => c.config === "home")
+            icon: "create_new_folder"
+            text: what
+            subtext: busy ? Tr.tr("Setting up…") : Tr.tr("Asks for your password once; creates a separate snapshot timeline for /home")
+            disabled: busy
+            onClicked: Admin.run("snapper-setup", ["home"], what, ok => {
+                if (ok)
+                    root.config = "home";
+                root.refresh();
+            })
+        }
+
+        SectionHeader {
             visible: root.allowed
-            first: true
             text: Tr.tr("Make a snapshot")
         }
 
         TextFieldRow {
             visible: root.allowed
             label: Tr.tr("Description")
-            placeholderText: Tr.tr("e.g. Before changing drivers")
+            placeholderText: root.config === "home" ? Tr.tr("e.g. Before organizing files") : Tr.tr("e.g. Before changing drivers")
             value: root.newDescription
             onValueEdited: v => root.newDescription = v
         }
@@ -179,7 +275,7 @@ PageBase {
             visible: root.allowed
             icon: "add_a_photo"
             text: Tr.tr("Make a snapshot now")
-            subtext: Tr.tr("Of the system drive, as it is right now")
+            subtext: root.config === "home" ? Tr.tr("Of your home folder (/home), as it is right now") : Tr.tr("Of the system drive, as it is right now")
             disabled: snapperProc.running
             onClicked: {
                 root.snapper(["create", "--cleanup-algorithm", "number", "--description", root.newDescription || Tr.tr("Made in Settings")]);
@@ -211,7 +307,6 @@ PageBase {
 
                 required property var modelData
                 required property int index
-                property bool confirmDelete
 
                 Layout.fillWidth: true
                 implicitHeight: snapLayout.implicitHeight + Tokens.padding.medium * 2
@@ -223,13 +318,6 @@ PageBase {
                         root.nState.selectedSnapshot = snap.modelData.number;
                         root.nState.openSubPage(3); // Storage's snapshot page
                     }
-                }
-
-                Timer {
-                    id: confirmTimer
-
-                    interval: 4000
-                    onTriggered: snap.confirmDelete = false
                 }
 
                 RowLayout {
@@ -268,20 +356,53 @@ PageBase {
                     }
 
                     TextButton {
-                        text: snap.confirmDelete ? Tr.tr("Delete?") : Tr.trCtx("Delete", "button")
-                        type: snap.confirmDelete ? TextButton.Filled : TextButton.Text
+                        text: Tr.trCtx("Delete", "button")
+                        type: TextButton.Text
                         disabled: snapperProc.running
                         onClicked: {
-                            if (!snap.confirmDelete) {
-                                snap.confirmDelete = true;
-                                confirmTimer.restart();
-                                return;
-                            }
-                            root.snapper(["delete", String(snap.modelData.number)]);
+                            deleteSnapDialog.targetSnap = snap.modelData;
+                            deleteSnapDialog.open = true;
                         }
                     }
                 }
             }
+        }
+
+        DialogRowButton {
+            id: deleteSnapDialog
+
+            property var targetSnap: null
+
+            visible: false
+            rootParent: root.flickable
+            openHeight: Math.min(root.flickable.height * 0.9, 300)
+            icon: "delete"
+            label: ""
+            header: deleteSnapDialog.targetSnap ? Tr.tr("Delete snapshot #%1?").arg(deleteSnapDialog.targetSnap.number) : Tr.tr("Delete snapshot?")
+            acceptLabel: Tr.trCtx("Delete", "button")
+            content: Component {
+                ColumnLayout {
+                    spacing: Tokens.spacing.medium
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        Layout.topMargin: Tokens.spacing.medium
+                        text: {
+                            const desc = deleteSnapDialog.targetSnap?.description;
+                            return desc ? Tr.tr("Permanently deletes snapshot #%1 (%2). This cannot be undone.").arg(deleteSnapDialog.targetSnap.number).arg(desc) : Tr.tr("Permanently deletes snapshot #%1. This cannot be undone.").arg(deleteSnapDialog.targetSnap?.number ?? "");
+                        }
+                        color: Colours.palette.m3onSurfaceVariant
+                        font: Tokens.font.body.small
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Item {
+                        Layout.fillHeight: true
+                    }
+                }
+            }
+            onAccepted: if (targetSnap)
+                root.snapper(["delete", String(targetSnap.number)])
         }
 
         SectionHeader {
@@ -314,7 +435,7 @@ PageBase {
             Layout.leftMargin: Tokens.padding.small
             Layout.topMargin: Tokens.spacing.medium
             visible: root.allowed
-            text: Tr.tr("To go back to a snapshot, pick it under the system's entry in the boot menu.")
+            text: root.config === "home" ? Tr.tr("Click any snapshot above to browse its files or restore older versions.") : Tr.tr("To go back to a snapshot, pick it under the system's entry in the boot menu.")
             color: Colours.palette.m3outline
             font: Tokens.font.label.small
             wrapMode: Text.WordWrap

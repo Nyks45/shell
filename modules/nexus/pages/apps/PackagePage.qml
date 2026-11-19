@@ -150,9 +150,14 @@ PageBase {
 
             TextButton {
                 visible: !root.installed && !root.busy
-                text: Tr.trCtx("Install", "button")
+                text: root.item?.source === "aur" ? Tr.tr("Review & install") : Tr.trCtx("Install", "button")
                 type: TextButton.Filled
-                onClicked: Packages.install(root.item)
+                onClicked: {
+                    if (root.item?.source === "aur")
+                        aurDialog.openFor(root.item, Tr.tr("Build & install"), () => Packages.install(root.item));
+                    else
+                        Packages.install(root.item);
+                }
             }
 
             TextButton {
@@ -164,9 +169,14 @@ PageBase {
 
             TextButton {
                 visible: !!root.update && root.sel?.source !== "repo" && !Packages.updating && !root.busy
-                text: Tr.tr("Update to %1").arg(root.update?.to ?? "")
+                text: root.sel?.source === "aur" ? Tr.tr("Review & update to %1").arg(root.update?.to ?? "") : Tr.tr("Update to %1").arg(root.update?.to ?? "")
                 type: TextButton.Tonal
-                onClicked: Packages.update([...Packages.repo.map(u => u.name)], root.sel.source === "aur" ? [root.sel.name] : [], root.sel.source === "flatpak" ? [root.sel.name] : [])
+                onClicked: {
+                    if (root.sel?.source === "aur")
+                        aurDialog.openFor(root.item, Tr.tr("Build & update"), () => Packages.update(false, [root.sel.name], []));
+                    else
+                        Packages.update(false, [], [root.sel.name]);
+                }
             }
 
             TextButton {
@@ -243,6 +253,12 @@ PageBase {
                 }
             }
             onAccepted: Packages.remove(root.item, root.keepDeps)
+        }
+
+        AurReviewDialog {
+            id: aurDialog
+
+            rootParent: root.flickable
         }
 
         SectionHeader {

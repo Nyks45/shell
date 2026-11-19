@@ -60,6 +60,23 @@ PageBase {
     function saveIpConfig(): void {
         if (!root.ssid)
             return;
+
+        // Bail out and flag the offending field before touching nmcli.
+        if (root.ipMethod === "manual") {
+            if (!addressField.valid) {
+                addressField.isError = true;
+                return;
+            }
+            if (!gatewayField.valid) {
+                gatewayField.isError = true;
+                return;
+            }
+        }
+        if ((root.ipMethod === "manual" || root.ipMethod === "auto-dns") && !dnsField.valid) {
+            dnsField.isError = true;
+            return;
+        }
+
         root.savingIp = true;
         Nmcli.setIpv4Config(root.ssid, {
             method: root.ipMethod,
@@ -269,7 +286,12 @@ PageBase {
             fallbackText: Tr.tr("Automatic (DHCP)")
             fallbackIcon: "lan"
 
-            onSelected: item => root.ipMethod = item === manualItem ? "manual" : (item === autoDnsItem ? "auto-dns" : "auto")
+            onSelected: item => {
+                root.ipMethod = item === manualItem ? "manual" : (item === autoDnsItem ? "auto-dns" : "auto");
+                addressField.isError = false;
+                gatewayField.isError = false;
+                dnsField.isError = false;
+            }
 
             menuItems: [
                 MenuItem {
@@ -376,6 +398,7 @@ PageBase {
                             leadingIcon: "router"
                             supportingText: Tr.tr("IP and prefix, e.g. 192.168.1.50/24")
                             errorText: Tr.tr("Enter a valid address in CIDR notation")
+                            emptyIsValid: false
                             inputMethodHints: Qt.ImhNoPredictiveText
                             validate: /^(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\/(?:3[0-2]|[12]?\d)$/
                         }
@@ -400,10 +423,11 @@ PageBase {
                     placeholderText: Tr.tr("DNS servers")
                     leadingIcon: "dns"
                     // TRANSLATORS: describes the DNS servers field above: several addresses separated by commas
-                    supportingText: Tr.tr("Comma-separated")
-                    errorText: Tr.tr("Enter valid DNS server addresses")
+                    supportingText: Tr.tr("Comma-separated, e.g. 1.1.1.1, 9.9.9.9")
+                    errorText: Tr.tr("Enter at least one valid IPv4 DNS server")
+                    emptyIsValid: false
                     inputMethodHints: Qt.ImhNoPredictiveText
-                    validate: /^$|^\s*(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\s*,\s*(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d))*\s*$/
+                    validate: /^\s*(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\s*,\s*(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d))*\s*$/
                 }
             }
         }

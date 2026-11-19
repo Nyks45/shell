@@ -25,6 +25,8 @@ ConnectedRect {
     // A line of its own instead of the description (sizes, dates)
     property string detail
 
+    signal aurInstallRequested(item: var)
+
     readonly property string busy: Packages.busy[Packages.key(item)] ?? ""
     // Its launcher entry when it has one (the icon and name people know)
     readonly property DesktopEntry entry: Packages.entryOf(item)
@@ -113,6 +115,24 @@ ConnectedRect {
             }
         }
 
+        StyledRect {
+            Layout.alignment: Qt.AlignVCenter
+            visible: root.item.source === "aur"
+            implicitWidth: aurBadgeText.implicitWidth + Tokens.padding.small * 2
+            implicitHeight: aurBadgeText.implicitHeight + Tokens.padding.extraSmall
+            radius: Tokens.rounding.full
+            color: Colours.palette.m3tertiaryContainer
+
+            StyledText {
+                id: aurBadgeText
+
+                anchors.centerIn: parent
+                text: "AUR"
+                font: Tokens.font.label.small
+                color: Colours.palette.m3onTertiaryContainer
+            }
+        }
+
         StyledText {
             visible: !!root.busy
             text: root.busy === "remove" ? Tr.tr("Removing…") : Tr.tr("Installing…")
@@ -129,9 +149,14 @@ ConnectedRect {
 
         TextButton {
             visible: !root.busy && !root.item.installed && root.showInstall
-            text: Tr.trCtx("Install", "button")
+            text: root.item.source === "aur" ? Tr.tr("Review…") : Tr.trCtx("Install", "button")
             type: TextButton.Tonal
-            onClicked: Packages.install(root.item)
+            onClicked: {
+                if (root.item.source === "aur")
+                    root.aurInstallRequested(root.item);
+                else
+                    Packages.install(root.item);
+            }
         }
 
         MaterialIcon {

@@ -6,6 +6,7 @@ import Caelestia.Config
 import qs.services
 import qs.modules.areapicker
 import qs.modules.background
+import qs.modules.bluetooth
 import qs.modules.drawers
 import qs.modules.lock
 import qs.modules.nebula
@@ -29,6 +30,7 @@ Scope {
         LiveWallpaper;
         Weather.reload();
         Packages;
+        BluetoothAgent;
         if (GlobalConfig.utilities.vpn.enabled)
             VPN;
     }
@@ -53,6 +55,7 @@ Scope {
     Drawers {}
     AreaPicker {}
     PolkitOverlay {}
+    BluetoothAgentOverlay {}
     TaskManager {}
 
     // Daemons

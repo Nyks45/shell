@@ -147,37 +147,41 @@ ColumnLayout {
             id: sv
 
             required property var modelData
-            readonly property string what: Tr.tr("Delete the subvolume")
-            property bool confirm
 
             icon: modelData.mounted ? "folder_open" : "folder"
             text: modelData.path
-            subtext: confirm ? Tr.tr("Click again to delete it and everything in it") : modelData.mounted ? Tr.tr("Mounted at %1").arg(modelData.mounted.split(",").join(", ")) : Tr.tr("Not mounted; click to delete")
-            disabled: !!modelData.mounted || Disks.busy(what)
+            subtext: modelData.mounted ? Tr.tr("Mounted at %1").arg(modelData.mounted.split(",").join(", ")) : Tr.tr("Not mounted; tap to delete")
+            disabled: !!modelData.mounted || Disks.busy(deleteSvDialog.what)
             onClicked: {
-                if (!confirm) {
-                    confirm = true;
-                    confirmReset.restart();
-                    return;
-                }
-                confirm = false;
-                Admin.run("btrfs-subvolume-delete", [root.mountPoint, modelData.path], what, () => root.loadSubvolumes());
-            }
-
-            Timer {
-                id: confirmReset
-
-                interval: 4000
-                onTriggered: sv.confirm = false
+                deleteSvDialog.targetSv = modelData;
+                deleteSvDialog.open = true;
             }
         }
+    }
+
+    ConfirmButton {
+        id: deleteSvDialog
+
+        readonly property string what: Tr.tr("Delete the subvolume")
+        property var targetSv: null
+
+        visible: false
+        rootParent: root.flickable
+        icon: "delete"
+        label: ""
+        header: Tr.tr("Delete subvolume %1?").arg(targetSv?.path ?? "")
+        message: Tr.tr("Permanently deletes the Btrfs subvolume %1 and everything inside it. This cannot be undone.").arg(targetSv?.path ?? "")
+        confirmText: targetSv?.path ?? ""
+        acceptLabel: Tr.trCtx("Delete", "button")
+        onAccepted: if (targetSv?.path)
+            Admin.run("btrfs-subvolume-delete", [root.mountPoint, targetSv.path], what, () => root.loadSubvolumes())
     }
 
     InfoRow {
         visible: root.snapshotCount > 0
         icon: "history"
         label: Tr.tr("Snapshots")
-        subtext: Tr.tr("Managed on the Backups page")
+        subtext: Tr.tr("Managed on the Snapshots tab")
         value: String(root.snapshotCount)
     }
 

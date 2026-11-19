@@ -28,9 +28,11 @@ PageBase {
     property var crashes: []
     property bool loading
     property string copied
+    property int limit: 80
 
     function load(): void {
         loading = true;
+        limit = 80;
         logProc.command = [helper, "logs", "--boot", boot, "--lines", "400", ...(priority ? ["--priority", priority] : []), ...(unit ? ["--unit", unit] : []), ...(search ? ["--grep", search] : [])];
         logProc.running = true;
     }
@@ -245,7 +247,7 @@ PageBase {
                 spacing: Tokens.spacing.extraSmall
 
                 Repeater {
-                    model: root.entries
+                    model: root.entries.slice(0, root.limit)
 
                     StyledText {
                         required property var modelData
@@ -260,6 +262,15 @@ PageBase {
                     }
                 }
             }
+        }
+
+        RowButton {
+            Layout.fillWidth: true
+            visible: root.entries.length > root.limit
+            icon: "expand_more"
+            text: Tr.tr("Show %1 more lines").arg(Math.min(80, root.entries.length - root.limit))
+            subtext: Tr.tr("Showing %1 of %2 lines").arg(root.limit).arg(root.entries.length)
+            onClicked: root.limit += 80
         }
 
         StyledText {

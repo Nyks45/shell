@@ -6,17 +6,21 @@ import Quickshell
 import Quickshell.Io
 import Caelestia.Config
 import Caelestia.I18n
+import qs.components
+import qs.services
 import qs.utils
 import qs.modules.nexus.common
 
 // Hyprland plugins, managed with hyprpm: turn them on and off, update them
-// (rebuilt for the running Hyprland) and add new ones.
+// (rebuilt for the running Hyprland) and add new ones. Changes take effect on
+// next sign-in instead of hot-loading into the running compositor.
 PageBase {
     id: root
 
-    // [{ name, repo, author, enabled, loaded }]
+    // [{ name, repo, author, enabled }]
     property var plugins: []
     property list<string> loaded
+    readonly property bool hasPendingChanges: plugins.some(p => p.enabled !== loaded.includes(p.name))
 
     function refresh(): void {
         listProc.running = false;
@@ -26,11 +30,12 @@ PageBase {
     }
 
     // hyprpm changes its state with sudo: in a terminal, which can ask for
-    // the password. The list catches up for a minute after.
+    // the password. The list refreshes as soon as the terminal closes.
     function inTerminal(script: string): void {
-        Quickshell.execDetached([...GlobalConfig.general.apps.terminal, "-e", "sh", "-c", `${script}; echo; read -p 'Press Enter to close' _`]);
-        followUp.tries = 0;
-        followUp.restart();
+        if (termProc.running)
+            return;
+        termProc.command = [...GlobalConfig.general.apps.terminal, "-e", "sh", "-c", `${script}; echo; read -p 'Press Enter to close' _`];
+        termProc.running = true;
     }
 
     title: Tr.tr("Plugins")
@@ -43,8 +48,16 @@ PageBase {
         width: root.cappedWidth
         spacing: Tokens.spacing.extraSmall / 2
 
+        InfoRow {
+            visible: root.hasPendingChanges
+            icon: "restart_alt"
+            iconColour: Colours.palette.m3primary
+            label: Tr.tr("Sign out and back in to apply plugin changes")
+            subtext: Tr.tr("At least one plugin is queued to load or unload on your next sign-in.")
+        }
+
         SectionHeader {
-            first: true
+            first: !root.hasPendingChanges
             text: Tr.tr("Hyprland plugins")
         }
 
@@ -61,12 +74,29 @@ PageBase {
             ToggleRow {
                 required property var modelData
                 required property int index
+                readonly property bool isLoaded: root.loaded.includes(modelData.name)
+                readonly property string statusText: {
+                    if (modelData.enabled && isLoaded)
+                        return Tr.tr("loaded");
+                    if (!modelData.enabled && !isLoaded)
+                        return Tr.tr("off");
+                    if (modelData.enabled && !isLoaded)
+                        return Tr.tr("enabled · loads on next sign-in");
+                    return Tr.tr("disabled · unloads on next sign-in");
+                }
 
                 text: modelData.name
-                subtext: `${modelData.repo}${modelData.author ? ` · ${modelData.author}` : ""} · ${root.loaded.includes(modelData.name) ? Tr.tr("loaded") : Tr.tr("not loaded")}`
+                subtext: `${modelData.repo}${modelData.author ? ` · ${modelData.author}` : ""} · ${statusText}`
                 checked: modelData.enabled
-                // Loads or unloads it right away
-                onToggled: root.inTerminal(`hyprpm ${checked ? "enable" : "disable"} ${modelData.name} && hyprpm reload -n`)
+                disabled: termProc.running
+                onToggled: {
+                    const want = checked;
+                    checked = Qt.binding(() => modelData.enabled);
+                    const safe = modelData.name.replace(/[^A-Za-z0-9._-]/g, "");
+                    if (!safe)
+                        return;
+                    root.inTerminal(`hyprpm ${want ? "enable" : "disable"} '${safe}'`);
+                }
             }
         }
 
@@ -78,6 +108,7 @@ PageBase {
             icon: "update"
             text: Tr.tr("Update plugins")
             subtext: Tr.tr("Rebuild them for the running Hyprland (after a Hyprland update); opens a terminal")
+            disabled: termProc.running
             onClicked: root.inTerminal("hyprpm update")
         }
 
@@ -85,7 +116,24 @@ PageBase {
             icon: "add"
             text: Tr.tr("Add a plugin")
             subtext: Tr.tr("From a git repository; opens a terminal")
-            onClicked: root.inTerminal("read -p 'Repository URL: ' url && hyprpm add \"$url\" && hyprpm reload -n")
+            disabled: termProc.running
+            onClicked: root.inTerminal("read -p 'Repository URL: ' url && hyprpm add \"$url\"")
+        }
+
+        StyledText {
+            Layout.fillWidth: true
+            Layout.leftMargin: Tokens.padding.small
+            Layout.topMargin: Tokens.spacing.small
+            text: Tr.tr("Plugin changes take effect the next time you sign in. Loading or unloading Hyprland plugins live can crash the desktop.")
+            wrapMode: Text.WordWrap
+            color: Colours.palette.m3outline
+            font: Tokens.font.label.small
+        }
+
+        Process {
+            id: termProc
+
+            onExited: root.refresh()
         }
 
         // Non-visual helpers (the page takes one item: they live in its column)
@@ -131,20 +179,6 @@ PageBase {
             command: ["hyprctl", "plugin", "list"]
             stdout: StdioCollector {
                 onStreamFinished: root.loaded = Strings.allMatches(text, /^Plugin (\S+)/gm).map(m => m[1])
-            }
-        }
-
-        Timer {
-            id: followUp
-
-            property int tries
-
-            interval: 3000
-            repeat: true
-            onTriggered: {
-                root.refresh();
-                if (++tries >= 20)
-                    stop();
             }
         }
     }

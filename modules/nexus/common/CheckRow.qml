@@ -2,20 +2,23 @@ import QtQuick
 import QtQuick.Layouts
 import Caelestia.Config
 import qs.components
+import qs.components.controls
 import qs.services
 
 // A row with a tick box (choosing items, e.g. which updates to install):
-// label, a smaller line under it, a value on the right
+// label, a smaller line under it, a value on the right, and an optional inline action button
 ConnectedRect {
     id: root
 
     property alias label: label.text
     property alias subtext: sub.text
     property alias value: value.text
+    property string actionText
     property bool checked
     property bool disabled
 
     signal toggled(checked: bool)
+    signal actionClicked
 
     Layout.fillWidth: true
     implicitHeight: row.implicitHeight + Tokens.padding.medium * 2
@@ -62,7 +65,7 @@ ConnectedRect {
                 visible: text
                 color: Colours.palette.m3outline
                 font: Tokens.font.label.small
-                elide: Text.ElideRight
+                wrapMode: Text.WordWrap
             }
         }
 
@@ -72,6 +75,13 @@ ConnectedRect {
             visible: text
             color: Colours.palette.m3onSurfaceVariant
             font: Tokens.font.label.small
+        }
+
+        TextButton {
+            visible: !!root.actionText
+            text: root.actionText
+            type: TextButton.Text
+            onClicked: root.actionClicked()
         }
     }
 }

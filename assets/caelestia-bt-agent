@@ -1,0 +1,376 @@
+#!/usr/bin/python3 -I
+"""Caelestia Bluetooth pairing agent (org.bluez.Agent1).
+
+Runs in the user session alongside Quickshell. Registers an Agent1 object on
+the system bus with KeyboardDisplay capability whenever bluetoothd is present,
+and exchanges single-line JSON messages over stdin/stdout with Quickshell so
+pairing prompts (passkey confirmation, PIN entry, passkey display, and service
+authorization) render natively in Caelestia's shell/settings style.
+"""
+
+import json
+import os
+import sys
+
+from gi.repository import Gio, GLib
+
+AGENT_PATH = "/org/caelestia/BluetoothAgent"
+CAPABILITY = "KeyboardDisplay"
+
+AGENT_XML = """
+<node>
+  <interface name="org.bluez.Agent1">
+    <method name="Release"/>
+    <method name="RequestPinCode">
+      <arg type="o" name="device" direction="in"/>
+      <arg type="s" name="pincode" direction="out"/>
+    </method>
+    <method name="DisplayPinCode">
+      <arg type="o" name="device" direction="in"/>
+      <arg type="s" name="pincode" direction="in"/>
+    </method>
+    <method name="RequestPasskey">
+      <arg type="o" name="device" direction="in"/>
+      <arg type="u" name="passkey" direction="out"/>
+    </method>
+    <method name="DisplayPasskey">
+      <arg type="o" name="device" direction="in"/>
+      <arg type="u" name="passkey" direction="in"/>
+      <arg type="q" name="entered" direction="in"/>
+    </method>
+    <method name="RequestConfirmation">
+      <arg type="o" name="device" direction="in"/>
+      <arg type="u" name="passkey" direction="in"/>
+    </method>
+    <method name="RequestAuthorization">
+      <arg type="o" name="device" direction="in"/>
+    </method>
+    <method name="AuthorizeService">
+      <arg type="o" name="device" direction="in"/>
+      <arg type="s" name="uuid" direction="in"/>
+    </method>
+    <method name="Cancel"/>
+  </interface>
+</node>
+"""
+
+UUID_NAMES = {
+    "1105": "File Transfer (OBEX)",
+    "1108": "Headset",
+    "110a": "Audio Source",
+    "110b": "Audio Output",
+    "110c": "Media Remote Control",
+    "110d": "Advanced Audio",
+    "110e": "Media Control",
+    "1115": "Network Access (PAN)",
+    "1116": "Network Sharing (NAP)",
+    "111e": "Handsfree Calling",
+    "1124": "Input Device (HID)",
+    "1812": "Bluetooth Low Energy Input",
+}
+
+
+def format_passkey(passkey):
+    return f"{int(passkey):06d}"
+
+
+def uuid_label(uuid):
+    u = (uuid or "").strip().lower()
+    if len(u) >= 8 and u.startswith("0000") and "-0000-1000-8000-" in u:
+        short = u[4:8]
+        if short in UUID_NAMES:
+            return UUID_NAMES[short]
+    return uuid
+
+
+def validate_reply(kind, raw_val):
+    if kind == "pin":
+        pin = str(raw_val or "").strip()
+        if not pin or len(pin) > 16:
+            return False, None
+        return True, pin
+    if kind == "passkey":
+        s = str(raw_val or "").strip()
+        if not s.isdigit():
+            return False, None
+        num = int(s)
+        if not (0 <= num <= 999999):
+            return False, None
+        return True, num
+    return True, raw_val
+
+
+class BluezAgentDaemon:
+    def __init__(self):
+        self.loop = GLib.MainLoop()
+        self.bus = None
+        self.reg_id = 0
+        self.watch_id = 0
+        self.next_id = 0
+        self.pending = None
+        self.in_buf = b""
+        self.iface_info = Gio.DBusNodeInfo.new_for_xml(AGENT_XML).interfaces[0]
+
+    def emit(self, payload):
+        sys.stdout.write(json.dumps(payload) + "\n")
+        sys.stdout.flush()
+
+    def device_info(self, path):
+        info = {"path": path, "name": path.split("/")[-1], "address": "", "icon": "", "trusted": False}
+        try:
+            res = self.bus.call_sync(
+                "org.bluez",
+                path,
+                "org.freedesktop.DBus.Properties",
+                "GetAll",
+                GLib.Variant("(s)", ("org.bluez.Device1",)),
+                GLib.VariantType("(a{sv})"),
+                Gio.DBusCallFlags.NONE,
+                1500,
+                None,
+            ).unpack()[0]
+            info["name"] = res.get("Alias") or res.get("Name") or res.get("Address") or info["name"]
+            info["address"] = res.get("Address") or ""
+            info["icon"] = res.get("Icon") or ""
+            info["trusted"] = bool(res.get("Trusted", False))
+        except GLib.Error:
+            pass
+        return info
+
+    def clear_pending(self, reason="Cancelled"):
+        if not self.pending:
+            return
+        req = self.pending
+        self.pending = None
+        try:
+            req["invocation"].return_dbus_error("org.bluez.Error.Canceled", reason)
+        except Exception:
+            pass
+        self.emit({"kind": "cancel", "id": req["id"]})
+
+    def on_method_call(self, connection, sender, object_path, interface_name, method_name, parameters, invocation):
+        args = parameters.unpack() if parameters is not None else ()
+
+        if method_name == "Release":
+            self.clear_pending("Agent released")
+            invocation.return_value(None)
+            return
+
+        if method_name == "Cancel":
+            self.clear_pending("Pairing cancelled")
+            invocation.return_value(None)
+            return
+
+        dev_path = args[0] if args else ""
+        dev = self.device_info(dev_path) if dev_path else {"path": "", "name": "", "address": "", "icon": "", "trusted": False}
+
+        if method_name == "DisplayPinCode":
+            self.emit({"id": 0, "kind": "displayPin", "device": dev["name"], "address": dev["address"], "icon": dev["icon"], "pin": args[1]})
+            invocation.return_value(None)
+            return
+
+        if method_name == "DisplayPasskey":
+            self.emit({
+                "id": 0,
+                "kind": "displayPasskey",
+                "device": dev["name"],
+                "address": dev["address"],
+                "icon": dev["icon"],
+                "passkey": format_passkey(args[1]),
+                "entered": int(args[2]),
+            })
+            invocation.return_value(None)
+            return
+
+        if method_name == "AuthorizeService":
+            if dev["trusted"]:
+                invocation.return_value(None)
+                return
+
+        if self.pending:
+            self.clear_pending("Superseded")
+
+        self.next_id += 1
+        req_id = self.next_id
+        if method_name == "RequestConfirmation":
+            kind = "confirm"
+            extra = {"passkey": format_passkey(args[1])}
+        elif method_name == "RequestPinCode":
+            kind = "pin"
+            extra = {}
+        elif method_name == "RequestPasskey":
+            kind = "passkey"
+            extra = {}
+        elif method_name == "RequestAuthorization":
+            kind = "authorize"
+            extra = {}
+        elif method_name == "AuthorizeService":
+            kind = "authorizeService"
+            extra = {"uuid": args[1], "service": uuid_label(args[1])}
+        else:
+            invocation.return_dbus_error("org.bluez.Error.Rejected", f"Unsupported method {method_name}")
+            return
+
+        self.pending = {"id": req_id, "kind": kind, "method": method_name, "invocation": invocation}
+        self.emit({"id": req_id, "kind": kind, "device": dev["name"], "address": dev["address"], "icon": dev["icon"], **extra})
+
+    def handle_reply_line(self, line):
+        line = line.strip()
+        if not line:
+            return
+        try:
+            msg = json.loads(line)
+        except ValueError:
+            return
+        if not isinstance(msg, dict) or not self.pending:
+            return
+        if msg.get("id") != self.pending["id"]:
+            return
+
+        req = self.pending
+        self.pending = None
+        inv = req["invocation"]
+
+        if not msg.get("ok"):
+            inv.return_dbus_error("org.bluez.Error.Rejected", str(msg.get("reason") or "User rejected"))
+            return
+
+        ok, val = validate_reply(req["kind"], msg.get("value"))
+        if not ok:
+            inv.return_dbus_error("org.bluez.Error.Rejected", "Invalid input")
+            return
+
+        if req["method"] == "RequestPinCode":
+            inv.return_value(GLib.Variant("(s)", (val,)))
+        elif req["method"] == "RequestPasskey":
+            inv.return_value(GLib.Variant("(u)", (val,)))
+        else:
+            inv.return_value(None)
+
+    def on_stdin_ready(self, fd, condition):
+        if condition & (GLib.IOCondition.HUP | GLib.IOCondition.ERR):
+            self.shutdown()
+            return False
+        try:
+            chunk = os.read(fd, 4096)
+        except OSError:
+            self.shutdown()
+            return False
+        if not chunk:
+            self.shutdown()
+            return False
+        self.in_buf += chunk
+        while b"\n" in self.in_buf:
+            line, self.in_buf = self.in_buf.split(b"\n", 1)
+            self.handle_reply_line(line.decode("utf-8", errors="replace"))
+        return True
+
+    def register_with_bluez(self):
+        try:
+            self.bus.call_sync(
+                "org.bluez",
+                "/org/bluez",
+                "org.bluez.AgentManager1",
+                "RegisterAgent",
+                GLib.Variant("(os)", (AGENT_PATH, CAPABILITY)),
+                None,
+                Gio.DBusCallFlags.NONE,
+                3000,
+                None,
+            )
+            self.bus.call_sync(
+                "org.bluez",
+                "/org/bluez",
+                "org.bluez.AgentManager1",
+                "RequestDefaultAgent",
+                GLib.Variant("(o)", (AGENT_PATH,)),
+                None,
+                Gio.DBusCallFlags.NONE,
+                3000,
+                None,
+            )
+            self.emit({"kind": "ready"})
+        except GLib.Error as e:
+            self.emit({"kind": "status", "error": e.message})
+
+    def on_bluez_appeared(self, connection, name, owner):
+        self.register_with_bluez()
+
+    def on_bluez_vanished(self, connection, name):
+        self.clear_pending("Bluetooth service stopped")
+
+    def shutdown(self):
+        self.clear_pending("Agent shutting down")
+        if self.watch_id:
+            Gio.bus_unwatch_name(self.watch_id)
+            self.watch_id = 0
+        if self.bus:
+            try:
+                self.bus.call_sync(
+                    "org.bluez",
+                    "/org/bluez",
+                    "org.bluez.AgentManager1",
+                    "UnregisterAgent",
+                    GLib.Variant("(o)", (AGENT_PATH,)),
+                    None,
+                    Gio.DBusCallFlags.NONE,
+                    1000,
+                    None,
+                )
+            except GLib.Error:
+                pass
+            if self.reg_id:
+                self.bus.unregister_object(self.reg_id)
+                self.reg_id = 0
+        self.loop.quit()
+
+    def run(self):
+        self.bus = Gio.bus_get_sync(Gio.BusType.SYSTEM)
+        self.reg_id = self.bus.register_object(AGENT_PATH, self.iface_info, self.on_method_call, None, None)
+        self.watch_id = Gio.bus_watch_name_on_connection(
+            self.bus,
+            "org.bluez",
+            Gio.BusNameWatcherFlags.NONE,
+            self.on_bluez_appeared,
+            self.on_bluez_vanished,
+        )
+        GLib.io_add_watch(
+            sys.stdin.fileno(),
+            GLib.PRIORITY_DEFAULT,
+            GLib.IOCondition.IN | GLib.IOCondition.HUP | GLib.IOCondition.ERR,
+            self.on_stdin_ready,
+        )
+        self.loop.run()
+        return 0
+
+
+def self_test():
+    info = Gio.DBusNodeInfo.new_for_xml(AGENT_XML)
+    methods = {m.name for m in info.interfaces[0].methods}
+    expected = {
+        "Release",
+        "RequestPinCode",
+        "DisplayPinCode",
+        "RequestPasskey",
+        "DisplayPasskey",
+        "RequestConfirmation",
+        "RequestAuthorization",
+        "AuthorizeService",
+        "Cancel",
+    }
+    assert methods == expected, f"Unexpected methods: {methods}"
+    assert format_passkey(42) == "000042"
+    assert format_passkey(0) == "000000"
+    assert uuid_label("0000110b-0000-1000-8000-00805f9b34fb") == "Audio Output"
+    assert validate_reply("passkey", "007123") == (True, 7123)
+    assert validate_reply("passkey", "1000000") == (False, None)
+    assert validate_reply("pin", "0000") == (True, "0000")
+    assert validate_reply("pin", "") == (False, None)
+    print(json.dumps({"selfTest": "ok", "methods": sorted(methods), "passkeySample": format_passkey(42)}))
+    return 0
+
+
+if __name__ == "__main__":
+    if sys.argv[1:2] == ["--self-test"]:
+        sys.exit(self_test())
+    sys.exit(BluezAgentDaemon().run())

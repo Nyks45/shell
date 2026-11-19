@@ -10,16 +10,20 @@ import qs.components.controls
 import qs.components.containers
 import qs.services
 import qs.modules.nexus.common
+import qs.modules.nexus.pages.apps
 
-// Updates: system packages (pacman), the AUR (paru) and Flatpak apps, each
-// one chosen or not; packages kept at their version; configuration files an
-// update brought (.pacnew); Arch news; automatic checks and notifications.
-// The work is in the Packages service (also the background checks).
+// Updates: system packages (pacman, always updated together cleanly with a
+// Btrfs snapshot first), the AUR (paru) and Flatpak apps; packages kept at
+// their version; configuration files an update brought (.pacnew); Arch news;
+// automatic checks and notifications.
 PageBase {
     id: root
 
-    // Unticked updates (key "source:name"): left out this time
+    // Whole-group toggle for repo updates (never partial-upgrade individual repo packages);
+    // per-item skipped map applies only to AUR and Flatpak.
+    property bool includeRepo: true
     property var skipped: ({})
+    property bool showAllRepo
     property var news: []
     property var pacnew: []
     // The .pacnew being looked at and its diff
@@ -30,13 +34,20 @@ PageBase {
     property bool pacnewConfirm
     property bool showAllNews
 
-    readonly property var all: [...Packages.repo.map(u => Object.assign({
-                source: "repo"
-            }, u)), ...Packages.aur.map(u => Object.assign({
+    readonly property var optionalUpdates: [...Packages.aur.map(u => Object.assign({
                 source: "aur"
             }, u)), ...Packages.flatpak.map(u => Object.assign({
                 source: "flatpak"
             }, u))]
+    readonly property int chosen: (includeRepo ? Packages.repo.length : 0) + optionalUpdates.filter(u => !skipped[key(u)]).length
+
+    function errorSummary(): string {
+        const keys = Object.keys(Packages.errors ?? {});
+        if (keys.length === 0)
+            return "";
+        const names = keys.map(k => k === "repo" ? Tr.tr("system repositories") : k === "aur" ? "AUR" : k === "flatpak" ? "Flathub" : Tr.tr("update check"));
+        return Tr.tr("Couldn't check: %1. Check your internet connection or mirrors.").arg(names.join(", "));
+    }
     readonly property list<MenuItem> checkItems: [
         MenuItem {
             text: Tr.tr("Never")
@@ -63,8 +74,6 @@ PageBase {
             value: 24
         }
     ]
-    readonly property int chosen: all.filter(u => !skipped[key(u)]).length
-
     function key(u: var): string {
         return `${u.source}:${u.appId || u.name}`;
     }
@@ -79,18 +88,21 @@ PageBase {
     }
 
     function setAll(on: bool): void {
+        includeRepo = on;
         const s = {};
         if (!on)
-            for (const u of all)
+            for (const u of optionalUpdates)
                 s[key(u)] = true;
         skipped = s;
     }
 
     function updateChosen(): void {
-        const skipRepo = Packages.repo.filter(u => skipped[`repo:${u.name}`]).map(u => u.name);
         const aur = Packages.aur.filter(u => !skipped[`aur:${u.name}`]).map(u => u.name);
         const flat = Packages.flatpak.filter(u => !skipped[`flatpak:${u.appId}`]).map(u => u.appId);
-        Packages.update(skipRepo, aur, flat, () => root.skipped = {});
+        Packages.update(root.includeRepo, aur, flat, () => {
+            root.includeRepo = true;
+            root.skipped = {};
+        });
     }
 
     function loadExtras(): void {
@@ -124,9 +136,18 @@ PageBase {
         }
 
         InfoRow {
-            icon: Packages.checking ? "sync" : Packages.total > 0 ? "system_update" : "check_circle"
-            label: Packages.checking ? Tr.tr("Checking for updates…") : Packages.total > 0 ? Tr.tr("%1 updates available").arg(Packages.total) : Tr.tr("Up to date")
-            subtext: Packages.checkedAt.getTime() > 0 ? Tr.tr("Last checked at %1").arg(Qt.formatTime(Packages.checkedAt, "HH:mm")) : ""
+            icon: Packages.checking ? "sync" : Packages.total > 0 ? "system_update" : Packages.hasErrors ? "cloud_off" : "check_circle"
+            iconColour: !Packages.checking && Packages.total === 0 && Packages.hasErrors ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
+            label: Packages.checking ? Tr.tr("Checking for updates…") : Packages.total === 1 ? Tr.tr("1 update available") : Packages.total > 1 ? Tr.tr("%1 updates available").arg(Packages.total) : Packages.hasErrors ? Tr.tr("Couldn't check for updates") : Tr.tr("Up to date")
+            subtext: !Packages.checking && Packages.total === 0 && Packages.hasErrors ? root.errorSummary() : Packages.checkedAt.getTime() > 0 ? Tr.tr("Last checked at %1").arg(Qt.formatTime(Packages.checkedAt, "HH:mm")) : ""
+        }
+
+        InfoRow {
+            visible: !Packages.checking && Packages.total > 0 && Packages.hasErrors
+            icon: "warning"
+            iconColour: Colours.palette.m3error
+            label: Tr.tr("Some sources couldn't be checked")
+            subtext: root.errorSummary()
         }
 
         RowButton {
@@ -172,16 +193,52 @@ PageBase {
             }
         }
 
-        UpdateSection {
-            title: Tr.tr("System packages")
-            source: "repo"
-            note: Tr.tr("Arch updates system packages together: an unticked one is kept back this time (pacman --ignore), which can break apps that need its new version.")
-            items: Packages.repo
+        SectionHeader {
+            visible: Packages.repo.length > 0
+            text: Tr.tr("System packages (%1)").arg(Packages.repo.length)
+        }
+
+        ToggleRow {
+            visible: Packages.repo.length > 0
+            text: Tr.tr("Include system packages")
+            subtext: Tr.tr("System packages update together so apps don't break. A Btrfs snapshot is taken automatically first.")
+            checked: root.includeRepo
+            disabled: Packages.updating
+            onToggled: root.includeRepo = checked
+        }
+
+        Repeater {
+            model: root.showAllRepo ? Packages.repo : Packages.repo.slice(0, 15)
+
+            RowButton {
+                required property var modelData
+
+                icon: "package_2"
+                text: modelData.name
+                subtext: modelData.from ? `${modelData.from} → ${modelData.to}` : modelData.to
+                onClicked: {
+                    root.nState.selectedPackage = {
+                        source: "repo",
+                        name: modelData.name,
+                        title: modelData.name
+                    };
+                    root.nState.openSubPage(3);
+                }
+            }
+        }
+
+        RowButton {
+            Layout.fillWidth: true
+            visible: !root.showAllRepo && Packages.repo.length > 15
+            icon: "expand_more"
+            text: Tr.tr("Show all %1").arg(Packages.repo.length)
+            onClicked: root.showAllRepo = true
         }
 
         UpdateSection {
             title: "AUR"
             source: "aur"
+            note: Tr.tr("AUR packages are built from community recipes on this computer. Review a recipe before updating.")
             items: Packages.aur
         }
 
@@ -189,6 +246,12 @@ PageBase {
             title: "Flatpak"
             source: "flatpak"
             items: Packages.flatpak
+        }
+
+        AurReviewDialog {
+            id: aurDialog
+
+            rootParent: root.flickable
         }
 
         // Built here in place of a repository package: updates never touch them
@@ -482,10 +545,10 @@ PageBase {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
             Layout.bottomMargin: Tokens.spacing.small
-            visible: !!section.note && section.items.some(u => root.skipped[`${section.source}:${u.appId || u.name}`])
+            visible: !!section.note
             text: section.note
             wrapMode: Text.WordWrap
-            color: Colours.palette.m3error
+            color: Colours.palette.m3outline
             font: Tokens.font.label.small
         }
 
@@ -502,9 +565,14 @@ PageBase {
                 label: modelData.name
                 subtext: modelData.appId && modelData.appId !== modelData.name ? modelData.appId : ""
                 value: modelData.from ? `${modelData.from} → ${modelData.to}` : modelData.to
+                actionText: section.source === "aur" ? Tr.tr("Review") : ""
                 checked: !root.skipped[root.key(u)]
                 disabled: Packages.updating
                 onToggled: on => root.toggle(u, on)
+                onActionClicked: aurDialog.openFor({
+                    source: "aur",
+                    name: modelData.name
+                }, Tr.trCtx("Close", "button"), null)
             }
         }
 

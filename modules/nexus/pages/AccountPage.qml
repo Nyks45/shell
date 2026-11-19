@@ -37,9 +37,12 @@ PageBase {
     }
 
     // The password dialog's fields (cleared as soon as it is used)
+    property string currentPassword
     property string newPassword
     property string repeatPassword
     property string passwordStatus
+    property string passwordWarning
+    property bool passwordFailed
 
     title: Tr.tr("Account")
 
@@ -222,42 +225,73 @@ PageBase {
             readonly property string what: Tr.tr("Change your password")
 
             rootParent: root.flickable
-            openHeight: Math.min(root.flickable.height * 0.95, 430)
+            openHeight: Math.min(root.flickable.height * 0.95, 550)
             icon: "password"
             label: root.passwordStatus || Tr.tr("Change password")
             header: Tr.tr("Change password")
             acceptLabel: Tr.trCtx("Change", "button")
-            acceptAllowed: root.newPassword.length > 0 && root.newPassword === root.repeatPassword && !Admin.jobs.some(j => j.what === what)
+            acceptAllowed: root.currentPassword.length > 0 && root.newPassword.length > 0 && root.newPassword === root.repeatPassword && root.newPassword !== root.currentPassword && !Admin.jobs.some(j => j.what === what)
 
             content: Component {
                 ColumnLayout {
-                    spacing: Tokens.spacing.medium
+                    function syncErrors(): void {
+                        newPwField.isError = root.newPassword.length > 0 && root.newPassword === root.currentPassword;
+                        repeatPwField.isError = root.repeatPassword.length > 0 && root.repeatPassword !== root.newPassword;
+                    }
+
+                    spacing: Tokens.spacing.large
 
                     StyledText {
                         Layout.fillWidth: true
                         Layout.topMargin: Tokens.spacing.medium
-                        text: Tr.tr("For signing in and unlocking the screen. You'll be asked for the current one.")
+                        text: Tr.tr("Updates your sign-in, screen lock, and saved passwords (keyring).")
                         color: Colours.palette.m3onSurfaceVariant
                         font: Tokens.font.body.small
                         wrapMode: Text.WordWrap
                     }
 
                     StyledTextField {
+                        id: curPwField
+
                         Layout.fillWidth: true
                         echoMode: TextInput.Password
-                        placeholderText: Tr.tr("New password")
-                        leadingIcon: "key"
+                        placeholderText: Tr.tr("Current password")
+                        leadingIcon: "lock"
                         Component.onCompleted: forceActiveFocus()
-                        onTextChanged: root.newPassword = text
+                        onTextChanged: {
+                            root.currentPassword = text;
+                            Qt.callLater(syncErrors);
+                        }
                     }
 
                     StyledTextField {
+                        id: newPwField
+
                         Layout.fillWidth: true
+                        Layout.bottomMargin: isError ? Tokens.spacing.large : 0
                         echoMode: TextInput.Password
-                        placeholderText: Tr.tr("Repeat it")
+                        placeholderText: Tr.tr("New password")
                         leadingIcon: "key"
-                        supportingText: text.length > 0 && text !== root.newPassword ? Tr.tr("The two don't match yet") : ""
-                        onTextChanged: root.repeatPassword = text
+                        errorText: Tr.tr("Must differ from current password")
+                        onTextChanged: {
+                            root.newPassword = text;
+                            Qt.callLater(syncErrors);
+                        }
+                    }
+
+                    StyledTextField {
+                        id: repeatPwField
+
+                        Layout.fillWidth: true
+                        Layout.bottomMargin: isError ? Tokens.spacing.small : 0
+                        echoMode: TextInput.Password
+                        placeholderText: Tr.tr("Repeat new password")
+                        leadingIcon: "key"
+                        errorText: Tr.tr("The two don't match yet")
+                        onTextChanged: {
+                            root.repeatPassword = text;
+                            Qt.callLater(syncErrors);
+                        }
                         onAccepted: if (passwordDialog.acceptAllowed) {
                             passwordDialog.accepted();
                             passwordDialog.open = false;
@@ -271,20 +305,39 @@ PageBase {
             }
 
             onOpenChanged: if (!open) {
+                root.currentPassword = "";
                 root.repeatPassword = "";
                 if (!Admin.jobs.some(j => j.what === what))
                     root.newPassword = "";
             }
             onAccepted: {
+                const cur = root.currentPassword;
                 const pw = root.newPassword;
+                root.currentPassword = "";
                 root.newPassword = "";
                 root.repeatPassword = "";
+                root.passwordWarning = "";
+                root.passwordFailed = false;
                 root.passwordStatus = Tr.tr("Changing the password…");
                 Admin.exec([`${Paths.libdir}/caelestia-set-password`], what, (ok, out, cancelled) => {
-                    root.passwordStatus = ok ? Tr.tr("Password changed") : "";
-                    if (ok)
+                    if (ok) {
+                        const lines = out.split("\n").map(l => l.trim()).filter(l => l);
+                        const warn = lines.find(l => l.startsWith("KEYRING_WARN:"));
+                        root.passwordFailed = false;
+                        root.passwordWarning = warn ? warn.replace(/^KEYRING_WARN:\s*/, "") : "";
+                        root.passwordStatus = Tr.tr("Password changed");
                         passwordStatusReset.restart();
-                }, pw);
+                    } else {
+                        root.passwordStatus = "";
+                        if (!cancelled) {
+                            root.passwordFailed = true;
+                            root.passwordWarning = out.trim() || Tr.tr("Couldn't change password.");
+                        }
+                    }
+                }, JSON.stringify({
+                    current: cur,
+                    new: pw
+                }));
             }
 
             Timer {
@@ -293,6 +346,14 @@ PageBase {
                 interval: 5000
                 onTriggered: root.passwordStatus = ""
             }
+        }
+
+        InfoRow {
+            visible: root.passwordWarning !== ""
+            icon: root.passwordFailed ? "error" : "warning"
+            iconColour: root.passwordFailed ? Colours.palette.m3error : Colours.palette.m3primary
+            label: root.passwordFailed ? Tr.tr("Password wasn't changed") : Tr.tr("Keyring note")
+            subtext: root.passwordWarning
         }
 
         // ---- Your groups ----------------------------------------------------

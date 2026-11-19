@@ -29,6 +29,8 @@ Singleton {
     // (newer: the repository has a newer release than the one it was built from)
     property var own: []
     readonly property var ownOutdated: own.filter(o => o.newer)
+    property var errors: ({})
+    readonly property bool hasErrors: Object.keys(errors).length > 0
     property date checkedAt
     property bool checking
     readonly property int total: repo.length + aur.length + flatpak.length
@@ -107,6 +109,7 @@ Singleton {
         if (item.source === "repo")
             Admin.run("install", [name], what, end);
         else if (item.source === "aur")
+            // --skipreview is required only because paru runs headless here; all UI callers gate AUR builds behind AurReviewDialog.
             Admin.exec(["paru", "-S", "--noconfirm", "--skipreview", "--sudo", "pkexec", "--", name], what, end);
         else
             Admin.exec(["flatpak", "install", "--system", "-y", "--noninteractive", item.remote || "flathub", name], what, end);
@@ -128,10 +131,10 @@ Singleton {
             Admin.run("remove", [...(keepDeps ? ["--keep-deps"] : []), name], what, end);
     }
 
-    // The chosen updates: system packages all but `skipRepo` (pacman can only
-    // update them together), then the chosen AUR packages, then the chosen
-    // Flatpak apps (by app id)
-    function update(skipRepo: list<string>, aurNames: list<string>, flatpakIds: list<string>, done: var): void {
+    // The chosen updates: all system packages together when `includeRepo` is true
+    // (unsupported partial repo upgrades are disallowed; use Hold on a package
+    // page if needed), then the chosen AUR packages, then the chosen Flatpak apps.
+    function update(includeRepo: bool, aurNames: list<string>, flatpakIds: list<string>, done: var): void {
         const finish = ok => {
             updateStep = "";
             afterChange();
@@ -150,12 +153,13 @@ Singleton {
             if (aurNames.length === 0)
                 return flatpakStep();
             updateStep = "aur";
+            // --skipreview is required only because paru runs headless here; UI surfaces AurReviewDialog for inspection.
             Admin.exec(["paru", "-S", "--noconfirm", "--skipreview", "--sudo", "pkexec", "--", ...aurNames], updateWhat, ok => ok ? flatpakStep() : finish(false));
         };
-        if (repo.length === 0 || skipRepo.length >= repo.length)
+        if (!includeRepo || repo.length === 0)
             return aurStep();
         updateStep = "repo";
-        Admin.run("upgrade", skipRepo.length > 0 ? ["--ignore", ...skipRepo] : [], updateWhat, ok => ok ? aurStep() : finish(false));
+        Admin.run("upgrade", [], updateWhat, ok => ok ? aurStep() : finish(false));
     }
 
     function hold(name: string, on: bool): void {
@@ -187,7 +191,12 @@ Singleton {
                     root.held = d.held ?? [];
                     root.own = d.own ?? [];
                     root.restart = d.restart ?? [];
-                } catch (e) {}
+                    root.errors = d.errors ?? {};
+                } catch (e) {
+                    root.errors = {
+                        check: qsTr("Couldn't read update information.")
+                    };
+                }
                 root.checkedAt = new Date();
                 root.checking = false;
                 // An own build fell behind its repository package: updates don't touch it, so say so
@@ -204,8 +213,13 @@ Singleton {
             }
         }
         onExited: code => {
-            if (code !== 0)
+            if (code !== 0) {
                 root.checking = false;
+                if (Object.keys(root.errors).length === 0)
+                    root.errors = {
+                        check: qsTr("The update check stopped unexpectedly.")
+                    };
+            }
         }
     }
 

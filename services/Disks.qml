@@ -20,6 +20,12 @@ Singleton {
     property bool loaded
     property int users
 
+    // Cached storage sizes from StoragePage (avoid multi-second `du` on every visit)
+    property var cachedFolders: ({})
+    property var cachedSizes: ({})
+    property int cachedOrphans: -1
+    property double cachedAt: 0
+
     function open(): void {
         users++;
     }

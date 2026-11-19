@@ -19,15 +19,18 @@ PageBase {
 
     readonly property int number: nState.selectedSnapshot
     readonly property string config: nState.selectedSnapperConfig || "root"
-    // [{ kind: "+"|"-"|"c", path }]
+    property string subvolume: "/"
+    // [{ kind: "+"|"-"|"c"|"t", path, lower }]
     property var changes: []
     property bool loading: true
+    property string pendingFilter
     property string filter
-    readonly property var shown: {
+    property int limit: 50
+    readonly property var matching: {
         const f = filter.toLowerCase();
-        const list = f ? changes.filter(c => c.path.toLowerCase().includes(f)) : changes;
-        return list.slice(0, 300);
+        return f ? changes.filter(c => c.lower.includes(f)) : changes;
     }
+    readonly property var shown: matching.slice(0, limit)
     property string restored
 
     title: Tr.tr("Snapshot %1").arg(number)
@@ -39,7 +42,23 @@ PageBase {
         width: root.cappedWidth
         spacing: Tokens.spacing.extraSmall / 2
 
-        // Non-visual (the page takes one item: it lives in the column)
+        Process {
+            id: configProc
+
+            running: true
+            command: ["snapper", "--jsonout", "-c", root.config, "get-config"]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    try {
+                        const cfg = JSON.parse(text);
+                        if (cfg.SUBVOLUME)
+                            root.subvolume = cfg.SUBVOLUME;
+                    } catch (e) {}
+                }
+            }
+        }
+
+        // Single-pass parser handles tens of thousands of changed paths quickly
         Process {
             id: statusProc
 
@@ -47,16 +66,47 @@ PageBase {
             command: ["snapper", "-c", root.config, "status", `${root.number}..0`]
             stdout: StdioCollector {
                 onStreamFinished: {
-                    root.changes = text.split("\n").map(l => l.match(/^([+\-ct])[.\w]{5,}\s+(\/.*)$/)).filter(m => m).map(m => ({
-                                kind: m[1],
-                                path: m[2]
-                            }));
+                    const out = [];
+                    const lines = text.split("\n");
+                    for (let i = 0; i < lines.length; i++) {
+                        const line = lines[i];
+                        if (line.length < 8)
+                            continue;
+                        const sp = line.indexOf(" ");
+                        if (sp <= 0)
+                            continue;
+                        const kind = line[0];
+                        if (kind !== "+" && kind !== "-" && kind !== "c" && kind !== "t")
+                            continue;
+                        let j = sp;
+                        while (j < line.length && line[j] === " ")
+                            j++;
+                        if (j >= line.length || line[j] !== "/")
+                            continue;
+                        const p = line.slice(j);
+                        out.push({
+                            kind,
+                            path: p,
+                            lower: p.toLowerCase()
+                        });
+                    }
+                    root.changes = out;
                     root.loading = false;
                 }
             }
             onExited: code => {
                 if (code !== 0)
                     root.loading = false;
+            }
+        }
+
+        Timer {
+            id: filterTimer
+
+            interval: 250
+            onTriggered: {
+                root.limit = 50;
+                root.filter = root.pendingFilter;
             }
         }
 
@@ -67,21 +117,48 @@ PageBase {
         RowButton {
             icon: "folder_open"
             text: Tr.tr("Look through its files")
-            subtext: Tr.tr("Opens the system as it was then (read-only)")
-            onClicked: Quickshell.execDetached(["xdg-open", `/.snapshots/${root.number}/snapshot`])
+            subtext: Tr.tr("Opens the snapshot as it was then (read-only)")
+            onClicked: {
+                const base = root.subvolume === "/" ? "" : root.subvolume.replace(/\/$/, "");
+                Quickshell.execDetached(["xdg-open", `${base}/.snapshots/${root.number}/snapshot`]);
+            }
         }
 
         SectionHeader {
             text: root.loading ? Tr.tr("What changed since then…") : Tr.tr("What changed since then (%1)").arg(root.changes.length)
         }
 
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: Tokens.padding.small
+            Layout.bottomMargin: Tokens.spacing.small
+            visible: root.loading
+            spacing: Tokens.spacing.small
+
+            LoadingIndicator {
+                implicitSize: Tokens.font.body.small.pointSize * 1.5
+            }
+
+            StyledText {
+                Layout.fillWidth: true
+                text: Tr.tr("Comparing snapshot #%1 with current files… (can take a few seconds)").arg(root.number)
+                color: Colours.palette.m3onSurfaceVariant
+                font: Tokens.font.body.small
+                wrapMode: Text.WordWrap
+            }
+        }
+
         StyledTextField {
             Layout.fillWidth: true
+            Layout.topMargin: Tokens.spacing.small
             Layout.bottomMargin: Tokens.spacing.small
             visible: root.changes.length > 8
             placeholderText: Tr.tr("Find a file or folder")
             leadingIcon: "search"
-            onTextChanged: root.filter = text
+            onTextChanged: {
+                root.pendingFilter = text;
+                filterTimer.restart();
+            }
         }
 
         StyledText {
@@ -107,47 +184,78 @@ PageBase {
             model: root.shown
 
             RowButton {
-                id: change
-
                 required property var modelData
                 readonly property string what: Tr.tr("Restore from the snapshot")
-                property bool confirm
 
                 icon: modelData.kind === "+" ? "add_circle" : modelData.kind === "-" ? "remove_circle" : "change_circle"
                 text: modelData.path
-                subtext: confirm ? (modelData.kind === "+" ? Tr.tr("Click again: it didn't exist then, so it is removed") : Tr.tr("Click again to put it back as it was")) : modelData.kind === "+" ? Tr.tr("Added since") : modelData.kind === "-" ? Tr.tr("Deleted since") : Tr.tr("Changed since")
+                subtext: modelData.kind === "+" ? Tr.tr("Added since · tap to delete") : modelData.kind === "-" ? Tr.tr("Deleted since · tap to restore") : Tr.tr("Changed since · tap to restore")
                 disabled: Admin.jobs.some(j => j.what === what)
                 onClicked: {
-                    if (!confirm) {
-                        confirm = true;
-                        confirmReset.restart();
-                        return;
-                    }
-                    confirm = false;
-                    Admin.run("snapper-restore", [root.config, String(root.number), modelData.path], what, ok => {
-                        if (ok) {
-                            root.restored = Tr.tr("Restored %1").arg(modelData.path);
-                            statusProc.running = true;
-                        }
-                    });
-                }
-
-                Timer {
-                    id: confirmReset
-
-                    interval: 4000
-                    onTriggered: change.confirm = false
+                    restoreDialog.pendingChange = modelData;
+                    restoreDialog.open = true;
                 }
             }
         }
 
-        StyledText {
-            Layout.fillWidth: true
-            Layout.leftMargin: Tokens.padding.small
-            visible: root.changes.length > root.shown.length
-            text: Tr.tr("Showing %1 of %2: find a file to narrow it down.").arg(root.shown.length).arg(root.filter ? root.changes.filter(c => c.path.toLowerCase().includes(root.filter.toLowerCase())).length : root.changes.length)
-            color: Colours.palette.m3outline
-            font: Tokens.font.label.small
+        RowButton {
+            visible: root.matching.length > root.shown.length
+            icon: "expand_more"
+            text: Tr.tr("Show %1 more").arg(Math.min(50, root.matching.length - root.shown.length))
+            subtext: Tr.tr("Showing %1 of %2 matching paths").arg(root.shown.length).arg(root.matching.length)
+            onClicked: root.limit += 50
+        }
+
+        DialogRowButton {
+            id: restoreDialog
+
+            readonly property string what: Tr.tr("Restore from the snapshot")
+            property var pendingChange: null
+            readonly property bool isAdd: pendingChange?.kind === "+"
+            readonly property bool isDel: pendingChange?.kind === "-"
+
+            visible: false
+            rootParent: root.flickable
+            openWidth: Math.min(root.flickable.width * 0.85, 480)
+            openHeight: Math.min(root.flickable.height * 0.9, 340)
+            icon: isAdd ? "delete_forever" : "restore"
+            label: ""
+            header: isAdd ? Tr.tr("Delete this file permanently?") : isDel ? Tr.tr("Restore deleted file?") : Tr.tr("Restore earlier version?")
+            acceptLabel: isAdd ? Tr.tr("Delete permanently") : Tr.tr("Restore")
+            content: Component {
+                ColumnLayout {
+                    spacing: Tokens.spacing.medium
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        Layout.topMargin: Tokens.spacing.medium
+                        text: restoreDialog.isAdd
+                            ? Tr.tr("%1 did not exist in snapshot #%2. Rolling this change back will permanently delete it from your system.").arg(restoreDialog.pendingChange?.path ?? "").arg(root.number)
+                            : restoreDialog.isDel
+                            ? Tr.tr("Bring back %1 as it was in snapshot #%2.").arg(restoreDialog.pendingChange?.path ?? "").arg(root.number)
+                            : Tr.tr("Replace %1 with its version from snapshot #%2. Any changes made to it since then will be lost.").arg(restoreDialog.pendingChange?.path ?? "").arg(root.number)
+                        color: restoreDialog.isAdd ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
+                        font: Tokens.font.body.small
+                        wrapMode: Text.Wrap
+                    }
+
+                    Item {
+                        Layout.fillHeight: true
+                    }
+                }
+            }
+            onAccepted: {
+                const c = pendingChange;
+                if (!c)
+                    return;
+                Admin.run("snapper-restore", [root.config, String(root.number), c.path], what, ok => {
+                    if (ok) {
+                        root.restored = c.kind === "+" ? Tr.tr("Deleted %1").arg(c.path) : Tr.tr("Restored %1").arg(c.path);
+                        root.loading = true;
+                        statusProc.running = true;
+                    }
+                });
+            }
         }
     }
 }

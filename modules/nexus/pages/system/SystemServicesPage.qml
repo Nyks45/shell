@@ -19,12 +19,13 @@ PageBase {
 
     property string tab: "system" // "system", "user", "timers"
     property string filter: "running" // "all", "running", "failed", "enabled"
+    property string pendingSearch
     property string search
     property var units: []
     property var timers: []
     property bool loading: true
-    // A short list first; "Show all" lifts it (back to short on another tab or filter)
-    property bool showAll
+    property int limit: 20
+    property string lastRawJson
 
     readonly property var matching: {
         const q = search.toLowerCase();
@@ -44,12 +45,13 @@ PageBase {
         });
         return list;
     }
-    readonly property var shown: showAll || search ? matching : matching.slice(0, 12)
+    readonly property var shown: matching.slice(0, limit)
 
-    function load(): void {
-        loading = true;
+    function load(quiet: bool): void {
+        if (!quiet)
+            loading = true;
         const helper = `${Paths.libdir}/caelestia-system`;
-        listProc.command = tab === "timers" ? [helper, "timers"] : [helper, "units", ...(tab === "user" ? ["--user"] : [])];
+        listProc.command = tab === "timers" ? [helper, "timers", "--all-scopes"] : [helper, "units", ...(tab === "user" ? ["--user"] : [])];
         listProc.running = true;
     }
 
@@ -68,8 +70,12 @@ PageBase {
 
     title: Tr.tr("System services")
 
-    Component.onCompleted: load()
-    onTabChanged: load()
+    Component.onCompleted: load(false)
+    onTabChanged: {
+        lastRawJson = "";
+        limit = 20;
+        load(false);
+    }
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -83,25 +89,28 @@ PageBase {
 
             stdout: StdioCollector {
                 onStreamFinished: {
+                    root.loading = false;
+                    if (text === root.lastRawJson)
+                        return;
                     try {
                         const data = JSON.parse(text);
+                        root.lastRawJson = text;
                         if (root.tab === "timers")
                             root.timers = data;
                         else
                             root.units = data;
                     } catch (e) {}
-                    root.loading = false;
                 }
             }
         }
 
         Timer {
-            // Keeps the states current while the page is open
+            // Keeps the states current quietly while the page is open (no flicker or churn)
             running: root.visible
-            interval: 5000
+            interval: 15000
             repeat: true
             onTriggered: if (!listProc.running)
-                root.load()
+                root.load(true)
         }
 
         Flow {
@@ -122,7 +131,7 @@ PageBase {
                     type: TextButton.Tonal
                     onClicked: {
                         root.tab = modelData[0];
-                        root.showAll = false;
+                        root.limit = 20;
                     }
                 }
             }
@@ -146,7 +155,7 @@ PageBase {
                     type: TextButton.Tonal
                     onClicked: {
                         root.filter = modelData[0];
-                        root.showAll = false;
+                        root.limit = 20;
                     }
                 }
             }
@@ -158,7 +167,20 @@ PageBase {
             Layout.bottomMargin: Tokens.spacing.small
             placeholderText: Tr.tr("Find a service")
             leadingIcon: "search"
-            onTextChanged: root.search = text
+            onTextChanged: {
+                root.pendingSearch = text;
+                searchDelay.restart();
+            }
+        }
+
+        Timer {
+            id: searchDelay
+
+            interval: 200
+            onTriggered: {
+                root.limit = 20;
+                root.search = root.pendingSearch;
+            }
         }
 
         StyledText {
@@ -180,9 +202,9 @@ PageBase {
 
                 icon: isTimer ? "schedule" : unitState === "failed" ? "error" : unitState === "active" ? (modelData.sub === "exited" ? "check_circle" : "play_circle") : "pause_circle"
                 text: (modelData.name ?? modelData.unit).replace(/\.(service|timer)$/, "")
-                subtext: isTimer ? [modelData.description, modelData.next ? Tr.tr("next %1").arg(root.when(modelData.next)) : Tr.tr("not scheduled"), modelData.last ? Tr.tr("last %1").arg(root.when(modelData.last)) : ""].filter(x => x).join(" · ") : [modelData.description, unitState === "active" ? (modelData.sub === "exited" ? Tr.tr("ran and finished") : Tr.tr("running")) : unitState === "failed" ? Tr.tr("failed") : Tr.tr("stopped"), modelData.enabled === "enabled" ? Tr.tr("starts at boot") : modelData.enabled === "masked" ? Tr.tr("blocked") : ""].filter(x => x).join(" · ")
+                subtext: isTimer ? [modelData.user ? Tr.tr("Yours") : "", modelData.description, modelData.next ? Tr.tr("next %1").arg(root.when(modelData.next)) : Tr.tr("not scheduled"), modelData.last ? Tr.tr("last %1").arg(root.when(modelData.last)) : ""].filter(x => x).join(" · ") : [modelData.description, unitState === "active" ? (modelData.sub === "exited" ? Tr.tr("ran and finished") : Tr.tr("running")) : unitState === "failed" ? Tr.tr("failed") : Tr.tr("stopped"), modelData.enabled === "enabled" ? Tr.tr("starts at boot") : modelData.enabled === "masked" ? Tr.tr("blocked") : ""].filter(x => x).join(" · ")
                 iconLabel.color: unitState === "failed" ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
-                onClicked: root.open(modelData.name ?? modelData.unit, root.tab === "user")
+                onClicked: root.open(modelData.name ?? modelData.unit, isTimer ? !!modelData.user : root.tab === "user")
             }
         }
 
@@ -190,8 +212,9 @@ PageBase {
             Layout.fillWidth: true
             visible: root.shown.length < root.matching.length
             icon: "expand_more"
-            text: Tr.tr("Show all %1").arg(root.matching.length)
-            onClicked: root.showAll = true
+            text: Tr.tr("Show %1 more").arg(Math.min(20, root.matching.length - root.shown.length))
+            subtext: Tr.tr("Showing %1 of %2").arg(root.shown.length).arg(root.matching.length)
+            onClicked: root.limit += 20
         }
     }
 }

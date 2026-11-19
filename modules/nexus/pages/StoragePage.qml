@@ -7,6 +7,7 @@ import Quickshell.Io
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
+import qs.components.controls
 import qs.services
 import qs.utils
 import qs.modules.nexus
@@ -20,10 +21,12 @@ import qs.modules.nexus.pages.disks
 PageBase {
     id: root
 
-    // Folder -> bytes
-    property var folders: ({})
-    property var sizes: ({})
-    property int orphans: -1
+    // Folder -> bytes (seeded from Disks cache so revisiting is instant)
+    property var folders: Object.assign({}, Disks.cachedFolders)
+    property var sizes: Object.assign({}, Disks.cachedSizes)
+    property int orphans: Disks.cachedOrphans
+    property var _scanFolders: ({})
+    property bool measuringFolders
     property bool trashConfirm
     property bool paruConfirm
 
@@ -40,11 +43,20 @@ PageBase {
     }
 
     function refresh(): void {
+        sizesProc.running = false;
         sizesProc.running = true;
+        _scanFolders = {};
+        measuringFolders = true;
+        foldersProc.running = false;
         foldersProc.running = true;
     }
 
     title: Tr.tr("Storage")
+
+    Component.onCompleted: {
+        if (!(Disks.cachedAt > 0 && (Date.now() - Disks.cachedAt) < 60000))
+            refresh();
+    }
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -56,7 +68,7 @@ PageBase {
         Process {
             id: sizesProc
 
-            running: true
+            running: false
             command: ["sh", "-c", `
 s() { v=$(du -sb "$1" 2>/dev/null | cut -f1); echo "\${v:-0}"; }
 echo "trash=$(s "\${XDG_DATA_HOME:-$HOME/.local/share}/Trash")"
@@ -84,39 +96,60 @@ echo "orphans=$(pacman -Qdtq 2>/dev/null | wc -l)"
                                     })[m[2]] : -1;
                         } else if (k === "orphans") {
                             root.orphans = parseInt(v);
+                            Disks.cachedOrphans = root.orphans;
                         } else {
                             sizes[k] = parseInt(v);
                         }
                     }
                     root.sizes = sizes;
+                    Disks.cachedSizes = sizes;
+                    Disks.cachedAt = Date.now();
                 }
             }
         }
 
-        // The big folders in home (du is slow on big trees: low priority, in the background)
+        // The big folders in home: light folders first, excluding Steam when
+        // scanning .local/share so Steam is never walked twice. Results stream in.
         Process {
             id: foldersProc
 
-            running: true
+            running: false
             command: ["sh", "-c", `
 cd "$HOME" || exit
-for d in Downloads Documents Pictures Videos Music Desktop .cache .local/share/Steam .local/share .var/app Games; do
-    [ -d "$d" ] && printf '%s\\t%s\\n' "$d" "$(nice -n 19 ionice -c3 du -sxb "$d" 2>/dev/null | cut -f1)"
+for d in Desktop Documents Pictures Videos Music Downloads Games .var/app .cache .local/share .local/share/Steam; do
+    if [ -d "$d" ]; then
+        if [ "$d" = ".local/share" ]; then
+            val=$(nice -n 19 ionice -c3 du -sxb --exclude=Steam "$d" 2>/dev/null | cut -f1)
+        else
+            val=$(nice -n 19 ionice -c3 du -sxb "$d" 2>/dev/null | cut -f1)
+        fi
+        printf '%s\\t%s\\n' "$d" "$val"
+    fi
 done
 `]
-            stdout: StdioCollector {
-                onStreamFinished: {
-                    const folders = {};
-                    for (const line of text.split("\n")) {
-                        const [name, size] = line.split("\t");
-                        if (name && size)
-                            folders[name] = parseInt(size);
-                    }
-                    // .local/share without Steam (listed apart)
-                    if (folders[".local/share"] && folders[".local/share/Steam"])
-                        folders[".local/share"] -= folders[".local/share/Steam"];
-                    root.folders = folders;
+            stdout: SplitParser {
+                splitMarker: "\n"
+                onRead: line => {
+                    const [name, size] = line.split("\t");
+                    if (!name || !size)
+                        return;
+                    const val = parseInt(size);
+                    if (isNaN(val))
+                        return;
+                    const scan = Object.assign({}, root._scanFolders);
+                    scan[name] = val;
+                    root._scanFolders = scan;
+                    const merged = Object.assign({}, root.folders, scan);
+                    root.folders = merged;
+                    Disks.cachedFolders = merged;
+                    Disks.cachedAt = Date.now();
                 }
+            }
+            onExited: {
+                root.measuringFolders = false;
+                root.folders = Object.assign({}, root._scanFolders);
+                Disks.cachedFolders = root.folders;
+                Disks.cachedAt = Date.now();
             }
         }
 
@@ -164,13 +197,22 @@ done
             text: Tr.tr("Home folder")
         }
 
-        StyledText {
+        RowLayout {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
-            visible: Object.keys(root.folders).length === 0
-            text: Tr.tr("Measuring folders…")
-            color: Colours.palette.m3outline
-            font: Tokens.font.body.small
+            visible: root.measuringFolders
+            spacing: Tokens.spacing.small
+
+            LoadingIndicator {
+                implicitSize: Tokens.font.body.small.pointSize * 1.4
+            }
+
+            StyledText {
+                Layout.fillWidth: true
+                text: Object.keys(root.folders).length === 0 ? Tr.tr("Measuring folders…") : Tr.tr("Measuring remaining folders…")
+                color: Colours.palette.m3outline
+                font: Tokens.font.body.small
+            }
         }
 
         Repeater {
@@ -244,7 +286,7 @@ done
 
             icon: "inventory_2"
             text: what
-            subtext: busy ? Tr.tr("Cleaning…") : Tr.tr("%1 of downloaded packages; keeps the latest of each").arg(root.human(root.sizes.pkg ?? 0))
+            subtext: busy ? Tr.tr("Cleaning…") : Tr.tr("%1 of downloaded packages; keeps the 3 newest versions of each").arg(root.human(root.sizes.pkg ?? 0))
             disabled: busy
             onClicked: Admin.run("clean-package-cache", [], what, () => root.refresh())
         }

@@ -80,6 +80,10 @@ Item {
             root.animateNextAttach = false;
             root.animOff = root.Tokens.padding.extraLarge * (root.nState.currentPageIdx > root.lastPageIdx ? 1 : -1);
             root.lastPageIdx = root.nState.currentPageIdx;
+            const firstSpec = PageCompRegistry.specs[root.nState.currentPageIdx]?.[0];
+            const relPath = Array.isArray(firstSpec) ? firstSpec[0] : firstSpec;
+            if (relPath)
+                PageCompRegistry.subComp(relPath);
             fadeOutAnim.start();
         }
 
@@ -93,7 +97,7 @@ Item {
             target: container
             property: "opacity"
             to: 0
-            type: Anim.DefaultEffects
+            type: Anim.FastEffects
         }
         ScriptAction {
             script: {

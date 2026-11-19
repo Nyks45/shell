@@ -22,8 +22,9 @@ PageBase {
     readonly property string hyprDir: `${Quickshell.env("XDG_CONFIG_HOME") || `${Quickshell.env("HOME")}/.config`}/hypr`
     readonly property string caelestiaDir: `${Quickshell.env("XDG_CONFIG_HOME") || `${Quickshell.env("HOME")}/.config`}/caelestia`
 
+    property string pendingQuery
     property string query
-    // [{ section, label, keys }]
+    // [{ section, label, kind, id, raw, rawList, changed, keys }]
     property var shortcuts: []
     readonly property var shown: shortcuts.filter(s => !query || `${s.label} ${s.keys}`.toLowerCase().includes(query.toLowerCase()))
     readonly property list<string> sections: [...new Set(shown.map(s => s.section))]
@@ -99,18 +100,103 @@ PageBase {
                 // Loop binds ("+ ARROWS") can't be moved one by one
                 const raw = bind[2] ? "" : bind[1];
                 const to = raw ? HyprSettings.saved.remap?.[raw] : undefined;
+                const activeRaw = to === undefined ? bind[1] : to;
                 out.push({
                     section,
                     label: cleanLabel(label),
                     kind: raw ? "bind" : "",
                     id: raw,
-                    raw: to === undefined ? bind[1] : to,
+                    raw: activeRaw,
+                    rawList: activeRaw ? [activeRaw] : [],
                     changed: to !== undefined,
                     keys: to === "" ? "" : prettyKeys(to ?? bind[1])
                 });
             }
         }
         return out;
+    }
+
+    function normKeys(k: string): string {
+        if (!k)
+            return "";
+        const stdMods = ["SUPER", "CTRL", "ALT", "SHIFT"];
+        const parts = k.split("+").map(p => p.trim().toUpperCase()).filter(p => p);
+        if (parts.length === 0)
+            return "";
+        const rawKey = parts.pop();
+        const key = rawKey.replace(/\s+/g, "_");
+        const mods = [];
+        for (const p of parts) {
+            const m = p === "CONTROL" ? "CTRL" : (p === "WIN" || p === "META" || p === "MOD4" || p === "SUPER_L" || p === "SUPER_R") ? "SUPER" : p === "MOD1" ? "ALT" : p;
+            if (!mods.includes(m))
+                mods.push(m);
+        }
+        mods.sort((a, b) => {
+            const ia = stdMods.indexOf(a);
+            const ib = stdMods.indexOf(b);
+            if (ia >= 0 && ib >= 0)
+                return ia - ib;
+            if (ia >= 0)
+                return -1;
+            if (ib >= 0)
+                return 1;
+            return a.localeCompare(b);
+        });
+        return [...mods, key].join("+");
+    }
+
+    function findConflicts(keys: string, exclude: var): var {
+        const norm = normKeys(keys);
+        if (!norm)
+            return [];
+        const out = [];
+        for (const s of shortcuts) {
+            if (exclude && exclude.kind && s.kind === exclude.kind && s.id === exclude.id)
+                continue;
+            const list = s.rawList ?? [];
+            if (list.some(k => normKeys(k) === norm))
+                out.push({
+                    kind: s.kind,
+                    id: s.id,
+                    label: s.label,
+                    section: s.section
+                });
+        }
+        for (let i = 0; i < customBinds.length; i++) {
+            if (exclude && exclude.customIndex === i)
+                continue;
+            const b = customBinds[i];
+            if (normKeys(b.key) === norm)
+                out.push({
+                    kind: "custom",
+                    id: String(i),
+                    customIndex: i,
+                    label: b.command,
+                    section: Tr.tr("Your own shortcuts")
+                });
+        }
+        return out;
+    }
+
+    function clearConflicts(conflicts: var): var {
+        const removedCustom = [];
+        for (const c of conflicts) {
+            if (c.kind === "bind")
+                HyprSettings.setBindRemap(c.id, "");
+            else if (c.kind === "var")
+                HyprSettings.setVar(c.id, "");
+            else if (c.kind === "custom")
+                removedCustom.push(c.customIndex);
+        }
+        return removedCustom;
+    }
+
+    function applySave(item: var, keys: string): void {
+        if (item.kind === "var")
+            HyprSettings.setVar(item.id, keys);
+        else
+            HyprSettings.setBindRemap(item.id, keys);
+        editing = "";
     }
 
     function rebuild(): void {
@@ -128,6 +214,7 @@ PageBase {
                     kind: v.length <= 1 && (v[0] ?? fromFiles[k]?.[0] ?? "").includes("+") || v.length === 0 ? "var" : "",
                     id: k,
                     raw: v[0] ?? "",
+                    rawList: v.filter(x => x && x.trim()),
                     changed: (HyprSettings.saved.vars ?? {})[k] !== undefined,
                     keys: v.map(prettyKeys).join(", ")
                 }));
@@ -139,11 +226,46 @@ PageBase {
     readonly property var customBinds: HyprSettings.saved.customBinds ?? []
 
     function save(item: var, keys: string): void {
-        if (item.kind === "var")
-            HyprSettings.setVar(item.id, keys);
-        else
-            HyprSettings.setBindRemap(item.id, keys);
-        editing = "";
+        if (keys) {
+            const conflicts = findConflicts(keys, {
+                kind: item.kind,
+                id: item.id
+            });
+            if (conflicts.length > 0) {
+                conflictDialog.pendingAction = {
+                    type: "item",
+                    item,
+                    keys,
+                    conflicts
+                };
+                conflictDialog.open = true;
+                return;
+            }
+        }
+        applySave(item, keys);
+    }
+
+    function saveCustom(keys: string, command: string): void {
+        const cmd = command.trim();
+        if (!keys || !cmd)
+            return;
+        const conflicts = findConflicts(keys, null);
+        if (conflicts.length > 0) {
+            conflictDialog.pendingAction = {
+                type: "custom",
+                keys,
+                command: cmd,
+                conflicts
+            };
+            conflictDialog.open = true;
+            return;
+        }
+        HyprSettings.setCustomBinds([...root.customBinds, {
+                key: keys,
+                command: cmd
+            }]);
+        commandField.text = "";
+        addKeys.clear();
     }
 
     function reset(item: var): void {
@@ -165,7 +287,17 @@ PageBase {
         TextFieldRow {
             label: Tr.tr("Search")
             placeholderText: Tr.tr("A key or an action")
-            onValueEdited: v => root.query = v
+            onValueEdited: v => {
+                root.pendingQuery = v;
+                queryDelay.restart();
+            }
+        }
+
+        Timer {
+            id: queryDelay
+
+            interval: 200
+            onTriggered: root.query = root.pendingQuery
         }
 
         Repeater {
@@ -282,15 +414,63 @@ PageBase {
                     Layout.fillWidth: true
                     acceptText: Tr.trCtx("Add", "add a shortcut")
                     acceptEnabled: commandField.text.trim().length > 0
-                    onAccepted: keys => {
-                        HyprSettings.setCustomBinds([...root.customBinds, {
-                                key: keys,
-                                command: commandField.text.trim()
-                            }]);
-                        commandField.text = "";
-                        addKeys.clear();
+                    conflicts: root.findConflicts(keys, null)
+                    onAccepted: keys => root.saveCustom(keys, commandField.text)
+                }
+            }
+        }
+
+        DialogRowButton {
+            id: conflictDialog
+
+            property var pendingAction: null
+
+            visible: false
+            rootParent: root.flickable
+            openHeight: Math.min(root.flickable.height * 0.9, 360)
+            icon: "warning"
+            label: ""
+            header: Tr.tr("Replace existing shortcut?")
+            acceptLabel: Tr.tr("Replace")
+            content: Component {
+                ColumnLayout {
+                    spacing: Tokens.spacing.medium
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        Layout.topMargin: Tokens.spacing.medium
+                        readonly property string listText: (conflictDialog.pendingAction?.conflicts ?? []).map(c => `${c.label} (${c.section})`).join("\n• ")
+                        readonly property bool hasNonEditable: (conflictDialog.pendingAction?.conflicts ?? []).some(c => !c.kind)
+                        text: Tr.tr("%1 is already used by:\n• %2\n\nReplacing turns off the previous shortcut.").arg(root.prettyKeys(conflictDialog.pendingAction?.keys ?? "")).arg(listText) + (hasNonEditable ? "\n\n" + Tr.tr("Note: loop shortcuts can't be turned off automatically.") : "")
+                        color: Colours.palette.m3onSurfaceVariant
+                        font: Tokens.font.body.small
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Item {
+                        Layout.fillHeight: true
                     }
                 }
+            }
+            onAccepted: {
+                const act = pendingAction;
+                if (!act)
+                    return;
+                const removedIdx = root.clearConflicts(act.conflicts);
+                const keptCustom = root.customBinds.filter((_, idx) => !removedIdx.includes(idx));
+                if (act.type === "custom") {
+                    HyprSettings.setCustomBinds([...keptCustom, {
+                            key: act.keys,
+                            command: act.command
+                        }]);
+                    commandField.text = "";
+                    addKeys.clear();
+                } else {
+                    if (removedIdx.length > 0)
+                        HyprSettings.setCustomBinds(keptCustom);
+                    root.applySave(act.item, act.keys);
+                }
+                pendingAction = null;
             }
         }
 
@@ -379,6 +559,7 @@ PageBase {
         property bool cancellable
         property bool canTurnOff
         property bool canReset
+        property var conflicts: []
         readonly property list<string> mods: ["SUPER", "CTRL", "ALT", "SHIFT"]
         property var held: ({})
         readonly property string keys: {
@@ -461,6 +642,26 @@ PageBase {
                     if (editor.keys && editor.acceptEnabled)
                         editor.accepted(editor.keys);
                 }
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            visible: editor.conflicts.length > 0
+            spacing: Tokens.spacing.small
+
+            MaterialIcon {
+                text: "warning"
+                color: Colours.palette.m3error
+                fontStyle: Tokens.font.icon.small
+            }
+
+            StyledText {
+                Layout.fillWidth: true
+                text: Tr.tr("Already used by %1").arg(editor.conflicts.map(c => c.label).join(", "))
+                color: Colours.palette.m3error
+                font: Tokens.font.label.small
+                wrapMode: Text.WordWrap
             }
         }
 
@@ -593,6 +794,10 @@ PageBase {
                     cancellable: true
                     canTurnOff: srow.item.kind === "bind"
                     canReset: srow.item.changed
+                    conflicts: root.findConflicts(keys, {
+                        kind: srow.item.kind,
+                        id: srow.item.id
+                    })
                     onAccepted: keys => root.save(srow.item, keys)
                     onCancelled: root.editing = ""
                     onTurnedOff: root.save(srow.item, "")

@@ -23,6 +23,8 @@ starting/stopping services is plain systemctl (polkit too); group
 memberships go through the root helper (caelestia-admin group-member).
 """
 
+import concurrent.futures as cf
+import ctypes
 import glob
 import grp
 import json
@@ -49,8 +51,13 @@ def scope(args):
 
 def c_units(args):
     s = scope(args)
-    units = {u["unit"]: u for u in json.loads(sh("systemctl", *s, "list-units", "--type=service", "--all", "-o", "json") or "[]")}
-    files = {f["unit_file"]: f["state"] for f in json.loads(sh("systemctl", *s, "list-unit-files", "--type=service", "-o", "json") or "[]")}
+    with cf.ThreadPoolExecutor(2) as ex:
+        f_u = ex.submit(sh, "systemctl", *s, "list-units", "--type=service", "--all", "-o", "json")
+        f_f = ex.submit(sh, "systemctl", *s, "list-unit-files", "--type=service", "-o", "json")
+        units_raw = f_u.result()
+        files_raw = f_f.result()
+    units = {u["unit"]: u for u in json.loads(units_raw or "[]")}
+    files = {f["unit_file"]: f["state"] for f in json.loads(files_raw or "[]")}
     out = []
     for name in sorted(set(units) | set(files)):
         if name.endswith("@.service") and name not in units:
@@ -91,17 +98,41 @@ def c_unit(args):
     print(json.dumps(out))
 
 
-def c_timers(args):
-    s = scope(args)
-    timers = json.loads(sh("systemctl", *s, "list-timers", "--all", "-o", "json") or "[]")
-    files = {f["unit_file"]: f["state"] for f in json.loads(sh("systemctl", *s, "list-unit-files", "--type=timer", "-o", "json") or "[]")}
-    units = {u["unit"]: u.get("description", "") for u in json.loads(sh("systemctl", *s, "list-units", "--type=timer", "--all", "-o", "json") or "[]")}
+def fetch_timers(s):
+    with cf.ThreadPoolExecutor(3) as ex:
+        f_t = ex.submit(sh, "systemctl", *s, "list-timers", "--all", "-o", "json")
+        f_f = ex.submit(sh, "systemctl", *s, "list-unit-files", "--type=timer", "-o", "json")
+        f_u = ex.submit(sh, "systemctl", *s, "list-units", "--type=timer", "--all", "-o", "json")
+        timers = json.loads(f_t.result() or "[]")
+        files = {f["unit_file"]: f["state"] for f in json.loads(f_f.result() or "[]")}
+        units = {u["unit"]: u.get("description", "") for u in json.loads(f_u.result() or "[]")}
+    missing = [t["unit"] for t in timers if units.get(t["unit"]) is None]
+    if missing:
+        cur_id, cur_desc = "", ""
+        for line in sh("systemctl", *s, "show", *missing, "--property=Id,Description").splitlines():
+            if line.startswith("Id="):
+                cur_id = line[3:].strip()
+            elif line.startswith("Description="):
+                cur_desc = line[12:].strip()
+                if cur_id:
+                    units[cur_id] = cur_desc
+    is_user = bool(s)
     for t in timers:
         t["enabled"] = files.get(t["unit"], "")
-        desc = units.get(t["unit"])
-        if desc is None:
-            desc = sh("systemctl", *s, "show", t["unit"], "-p", "Description", "--value").strip()
-        t["description"] = desc
+        t["description"] = units.get(t["unit"], "")
+        t["user"] = is_user
+    return timers
+
+
+def c_timers(args):
+    if "--all-scopes" in args:
+        with cf.ThreadPoolExecutor(2) as ex:
+            fs = ex.submit(fetch_timers, [])
+            fu = ex.submit(fetch_timers, ["--user"])
+            timers = fs.result() + fu.result()
+        timers.sort(key=lambda t: (t.get("next") or 0, t.get("unit") or ""))
+    else:
+        timers = fetch_timers(scope(args))
     print(json.dumps(timers))
 
 
@@ -215,11 +246,34 @@ def user_path(name):
 NAME = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
 
 
-def hashed(password):
-    if not password or "\n" in password:
+def hash_yescrypt(password):
+    """Hash a password using libcrypt yescrypt (matching /etc/login.defs)."""
+    if not password or "\n" in password or "\r" in password or "\x00" in password:
         sys.exit("no password given")
+    try:
+        lib = ctypes.CDLL("libcrypt.so.2")
+        lib.crypt_gensalt_rn.argtypes = [ctypes.c_char_p, ctypes.c_ulong, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
+        lib.crypt_gensalt_rn.restype = ctypes.c_char_p
+        lib.crypt_r.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_void_p]
+        lib.crypt_r.restype = ctypes.c_char_p
+        salt = ctypes.create_string_buffer(256)
+        if not lib.crypt_gensalt_rn(b"$y$", 0, None, 0, salt, 256):
+            raise OSError("crypt_gensalt_rn failed")
+        data = ctypes.create_string_buffer(65536)
+        out = lib.crypt_r(password.encode("utf-8"), salt.value, data)
+        if not out:
+            raise OSError("crypt_r failed")
+        h = out.decode("ascii")
+        if h.startswith("$y$"):
+            return h
+    except OSError:
+        pass
     return subprocess.run(["openssl", "passwd", "-6", "-stdin"], input=password + "\n", text=True,
                           stdout=subprocess.PIPE, check=True).stdout.strip()
+
+
+def hashed(password):
+    return hash_yescrypt(password)
 
 
 def c_user_add(args):
@@ -364,8 +418,16 @@ def c_boot(args):
         name = TOOL_ICONS.get(t, "")
         icon = esp_path(f"{icons_dir}/{name}.png") or esp_path(f"icons/{name}.png") if name else ""
         tools.append({"tool": t, "iconFile": icon})
-    main = next((e for e in entries if e["name"] == "CachyOS"), None)
+    main = (
+        next((e for e in entries if e["name"] == "CachyOS" and "vmlinuz" in (e.get("loader") or "")), None)
+        or next((e for e in entries if "vmlinuz" in (e.get("loader") or "")), None)
+        or next((e for e in entries if "root=" in (e.get("options") or "")), None)
+    )
+    prev_conf = conf + ".caelestia-prev"
     out = {"exported": True, "setup": setup, "exportedAt": int(os.path.getmtime(conf)),
+           "linuxEntry": (main or {}).get("name", ""),
+           "hasBackup": os.path.exists(prev_conf),
+           "backupAt": int(os.path.getmtime(prev_conf)) if os.path.exists(prev_conf) else 0,
            "timeout": int(state.get("timeout", "20") or 20), "defaultSelection": state.get("default_selection", "").strip('"'),
            "flavour": flavour, "banner": esp_path(state.get("banner", "")) if state.get("banner") else "",
            "bannerScale": state.get("banner_scale", "noscale"), "selectionBig": esp_path(state.get("selection_big", "")) if state.get("selection_big") else "",
@@ -404,18 +466,27 @@ def pacman_q(name):
 
 def c_kernels(args):
     running_rel = os.uname().release
+    with cf.ThreadPoolExecutor(2) as ex:
+        fq = ex.submit(lambda: subprocess.run(["pacman", "-Q"], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout)
+        fl = ex.submit(lambda: subprocess.run(["pacman", "-Sl"], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout)
+        q_out = fq.result()
+        l_out = fl.result()
+    q_vers = {}
+    for line in q_out.splitlines():
+        parts = line.split(None, 1)
+        if len(parts) == 2:
+            q_vers[parts[0]] = parts[1]
     installed = []
     for d in sorted(glob.glob("/usr/lib/modules/*/pkgbase")):
         base = open(d).read().strip()
         rel = d.split("/")[4]
-        installed.append({"name": base, "version": pacman_q(base), "release": rel, "running": rel == running_rel,
-                          "headers": bool(pacman_q(base + "-headers")),
-                          "nvidia": pacman_q(base + "-nvidia-open") and base + "-nvidia-open" or pacman_q(base + "-nvidia") and base + "-nvidia" or ""})
+        nv = (base + "-nvidia-open") if q_vers.get(base + "-nvidia-open") else (base + "-nvidia") if q_vers.get(base + "-nvidia") else ""
+        installed.append({"name": base, "version": q_vers.get(base, ""), "release": rel, "running": rel == running_rel,
+                          "headers": bool(q_vers.get(base + "-headers")), "nvidia": nv})
     names = {k["name"] for k in installed}
     avail = []
-    listing = subprocess.run(["pacman", "-Sl"], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.split("\n")
     pkgs = {}
-    for line in listing:
+    for line in l_out.split("\n"):
         f = line.split()
         if len(f) >= 3:
             pkgs.setdefault(f[1], (f[0], f[2]))

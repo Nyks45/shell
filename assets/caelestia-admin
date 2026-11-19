@@ -97,14 +97,37 @@ def act_install(args):
 
 
 def act_upgrade(args):
-    """upgrade [--ignore PKG...]: every repository package (pacman -Syu), but
-    the ones named after --ignore (pacman's own way to keep some back)."""
+    """upgrade [--ignore PKG...]: every repository package (pacman -Syu), taking
+    a pre/post snapper snapshot around the transaction when snapper is configured
+    and snap-pac isn't already creating hooks."""
     ignore = []
     if args:
         if args[0] != "--ignore":
             raise Refused("usage: upgrade [--ignore PKG...]")
         ignore = check_pkgs(args[1:])
-    run("pacman", "-Syu", "--noconfirm", *(["--ignore", ",".join(ignore)] if ignore else []))
+    need_snap = (
+        os.path.exists("/usr/bin/snapper")
+        and os.path.exists("/etc/snapper/configs/root")
+        and not os.path.exists("/usr/share/libalpm/hooks/05-snap-pac-pre.hook")
+    )
+    pre_num = None
+    if need_snap:
+        pre_out = run("snapper", "-c", "root", "create", "--type", "pre", "--cleanup-algorithm", "number",
+                      "--print-number", "--description", "Before system update (Settings)", check=False)
+        last = (pre_out or "").strip().splitlines()[-1:] if (pre_out or "").strip() else []
+        if DRY:
+            pre_num = "0"
+        elif last and last[0].isdigit():
+            pre_num = last[0]
+    succeeded = False
+    try:
+        run("pacman", "-Syu", "--noconfirm", *(["--ignore", ",".join(ignore)] if ignore else []))
+        succeeded = True
+    finally:
+        if pre_num is not None:
+            desc = "After system update (Settings)" if succeeded else "System update stopped (Settings)"
+            run("snapper", "-c", "root", "create", "--type", "post", "--pre-number", pre_num,
+                "--cleanup-algorithm", "number", "--description", desc, check=False)
 
 
 # Never removed from the settings (they'd leave the system unbootable or
@@ -262,11 +285,11 @@ def act_remove_orphans(args):
 
 
 def act_clean_package_cache(args):
-    """clean-package-cache: old package files, keeping the newest of each."""
+    """clean-package-cache: old package files, keeping the 3 newest of each."""
     need(args, 0, "clean-package-cache")
     if not os.path.exists("/usr/bin/paccache"):
         run("pacman", "-S", "--needed", "--noconfirm", "pacman-contrib")
-    run("paccache", "-rk1")
+    run("paccache", "-rk3")
     run("paccache", "-ruk0")
 
 
@@ -293,9 +316,18 @@ def act_join_group(args):
 
 
 def act_snapper_setup(args):
-    """snapper-setup: the root config for the system drive (btrfs)."""
-    need(args, 0, "snapper-setup")
-    run("snapper", "-c", "root", "create-config", "/")
+    """snapper-setup [root|home]: snapper config for / (root) or /home (btrfs)."""
+    if len(args) > 1:
+        raise Refused("usage: snapper-setup [root|home]")
+    target = args[0] if args else "root"
+    if target == "root":
+        run("snapper", "-c", "root", "create-config", "/")
+    elif target == "home":
+        btrfs_mount("/home")
+        run("snapper", "-c", "home", "create-config", "/home")
+        run("snapper", "-c", "home", "set-config", f"ALLOW_USERS={caller()}", "SYNC_ACL=yes")
+    else:
+        raise Refused("usage: snapper-setup [root|home]")
 
 
 def act_snapper_allow_me(args):
@@ -397,7 +429,7 @@ def act_btrfs_subvolume_delete(args):
         if fs == "btrfs" and any(o == f"subvol=/{rel}" or o == f"subvol={rel}" for o in opts.split(",")):
             raise Refused(f"{rel} is mounted at {m}")
     if rel.split("/")[-1] in (".snapshots", "@snapshots") or "/.snapshots/" in f"/{rel}/":
-        raise Refused("snapshots are managed on the Backups page")
+        raise Refused("snapshots are managed on the Snapshots tab")
     if "/.refind-btrfs/" in f"/{rel}/":
         raise Refused("rEFInd's boot snapshots are managed by refind-btrfs")
     full = subvolume_target(mp, rel)
@@ -595,6 +627,15 @@ def boot_export():
             with open(src, "rb") as a, open(dst, "wb") as b:
                 b.write(a.read())
             os.chmod(dst, 0o644)
+    prev_conf = REFIND_CONF + ".caelestia-prev"
+    if os.path.isfile(prev_conf):
+        dst_prev = os.path.join(tmp, os.path.relpath(prev_conf, "/boot"))
+        os.makedirs(os.path.dirname(dst_prev), mode=0o755, exist_ok=True)
+        with open(prev_conf, "rb") as a, open(dst_prev, "wb") as b:
+            b.write(a.read())
+        os.chmod(dst_prev, 0o644)
+        st = os.stat(prev_conf)
+        os.utime(dst_prev, (st.st_atime, st.st_mtime))
     for dirpath, dirs, files in os.walk(tmp):
         os.chmod(dirpath, 0o755)
     os.makedirs(os.path.dirname(BOOT_EXPORT), mode=0o755, exist_ok=True)
@@ -715,32 +756,89 @@ def act_boot_background(args):
 OPTION = re.compile(r"^[A-Za-z0-9_.,=:/@+-]+$")
 
 
-def act_boot_options(args):
-    """boot-options OPTION...: the Linux command line of the main CachyOS
-    entry (root=, rw and rootflags= must stay)."""
-    for o in args:
+def find_linux_entry(lines):
+    """(name, start, end) of the active Linux menuentry (prefers CachyOS with a kernel,
+    then any active entry loading vmlinuz, then any active entry with root= options)."""
+    candidates = []
+    i = 0
+    while i < len(lines):
+        m = re.match(r'^\s*menuentry\s+"?([^"{]+?)"?\s*\{\s*$', lines[i])
+        if not m:
+            i += 1
+            continue
+        name = m.group(1).strip()
+        blk = entry_block(lines, name)
+        if not blk:
+            i += 1
+            continue
+        a, b = blk
+        disabled = False
+        hidden_by_settings = False
+        has_vmlinuz = False
+        has_root_opts = False
+        depth = 0
+        for k in range(a, b + 1):
+            raw = lines[k].strip()
+            if raw == HIDDEN_MARK.strip():
+                hidden_by_settings = True
+            bare = "" if raw.startswith("#") else raw
+            if depth == 1:
+                if bare == "disabled":
+                    disabled = True
+                elif re.match(r"^loader\s+.*vmlinuz", bare):
+                    has_vmlinuz = True
+                elif re.match(r'^options\s+.*\broot=', bare):
+                    has_root_opts = True
+            depth += bare.endswith("{") - (bare == "}")
+        if not disabled or hidden_by_settings:
+            candidates.append((name, a, b, has_vmlinuz, has_root_opts))
+        i = b + 1
+    for name, a, b, has_v, _ in candidates:
+        if name == "CachyOS" and has_v:
+            return name, a, b
+    for name, a, b, has_v, _ in candidates:
+        if has_v:
+            return name, a, b
+    for name, a, b, _, has_r in candidates:
+        if has_r:
+            return name, a, b
+    return None
+
+
+def validate_linux_options(opts, cur_options_line):
+    for o in opts:
         if not OPTION.match(o):
             raise Refused(f"not allowed in an option: {o!r}")
-    if not any(o.startswith("root=") for o in args) or "rw" not in args:
-        raise Refused("root= and rw must stay")
+    has_rootflags = bool(re.search(r"\brootflags=", cur_options_line or ""))
+    if not any(o.startswith("root=") for o in opts) or "rw" not in opts or (
+        has_rootflags and not any(o.startswith("rootflags=") for o in opts)
+    ):
+        raise Refused("root=, rw and rootflags= must stay")
+
+
+def act_boot_options(args):
+    """boot-options OPTION...: the Linux command line of the main Linux
+    entry (root=, rw and rootflags= must stay)."""
     lines = refind_lines()
-    entry = next((i for i, l in enumerate(lines) if re.match(r'^\s*menuentry\s+"CachyOS"', l)), None)
-    if entry is None:
-        raise Refused("no CachyOS entry in refind.conf")
-    for i in range(entry + 1, len(lines)):
+    found = find_linux_entry(lines)
+    if found is None:
+        raise Refused("no active Linux entry in refind.conf")
+    name, entry, end = found
+    for i in range(entry + 1, end):
         bare = lines[i].strip()
-        if bare.startswith("submenuentry") or bare == "}":
+        if bare.startswith(("submenuentry", "#")):
             break
         if bare.startswith("options"):
+            validate_linux_options(args, bare)
             lines[i] = '    options  "' + " ".join(args) + '"'
             refind_write(lines)
             return
-    raise Refused("no options line in the CachyOS entry")
+    raise Refused(f"no options line in the {name} entry")
 
 
 def act_boot_kernels(args):
     """boot-kernels: every installed kernel besides the main one as a submenu
-    of the CachyOS entry (rEFInd only shows the entries written in it)."""
+    of the main Linux entry (rEFInd only shows the entries written in it)."""
     lines = refind_lines()
     # drop the old block
     out, skip = [], False
@@ -754,22 +852,23 @@ def act_boot_kernels(args):
         if not skip:
             out.append(l)
     lines = out
-    entry = next((i for i, l in enumerate(lines) if re.match(r'^\s*menuentry\s+"CachyOS"', l)), None)
-    if entry is None:
-        raise Refused("no CachyOS entry in refind.conf")
+    found = find_linux_entry(lines)
+    if found is None:
+        raise Refused("no active Linux entry in refind.conf")
+    name, entry, end = found
     main = None
     at = None
-    for i in range(entry + 1, len(lines)):
+    for i in range(entry + 1, end):
         bare = lines[i].strip()
         m = re.match(r"^loader\s+/?vmlinuz-(\S+)", bare)
         if m:
             main = m.group(1)
         if bare.startswith("options"):
             at = i + 1
-        if bare.startswith(("submenuentry", "#")) or bare == "}":
+        if bare.startswith(("submenuentry", "#")):
             break
     if at is None:
-        raise Refused("no options line in the CachyOS entry")
+        raise Refused(f"no options line in the {name} entry")
     kernels = sorted(f[len("vmlinuz-"):] for f in os.listdir("/boot") if f.startswith("vmlinuz-"))
     block = []
     for k in kernels:
@@ -780,6 +879,17 @@ def act_boot_kernels(args):
         lines[at:at] = [KERN_BEGIN, *block, KERN_END]
     print("Kernels in the boot menu: " + ", ".join([main or "?"] + [k for k in kernels if k != main]), flush=True)
     refind_write(lines)
+
+
+def act_boot_restore(args):
+    """boot-restore: restore refind.conf from the previous backup kept by boot edits."""
+    need(args, 0, "boot-restore")
+    prev = REFIND_CONF + ".caelestia-prev"
+    if not os.path.isfile(prev):
+        raise Refused("no previous boot menu backup found")
+    prev_lines = open(prev).read().split("\n")
+    refind_write(prev_lines)
+    print("Restored the previous boot menu", flush=True)
 
 
 
@@ -960,19 +1070,21 @@ def act_boot_apply(args):
         lines[at:at] = new
     if d.get("options"):
         opts = d["options"]
-        if not all(OPTION.match(o) for o in opts) or not any(o.startswith("root=") for o in opts) or "rw" not in opts:
-            raise Refused("options: root= and rw must stay; letters, numbers and = , . : / @ + - only")
-        name = renames.get("CachyOS", "CachyOS")
-        blk = entry_block(lines, name)
-        if blk:
-            i, j = blk
+        found = find_linux_entry(lines)
+        if found:
+            _, i, j = found
             for k in range(i + 1, j):
                 bare = lines[k].strip()
                 if bare.startswith(("submenuentry", "#")):
                     break
                 if bare.startswith("options"):
+                    validate_linux_options(opts, bare)
                     lines[k] = '    options  "' + " ".join(opts) + '"'
                     break
+            else:
+                validate_linux_options(opts, "")
+        else:
+            validate_linux_options(opts, "")
     refind_write(lines)
 
 
@@ -1207,6 +1319,7 @@ ACTIONS = {
     "boot-background": act_boot_background,
     "boot-options": act_boot_options,
     "boot-kernels": act_boot_kernels,
+    "boot-restore": act_boot_restore,
     "efi-bootnext": act_efi_bootnext,
     "kernel-install": act_kernel_install,
     "kernel-remove": act_kernel_remove,

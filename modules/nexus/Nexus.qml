@@ -6,6 +6,7 @@ import Caelestia.Config
 import qs.components
 import qs.components.controls
 import qs.services
+import qs.modules.bluetooth
 import qs.modules.nexus
 import qs.modules.polkit
 
@@ -27,12 +28,15 @@ Item {
     // they close. A settings window shows the password prompt itself.
     Component.onCompleted: {
         LiveWallpaper.settingsOpened();
-        if (nState.isWindow)
+        if (nState.isWindow) {
             Polkit.addHost(root);
+            BluetoothAgent.addHost(root);
+        }
     }
     Component.onDestruction: {
         LiveWallpaper.settingsClosed();
         Polkit.removeHost(root);
+        BluetoothAgent.removeHost(root);
     }
 
     implicitWidth: Math.round(implicitHeight * Tokens.sizes.nexus.ratio)
@@ -175,6 +179,53 @@ Item {
                 Component.onCompleted: {
                     scale = 1;
                     focusField();
+                }
+
+                Behavior on scale {
+                    Anim {
+                        type: Anim.DefaultSpatial
+                    }
+                }
+            }
+        }
+    }
+
+    // Bluetooth pairing prompt, when focused inside this settings window
+    Item {
+        id: btAgentHost
+
+        readonly property bool shown: BluetoothAgent.active && BluetoothAgent.decided && BluetoothAgent.host === root
+
+        anchors.fill: parent
+        z: 11
+        visible: opacity > 0
+        opacity: shown ? 1 : 0
+
+        Behavior on opacity {
+            Anim {}
+        }
+
+        StyledRect {
+            anchors.fill: parent
+            radius: root.nState.isWindow ? 0 : Tokens.rounding.large
+            color: Qt.alpha(Colours.palette.m3scrim, 0.32)
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            enabled: btAgentHost.shown
+            hoverEnabled: enabled
+            onWheel: event => event.accepted = true
+        }
+
+        Loader {
+            anchors.centerIn: parent
+            active: btAgentHost.shown
+            sourceComponent: BluetoothAgentCard {
+                scale: 0.92
+                Component.onCompleted: {
+                    scale = 1;
+                    forceActiveFocus();
                 }
 
                 Behavior on scale {

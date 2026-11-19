@@ -29,8 +29,10 @@ PageBase {
 
         ToggleRow {
             text: Tr.tr("Bluetooth")
+            subtext: !root.adapter ? Tr.tr("No Bluetooth adapter found") : ""
             font: Tokens.font.body.medium
             horizontalPadding: Tokens.padding.largeIncreased
+            disabled: !root.adapter
             checked: root.btEnabled
             onToggled: {
                 if (root.adapter)
@@ -43,7 +45,7 @@ PageBase {
 
             showList: root.btEnabled
             placeholderIcon: root.btEnabled ? "devices_other" : "bluetooth_disabled"
-            placeholderText: root.btEnabled ? Tr.tr("No saved devices") : Tr.tr("Bluetooth disabled")
+            placeholderText: !root.adapter ? Tr.tr("No Bluetooth adapter found") : root.btEnabled ? Tr.tr("No saved devices") : Tr.tr("Bluetooth disabled")
 
             model: ScriptModel {
                 values: Bluetooth.devices.values.filter(d => d.bonded).sort((a, b) => (b.connected - a.connected) || a.name.localeCompare(b.name))

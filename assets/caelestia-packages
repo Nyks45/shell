@@ -13,6 +13,7 @@
     caelestia-packages versions NAME            older versions in the package cache (downgrade)
     caelestia-packages holds                    packages kept back from updates (IgnorePkg)
     caelestia-packages restart                  whether a restart is needed (kernel / driver updated)
+    caelestia-packages pkgbuild NAME            AUR metadata + PKGBUILD recipe text for review
 """
 
 import concurrent.futures as cf
@@ -25,6 +26,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import urllib.parse
 import urllib.request
 import gzip
@@ -48,6 +50,18 @@ def sh(*cmd, timeout=60):
                               env=ENV, timeout=timeout).stdout
     except (OSError, subprocess.TimeoutExpired):
         return ""
+
+
+def sh_checked(*cmd, ok_codes=(0,), timeout=120):
+    try:
+        proc = subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              env=ENV, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        raise RuntimeError(str(e))
+    if proc.returncode not in ok_codes:
+        err = (proc.stderr or proc.stdout or f"exit {proc.returncode}").strip().splitlines()
+        raise RuntimeError(err[-1] if err else f"exit {proc.returncode}")
+    return proc.stdout
 
 
 def fetch(url, timeout=10):
@@ -409,23 +423,59 @@ POPULAR = [
 ]
 
 
+POPULAR_CACHE = os.path.expanduser("~/.cache/caelestia/popular-meta.json")
+POPULAR_TTL = 21600  # 6 hours
+
+
 def c_popular(args):
     fl = flatpak_installed()
     aur_names = [n for _, _, items in POPULAR for s, n in items if s == "aur"]
-    try:
-        aur = aur_info(aur_names)
-    except Exception:
-        aur = {}
-    # Flathub names/descriptions, asked in parallel (each is a flatpak call)
-    def remote_info(name):
-        for line in [l for l in sh("flatpak", "remote-info", "--cached", "flathub", name, timeout=10).splitlines() if l.strip()][:1]:
-            if " - " in line:
-                n, d = (x.strip() for x in line.split(" - ", 1))
-                return name, {"name": n, "desc": d}
-        return name, {}
     fl_names = [n for _, _, items in POPULAR for s, n in items if s == "flatpak"]
-    with cf.ThreadPoolExecutor(8) as ex:
-        fl_info = dict(ex.map(remote_info, fl_names))
+
+    aur, fl_info = {}, {}
+    now = time.time()
+    cache_ok = False
+    try:
+        cached = json.load(open(POPULAR_CACHE))
+        if (now - cached.get("ts", 0) < POPULAR_TTL
+                and cached.get("aurNames") == aur_names
+                and cached.get("flNames") == fl_names):
+            aur = cached.get("aur") or {}
+            fl_info = cached.get("flInfo") or {}
+            cache_ok = bool(aur or fl_info)
+    except (OSError, ValueError):
+        pass
+
+    if not cache_ok:
+        def fetch_aur():
+            try:
+                return aur_info(aur_names), True
+            except Exception:
+                return {}, False
+
+        def remote_info(name):
+            for line in [l for l in sh("flatpak", "remote-info", "--cached", "flathub", name, timeout=10).splitlines() if l.strip()][:1]:
+                if " - " in line:
+                    n, d = (x.strip() for x in line.split(" - ", 1))
+                    return name, {"name": n, "desc": d}
+            return name, {}
+
+        with cf.ThreadPoolExecutor(10) as ex:
+            aur_fut = ex.submit(fetch_aur)
+            fl_futs = {name: ex.submit(remote_info, name) for name in fl_names}
+            aur, aur_ok = aur_fut.result()
+            fl_info = dict(f.result() for f in fl_futs.values())
+
+        if aur_ok and any(fl_info.values()):
+            try:
+                os.makedirs(os.path.dirname(POPULAR_CACHE), exist_ok=True)
+                tmp = POPULAR_CACHE + ".tmp"
+                with open(tmp, "w") as f:
+                    json.dump({"ts": now, "aurNames": aur_names, "flNames": fl_names,
+                               "aur": aur, "flInfo": fl_info}, f)
+                os.replace(tmp, POPULAR_CACHE)
+            except OSError:
+                pass
     cats = []
     for title, icon, items in POPULAR:
         entries = []
@@ -435,6 +485,10 @@ def c_popular(args):
                 if p:
                     entries.append(repo_item(p))
             elif source == "aur":
+                sp = sync_pkg(name)
+                if sp:
+                    entries.append(repo_item(sp))
+                    continue
                 r = aur.get(name)
                 lp = local().get_pkg(name)
                 if r:
@@ -515,17 +569,34 @@ def c_updates(args):
               "held": pacman_conf()[0].get("IgnorePkg", "").split()}
 
     def repo():
-        ups = parse_updates(sh("checkupdates", timeout=120))
+        text = sh_checked("checkupdates", ok_codes=(0, 2), timeout=120)
+        ups = parse_updates(text)
         result["own"] = own_builds()  # after checkupdates: it refreshed the databases they're read from
         return ups
 
     def aur():
-        return parse_updates(sh("paru", "-Qua", timeout=120)) if os.path.exists("/usr/bin/paru") else []
+        if not os.path.exists("/usr/bin/paru"):
+            return []
+        try:
+            proc = subprocess.run(["paru", "-Qua"], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                  env=ENV, timeout=120)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            raise RuntimeError(str(e))
+        if proc.returncode == 0:
+            return parse_updates(proc.stdout)
+        # paru -Qua exits 1 with no stderr/stdout when there are no AUR updates
+        if proc.returncode == 1 and not proc.stderr.strip() and not proc.stdout.strip():
+            return []
+        err = (proc.stderr or proc.stdout or f"exit {proc.returncode}").strip().splitlines()
+        raise RuntimeError(err[-1] if err else f"exit {proc.returncode}")
 
     def flat():
+        if not os.path.exists("/usr/bin/flatpak"):
+            return []
         inst = flatpak_installed()
+        text = sh_checked("flatpak", "remote-ls", "--updates", "--columns=application,version", ok_codes=(0,), timeout=120)
         res = []
-        for line in sh("flatpak", "remote-ls", "--updates", "--columns=application,version", timeout=120).splitlines():
+        for line in text.splitlines():
             f = line.split("\t")
             if f and f[0]:
                 res.append({"name": inst.get(f[0], {}).get("name") or f[0], "appId": f[0],
@@ -640,9 +711,66 @@ def c_holds(args):
     out({"packages": opts.get("IgnorePkg", "").split(), "groups": opts.get("IgnoreGroup", "").split()})
 
 
+PKGNAME = re.compile(r"^[a-z0-9@_+][a-z0-9@._+-]*$")
+
+
+def c_pkgbuild(args):
+    name = args[0]
+    if not PKGNAME.match(name):
+        out({"name": name, "pkgbuild": "", "error": "Invalid package name."})
+        return
+    d = {
+        "name": name,
+        "packageBase": name,
+        "version": "",
+        "desc": "",
+        "maintainer": "",
+        "votes": 0,
+        "popularity": 0,
+        "outOfDate": False,
+        "lastModified": 0,
+        "url": "",
+        "aurPage": f"https://aur.archlinux.org/packages/{urllib.parse.quote(name)}",
+        "pkgbuild": "",
+        "truncated": False,
+        "error": "",
+    }
+    try:
+        r = aur_info([name]).get(name)
+    except Exception as e:
+        d["error"] = f"Couldn't reach the AUR: {e}"
+        out(d)
+        return
+    if not r:
+        d["error"] = f"Package '{name}' was not found on the AUR."
+        out(d)
+        return
+    pkgbase = r.get("PackageBase") or name
+    d.update(
+        packageBase=pkgbase,
+        version=r.get("Version", ""),
+        desc=r.get("Description") or "",
+        maintainer=r.get("Maintainer") or "",
+        votes=r.get("NumVotes", 0),
+        popularity=r.get("Popularity", 0),
+        outOfDate=bool(r.get("OutOfDate")),
+        lastModified=r.get("LastModified", 0),
+        url=r.get("URL") or "",
+        aurPage=f"https://aur.archlinux.org/packages/{urllib.parse.quote(pkgbase)}",
+    )
+    try:
+        raw = fetch(f"https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h={urllib.parse.quote(pkgbase)}", timeout=10)
+        truncated = len(raw) > 131072
+        d["pkgbuild"] = raw[:131072].decode("utf-8", errors="replace")
+        d["truncated"] = truncated
+    except Exception as e:
+        d["error"] = f"Couldn't fetch PKGBUILD: {e}"
+    out(d)
+
+
 COMMANDS = {"search": c_search, "info": c_info, "installed": c_installed, "popular": c_popular, "updates": c_updates,
             "news": c_news, "pacnew": c_pacnew, "pacdiff": c_pacdiff, "versions": c_versions, "holds": c_holds,
-            "restart": c_restart}
+            "restart": c_restart, "pkgbuild": c_pkgbuild}
 
 
 def main(argv):

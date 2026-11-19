@@ -1241,6 +1241,16 @@ Singleton {
         }
 
         const dnsList = (config.dns ?? "").split(",").map(d => d.trim()).filter(d => d.length > 0).join(" ");
+        if ((config.method === "auto-dns" || config.method === "manual") && dnsList.length === 0) {
+            if (callback)
+                callback({
+                    success: false,
+                    output: "",
+                    error: "At least one DNS server is required",
+                    exitCode: -1
+                });
+            return;
+        }
         let cmd = [root.nmcliCommandConnection, "modify", connectionName];
 
         if (config.method === "manual") {

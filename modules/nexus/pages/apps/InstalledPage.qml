@@ -20,8 +20,9 @@ PageBase {
     property string filter: "apps"
     // "name", "size", "recent"
     property string sort: "name"
+    property string pendingSearch
     property string search
-    property bool showAll
+    property int limit: 30
 
     readonly property var all: Packages.installed?.packages ?? []
     readonly property var shown: {
@@ -95,7 +96,7 @@ PageBase {
                     type: TextButton.Tonal
                     onClicked: {
                         root.filter = modelData[0];
-                        root.showAll = false;
+                        root.limit = 30;
                     }
                 }
             }
@@ -110,7 +111,20 @@ PageBase {
                 Layout.fillWidth: true
                 placeholderText: Tr.tr("Find an installed app or package")
                 leadingIcon: "search"
-                onTextChanged: root.search = text
+                onTextChanged: {
+                    root.pendingSearch = text;
+                    searchDelay.restart();
+                }
+            }
+
+            Timer {
+                id: searchDelay
+
+                interval: 200
+                onTriggered: {
+                    root.limit = 30;
+                    root.search = root.pendingSearch;
+                }
             }
 
             Repeater {
@@ -121,7 +135,10 @@ PageBase {
 
                     icon: modelData[1]
                     type: root.sort === modelData[0] ? IconButton.Tonal : IconButton.Text
-                    onClicked: root.sort = modelData[0]
+                    onClicked: {
+                        root.sort = modelData[0];
+                        root.limit = 30;
+                    }
                 }
             }
         }
@@ -136,7 +153,7 @@ PageBase {
         }
 
         Repeater {
-            model: root.showAll || root.search ? root.shown : root.shown.slice(0, 30)
+            model: root.shown.slice(0, root.limit)
 
             PackageRow {
                 required property var modelData
@@ -152,10 +169,11 @@ PageBase {
 
         RowButton {
             Layout.fillWidth: true
-            visible: !root.showAll && !root.search && root.shown.length > 30
+            visible: root.shown.length > root.limit
             icon: "expand_more"
-            text: Tr.tr("Show all %1").arg(root.shown.length)
-            onClicked: root.showAll = true
+            text: Tr.tr("Show %1 more").arg(Math.min(30, root.shown.length - root.limit))
+            subtext: Tr.tr("Showing %1 of %2").arg(Math.min(root.limit, root.shown.length)).arg(root.shown.length)
+            onClicked: root.limit += 30
         }
     }
 }

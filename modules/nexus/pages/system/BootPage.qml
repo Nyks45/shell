@@ -35,6 +35,8 @@ PageBase {
     readonly property bool dirty: !!draft && JSON.stringify(draft) !== JSON.stringify(start)
     readonly property string applyWhat: Tr.tr("Change the boot menu")
     readonly property bool applying: Admin.jobs.some(j => j.what === applyWhat)
+    property bool showAdvancedOptions: false
+    property string optionsError: ""
 
     readonly property var toolIcons: ({
             shutdown: "func_shutdown",
@@ -288,7 +290,12 @@ PageBase {
                 visible: !root.applying
                 text: Tr.tr("Undo changes")
                 type: TextButton.Text
-                onClicked: root.draft = JSON.parse(JSON.stringify(root.start))
+                onClicked: {
+                    root.draft = JSON.parse(JSON.stringify(root.start));
+                    root.optionsError = "";
+                    optionsRow.field.isError = false;
+                    optionsRow.field.text = Qt.binding(() => root.draft?.options.join(" ") ?? "");
+                }
             }
 
             TextButton {
@@ -588,14 +595,16 @@ PageBase {
                     readonly property bool on: root.draft.tools.includes(modelData[0])
 
                     implicitWidth: 112
-                    implicitHeight: toolCol.implicitHeight + Tokens.padding.medium * 2
+                    implicitHeight: 122
                     radius: Tokens.rounding.medium
                     color: on ? Colours.palette.m3primaryContainer : Colours.tPalette.m3surfaceContainerHigh
 
                     ColumnLayout {
                         id: toolCol
 
-                        anchors.centerIn: parent
+                        anchors.top: parent.top
+                        anchors.topMargin: Tokens.padding.medium
+                        anchors.horizontalCenter: parent.horizontalCenter
                         width: parent.width - Tokens.padding.medium * 2
                         spacing: Tokens.spacing.small
 
@@ -714,16 +723,94 @@ PageBase {
             }
         }
 
-        TextFieldRow {
+        RowButton {
             visible: !!root.draft && root.draft.options.length > 0
+            icon: ""
+            text: Tr.tr("Advanced kernel options")
+            subtext: root.boot?.linuxEntry ? Tr.tr("Full command line for %1 (for troubleshooting)").arg(root.boot.linuxEntry) : Tr.tr("Full Linux command line (for troubleshooting)")
+            trailingIcon: root.showAdvancedOptions ? "expand_less" : "expand_more"
+            onClicked: root.showAdvancedOptions = !root.showAdvancedOptions
+        }
+
+        TextFieldRow {
+            id: optionsRow
+
+            visible: !!root.draft && root.draft.options.length > 0 && root.showAdvancedOptions
             label: Tr.tr("All options")
             subtext: Tr.tr("root=, rw and rootflags= must stay")
+            errorText: root.optionsError
             value: root.draft?.options.join(" ") ?? ""
-            onEditingFinished: v => {
-                const opts = v.split(/\s+/).filter(o => o && /^[A-Za-z0-9_.,=:\/@+-]+$/.test(o));
-                if (opts.some(o => o.startsWith("root=")) && opts.includes("rw"))
-                    root.change(d => d.options = opts);
+            onValueEdited: {
+                if (!root)
+                    return;
+                root.optionsError = "";
+                optionsRow.field.isError = false;
             }
+            onEditingFinished: v => {
+                if (!root || !root.draft)
+                    return;
+                const raw = v.trim();
+                const tokens = raw ? raw.split(/\s+/) : [];
+                const invalid = tokens.find(o => !/^[A-Za-z0-9_.,=:\/@+-]+$/.test(o));
+                const needRootflags = (root.start?.options ?? []).some(o => o.startsWith("rootflags="));
+                if (tokens.length === 0) {
+                    root.optionsError = Tr.tr("Options cannot be empty");
+                    optionsRow.field.isError = true;
+                } else if (invalid) {
+                    root.optionsError = Tr.tr("Disallowed characters in option: %1").arg(invalid);
+                    optionsRow.field.isError = true;
+                } else if (!tokens.some(o => o.startsWith("root="))) {
+                    root.optionsError = Tr.tr("root= must stay or the system won't start");
+                    optionsRow.field.isError = true;
+                } else if (!tokens.includes("rw")) {
+                    root.optionsError = Tr.tr("rw must stay or the system will start read-only");
+                    optionsRow.field.isError = true;
+                } else if (needRootflags && !tokens.some(o => o.startsWith("rootflags="))) {
+                    root.optionsError = Tr.tr("rootflags= must stay so your Btrfs subvolume mounts");
+                    optionsRow.field.isError = true;
+                } else {
+                    root.optionsError = "";
+                    optionsRow.field.isError = false;
+                    root.change(d => d.options = tokens);
+                }
+            }
+        }
+
+        DialogRowButton {
+            id: restoreBootDialog
+
+            readonly property string what: Tr.tr("Restore previous boot menu")
+
+            visible: !!root.boot?.hasBackup
+            rootParent: root.flickable
+            openHeight: Math.min(root.flickable.height * 0.9, 290)
+            icon: "settings_backup_restore"
+            label: Tr.tr("Restore previous boot menu")
+            subtext: root.boot?.backupAt ? Tr.tr("Saved before your last change (%1)").arg(Qt.formatDateTime(new Date(root.boot.backupAt * 1000), "d MMM yyyy, HH:mm")) : Tr.tr("Saved before your last change")
+            header: Tr.tr("Restore the previous boot menu?")
+            acceptLabel: Tr.tr("Restore")
+            content: Component {
+                ColumnLayout {
+                    spacing: Tokens.spacing.medium
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        Layout.topMargin: Tokens.spacing.medium
+                        text: Tr.tr("Replaces refind.conf with the automatic backup kept before your last Settings change. Asks for your password.")
+                        wrapMode: Text.WordWrap
+                        color: Colours.palette.m3onSurfaceVariant
+                        font: Tokens.font.body.small
+                    }
+
+                    Item {
+                        Layout.fillHeight: true
+                    }
+                }
+            }
+            onAccepted: Admin.run("boot-restore", [], what, ok => {
+                if (ok)
+                    root.load();
+            })
         }
 
         // Firmware (immediate, not part of the draft)

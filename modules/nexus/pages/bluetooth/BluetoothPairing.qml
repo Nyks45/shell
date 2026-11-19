@@ -16,6 +16,7 @@ PageBase {
     id: root
 
     readonly property BluetoothAdapter adapter: Bluetooth.defaultAdapter
+    property string pairError
 
     function setScan(on: bool): void {
         if (adapter?.enabled)
@@ -42,6 +43,14 @@ PageBase {
             }
 
             target: root.adapter
+        }
+
+        InfoRow {
+            visible: root.pairError !== ""
+            icon: "error"
+            iconColour: Colours.palette.m3error
+            label: Tr.tr("Pairing failed")
+            subtext: root.pairError
         }
 
         ConnectedRect {
@@ -96,8 +105,20 @@ PageBase {
 
                 Connections {
                     function onPairedChanged(): void {
-                        if (newDevice.wasPairing && newDevice.modelData?.paired)
+                        if (newDevice.wasPairing && newDevice.modelData?.paired) {
+                            newDevice.wasPairing = false;
+                            root.pairError = "";
+                            newDevice.modelData.trusted = true;
+                            newDevice.modelData.connect();
                             root.nState.closeSubPage();
+                        }
+                    }
+
+                    function onPairingChanged(): void {
+                        if (newDevice.wasPairing && !newDevice.modelData?.pairing && !newDevice.modelData?.paired) {
+                            newDevice.wasPairing = false;
+                            root.pairError = Tr.tr("Couldn't pair with %1. Make sure it's in pairing mode and try again.").arg(newDevice.modelData?.name || newDevice.modelData?.address || Tr.tr("that device"));
+                        }
                     }
 
                     target: newDevice.modelData
@@ -110,8 +131,9 @@ PageBase {
                     disabled: newDevice.modelData?.pairing ?? false
 
                     onClicked: {
-                        newDevice.modelData?.pair();
+                        root.pairError = "";
                         newDevice.wasPairing = true;
+                        newDevice.modelData?.pair();
                     }
                 }
 
@@ -166,6 +188,16 @@ PageBase {
                             Anim {
                                 type: Anim.DefaultEffects
                             }
+                        }
+                    }
+
+                    TextButton {
+                        visible: newDevice.modelData?.pairing ?? false
+                        text: Tr.trCtx("Cancel", "button")
+                        type: TextButton.Text
+                        onClicked: {
+                            newDevice.wasPairing = false;
+                            newDevice.modelData?.cancelPair();
                         }
                     }
                 }

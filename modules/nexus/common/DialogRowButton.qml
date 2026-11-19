@@ -16,10 +16,12 @@ Item {
     required property Item rootParent
     required property string icon
     required property string label
+    property string subtext
     required property string header
     required property Component content
     required property string acceptLabel
     property bool acceptAllowed: true
+    property bool showCancel: true
     property bool separateContent
     property int horizontalContentMargin
 
@@ -178,6 +180,7 @@ Item {
             last: root.last
             icon: root.icon
             text: root.label
+            subtext: root.subtext
             onClicked: root.open = true
         }
 
@@ -204,8 +207,10 @@ Item {
                     spacing: 0
 
                     StyledText {
+                        Layout.fillWidth: true
                         text: root.header
                         font: Tokens.font.title.builders.large.weight(Font.Normal).build()
+                        wrapMode: Text.WordWrap
                     }
 
                     Loader {
@@ -241,6 +246,7 @@ Item {
                         spacing: Tokens.spacing.extraSmall
 
                         TextButton {
+                            visible: root.showCancel
                             type: TextButton.Text
                             isRound: true
                             horizontalPadding: Tokens.padding.largeIncreased

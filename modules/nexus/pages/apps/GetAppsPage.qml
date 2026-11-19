@@ -33,6 +33,7 @@ PageBase {
         const all = source === "all" ? [...results.repo, ...results.flatpak, ...results.aur] : results[source] ?? [];
         return all;
     }
+    readonly property bool hasVisibleAur: !query.trim() ? (popular[category]?.items ?? []).some(i => i.source === "aur") : shown.slice(0, showAll ? shown.length : 25).some(i => i.source === "aur")
 
     function search(): void {
         if (!query.trim()) {
@@ -110,6 +111,7 @@ PageBase {
 
                 item: modelData
                 nState: root.nState
+                onAurInstallRequested: item => aurDialog.openFor(item, Tr.tr("Build & install"), () => Packages.install(item))
             }
         }
 
@@ -167,6 +169,7 @@ PageBase {
 
                 item: modelData
                 nState: root.nState
+                onAurInstallRequested: item => aurDialog.openFor(item, Tr.tr("Build & install"), () => Packages.install(item))
             }
         }
 
@@ -182,11 +185,17 @@ PageBase {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
             Layout.topMargin: Tokens.spacing.small
-            visible: root.source === "aur" && root.shown.length > 0
-            text: Tr.tr("AUR packages are recipes shared by the community, built on this computer; check one you don't know before installing it.")
+            visible: root.hasVisibleAur
+            text: Tr.tr("AUR packages are recipes shared by the community, built on this computer and not checked by Arch. Review a recipe before installing it.")
             wrapMode: Text.WordWrap
             color: Colours.palette.m3outline
             font: Tokens.font.label.small
+        }
+
+        AurReviewDialog {
+            id: aurDialog
+
+            rootParent: root.flickable
         }
 
         Timer {
