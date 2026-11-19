@@ -110,7 +110,6 @@ PageBase {
         WrapInfoRow {
             id: appId
 
-            first: true
             label: Tr.tr("App ID")
             value: root.app?.id ?? ""
             labelComp.Layout.preferredWidth: Math.max(labelComp.implicitWidth, command.labelComp.implicitWidth)
@@ -119,7 +118,6 @@ PageBase {
         WrapInfoRow {
             id: command
 
-            last: true
             label: Tr.tr("Command")
             value: (root.app?.command ?? []).join(" ")
             labelComp.Layout.preferredWidth: Math.max(labelComp.implicitWidth, appId.labelComp.implicitWidth)

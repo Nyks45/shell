@@ -56,11 +56,13 @@ PageBase {
                 anchors.right: streamList.list.contentItem.right
 
                 icon: Icons.getVolumeIcon(stream.modelData?.audio?.volume ?? 0, stream.modelData?.audio?.muted ?? false)
+                iconClickable: true
                 label: Audio.getStreamName(stream.modelData)
                 valueLabel: Strings.percentOne(value)
                 value: stream.modelData?.audio?.volume ?? 0
-                enabled: !stream.modelData?.audio?.muted
+                enabled: true
                 onMoved: v => Audio.setStreamVolume(stream.modelData, v)
+                onIconClicked: Audio.setStreamMuted(stream.modelData, !Audio.getStreamMuted(stream.modelData))
             }
         }
     }

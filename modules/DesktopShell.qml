@@ -60,6 +60,7 @@ Scope {
     BatteryMonitor {}
     GameMode {}
     LiveWallpaperKeys {}
+    LightingAccent {}
     IdleInhibit {}
     IdleMonitors {
         lock: root.lock

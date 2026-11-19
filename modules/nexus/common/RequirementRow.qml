@@ -15,12 +15,13 @@ ConnectedRect {
     property alias subtext: sub.text
     property string icon: "extension_off"
     property string actionText
+    property bool neutral
 
     signal action
 
     Layout.fillWidth: true
     implicitHeight: layout.implicitHeight + Tokens.padding.medium * 2
-    color: Colours.palette.m3tertiaryContainer
+    color: root.neutral ? Colours.tPalette.m3surfaceContainer : Colours.palette.m3tertiaryContainer
 
     RowLayout {
         id: layout
@@ -34,7 +35,7 @@ ConnectedRect {
         MaterialIcon {
             Layout.alignment: Qt.AlignVCenter
             text: root.icon
-            color: Colours.palette.m3onTertiaryContainer
+            color: root.neutral ? Colours.palette.m3onSurfaceVariant : Colours.palette.m3onTertiaryContainer
             fontStyle: Tokens.font.icon.medium
         }
 
@@ -46,7 +47,7 @@ ConnectedRect {
                 id: title
 
                 Layout.fillWidth: true
-                color: Colours.palette.m3onTertiaryContainer
+                color: root.neutral ? Colours.palette.m3onSurface : Colours.palette.m3onTertiaryContainer
                 font: Tokens.font.body.small
                 wrapMode: Text.WordWrap
             }
@@ -56,7 +57,7 @@ ConnectedRect {
 
                 Layout.fillWidth: true
                 visible: text
-                color: Qt.alpha(Colours.palette.m3onTertiaryContainer, 0.8)
+                color: root.neutral ? Colours.palette.m3outline : Qt.alpha(Colours.palette.m3onTertiaryContainer, 0.8)
                 font: Tokens.font.label.small
                 wrapMode: Text.WordWrap
             }

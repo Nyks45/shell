@@ -62,6 +62,7 @@ PageBase {
 
         RequirementRow {
             visible: root.checked && !root.hasFprint && !root.hasHowdy
+            neutral: true
             icon: "fingerprint"
             text: Tr.tr("Only the password unlocks this PC")
             subtext: Tr.tr("Fingerprint unlock needs fprintd and a fingerprint reader; face unlock needs Howdy and an infrared camera.")

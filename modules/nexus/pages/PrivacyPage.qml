@@ -38,7 +38,7 @@ PageBase {
             id: fwProc
 
             running: true
-            command: ["sh", "-c", "command -v ufw >/dev/null || { echo none; exit; }; systemctl is-active ufw; command -v cliphist >/dev/null && echo cliphist"]
+            command: ["sh", "-c", "if command -v ufw >/dev/null; then if [ \"$(systemctl is-active ufw)\" = active ] && grep -qx 'ENABLED=yes' /etc/ufw/ufw.conf 2>/dev/null; then echo active; else echo inactive; fi; else echo none; fi; command -v cliphist >/dev/null && echo cliphist"]
             stdout: StdioCollector {
                 onStreamFinished: {
                     const lines = text.split("\n").map(l => l.trim());

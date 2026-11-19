@@ -408,7 +408,7 @@ PageBase {
             wrapMode: Text.WordWrap
         }
 
-        // The renderer: always the newest upstream build (the -git package)
+        // The renderer: local Nyks45 fork build (linux-wallpaperengine-nyks-git)
         SectionHeader {
             text: Tr.tr("Renderer")
         }

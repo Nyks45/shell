@@ -117,7 +117,7 @@ Singleton {
                     newSinks.push(node);
                 else if (node.audio)
                     newSources.push(node);
-            } else if (node.audio) {
+            } else if (node.audio && node.type === PwNodeType.AudioOutStream) {
                 newStreams.push(node);
             }
         }

@@ -25,13 +25,22 @@ Singleton {
     // value), monitors (name -> settings), nightLight, autostart
     property var saved: ({})
     property bool loaded
+    // Persistent display safety-net countdown (survives page/window/shell close)
+    property var displayUndo: null
+    property int displayCountdown: 0
+    property var _pendingUndoFromDisk: null
 
     // Bumped when the generated Lua changes in a way old files need rewriting for
     readonly property int generator: 2
     readonly property string jsonPath: `${Paths.config}/hypr-settings.json`
     readonly property string luaPath: `${Paths.config}/hypr-settings.lua`
+    readonly property string displayUndoPath: `${Paths.state}/display-undo.json`
     // Where the Startup apps page keeps them (the XDG autostart folder)
     readonly property string autostartDir: `${Quickshell.env("XDG_CONFIG_HOME") || `${Quickshell.env("HOME")}/.config`}/autostart`
+
+    signal displayReverted(name: string)
+
+    onLoadedChanged: resumePendingDisplayUndo()
 
     // Options pages show (read on start and after every reload)
     readonly property list<string> watched: [
@@ -175,6 +184,62 @@ Singleton {
         update({
             monitors
         });
+    }
+
+    function changeMonitorWithRevert(name: string, nextSettings: var): void {
+        if (!displayUndo) {
+            const prev = saved.monitors?.[name] ? JSON.parse(JSON.stringify(saved.monitors[name])) : null;
+            displayUndo = {
+                name,
+                settings: prev,
+                deadline: Date.now() + 15000
+            };
+        } else {
+            displayUndo = Object.assign({}, displayUndo, {
+                deadline: Date.now() + 15000
+            });
+        }
+        displayUndoFile.setText(JSON.stringify(displayUndo));
+        setMonitor(name, nextSettings);
+        displayCountdown = 15;
+        displayUndoTimer.restart();
+    }
+
+    function keepDisplayChange(): void {
+        displayUndo = null;
+        displayCountdown = 0;
+        displayUndoTimer.stop();
+        displayUndoFile.setText("");
+    }
+
+    function revertDisplayChange(): void {
+        if (!displayUndo)
+            return;
+        const u = displayUndo;
+        displayUndo = null;
+        displayCountdown = 0;
+        displayUndoTimer.stop();
+        displayUndoFile.setText("");
+        if (u.settings)
+            setMonitor(u.name, u.settings);
+        else
+            forgetMonitor(u.name);
+        displayReverted(u.name);
+    }
+
+    function resumePendingDisplayUndo(): void {
+        if (!loaded || !_pendingUndoFromDisk)
+            return;
+        const data = _pendingUndoFromDisk;
+        _pendingUndoFromDisk = null;
+        const rem = Math.ceil((data.deadline - Date.now()) / 1000);
+        displayUndo = data;
+        if (rem <= 0) {
+            revertDisplayChange();
+        } else {
+            displayCountdown = rem;
+            displayUndoTimer.restart();
+        }
     }
 
     function setNightLight(settings: var): void {
@@ -504,6 +569,39 @@ return S
         path: root.luaPath
         printErrors: false
         blockLoading: false
+    }
+
+    FileView {
+        id: displayUndoFile
+
+        path: root.displayUndoPath
+        printErrors: false
+        onLoaded: {
+            try {
+                const d = JSON.parse(text().trim());
+                if (d && d.name && d.deadline) {
+                    root._pendingUndoFromDisk = d;
+                    root.resumePendingDisplayUndo();
+                }
+            } catch (e) {}
+        }
+    }
+
+    Timer {
+        id: displayUndoTimer
+
+        interval: 1000
+        repeat: true
+        onTriggered: {
+            if (!root.displayUndo) {
+                stop();
+                return;
+            }
+            const rem = Math.ceil((root.displayUndo.deadline - Date.now()) / 1000);
+            root.displayCountdown = Math.max(0, rem);
+            if (rem <= 0)
+                root.revertDisplayChange();
+        }
     }
 
     // hyprctl --batch j/getoption for all watched options in one process; targets

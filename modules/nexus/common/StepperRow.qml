@@ -50,7 +50,7 @@ ConnectedRect {
                 text: root.subtext
                 color: Colours.palette.m3outline
                 font: Tokens.font.label.small
-                elide: Text.ElideRight
+                wrapMode: Text.WordWrap
             }
         }
 

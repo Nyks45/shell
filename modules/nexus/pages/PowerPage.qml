@@ -132,7 +132,6 @@ PageBase {
         }
 
         TimeoutRow {
-            first: true
             kind: "lock"
             label: Tr.tr("Lock the screen after")
             subtext: Tr.tr("Time without input before the lock screen shows")
@@ -145,7 +144,6 @@ PageBase {
         }
 
         TimeoutRow {
-            last: true
             kind: "sleep"
             label: Tr.tr("Sleep after")
             subtext: Tr.tr("The PC goes to sleep; press a key or the power button to wake it")
@@ -212,12 +210,12 @@ PageBase {
             menuItems: [
                 MenuItem {
                     text: Tr.tr("Show the power menu")
-                    icon: "power_settings_new"
+                    icon: "menu"
                     value: "menu"
                 },
                 MenuItem {
                     text: Tr.tr("Shut down")
-                    icon: "power_off"
+                    icon: "power_settings_new"
                     value: "poweroff"
                 },
                 MenuItem {

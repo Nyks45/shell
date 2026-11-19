@@ -20,7 +20,7 @@ ConnectedRect {
     // Three or fewer short choices show as segmented buttons (like DankMaterialShell's
     // settings), a check on the chosen one; longer lists keep the drop-down
     property bool segmentedAllowed: true
-    readonly property bool segmented: segmentedAllowed && menuItems.length > 0 && menuItems.length <= 3 && Array.from(menuItems).every(i => (i.text ?? "").length <= 16)
+    readonly property bool segmented: segmentedAllowed && menuItems.length >= 2 && menuItems.length <= 3 && Array.from(menuItems).every(i => (i.text ?? "").length <= 16)
 
     signal selected(item: MenuItem)
 
@@ -56,7 +56,7 @@ ConnectedRect {
                 text: root.subtext
                 color: Colours.palette.m3outline
                 font: Tokens.font.label.small
-                elide: Text.ElideRight
+                wrapMode: Text.WordWrap
             }
         }
 

@@ -32,6 +32,7 @@ Item {
     readonly property bool isGroupRow: true
     property bool first: Rows.isFirst(root)
     property bool last: Rows.isLast(root)
+    readonly property real gap: Rows.gapAbove(root)
 
     signal accepted
     signal cancelled
@@ -59,6 +60,14 @@ Item {
         Behavior on color {
             CAnim {}
         }
+    }
+
+    Rectangle {
+        visible: !root.first && !root.open && !dialogTransition.running && root.gap > 0
+        y: -root.gap
+        width: root.width
+        height: root.gap
+        color: Colours.tPalette.m3surfaceContainer
     }
 
     MouseArea {
@@ -146,11 +155,11 @@ Item {
             group: blobGroup
             opacity: blobGroup.color.a
 
-            radius: Tokens.rounding.extraSmall
-            topLeftRadius: root.first ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
-            topRightRadius: root.first ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
-            bottomLeftRadius: root.last ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
-            bottomRightRadius: root.last ? Tokens.rounding.extraLarge : Tokens.rounding.extraSmall
+            radius: 0
+            topLeftRadius: root.first ? Tokens.rounding.extraLarge : 0
+            topRightRadius: root.first ? Tokens.rounding.extraLarge : 0
+            bottomLeftRadius: root.last ? Tokens.rounding.extraLarge : 0
+            bottomRightRadius: root.last ? Tokens.rounding.extraLarge : 0
         }
 
         RowButton {

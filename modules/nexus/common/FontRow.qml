@@ -2,16 +2,19 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
+import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
 import qs.components.containers
 import qs.components.controls
 import qs.services
+import qs.modules.drawers
 import qs.modules.nexus.common
 
 // A font setting: the current family, shown in itself; clicking opens a
-// searchable list of the installed families (each in its own font) below.
+// floating searchable list of the installed families (each in its own font).
 ConnectedRect {
     id: root
 
@@ -21,121 +24,168 @@ ConnectedRect {
     property bool monoOnly
     property bool expanded
 
-    signal picked(family: string)
-
     readonly property var list: {
         const all = monoOnly ? Fonts.monoFamilies : Fonts.families;
         const q = filter.text.trim().toLowerCase();
         return q ? all.filter(f => f.toLowerCase().includes(q)) : all;
     }
 
+    signal picked(family: string)
+
+    onVisibleChanged: if (!visible)
+        expanded = false
+    onExpandedChanged: if (!expanded)
+        filter.text = ""
+
     Layout.fillWidth: true
-    implicitHeight: column.implicitHeight + Tokens.padding.medium * 2
+    implicitHeight: headerRow.implicitHeight + Tokens.padding.medium * 2
 
-    Behavior on implicitHeight {
-        Anim {
-            type: Anim.DefaultSpatial
-        }
-    }
+    RowLayout {
+        id: headerRow
 
-    // Its contents clip (the list opening), not the row: the row's card joins stay drawn
-    Item {
         anchors.fill: parent
-        clip: true
+        anchors.margins: Tokens.padding.medium
+        anchors.leftMargin: Tokens.padding.largeIncreased
+        anchors.rightMargin: Tokens.padding.largeIncreased
+        spacing: Tokens.spacing.medium
 
         ColumnLayout {
-            id: column
+            Layout.fillWidth: true
+            spacing: 0
 
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: Tokens.padding.medium
-            anchors.leftMargin: Tokens.padding.largeIncreased
-            anchors.rightMargin: Tokens.padding.largeIncreased
-            spacing: Tokens.spacing.medium
+            StyledText {
+                id: label
 
-            RowLayout {
                 Layout.fillWidth: true
-                spacing: Tokens.spacing.medium
+                font: Tokens.font.body.small
+                elide: Text.ElideRight
+            }
 
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 0
+            StyledText {
+                Layout.fillWidth: true
+                visible: root.subtext
+                text: root.subtext
+                color: Colours.palette.m3outline
+                font: Tokens.font.label.small
+                wrapMode: Text.WordWrap
+            }
+        }
 
-                    StyledText {
-                        id: label
+        TextMetrics {
+            id: familyMetrics
 
-                        Layout.fillWidth: true
-                        font: Tokens.font.body.small
-                        elide: Text.ElideRight
-                    }
+            font: familyText.font
+            text: familyText.text
+        }
 
-                    StyledText {
-                        Layout.fillWidth: true
-                        visible: root.subtext
-                        text: root.subtext
-                        color: Colours.palette.m3outline
-                        font: Tokens.font.label.small
-                        elide: Text.ElideRight
-                    }
-                }
+        StyledRect {
+            id: pill
 
-                TextMetrics {
-                    id: familyMetrics
+            implicitWidth: Math.min(familyMetrics.advanceWidth + Tokens.padding.large + Tokens.padding.medium + Tokens.spacing.small + chevron.implicitWidth + 2, root.width * 0.5)
+            implicitHeight: familyText.implicitHeight + Tokens.padding.small * 2
+            radius: Tokens.rounding.full
+            color: Colours.palette.m3secondaryContainer
 
-                    font: familyText.font
-                    text: familyText.text
-                }
+            onVisibleChanged: if (!visible)
+                root.expanded = false
 
-                StyledRect {
-                    implicitWidth: Math.min(familyMetrics.advanceWidth + Tokens.padding.large + Tokens.padding.medium + Tokens.spacing.small + chevron.implicitWidth + 2, root.width * 0.5)
-                    implicitHeight: familyText.implicitHeight + Tokens.padding.small * 2
-                    radius: Tokens.rounding.full
-                    color: Colours.palette.m3secondaryContainer
-
-                    StateLayer {
-                        anchors.fill: parent
-                        radius: parent.radius
-                        color: Colours.palette.m3onSecondaryContainer
-                        onClicked: {
-                            root.expanded = !root.expanded;
-                            if (root.expanded)
-                                filter.forceActiveFocus();
-                        }
-                    }
-
-                    StyledText {
-                        id: familyText
-
-                        anchors.left: parent.left
-                        anchors.right: chevron.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.leftMargin: Tokens.padding.large
-                        anchors.rightMargin: Tokens.spacing.small
-                        text: root.family || Tr.tr("Default")
-                        font.family: root.family || Tokens.font.body.small.family
-                        font.pointSize: Tokens.font.body.small.pointSize
-                        color: Colours.palette.m3onSecondaryContainer
-                        elide: Text.ElideRight
-                    }
-
-                    MaterialIcon {
-                        id: chevron
-
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.rightMargin: Tokens.padding.medium
-                        text: root.expanded ? "expand_less" : "expand_more"
-                        color: Colours.palette.m3onSecondaryContainer
-                        fontStyle: Tokens.font.icon.small
-                    }
+            StateLayer {
+                anchors.fill: parent
+                radius: parent.radius
+                color: Colours.palette.m3onSecondaryContainer
+                onClicked: {
+                    root.expanded = !root.expanded;
+                    if (root.expanded)
+                        Qt.callLater(() => filter.forceActiveFocus());
                 }
             }
 
-            // The picker
+            StyledText {
+                id: familyText
+
+                anchors.left: parent.left
+                anchors.right: chevron.left
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Tokens.padding.large
+                anchors.rightMargin: Tokens.spacing.small
+                text: root.family || Tr.tr("Default")
+                font.family: root.family || Tokens.font.body.small.family
+                font.pointSize: Tokens.font.body.small.pointSize
+                color: Colours.palette.m3onSecondaryContainer
+                elide: Text.ElideRight
+            }
+
+            MaterialIcon {
+                id: chevron
+
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.rightMargin: Tokens.padding.medium
+                text: root.expanded ? "expand_less" : "expand_more"
+                color: Colours.palette.m3onSecondaryContainer
+                fontStyle: Tokens.font.icon.small
+            }
+        }
+    }
+
+    TransformWatcher {
+        id: tWatcher
+
+        a: backdrop.parent
+        b: pill
+    }
+
+    // Floating overlay in the window's content area so opening it doesn't push
+    // rows below down and clicking outside closes it immediately
+    MouseArea {
+        id: backdrop
+
+        parent: {
+            const win = QsWindow.window;
+            if (!win)
+                return root;
+            const contentWin = win as ContentWindow;
+            return contentWin ? contentWin.interactionWrapper : (win as QsWindow).contentItem;
+        }
+        anchors.fill: parent
+        visible: root.expanded && pill.visible
+        enabled: visible
+        hoverEnabled: visible
+        z: 10
+        onClicked: root.expanded = false
+
+        StyledRect {
+            id: popupPanel
+
+            readonly property point pillPos: {
+                CUtils.dependency(tWatcher.transform);
+                return pill.mapToItem(backdrop, 0, 0);
+            }
+            readonly property real belowY: pillPos.y + pill.height + Tokens.spacing.small
+            readonly property real aboveY: pillPos.y - height - Tokens.spacing.small
+            readonly property real maxX: Math.max(Tokens.padding.medium, backdrop.width - width - Tokens.padding.medium)
+            readonly property real maxY: Math.max(Tokens.padding.medium, backdrop.height - height - Tokens.padding.medium)
+
+            x: CUtils.clamp(pillPos.x + pill.width - width, Tokens.padding.medium, maxX)
+            y: belowY + height <= backdrop.height - Tokens.padding.medium ? belowY : CUtils.clamp(aboveY, Tokens.padding.medium, maxY)
+            width: Math.min(360, Math.max(240, backdrop.width - Tokens.padding.medium * 2))
+            implicitHeight: popupCol.implicitHeight + Tokens.padding.small * 2
+
+            radius: Tokens.rounding.large
+            color: Colours.palette.m3surfaceContainerHigh
+            border.width: 1
+            border.color: Colours.palette.m3outlineVariant
+
+            // Swallow clicks inside the popup so the backdrop doesn't dismiss it
+            MouseArea {
+                anchors.fill: parent
+            }
+
             ColumnLayout {
-                Layout.fillWidth: true
-                visible: root.expanded
+                id: popupCol
+
+                anchors.fill: parent
+                anchors.margins: Tokens.padding.small
                 spacing: Tokens.spacing.small
 
                 SearchBar {
@@ -146,7 +196,7 @@ ConnectedRect {
                     font: Tokens.font.body.small
                     topPadding: Tokens.padding.medium
                     bottomPadding: Tokens.padding.medium
-                    bg.color: Colours.tPalette.m3surfaceContainerHigh
+                    bg.color: Colours.palette.m3surfaceContainer
                     Keys.onEscapePressed: root.expanded = false
                     onAccepted: {
                         if (root.list.length > 0) {
@@ -160,7 +210,7 @@ ConnectedRect {
                     Layout.fillWidth: true
                     implicitHeight: 260
                     radius: Tokens.rounding.medium
-                    color: Colours.tPalette.m3surfaceContainerLow
+                    color: Colours.palette.m3surfaceContainerLow
 
                     VerticalFadeListView {
                         id: listView

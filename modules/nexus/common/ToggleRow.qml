@@ -64,6 +64,7 @@ StyledSwitch {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             spacing: 0
+            opacity: root.enabled && !root.disabled ? 1 : 0.38
 
             StyledText {
                 id: label
@@ -84,7 +85,7 @@ StyledSwitch {
                 text: root.subtext
                 color: Colours.palette.m3outline
                 font: Tokens.font.label.small
-                elide: Text.ElideRight
+                wrapMode: Text.WordWrap
             }
         }
     }

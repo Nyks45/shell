@@ -65,7 +65,7 @@ ConnectedRect {
                 text: input.isError && root.errorText ? root.errorText : root.subtext
                 color: input.isError && root.errorText ? Colours.palette.m3error : Colours.palette.m3outline
                 font: Tokens.font.label.small
-                elide: Text.ElideRight
+                wrapMode: Text.WordWrap
                 animate: root.errorText
             }
         }
@@ -77,9 +77,15 @@ ConnectedRect {
             Layout.maximumWidth: root.width / 2
             Layout.alignment: Qt.AlignVCenter
             verticalPadding: Tokens.padding.small
+            floatingPlaceholder: false
 
             text: root.value
 
+            Component.onCompleted: cursorPosition = 0
+            onTextChanged: if (!activeFocus)
+                cursorPosition = 0
+            onActiveFocusChanged: if (!activeFocus)
+                cursorPosition = 0
             onTextEdited: root.valueEdited(text)
             onEditingFinished: root.editingFinished(text)
         }

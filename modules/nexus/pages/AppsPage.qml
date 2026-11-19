@@ -56,7 +56,6 @@ PageBase {
         }
 
         DefaultRow {
-            first: true
             icon: "terminal"
             label: Tr.trCtx("Terminal", "default app category")
             status: GlobalConfig.general.apps.terminal.join(" ")
@@ -97,7 +96,6 @@ PageBase {
         }
 
         DefaultRow {
-            last: true
             icon: "edit_note"
             label: Tr.trCtx("Text editor", "default app category")
             category: "TextEditor"
@@ -115,7 +113,6 @@ PageBase {
         }
 
         DefaultRow {
-            first: true
             icon: "image"
             label: Tr.trCtx("Images", "default app category")
             group: "images"
@@ -151,7 +148,6 @@ PageBase {
         }
 
         DefaultRow {
-            last: true
             icon: "mail"
             label: Tr.trCtx("Email", "default app category")
             group: "email"

@@ -72,7 +72,6 @@ PageBase {
         }
 
         LayoutRow {
-            first: true
             icon: "keyboard"
             label: Tr.tr("Layout")
             status: root.layoutName(root.layouts[0] ?? "us")

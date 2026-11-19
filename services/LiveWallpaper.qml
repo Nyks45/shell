@@ -863,7 +863,7 @@ Singleton {
     Process {
         id: statusProc
 
-        command: ["sh", "-c", `(command -v live-wallpaper >/dev/null || [ -x '${root.scriptBin}' ]) && echo script; command -v linux-wallpaperengine >/dev/null && echo engine; pacman -Q linux-wallpaperengine-git 2>/dev/null | cut -d' ' -f2; p=$(cat "\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper/pid" 2>/dev/null); [ -n "$p" ] && [ "$(cat /proc/$p/comm 2>/dev/null)" = linux-wallpaper ] && { [ -z "$HYPRLAND_INSTANCE_SIGNATURE" ] || tr "\\0" "\\n" < /proc/$p/environ 2>/dev/null | grep -qx "HYPRLAND_INSTANCE_SIGNATURE=$HYPRLAND_INSTANCE_SIGNATURE"; } && echo running; echo "assets=$(python3 -I '${root.scanner}' assets)"`]
+        command: ["sh", "-c", `(command -v live-wallpaper >/dev/null || [ -x '${root.scriptBin}' ]) && echo script; command -v linux-wallpaperengine >/dev/null && echo engine; (pacman -Q linux-wallpaperengine-nyks-git 2>/dev/null || pacman -Q linux-wallpaperengine-git 2>/dev/null) | cut -d' ' -f2; p=$(cat "\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper/pid" 2>/dev/null); [ -n "$p" ] && [ "$(cat /proc/$p/comm 2>/dev/null)" = linux-wallpaper ] && { [ -z "$HYPRLAND_INSTANCE_SIGNATURE" ] || tr "\\0" "\\n" < /proc/$p/environ 2>/dev/null | grep -qx "HYPRLAND_INSTANCE_SIGNATURE=$HYPRLAND_INSTANCE_SIGNATURE"; } && echo running; echo "assets=$(python3 -I '${root.scanner}' assets)"`]
         stdout: StdioCollector {
             onStreamFinished: {
                 const lines = text.split("\n");
@@ -1110,11 +1110,11 @@ Singleton {
         }
     }
 
-    // The newest upstream commit of the renderer (the -git package builds it)
+    // The newest commit of the local/private renderer fork
     Process {
         id: latestProc
 
-        command: ["git", "ls-remote", "https://github.com/Almamu/linux-wallpaperengine.git", "HEAD"]
+        command: ["sh", "-c", "git -C \"$HOME/hyprland-plugins/linux-wallpaperengine\" rev-parse --short=7 HEAD 2>/dev/null || git ls-remote https://github.com/Nyks45/linux-wallpaperengine.git HEAD 2>/dev/null | cut -c1-7"]
         stdout: StdioCollector {
             onStreamFinished: root.engineLatest = text.trim().slice(0, 7)
         }

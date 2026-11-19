@@ -33,6 +33,7 @@ TextFieldBase {
     property string errorText
     property bool isError
     property bool emptyIsValid: true
+    property bool floatingPlaceholder: true
     property var validate // Regex or function
     readonly property bool valid: !validate || (!text && emptyIsValid) || (validate instanceof RegExp ? validate.test(text) : !!validate(text))
     readonly property string effectiveSupportingText: isError && errorText ? errorText : supportingText
@@ -99,12 +100,13 @@ TextFieldBase {
             renderType: Text.QtRendering
 
             text: root.placeholderText
+            visible: root.floatingPlaceholder || !root.text
             color: root.isError ? Colours.palette.m3error : (root.activeFocus ? Colours.palette.m3primary : root.text ? Colours.palette.m3outline : root.placeholderTextColor)
 
             states: [
                 State {
                     name: "smallOutlined"
-                    when: root.type === StyledTextField.Outlined && (root.activeFocus || root.text)
+                    when: root.floatingPlaceholder && root.type === StyledTextField.Outlined && (root.activeFocus || root.text)
 
                     PropertyChanges {
                         placeholder.scale: root.smallFontScale
@@ -117,7 +119,7 @@ TextFieldBase {
                 },
                 State {
                     name: "smallFilled"
-                    when: root.type === StyledTextField.Filled && (root.activeFocus || root.text)
+                    when: root.floatingPlaceholder && root.type === StyledTextField.Filled && (root.activeFocus || root.text)
 
                     PropertyChanges {
                         placeholder.scale: root.smallFontScale
@@ -206,7 +208,7 @@ TextFieldBase {
                 id: path
 
                 readonly property real outlineGap: placeholder.width * root.smallFontScale + root.Tokens.spacing.extraSmall * 2
-                property real outlineGapScale: root.activeFocus || root.text ? 1 : 0
+                property real outlineGapScale: root.floatingPlaceholder && (root.activeFocus || root.text) ? 1 : 0
                 readonly property real inset: strokeWidth / 2
 
                 strokeWidth: root.activeFocus ? 2 : 1

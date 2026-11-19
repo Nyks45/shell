@@ -27,6 +27,7 @@ Slider {
 
     signal interaction(v: real)
 
+    wheelEnabled: false
     Component.onCompleted: filledWidth = Qt.binding(() => (width - handle.implicitWidth - handle.anchors.leftMargin) * pos)
 
     implicitWidth: 200

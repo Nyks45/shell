@@ -342,7 +342,6 @@ PageBase {
 
         CornerRow {
             visible: root.hyprflowLoaded
-            first: true
             label: Tr.tr("Top left")
             corner: "top_left"
         }
@@ -362,7 +361,6 @@ PageBase {
 
         CornerRow {
             visible: root.hyprflowLoaded
-            last: true
             label: Tr.tr("Bottom right")
             corner: "bottom_right"
             menuOnTop: true

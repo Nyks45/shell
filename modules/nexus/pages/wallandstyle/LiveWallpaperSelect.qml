@@ -27,7 +27,8 @@ PageBase {
     property string ageFilter
     property bool favouritesOnly
     property bool showFilters
-    readonly property bool filtering: !!(query || typeFilter || tagFilter || sourceFilter || ageFilter || favouritesOnly || compatFilter)
+    readonly property string effectiveAgeFilter: showMature ? ageFilter : ""
+    readonly property bool filtering: !!(query || typeFilter || tagFilter || sourceFilter || effectiveAgeFilter || favouritesOnly || compatFilter)
     readonly property bool hasApps: LiveWallpaper.wallpapers.some(w => w.type === "application")
     readonly property string compatFilter: LiveWallpaper.setting("compatFilter", "")
     readonly property var allTags: {
@@ -50,7 +51,7 @@ PageBase {
         const list = LiveWallpaper.wallpapers.filter(w => {
             const grade = compatFilter ? (LiveWallpaper.compat(w.path)?.grade ?? "") : "";
             const src = w.source === "folder" ? "mine" : w.source;
-            return (!typeFilter || w.type === typeFilter) && (!tagFilter || w.tags.includes(tagFilter)) && (!sourceFilter || src === sourceFilter) && (!ageFilter || (w.rating || "g") === ageFilter) && (!favouritesOnly || fav.has(w.path)) && (showMature || w.rating === "g" || w.rating === "") && (!q || `${w.title} ${w.tags.join(" ")}`.toLowerCase().includes(q)) && (!compatFilter || (compatFilter === "working" ? grade === "perfect" || grade === "minor" : compatFilter === "untested" ? !grade : compatFilter === "hidebroken" ? grade !== "broken" : true));
+            return (!typeFilter || w.type === typeFilter) && (!tagFilter || w.tags.includes(tagFilter)) && (!sourceFilter || src === sourceFilter) && (!effectiveAgeFilter || (w.rating || "g") === effectiveAgeFilter) && (!favouritesOnly || fav.has(w.path)) && (showMature || w.rating === "g" || w.rating === "") && (!q || `${w.title} ${w.tags.join(" ")}`.toLowerCase().includes(q)) && (!compatFilter || (compatFilter === "working" ? grade === "perfect" || grade === "minor" : compatFilter === "untested" ? !grade : compatFilter === "hidebroken" ? grade !== "broken" : true));
         });
         const by = {
             name: (a, b) => a.title.localeCompare(b.title),
@@ -62,6 +63,9 @@ PageBase {
         }[sortBy] ?? ((a, b) => 0);
         return list.sort(by);
     }
+
+    onShowMatureChanged: if (!showMature)
+        ageFilter = ""
 
     function resetFilters(): void {
         query = "";
@@ -93,17 +97,23 @@ PageBase {
         RequirementRow {
             readonly property string what: Tr.tr("Install the live wallpaper renderer")
             readonly property bool busy: Admin.jobs.some(j => j.what === what)
-            // paru's last output line (download, build...)
+            // makepkg's last output line (download, build...)
             readonly property string progress: (Admin.outputOf(what).trim().split("\n").pop() ?? "").slice(0, 120)
+            property string installError
 
             visible: !LiveWallpaper.hasEngine
             icon: "wallpaper"
             text: Tr.tr("Needs linux-wallpaperengine")
-            subtext: busy ? (progress || Tr.tr("Building…")) : Tr.tr("The renderer for Wallpaper Engine wallpapers. Installing it builds the newest version (asks for your password).")
+            subtext: busy ? (progress || Tr.tr("Building…")) : (installError || Tr.tr("The renderer for Wallpaper Engine wallpapers. Installing it builds the local fork package (asks for your password)."))
             actionText: busy ? "" : Tr.tr("Install")
-            // Built as this user from the AUR; paru's install step goes
-            // through pkexec (the shell's password prompt)
-            onAction: Admin.exec(["paru", "-S", "--needed", "--noconfirm", "--skipreview", "--sudo", "pkexec", "linux-wallpaperengine-git"], what, () => LiveWallpaper.refresh())
+            onAction: {
+                installError = "";
+                Admin.exec(["sh", "-c", 'dir="$HOME/dotfiles/pkg-private/linux-wallpaperengine-nyks-git"; [ -f "$dir/PKGBUILD" ] || { echo "Fork package recipe not found at ~/dotfiles/pkg-private/linux-wallpaperengine-nyks-git/PKGBUILD."; exit 1; }; cd "$dir" && PACMAN_AUTH=pkexec makepkg -si --noconfirm'], what, (ok, out, cancelled) => {
+                    if (!ok && !cancelled)
+                        installError = (out.trim().split("\n").pop() ?? Tr.tr("Build failed")).slice(0, 140);
+                    LiveWallpaper.refresh();
+                });
+            }
         }
 
         RequirementRow {
@@ -302,7 +312,7 @@ PageBase {
 
             // Sort and the other filters, folded away by default
             TextButton {
-                readonly property int active: [root.tagFilter, root.sourceFilter, root.ageFilter, root.compatFilter].filter(x => x).length
+                readonly property int active: [root.tagFilter, root.sourceFilter, root.effectiveAgeFilter, root.compatFilter].filter(x => x).length
 
                 text: active ? Tr.tr("Filters (%1)").arg(active) : Tr.tr("Filters")
                 isToggle: true

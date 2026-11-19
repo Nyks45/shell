@@ -104,26 +104,6 @@ PageBase {
             onTriggered: root.send()
         }
 
-        // The accent colour changed (a new wallpaper or scheme): follow it
-        Timer {
-            id: accentTimer
-
-            interval: 1500
-            onTriggered: if (root.info?.followAccent)
-                root.set({
-                    device: "*",
-                    color: root.accent
-                })
-        }
-
-        Connections {
-            target: Colours.palette
-
-            function onM3primaryChanged(): void {
-                accentTimer.restart();
-            }
-        }
-
         StyledText {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small

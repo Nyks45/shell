@@ -15,11 +15,10 @@ ConnectedRect {
     property alias label: label.text
     property alias valueLabel: valueLabel.text
     property real value
-
-    // Just used: the wheel adjusts it for a few seconds
-    property bool engaged
+    property bool iconClickable
 
     signal moved(value: real)
+    signal iconClicked
 
     Layout.fillWidth: true
     implicitHeight: rowLayout.implicitHeight + rowLayout.anchors.margins + rowLayout.anchors.topMargin
@@ -32,11 +31,25 @@ ConnectedRect {
         anchors.topMargin: Tokens.padding.large
         spacing: Tokens.spacing.medium
 
-        MaterialIcon {
-            id: icon
+        Item {
+            implicitWidth: icon.implicitWidth + (root.iconClickable ? Tokens.padding.extraSmall * 2 : 0)
+            implicitHeight: icon.implicitHeight + (root.iconClickable ? Tokens.padding.extraSmall * 2 : 0)
 
-            color: Colours.palette.m3onSurfaceVariant
-            fontStyle: Tokens.font.icon.medium
+            StateLayer {
+                visible: root.iconClickable
+                disabled: !root.iconClickable
+                radius: Tokens.rounding.full
+                onClicked: root.iconClicked()
+            }
+
+            MaterialIcon {
+                id: icon
+
+                anchors.centerIn: parent
+                color: Colours.palette.m3onSurfaceVariant
+                opacity: root.enabled || root.iconClickable ? 1 : 0.38
+                fontStyle: Tokens.font.icon.medium
+            }
         }
 
         ColumnLayout {
@@ -51,6 +64,7 @@ ConnectedRect {
                     id: label
 
                     Layout.fillWidth: true
+                    opacity: root.enabled ? 1 : 0.38
                     font: Tokens.font.body.small
                     elide: Text.ElideRight
                 }
@@ -58,29 +72,15 @@ ConnectedRect {
                 StyledText {
                     id: valueLabel
 
+                    opacity: root.enabled ? 1 : 0.38
                     color: Colours.palette.m3outline
                     font: Tokens.font.body.small
                 }
             }
 
-            // The wheel moves the slider only right after it was used: otherwise
-            // scrolling the page over it would change the setting
             Item {
                 Layout.fillWidth: true
                 implicitHeight: Tokens.padding.medium * 2
-
-                WheelHandler {
-                    enabled: root.engaged
-                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                    onWheel: event => {
-                        const step = GlobalConfig.services.audioIncrement;
-                        if (event.angleDelta.y > 0)
-                            root.moved(Math.min(1, root.value + step));
-                        else if (event.angleDelta.y < 0)
-                            root.moved(Math.max(0, root.value - step));
-                        disengage.restart();
-                    }
-                }
 
                 StyledSlider {
                     anchors.left: parent.left
@@ -91,18 +91,7 @@ ConnectedRect {
                     radius: Tokens.rounding.small
                     value: root.value
                     enabled: root.enabled
-                    onInteraction: v => {
-                        root.engaged = true;
-                        disengage.restart();
-                        root.moved(v);
-                    }
-                }
-
-                Timer {
-                    id: disengage
-
-                    interval: 3000
-                    onTriggered: root.engaged = false
+                    onInteraction: v => root.moved(v)
                 }
             }
         }

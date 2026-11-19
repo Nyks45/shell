@@ -119,7 +119,7 @@ Item {
             id: icon
 
             anchors.centerIn: parent
-            text: "view_apps"
+            text: "unfold_more"
             color: Colours.palette.m3onSurfaceVariant
             fontStyle: Tokens.font.icon.medium
         }

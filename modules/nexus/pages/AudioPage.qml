@@ -26,13 +26,14 @@ PageBase {
             label: Tr.trCtx("Output", "audio output")
             valueLabel: Strings.percentOne(value)
             value: Audio.volume
-            enabled: !Audio.muted
+            enabled: !!Audio.sink && !Audio.muted
             onMoved: v => Audio.setVolume(v)
         }
 
         ToggleRow {
             text: Tr.trCtx("Muted", "audio output muted")
             checked: Audio.muted
+            disabled: !Audio.sink
             onToggled: Audio.setStreamMuted(Audio.sink, checked)
         }
 
@@ -53,13 +54,14 @@ PageBase {
             label: Tr.trCtx("Input", "audio input")
             valueLabel: Strings.percentOne(value)
             value: Audio.sourceVolume
-            enabled: !Audio.sourceMuted
+            enabled: !!Audio.source && !Audio.sourceMuted
             onMoved: v => Audio.setSourceVolume(v)
         }
 
         ToggleRow {
             text: Tr.trCtx("Muted", "audio input muted")
             checked: Audio.sourceMuted
+            disabled: !Audio.source
             onToggled: Audio.setStreamMuted(Audio.source, checked)
         }
 

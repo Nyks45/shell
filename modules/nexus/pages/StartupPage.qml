@@ -96,8 +96,6 @@ PageBase {
         }
 
         AddRow {
-            first: true
-            last: true
             icon: "add"
             label: Tr.tr("Add an app")
             status: ""

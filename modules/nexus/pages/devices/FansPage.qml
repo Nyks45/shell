@@ -42,6 +42,7 @@ PageBase {
     // refresh every 2 s: rebuilding the rows would lose a curve being edited)
     property var fanIds: []
     property string editingId
+    property var pendingFixed: ({})
     onFansChanged: {
         const ids = fans.map(f => f.id);
         if (JSON.stringify(ids) !== JSON.stringify(fanIds))
@@ -79,6 +80,23 @@ PageBase {
         }));
     }
 
+    function flushFixed(): void {
+        const queued = pendingFixed;
+        const keys = Object.keys(queued);
+        if (keys.length === 0)
+            return;
+        pendingFixed = ({});
+        const fans = JSON.parse(JSON.stringify(conf));
+        for (const id of keys)
+            fans[id] = {
+                mode: "fixed",
+                percent: queued[id]
+            };
+        Admin.exec(["pkexec", Admin.helper, "fans-apply"], root.what, () => root.load(), JSON.stringify({
+            fans
+        }));
+    }
+
     // The preset a curve matches, else "custom"
     function presetOf(c: var): string {
         if (!c || c.mode === "auto" || !c.mode)
@@ -101,6 +119,13 @@ PageBase {
         anchors.top: parent.top
         width: root.cappedWidth
         spacing: Tokens.spacing.extraSmall / 2
+
+        Timer {
+            id: fixedDebounce
+
+            interval: 600
+            onTriggered: root.flushFixed()
+        }
 
         Timer {
             running: root.visible
@@ -269,16 +294,19 @@ PageBase {
                 StepperRow {
                     Layout.topMargin: Tokens.spacing.small
                     visible: fan.kind === "fixed"
+                    enabled: !root.busy
                     label: Tr.tr("Speed")
                     subtext: fan.floor ? Tr.tr("Percent (at least %1%: this fan never stops)").arg(fan.floor) : Tr.tr("Percent")
                     from: fan.floor
                     to: 100
                     stepSize: 5
-                    value: fan.c.percent ?? 50
-                    onMoved: v => root.apply(fan.info.id, {
-                        mode: "fixed",
-                        percent: v
-                    })
+                    value: root.pendingFixed[fan.info.id] ?? fan.c.percent ?? 50
+                    onMoved: v => {
+                        root.pendingFixed = Object.assign({}, root.pendingFixed, {
+                            [fan.info.id]: v
+                        });
+                        fixedDebounce.restart();
+                    }
                 }
 
                 // The curve: drag a point (left-right: temperature, up-down: speed)

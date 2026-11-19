@@ -22,7 +22,7 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         Timer {
-            running: root.visible && Nmcli.wifiEnabled
+            running: root.visible && Nmcli.hasWifiHardware && Nmcli.wifiEnabled
             repeat: true
             triggeredOnStart: true
             interval: GlobalConfig.nexus.networkRescanInterval
@@ -38,7 +38,7 @@ PageBase {
 
         Connections {
             function onWifiEnabledChanged(): void {
-                if (Nmcli.wifiEnabled)
+                if (Nmcli.hasWifiHardware && Nmcli.wifiEnabled)
                     wifiScanDelay.start();
             }
 
@@ -58,6 +58,7 @@ PageBase {
         }
 
         ToggleRow {
+            visible: Nmcli.hasWifiHardware
             Layout.topMargin: Nmcli.hasAvailableEthernet ? Tokens.spacing.large : 0
             groupStart: true
             text: Tr.tr("Wi-Fi")
@@ -68,6 +69,7 @@ PageBase {
         }
 
         NetworkList {
+            visible: Nmcli.hasWifiHardware
             Layout.bottomMargin: Nmcli.wifiEnabled && Nmcli.networks.length > GlobalConfig.nexus.maxNetworksShown ? 0 : -parent.spacing
             nState: root.nState
             limit: GlobalConfig.nexus.maxNetworksShown
@@ -81,6 +83,7 @@ PageBase {
 
         // All networks button, only when > max networks
         RowButton {
+            visible: Nmcli.hasWifiHardware
             Layout.preferredHeight: Nmcli.wifiEnabled && Nmcli.networks.length > GlobalConfig.nexus.maxNetworksShown ? implicitHeight : 0
             clip: true
 
@@ -99,6 +102,7 @@ PageBase {
 
         // Saved networks button
         RowButton {
+            visible: Nmcli.hasWifiHardware
             icon: "bookmark"
             text: Tr.tr("Saved networks")
             trailingIcon: "chevron_right"
@@ -106,6 +110,7 @@ PageBase {
         }
 
         RowButton {
+            visible: Nmcli.hasWifiHardware
             icon: "add"
             text: Tr.tr("Add network")
             disabled: !Nmcli.wifiEnabled
@@ -114,7 +119,7 @@ PageBase {
 
         // ---- VPN -------------------------------------------------------------
         ToggleRow {
-            Layout.topMargin: Tokens.spacing.large
+            Layout.topMargin: Nmcli.hasAvailableEthernet || Nmcli.hasWifiHardware ? Tokens.spacing.large : 0
             Layout.fillWidth: true
             groupStart: true
             text: Tr.tr("VPN")

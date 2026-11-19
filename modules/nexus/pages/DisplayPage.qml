@@ -53,9 +53,9 @@ PageBase {
         return valid.sort((a, b) => a - b);
     }
 
-    // Kept-or-undone after a change
-    property var undo: null
-    property int countdown
+    // Debounced slider state so moving SDR / Warmth sliders doesn't restart or reload per step
+    property real pendingSdr: -1
+    property int pendingTemp: -1
 
     readonly property var night: HyprSettings.saved.nightLight ?? {}
     property bool sunsetInstalled
@@ -85,35 +85,25 @@ PageBase {
     function change(changes: var): void {
         if (!monitor)
             return;
-        const name = monitor.name;
-        // Moving a monitor in the arrangement picks it first
-        if (!undo)
-            undo = {
-                name,
-                settings: HyprSettings.saved.monitors?.[name] ?? null
-            };
-        HyprSettings.setMonitor(name, Object.assign(currentSettings(), changes));
-        countdown = 15;
-        countdownTimer.restart();
+        HyprSettings.changeMonitorWithRevert(monitor.name, Object.assign(currentSettings(), changes));
         refreshTimer.restart();
     }
 
     function keep(): void {
-        undo = null;
-        countdownTimer.stop();
+        HyprSettings.keepDisplayChange();
     }
 
     function revert(): void {
-        if (!undo)
+        HyprSettings.revertDisplayChange();
+    }
+
+    function applySdr(): void {
+        if (pendingSdr < 0 || !monitor)
             return;
-        if (undo.settings)
-            HyprSettings.setMonitor(undo.name, undo.settings);
-        else
-            HyprSettings.forgetMonitor(undo.name);
-        undo = null;
-        countdownTimer.stop();
+        HyprSettings.setMonitor(monitor.name, Object.assign(currentSettings(), {
+            sdrbrightness: pendingSdr
+        }));
         refreshTimer.restart();
-        rebind();
     }
 
     // Picking from a menu or flipping a switch replaces the row's binding with
@@ -151,6 +141,29 @@ PageBase {
     title: Tr.tr("Display")
 
     Component.onCompleted: refresh()
+    Component.onDestruction: {
+        if (sdrDebounce.running) {
+            sdrDebounce.stop();
+            applySdr();
+        }
+        if (nightDebounce.running) {
+            nightDebounce.stop();
+            const t = pendingTemp;
+            pendingTemp = -1;
+            if (t >= 0) {
+                const n = Object.assign({}, night, {
+                    temperature: t
+                });
+                HyprSettings.setNightLight({
+                    temperature: t
+                });
+                const from = n.from ?? "20:00", to = n.to ?? "07:00";
+                const body = n.always ? `profile {\n    time = 0:00\n    temperature = ${t}\n}\n` : `profile {\n    time = ${to}\n    identity = true\n}\n\nprofile {\n    time = ${from}\n    temperature = ${t}\n}\n`;
+                const text = `# Written by Caelestia's settings app (Display > Night light).\n\n${body}`;
+                Quickshell.execDetached(["sh", "-c", 'printf "%s" "$2" > "$1"; if [ "$3" = "1" ]; then pkill -x hyprsunset; sleep 0.3; exec hyprsunset; fi', "sh", sunsetConf, text, n.enabled ? "1" : "0"]);
+            }
+        }
+    }
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -162,7 +175,7 @@ PageBase {
         ConnectedRect {
             Layout.fillWidth: true
             Layout.bottomMargin: Tokens.spacing.large
-            visible: root.undo !== null
+            visible: HyprSettings.displayUndo !== null
             implicitHeight: keepLayout.implicitHeight + Tokens.padding.large * 2
             color: Colours.palette.m3secondaryContainer
 
@@ -186,7 +199,7 @@ PageBase {
 
                     StyledText {
                         Layout.fillWidth: true
-                        text: Tr.tr("Going back to the previous ones in %1 s").arg(root.countdown)
+                        text: Tr.tr("Going back to the previous ones in %1 s").arg(HyprSettings.displayCountdown)
                         font: Tokens.font.label.medium
                         color: Colours.palette.m3onSecondaryContainer
                         elide: Text.ElideRight
@@ -215,7 +228,7 @@ PageBase {
         // shelved for now; see git history, commit "Shelve multi-monitor UI")
         InfoRow {
             label: root.monitor?.model || root.monitor?.name || Tr.tr("No monitor")
-            subtext: root.monitor ? [root.monitor.make, root.monitor.name].filter(s => s && s !== root.monitor.model).join(" · ") : ""
+            subtext: root.monitor ? [root.monitor.make, root.monitor.name].filter(s => s && s !== label).join(" · ") : ""
             icon: "monitor"
         }
 
@@ -298,6 +311,7 @@ PageBase {
 
             label: Tr.tr("Refresh rate")
             subtext: Tr.tr("How many times a second the picture updates")
+            segmentedAllowed: false
             menuItems: rateItems.instances
             active: rateItems.instances.find(i => Math.abs(i.value - (root.monitor?.refreshRate ?? 0)) < 0.05) ?? null
             fallbackText: Tr.tr("%1 Hz").arg(Math.round(root.monitor?.refreshRate ?? 0))
@@ -324,6 +338,7 @@ PageBase {
 
             label: Tr.tr("Scale")
             subtext: Tr.tr("Size of text, apps and the shell")
+            segmentedAllowed: false
             menuItems: scaleItems.instances
             active: scaleItems.instances.find(i => Math.abs(i.value - (root.monitor?.scale ?? 1)) < 0.01) ?? null
             fallbackText: `${Math.round((root.monitor?.scale ?? 1) * 100)}%`
@@ -414,12 +429,13 @@ PageBase {
             visible: root.monitor?.colorManagementPreset === "hdr"
             icon: "brightness_high"
             label: Tr.tr("Brightness of normal content in HDR")
-            valueLabel: `${Math.round((root.monitor?.sdrBrightness ?? 1) * 100)}%`
+            valueLabel: `${Math.round((root.pendingSdr >= 0 ? root.pendingSdr : (root.monitor?.sdrBrightness ?? 1)) * 100)}%`
             // 50% .. 200%
-            value: ((root.monitor?.sdrBrightness ?? 1) - 0.5) / 1.5
-            onMoved: v => root.change({
-                sdrbrightness: Math.round((0.5 + v * 1.5) * 20) / 20
-            })
+            value: ((root.pendingSdr >= 0 ? root.pendingSdr : (root.monitor?.sdrBrightness ?? 1)) - 0.5) / 1.5
+            onMoved: v => {
+                root.pendingSdr = Math.round((0.5 + v * 1.5) * 20) / 20;
+                sdrDebounce.restart();
+            }
         }
 
         RowButton {
@@ -480,14 +496,16 @@ PageBase {
 
         SliderRow {
             visible: root.sunsetInstalled
+            enabled: root.night.enabled ?? false
             icon: "thermostat"
             label: Tr.tr("Warmth")
-            valueLabel: `${root.night.temperature ?? 4000} K`
+            valueLabel: `${root.pendingTemp >= 0 ? root.pendingTemp : (root.night.temperature ?? 4000)} K`
             // 6500 K (none) .. 2500 K (very warm)
-            value: (6500 - (root.night.temperature ?? 4000)) / 4000
-            onMoved: v => root.setNight({
-                    temperature: Math.round((6500 - v * 4000) / 100) * 100
-                })
+            value: (6500 - (root.pendingTemp >= 0 ? root.pendingTemp : (root.night.temperature ?? 4000))) / 4000
+            onMoved: v => {
+                root.pendingTemp = Math.round((6500 - v * 4000) / 100) * 100;
+                nightDebounce.restart();
+            }
         }
 
         ToggleRow {
@@ -558,6 +576,15 @@ PageBase {
             target: Hyprland
         }
 
+        Connections {
+            function onDisplayReverted(): void {
+                refreshTimer.restart();
+                root.rebind();
+            }
+
+            target: HyprSettings
+        }
+
         Timer {
             id: refreshTimer
 
@@ -566,14 +593,23 @@ PageBase {
         }
 
         Timer {
-            id: countdownTimer
+            id: sdrDebounce
 
-            interval: 1000
-            repeat: true
+            interval: 300
+            onTriggered: root.applySdr()
+        }
+
+        Timer {
+            id: nightDebounce
+
+            interval: 300
             onTriggered: {
-                root.countdown--;
-                if (root.countdown <= 0)
-                    root.revert();
+                const t = root.pendingTemp;
+                root.pendingTemp = -1;
+                if (t >= 0)
+                    root.setNight({
+                        temperature: t
+                    });
             }
         }
 
@@ -597,6 +633,8 @@ PageBase {
                     try {
                         root.monitors = JSON.parse(text).filter(m => !m.name.startsWith("HEADLESS") || Quickshell.env("CAELESTIA_NEXUS_HEADLESS"));
                     } catch (e) {}
+                    if (!sdrDebounce.running)
+                        root.pendingSdr = -1;
                 }
             }
         }
