@@ -53,7 +53,6 @@ PageBase {
 
         // Language
         SectionHeader {
-            first: true
             text: Tr.tr("Language")
         }
 

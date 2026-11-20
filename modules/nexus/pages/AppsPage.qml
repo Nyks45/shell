@@ -51,7 +51,6 @@ PageBase {
 
         // Default applications
         SectionHeader {
-            first: true
             text: Tr.tr("Default applications")
         }
 

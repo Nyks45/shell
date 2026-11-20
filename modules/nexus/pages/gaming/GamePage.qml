@@ -240,7 +240,6 @@ PageBase {
 
         // Proton
         SectionHeader {
-            first: true
             visible: !!root.game && root.game.proton !== null && root.game.proton !== undefined
             text: Tr.tr("Runs with")
         }

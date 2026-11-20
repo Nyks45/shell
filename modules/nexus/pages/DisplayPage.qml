@@ -220,7 +220,6 @@ PageBase {
         }
 
         SectionHeader {
-            first: true
             text: Tr.tr("Monitor")
         }
 
@@ -243,35 +242,6 @@ PageBase {
             valueLabel: `${Math.round((bm?.brightness ?? 0) * 100)}%`
             value: bm?.brightness ?? 0
             onMoved: v => bm?.setBrightness(v)
-        }
-
-
-        // No way to set this screen's brightness: say why
-        RequirementRow {
-            readonly property var bm: root.monitor ? Brightness.getMonitor(root.monitor.name) : null
-            readonly property string what: Tr.tr("Install ddcutil for monitor brightness")
-            property bool installing
-            property bool installed
-
-            visible: !!root.monitor && !root.hasBacklight && !(bm?.isDdc || bm?.isAppleDisplay)
-            icon: "brightness_6"
-            text: root.hasDdcutil ? Tr.tr("Brightness: this monitor doesn't answer over DDC/CI") : Tr.tr("Brightness of external monitors needs ddcutil")
-            subtext: installing ? Tr.tr("Installing…") : installed ? Tr.tr("Installed. Log out and back in once so it may use the monitor's cable.") : root.hasDdcutil ? Tr.tr("Turn DDC/CI on in the monitor's own menu, then open this page again. Some monitors and docks don't support it.") : Tr.tr("It sets the brightness over the display cable (DDC/CI). Installing it asks for your password.")
-            actionText: root.hasDdcutil || installing ? "" : Tr.tr("Install")
-            // ddcutil talks to the monitor through /dev/i2c-*: the i2c group
-            onAction: {
-                installing = true;
-                Admin.run("install", ["ddcutil"], what, ok => {
-                    if (!ok) {
-                        installing = false;
-                        return;
-                    }
-                    Admin.run("join-group", ["i2c"], what, ok2 => {
-                        installing = false;
-                        installed = ok2;
-                    });
-                });
-            }
         }
 
         SelectRow {
@@ -509,6 +479,34 @@ PageBase {
                         })
                     })
                 }
+            }
+        }
+
+        // No way to set this screen's brightness: say why
+        RequirementRow {
+            readonly property var bm: root.monitor ? Brightness.getMonitor(root.monitor.name) : null
+            readonly property string what: Tr.tr("Install ddcutil for monitor brightness")
+            property bool installing
+            property bool installed
+
+            visible: !!root.monitor && !root.hasBacklight && !(bm?.isDdc || bm?.isAppleDisplay)
+            icon: "brightness_6"
+            text: root.hasDdcutil ? Tr.tr("Brightness: this monitor doesn't answer over DDC/CI") : Tr.tr("Brightness of external monitors needs ddcutil")
+            subtext: installing ? Tr.tr("Installing…") : installed ? Tr.tr("Installed. Log out and back in once so it may use the monitor's cable.") : root.hasDdcutil ? Tr.tr("Turn DDC/CI on in the monitor's own menu, then open this page again. Some monitors and docks don't support it.") : Tr.tr("It sets the brightness over the display cable (DDC/CI). Installing it asks for your password.")
+            actionText: root.hasDdcutil || installing ? "" : Tr.tr("Install")
+            // ddcutil talks to the monitor through /dev/i2c-*: the i2c group
+            onAction: {
+                installing = true;
+                Admin.run("install", ["ddcutil"], what, ok => {
+                    if (!ok) {
+                        installing = false;
+                        return;
+                    }
+                    Admin.run("join-group", ["i2c"], what, ok2 => {
+                        installing = false;
+                        installed = ok2;
+                    });
+                });
             }
         }
 

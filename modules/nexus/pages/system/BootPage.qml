@@ -555,15 +555,9 @@ PageBase {
             }
         }
 
-        StyledText {
-            Layout.fillWidth: true
-            Layout.leftMargin: Tokens.padding.small
-            Layout.topMargin: Tokens.spacing.medium
-            Layout.bottomMargin: Tokens.spacing.small
+        SectionHeader {
             visible: !!root.draft
             text: Tr.tr("Tool buttons (the small icons)")
-            color: Colours.palette.m3onSurfaceVariant
-            font: Tokens.font.label.medium
         }
 
         StyledText {
@@ -595,7 +589,7 @@ PageBase {
                     readonly property bool on: root.draft.tools.includes(modelData[0])
 
                     implicitWidth: 112
-                    implicitHeight: 122
+                    implicitHeight: 136
                     radius: Tokens.rounding.medium
                     color: on ? Colours.palette.m3primaryContainer : Colours.tPalette.m3surfaceContainerHigh
 

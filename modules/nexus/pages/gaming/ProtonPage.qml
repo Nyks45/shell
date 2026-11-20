@@ -84,7 +84,6 @@ PageBase {
                 spacing: Tokens.spacing.extraSmall / 2
 
                 SectionHeader {
-                    first: tg.index === 0
                     text: tg.modelData[1]
                 }
 

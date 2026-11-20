@@ -1,6 +1,7 @@
 pragma Singleton
 
 import QtQuick
+import QtQuick.Layouts
 
 // Where a row sits in its group, for its rounded corners: rows next to each
 // other in a column form one group (rounded at its top and bottom only); a
@@ -32,6 +33,64 @@ QtObject {
         return p && p.item === row ? p : row;
     }
 
+    function isColumn(item: Item): bool {
+        return item instanceof ColumnLayout || item instanceof Column;
+    }
+
+    // Nearest visible visual item (skipping repeaters, empty loaders and 0px helpers) inside k
+    function edgeItem(k: Item, dir: int): Item {
+        if (!k || !k.visible)
+            return null;
+        if (k.delegate !== undefined && k.model !== undefined)
+            return null;
+        if (k.sourceComponent !== undefined)
+            return k.item ? edgeItem(k.item, dir) : null;
+        if (isColumn(k)) {
+            const kids = k.children;
+            for (let j = dir > 0 ? 0 : kids.length - 1; j >= 0 && j < kids.length; j += dir) {
+                const r = edgeItem(kids[j], dir);
+                if (r)
+                    return r;
+            }
+            return null;
+        }
+        return (k.implicitHeight > 0 || k.height > 0) ? k : null;
+    }
+
+    // Nearest visible non-row/row item next to `row` in its column chain (crossing nested columns)
+    function adjacentVisual(row: Item, dir: int): Item {
+        void revision;
+        let h = host(row);
+        let col = h?.parent;
+        while (col) {
+            const kids = col.children;
+            let i = -1;
+            for (let k = 0; k < kids.length; k++) {
+                if (kids[k] === h) {
+                    i = k;
+                    break;
+                }
+            }
+            if (i < 0)
+                return null;
+            for (let j = i + dir; j >= 0 && j < kids.length; j += dir) {
+                const r = edgeItem(kids[j], dir);
+                if (r)
+                    return r;
+            }
+            const outerH = host(col);
+            if (!isColumn(col) || !isColumn(outerH?.parent))
+                return null;
+            h = outerH;
+            col = outerH.parent;
+        }
+        return null;
+    }
+
+    function isAtTop(row: Item): bool {
+        return !adjacentVisual(row, -1);
+    }
+
     // What an item shown in a column is, seen from a row next to it (dir -1: from below, +1:
     // from above): a row (the nearest one in it), "none" (nothing to see: a Repeater, an empty
     // Loader or column) or "block" (anything else: a text, a picture... ends the group). A
@@ -47,7 +106,7 @@ QtObject {
             return "none";
         if (k.sourceComponent !== undefined)
             return k.item ? edge(k.item, dir) : "none";
-        if (k.spacing !== undefined && k.children !== undefined) {
+        if (isColumn(k)) {
             const kids = k.children;
             for (let j = dir > 0 ? 0 : kids.length - 1; j >= 0 && j < kids.length; j += dir) {
                 if (!kids[j].visible)
@@ -58,7 +117,7 @@ QtObject {
             }
             return "none";
         }
-        return "block";
+        return (k.implicitHeight > 0 || k.height > 0) ? "block" : "none";
     }
 
     // The visible row next to `row` (dir -1: above, +1: below), or null when
@@ -89,10 +148,11 @@ QtObject {
             }
             // The end of a column inside another column: on into the outer one (its rows are
             // one group with the ones around it)
-            if (col.spacing === undefined || col.parent?.spacing === undefined)
+            const outerH = host(col);
+            if (!isColumn(col) || !isColumn(outerH?.parent))
                 return null;
-            h = col;
-            col = col.parent;
+            h = outerH;
+            col = outerH.parent;
         }
         return null;
     }
@@ -103,7 +163,7 @@ QtObject {
         void revision;
         let h = host(row);
         let col = h?.parent;
-        while (col && col.parent?.spacing !== undefined && col.spacing !== undefined) {
+        while (col && isColumn(col) && isColumn(host(col)?.parent)) {
             const kids = col.children;
             let firstShown = null;
             for (let k = 0; k < kids.length; k++) {
@@ -114,8 +174,8 @@ QtObject {
             }
             if (firstShown !== h)
                 break;
-            h = col;
-            col = col.parent;
+            h = host(col);
+            col = h?.parent;
         }
         return col?.spacing ?? 0;
     }

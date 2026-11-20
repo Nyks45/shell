@@ -144,7 +144,6 @@ PageBase {
         }
 
         SectionHeader {
-            first: true
             visible: root.info !== null
             text: Tr.tr("Temperatures")
         }

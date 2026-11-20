@@ -186,8 +186,6 @@ PageBase {
         }
 
         ToggleRow {
-            Layout.topMargin: Tokens.spacing.large - parent.spacing
-
             groupStart: true
             // TRANSLATORS: adjective: other devices can find this computer
             text: Tr.trCtx("Discoverable", "bluetooth setting")

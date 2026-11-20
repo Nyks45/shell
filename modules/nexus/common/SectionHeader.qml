@@ -29,19 +29,8 @@ ConnectedRect {
         Qt.callLater(syncCard)
     Component.onCompleted: card = rawCard
 
-    // The first thing on its page: no gap above
-    readonly property bool atTop: {
-        void Rows.revision;
-        const h = Rows.host(root);
-        const kids = h?.parent?.children ?? [];
-        for (const k of kids) {
-            if (k === h)
-                return true;
-            if (k.visible && (k.implicitHeight > 0 || k.height > 0))
-                return false;
-        }
-        return true;
-    }
+    // The first thing on its page (across nested Section/Repeater columns): no gap above
+    readonly property bool atTop: Rows.isAtTop(root)
 
     function guessIcon(t: string): string {
         const s = (t ?? "").toLowerCase();
@@ -57,7 +46,7 @@ ConnectedRect {
     color: "transparent"
 
     Layout.fillWidth: true
-    Layout.topMargin: atTop ? 0 : Tokens.spacing.largeIncreased - ((Rows.host(root)?.parent as ColumnLayout)?.spacing ?? 0)
+    Layout.topMargin: atTop ? 0 : Math.max(0, Tokens.spacing.largeIncreased - root.gap)
     Layout.bottomMargin: card ? 0 : Tokens.spacing.extraSmall
     implicitHeight: row.implicitHeight + (card ? Tokens.padding.large + Tokens.padding.small : 0)
 

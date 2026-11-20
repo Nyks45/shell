@@ -20,7 +20,6 @@ PageBase {
 
         // General
         SectionHeader {
-            first: true
             text: Tr.tr("General")
         }
 

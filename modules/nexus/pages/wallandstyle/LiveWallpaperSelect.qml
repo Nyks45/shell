@@ -210,7 +210,6 @@ PageBase {
         Flow {
             Layout.fillWidth: true
             Layout.topMargin: Tokens.spacing.small
-            Layout.bottomMargin: Tokens.spacing.small
             spacing: Tokens.spacing.small
 
             IconTextButton {
@@ -494,7 +493,6 @@ PageBase {
 
         RowButton {
             visible: root.showFilters
-            Layout.topMargin: Tokens.spacing.small
             groupStart: true
             icon: LiveWallpaper.testing ? "hourglass_top" : "fact_check"
             text: LiveWallpaper.testing ? Tr.tr("Testing %1 of %2… (click to stop)").arg(LiveWallpaper.testDone).arg(LiveWallpaper.testTotal) : Tr.tr("Test which wallpapers work")

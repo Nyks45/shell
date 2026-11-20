@@ -262,7 +262,6 @@ PageBase {
         }
 
         SectionHeader {
-            first: true
             visible: !!root.info
             text: Tr.tr("Details")
         }

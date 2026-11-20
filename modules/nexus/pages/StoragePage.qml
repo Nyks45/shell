@@ -171,7 +171,6 @@ done
         }
 
         SectionHeader {
-            first: true
             text: Tr.tr("Drives")
         }
 
@@ -186,21 +185,31 @@ done
             text: Tr.tr("Home folder")
         }
 
-        RowLayout {
+        ConnectedRect {
             Layout.fillWidth: true
-            Layout.leftMargin: Tokens.padding.small
             visible: root.measuringFolders
-            spacing: Tokens.spacing.small
+            implicitHeight: measuringRow.implicitHeight + Tokens.padding.medium * 2
 
-            LoadingIndicator {
-                implicitSize: Tokens.font.body.small.pointSize * 1.4
-            }
+            RowLayout {
+                id: measuringRow
 
-            StyledText {
-                Layout.fillWidth: true
-                text: Object.keys(root.folders).length === 0 ? Tr.tr("Measuring folders…") : Tr.tr("Measuring remaining folders…")
-                color: Colours.palette.m3outline
-                font: Tokens.font.body.small
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Tokens.padding.largeIncreased
+                anchors.rightMargin: Tokens.padding.largeIncreased
+                spacing: Tokens.spacing.medium
+
+                LoadingIndicator {
+                    implicitSize: Tokens.font.body.small.pointSize * 1.4
+                }
+
+                StyledText {
+                    Layout.fillWidth: true
+                    text: Object.keys(root.folders).length === 0 ? Tr.tr("Measuring folders…") : Tr.tr("Measuring remaining folders…")
+                    color: Colours.palette.m3outline
+                    font: Tokens.font.body.small
+                }
             }
         }
 

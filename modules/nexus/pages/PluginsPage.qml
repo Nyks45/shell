@@ -57,7 +57,6 @@ PageBase {
         }
 
         SectionHeader {
-            first: !root.hasPendingChanges
             text: Tr.tr("Hyprland plugins")
         }
 

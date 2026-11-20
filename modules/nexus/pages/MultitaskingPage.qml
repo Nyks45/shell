@@ -65,7 +65,6 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         SectionHeader {
-            first: true
             text: Tr.tr("Focus")
         }
 
@@ -372,7 +371,6 @@ PageBase {
 
         Layout.fillWidth: true
         implicitHeight: ruleLayout.implicitHeight + Tokens.padding.medium * 2
-        clip: true
 
         Behavior on implicitHeight {
             Anim {
@@ -380,23 +378,30 @@ PageBase {
             }
         }
 
-        StateLayer {
+        Item {
             anchors.fill: parent
-            radius: rule.topLeftRadius
-            disabled: rule.open
-            onClicked: root.openRule = rule.index
-        }
+            clip: true
 
-        ColumnLayout {
-            id: ruleLayout
+            StateLayer {
+                anchors.fill: parent
+                topLeftRadius: rule.topLeftRadius
+                topRightRadius: rule.topRightRadius
+                bottomLeftRadius: rule.bottomLeftRadius
+                bottomRightRadius: rule.bottomRightRadius
+                disabled: rule.open
+                onClicked: root.openRule = rule.index
+            }
 
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: Tokens.padding.medium
-            anchors.leftMargin: Tokens.padding.largeIncreased
-            anchors.rightMargin: Tokens.padding.largeIncreased
-            spacing: Tokens.spacing.small
+            ColumnLayout {
+                id: ruleLayout
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: Tokens.padding.medium
+                anchors.leftMargin: Tokens.padding.largeIncreased
+                anchors.rightMargin: Tokens.padding.largeIncreased
+                spacing: Tokens.spacing.small
 
             RowLayout {
                 Layout.fillWidth: true
@@ -602,6 +607,7 @@ PageBase {
                 color: Colours.palette.m3outline
                 font: Tokens.font.label.small
                 wrapMode: Text.WordWrap
+            }
             }
         }
     }

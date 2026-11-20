@@ -41,7 +41,6 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         SectionHeader {
-            first: true
             text: Tr.tr("Icons")
         }
 
@@ -135,12 +134,9 @@ for name in names:
         }
 
         // A preview of the theme's icons
-        StyledRect {
+        ConnectedRect {
             Layout.fillWidth: true
-            Layout.topMargin: Tokens.spacing.small
             implicitHeight: previewRow.implicitHeight + Tokens.padding.large * 2
-            radius: Tokens.rounding.large
-            color: Colours.tPalette.m3surfaceContainer
 
             Row {
                 id: previewRow

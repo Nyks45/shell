@@ -36,7 +36,6 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         SectionHeader {
-            first: true
             text: Tr.tr("Text")
         }
 

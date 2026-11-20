@@ -52,7 +52,6 @@ PageBase {
         }
 
         SectionHeader {
-            first: true
             text: Tr.tr("Security")
         }
 

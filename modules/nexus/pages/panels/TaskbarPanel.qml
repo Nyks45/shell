@@ -19,7 +19,6 @@ PageBase {
 
         // Behaviour
         SectionHeader {
-            first: true
             text: Tr.tr("Behaviour")
         }
 

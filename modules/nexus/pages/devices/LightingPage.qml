@@ -133,7 +133,6 @@ PageBase {
 
         // Everything at once
         SectionHeader {
-            first: true
             visible: (root.info?.devices ?? []).length > 0
             text: Tr.tr("All lighting")
         }

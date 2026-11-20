@@ -323,8 +323,6 @@ PageBase {
                         required property var modelData
                         required property int index
 
-                        first: index === 0
-                        last: index === section.items.length - 1
                         item: modelData
                     }
                 }
@@ -895,7 +893,6 @@ PageBase {
 
         Layout.fillWidth: true
         implicitHeight: srowLayout.implicitHeight + Tokens.padding.medium * 2
-        clip: true
 
         Behavior on implicitHeight {
             Anim {
@@ -903,83 +900,91 @@ PageBase {
             }
         }
 
-        StateLayer {
+        Item {
             anchors.fill: parent
-            radius: srow.topLeftRadius
-            disabled: !srow.editable || srow.open
-            showHoverBackground: srow.editable
-            onClicked: root.editing = `${srow.item.kind}/${srow.item.id}`
-        }
+            clip: true
 
-        ColumnLayout {
-            id: srowLayout
-
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: Tokens.padding.medium
-            anchors.leftMargin: Tokens.padding.largeIncreased
-            anchors.rightMargin: Tokens.padding.largeIncreased
-            spacing: Tokens.spacing.small
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Tokens.spacing.medium
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 0
-
-                    StyledText {
-                        Layout.fillWidth: true
-                        text: srow.item.label
-                        font: Tokens.font.body.small
-                        elide: Text.ElideRight
-                    }
-
-                    StyledText {
-                        Layout.fillWidth: true
-                        visible: srow.item.changed
-                        text: srow.item.keys ? Tr.tr("Changed") : Tr.tr("Turned off")
-                        color: Colours.palette.m3primary
-                        font: Tokens.font.label.small
-                    }
-                }
-
-                KeysChip {
-                    visible: !!srow.item.keys
-                    text: srow.item.keys
-                }
-
-                MaterialIcon {
-                    visible: srow.editable && !srow.open
-                    text: "edit"
-                    color: Colours.palette.m3outline
-                    fontStyle: Tokens.font.icon.small
-                }
+            StateLayer {
+                anchors.fill: parent
+                topLeftRadius: srow.topLeftRadius
+                topRightRadius: srow.topRightRadius
+                bottomLeftRadius: srow.bottomLeftRadius
+                bottomRightRadius: srow.bottomRightRadius
+                disabled: !srow.editable || srow.open
+                showHoverBackground: srow.editable
+                onClicked: root.editing = `${srow.item.kind}/${srow.item.id}`
             }
 
-            // Made only for the row being changed: one per row (150 of them)
-            // made the page slow to open
-            Loader {
-                Layout.fillWidth: true
-                active: srow.open
-                visible: active
+            ColumnLayout {
+                id: srowLayout
 
-                sourceComponent: KeysEditor {
-                    initial: srow.item.raw
-                    acceptText: Tr.trCtx("Save", "button")
-                    cancellable: true
-                    canTurnOff: srow.item.kind === "bind"
-                    canReset: srow.item.changed
-                    conflicts: root.findConflicts(keys, {
-                        kind: srow.item.kind,
-                        id: srow.item.id
-                    })
-                    onAccepted: keys => root.save(srow.item, keys)
-                    onCancelled: root.editing = ""
-                    onTurnedOff: root.save(srow.item, "")
-                    onResetClicked: root.reset(srow.item)
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: Tokens.padding.medium
+                anchors.leftMargin: Tokens.padding.largeIncreased
+                anchors.rightMargin: Tokens.padding.largeIncreased
+                spacing: Tokens.spacing.small
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Tokens.spacing.medium
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: srow.item.label
+                            font: Tokens.font.body.small
+                            elide: Text.ElideRight
+                        }
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            visible: srow.item.changed
+                            text: srow.item.keys ? Tr.tr("Changed") : Tr.tr("Turned off")
+                            color: Colours.palette.m3primary
+                            font: Tokens.font.label.small
+                        }
+                    }
+
+                    KeysChip {
+                        visible: !!srow.item.keys
+                        text: srow.item.keys
+                    }
+
+                    MaterialIcon {
+                        visible: srow.editable && !srow.open
+                        text: "edit"
+                        color: Colours.palette.m3outline
+                        fontStyle: Tokens.font.icon.small
+                    }
+                }
+
+                // Made only for the row being changed: one per row (150 of them)
+                // made the page slow to open
+                Loader {
+                    Layout.fillWidth: true
+                    active: srow.open
+                    visible: active
+
+                    sourceComponent: KeysEditor {
+                        initial: srow.item.raw
+                        acceptText: Tr.trCtx("Save", "button")
+                        cancellable: true
+                        canTurnOff: srow.item.kind === "bind"
+                        canReset: srow.item.changed
+                        conflicts: root.findConflicts(keys, {
+                            kind: srow.item.kind,
+                            id: srow.item.id
+                        })
+                        onAccepted: keys => root.save(srow.item, keys)
+                        onCancelled: root.editing = ""
+                        onTurnedOff: root.save(srow.item, "")
+                        onResetClicked: root.reset(srow.item)
+                    }
                 }
             }
         }

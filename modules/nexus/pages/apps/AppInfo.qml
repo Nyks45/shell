@@ -76,7 +76,6 @@ PageBase {
 
         // Launcher
         SectionHeader {
-            first: true
             text: Tr.tr("Launcher")
         }
 

@@ -45,7 +45,6 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         SectionHeader {
-            first: true
             text: Tr.tr("Desktop mode")
         }
 
@@ -58,9 +57,7 @@ PageBase {
         }
 
         RequirementRow {
-            Layout.topMargin: Tokens.spacing.small
             visible: !root.hyprflowLoaded
-            groupStart: true
             text: Tr.tr("Needs the hyprflow plugin")
             subtext: Tr.tr("Desktop mode, title bars, snapping, minimizing and hot corners come from hyprflow, a Hyprland plugin. It isn't loaded right now.")
             actionText: Tr.tr("Plugins")

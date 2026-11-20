@@ -27,6 +27,7 @@ ColumnLayout {
     StyledText {
         Layout.fillWidth: true
         Layout.leftMargin: Tokens.padding.small
+        Layout.bottomMargin: Tokens.spacing.small
         visible: root.values.length === 0 && root.emptyText
         text: root.emptyText
         color: Colours.palette.m3outline
@@ -43,7 +44,6 @@ ColumnLayout {
             required property int index
 
             Layout.fillWidth: true
-            first: index === 0
             implicitHeight: entryRow.implicitHeight + Tokens.padding.small * 2
 
             RowLayout {
@@ -77,8 +77,6 @@ ColumnLayout {
     // Adding one: a full-width field (the commands and patterns are long)
     ConnectedRect {
         Layout.fillWidth: true
-        first: root.values.length === 0
-        last: true
         implicitHeight: addRow.implicitHeight + Tokens.padding.small * 2
 
         RowLayout {

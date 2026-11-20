@@ -58,7 +58,6 @@ PageBase {
         }
 
         SectionHeader {
-            first: true
             text: Tr.tr("After a screenshot")
         }
 

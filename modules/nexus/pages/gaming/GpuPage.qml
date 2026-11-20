@@ -48,7 +48,6 @@ PageBase {
         }
 
         SectionHeader {
-            first: true
             visible: !!root.gpu?.nvidia
             text: root.gpu?.name ?? ""
         }

@@ -167,7 +167,6 @@ PageBase {
 
         // ---- Connection info ------------------------------------------------
         SectionHeader {
-            first: true
             text: Tr.tr("Connection")
         }
 

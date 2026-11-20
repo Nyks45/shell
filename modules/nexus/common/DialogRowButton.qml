@@ -52,6 +52,7 @@ Item {
     Component.onDestruction: Rows.bump()
 
     Layout.fillWidth: true
+    Layout.topMargin: root.groupStart && !Rows.isAtTop(root) ? Math.max(0, Tokens.spacing.largeIncreased - root.gap) : 0
     implicitHeight: openButton.implicitHeight
     z: open || dialogTransition.running ? 2 : 0
 

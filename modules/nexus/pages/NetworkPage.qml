@@ -59,7 +59,6 @@ PageBase {
 
         ToggleRow {
             visible: Nmcli.hasWifiHardware
-            Layout.topMargin: Nmcli.hasAvailableEthernet ? Tokens.spacing.large : 0
             groupStart: true
             text: Tr.tr("Wi-Fi")
             font: Tokens.font.body.medium
@@ -83,9 +82,11 @@ PageBase {
 
         // All networks button, only when > max networks
         RowButton {
-            visible: Nmcli.hasWifiHardware
-            Layout.preferredHeight: Nmcli.wifiEnabled && Nmcli.networks.length > GlobalConfig.nexus.maxNetworksShown ? implicitHeight : 0
-            clip: true
+            readonly property bool shown: Nmcli.wifiEnabled && Nmcli.networks.length > GlobalConfig.nexus.maxNetworksShown
+
+            visible: Nmcli.hasWifiHardware && (shown || showAllAnim.running)
+            Layout.preferredHeight: shown ? implicitHeight : 0
+            clip: showAllAnim.running
 
             icon: "expand_content"
             // TRANSLATORS: %1 = number of networks found
@@ -95,6 +96,8 @@ PageBase {
 
             Behavior on Layout.preferredHeight {
                 Anim {
+                    id: showAllAnim
+
                     type: Anim.DefaultEffects
                 }
             }
@@ -119,7 +122,6 @@ PageBase {
 
         // ---- VPN -------------------------------------------------------------
         ToggleRow {
-            Layout.topMargin: Nmcli.hasAvailableEthernet || Nmcli.hasWifiHardware ? Tokens.spacing.large : 0
             Layout.fillWidth: true
             groupStart: true
             text: Tr.tr("VPN")

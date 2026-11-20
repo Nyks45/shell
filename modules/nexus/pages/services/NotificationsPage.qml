@@ -36,7 +36,6 @@ PageBase {
 
         // Notifications
         SectionHeader {
-            first: true
             text: Tr.tr("Notifications")
         }
 

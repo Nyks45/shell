@@ -190,7 +190,6 @@ PageBase {
 
         // Information
         ConnectedRect {
-            Layout.topMargin: Tokens.spacing.large - parent.spacing
             Layout.fillWidth: true
             implicitHeight: batteryLayout.implicitHeight + Tokens.padding.large * 2
             groupStart: true

@@ -218,6 +218,7 @@ PageBase {
         StyledText {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
+            Layout.bottomMargin: Tokens.spacing.small
             visible: root.copied !== ""
             text: root.copied
             color: Colours.palette.m3primary

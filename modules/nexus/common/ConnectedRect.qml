@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Layouts
 import Caelestia.Config
 import qs.components
 import qs.services
@@ -12,14 +13,17 @@ StyledRect {
 
     // Starts a new group even right after another row
     property bool groupStart
-    readonly property bool isGroupRow: true
-    property bool first: Rows.isFirst(root)
-    property bool last: Rows.isLast(root)
+    property bool standalone
+    readonly property bool isGroupRow: !standalone
+    property bool first: standalone ? true : Rows.isFirst(root)
+    property bool last: standalone ? true : Rows.isLast(root)
 
     // The item that sits in the column: this, or the row this is the background of (ToggleRow)
     readonly property Item rowItem: parent && parent.isGroupRow === true ? parent : root
     // The column's gap above this row, filled when it continues a card
     readonly property real gap: Rows.gapAbove(rowItem)
+
+    Layout.topMargin: root.rowItem === root && root.groupStart && !Rows.isAtTop(root) ? Math.max(0, Tokens.spacing.largeIncreased - root.gap) : 0
 
     Component.onCompleted: Rows.bump()
     Component.onDestruction: Rows.bump()

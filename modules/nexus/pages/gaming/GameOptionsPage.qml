@@ -75,7 +75,6 @@ PageBase {
         }
 
         SectionHeader {
-            first: true
             text: "NVIDIA"
         }
 
@@ -103,18 +102,23 @@ PageBase {
             onMoved: v => root.setVar("__GL_SHARPEN_VALUE", String(v))
         }
 
+        SectionHeader {
+            text: Tr.tr("Shader cache")
+        }
+
         StyledText {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
-            Layout.topMargin: Tokens.spacing.medium
             Layout.bottomMargin: Tokens.spacing.small
-            text: Tr.tr("Shader cache size (compiled shaders kept between runs: less stutter)")
-            color: Colours.palette.m3onSurfaceVariant
-            font: Tokens.font.label.medium
+            text: Tr.tr("Compiled shaders kept between runs: less stutter")
+            color: Colours.palette.m3outline
+            font: Tokens.font.label.small
+            wrapMode: Text.WordWrap
         }
 
         Flow {
             Layout.fillWidth: true
+            Layout.bottomMargin: Tokens.spacing.small
             spacing: Tokens.spacing.small
 
             Repeater {
@@ -134,7 +138,6 @@ PageBase {
         }
 
         ToggleRow {
-            Layout.topMargin: Tokens.spacing.small
             text: Tr.tr("Never clean the shader cache")
             subtext: Tr.tr("The driver doesn't shrink it when it grows past the size")
             checked: root.values.__GL_SHADER_DISK_CACHE_SKIP_CLEANUP === "1"
@@ -285,6 +288,7 @@ PageBase {
         StyledText {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
+            Layout.topMargin: Tokens.spacing.small
             visible: !!root.mfg && (root.mfg.games ?? []).length === 0
             text: Tr.tr("No installed games with DLSS Frame Generation found.")
             color: Colours.palette.m3onSurfaceVariant
@@ -315,6 +319,7 @@ PageBase {
 
         Flow {
             Layout.fillWidth: true
+            Layout.bottomMargin: Tokens.spacing.small
             spacing: Tokens.spacing.small
 
             Repeater {
@@ -335,7 +340,6 @@ PageBase {
 
         RowButton {
             Layout.fillWidth: true
-            Layout.topMargin: Tokens.spacing.small
             icon: "content_copy"
             text: root.launchLine
             subtext: Tr.tr("Copy, then in Steam: the game › Properties › Launch options")

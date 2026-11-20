@@ -37,7 +37,6 @@ ColumnLayout {
 
     ConnectedRect {
         Layout.fillWidth: true
-        first: true
         implicitHeight: ethHeaderLayout.implicitHeight + Tokens.padding.medium * 2
 
         RowLayout {
@@ -97,7 +96,6 @@ ColumnLayout {
             readonly property var details: ethRow.isConnected ? Nmcli.ethernetDeviceDetails : null
 
             Layout.fillWidth: true
-            last: index === ethRepeater.count - 1
             implicitHeight: ethLayout.implicitHeight + Tokens.padding.medium * 2
 
             // Tap opens the detail page for this interface.

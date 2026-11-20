@@ -67,7 +67,6 @@ PageBase {
 
         // Keyboard
         SectionHeader {
-            first: true
             text: Tr.tr("Keyboard")
         }
 

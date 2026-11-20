@@ -97,6 +97,7 @@ PageBase {
         StyledText {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
+            Layout.topMargin: Tokens.spacing.small
             visible: !root.query.trim() && root.popular.length === 0
             text: Tr.tr("Reading…")
             color: Colours.palette.m3onSurfaceVariant
@@ -146,6 +147,7 @@ PageBase {
         StyledText {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
+            Layout.topMargin: Tokens.spacing.small
             visible: !!root.query.trim() && (root.searching || root.shown.length === 0)
             text: root.searching ? Tr.tr("Searching…") : Tr.tr("Nothing found")
             color: Colours.palette.m3onSurfaceVariant
@@ -155,6 +157,7 @@ PageBase {
         StyledText {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
+            Layout.topMargin: Tokens.spacing.small
             visible: !!root.results && Object.keys(root.results.errors ?? {}).length > 0
             text: Tr.tr("Couldn't search %1 (offline?)").arg(Object.keys(root.results?.errors ?? {}).map(k => k === "aur" ? "the AUR" : k === "flatpak" ? "Flathub" : Tr.tr("the system repositories")).join(", "))
             color: Colours.palette.m3error

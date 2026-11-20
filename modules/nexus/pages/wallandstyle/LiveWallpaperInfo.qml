@@ -302,7 +302,6 @@ PageBase {
 
         // Compatibility with linux-wallpaperengine
         SectionHeader {
-            first: true
             text: Tr.tr("Works with Linux")
         }
 
@@ -442,7 +441,6 @@ PageBase {
         }
 
         OverrideToggle {
-            last: !(root.w.properties ?? []).length && !Object.keys(root.o).length
             text: Tr.tr("Particles")
             key: "disableParticles"
             inverted: true

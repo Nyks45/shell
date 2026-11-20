@@ -207,7 +207,6 @@ PageBase {
 
         // ---- Connection info (only shows when active) ---------------------------------
         SectionHeader {
-            first: true
             text: Tr.tr("Connection")
             visible: root.isActive
         }
@@ -257,7 +256,6 @@ PageBase {
 
         // ---- Behaviour -------------------------------------------------------
         SectionHeader {
-            first: !root.isActive
             text: Tr.tr("Behaviour")
         }
 

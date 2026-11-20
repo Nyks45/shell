@@ -48,7 +48,6 @@ PageBase {
 
         // Input
         SliderRow {
-            Layout.topMargin: Tokens.spacing.large - parent.spacing
             groupStart: true
             icon: Icons.getMicVolumeIcon(Audio.sourceVolume, Audio.sourceMuted)
             label: Tr.trCtx("Input", "audio input")
@@ -76,7 +75,6 @@ PageBase {
 
         // Per-app volumes
         NavRow {
-            Layout.topMargin: Tokens.spacing.large - parent.spacing
             groupStart: true
 
             icon: "tune"

@@ -16,6 +16,7 @@ StyledSwitch {
     readonly property alias bg: bg
 
     Layout.fillWidth: true
+    Layout.topMargin: root.groupStart && !Rows.isAtTop(root) ? Math.max(0, Tokens.spacing.largeIncreased - Rows.gapAbove(root)) : 0
 
     horizontalPadding: Tokens.padding.largeIncreased
     verticalPadding: Tokens.padding.medium
