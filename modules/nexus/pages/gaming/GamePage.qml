@@ -335,10 +335,12 @@ PageBase {
 
                     StyledText {
                         Layout.fillWidth: true
-                        text: opt.mine ? (opt.mine === "on" ? Tr.tr("On for this game") : Tr.tr("Off for this game")) : opt.allOn ? Tr.tr("On (like all games)") : Tr.tr("Off (like all games)")
+                        readonly property string stateText: opt.mine ? (opt.mine === "on" ? Tr.tr("On for this game") : Tr.tr("Off for this game")) : opt.allOn ? Tr.tr("On (like all games)") : Tr.tr("Off (like all games)")
+                        readonly property string descText: Games.optionDescriptions[opt.modelData[0]] ?? ""
+                        text: descText ? `${stateText} · ${descText}` : stateText
                         color: opt.mine ? Colours.palette.m3primary : Colours.palette.m3outline
                         font: Tokens.font.label.small
-                        elide: Text.ElideRight
+                        wrapMode: Text.WordWrap
                     }
                 }
 
@@ -444,7 +446,12 @@ PageBase {
                         visible: !!root.log?.path
                         text: Tr.tr("Delete all")
                         type: TextButton.Text
-                        onClicked: Admin.exec([Games.helper, "game-log", root.game.key, "delete"], Tr.tr("Delete %1's logs").arg(root.game.title), () => root.readLog())
+                        onClicked: confirmDialog.ask({
+                            header: Tr.tr("Delete logs for %1?").arg(root.game?.title ?? ""),
+                            body: Tr.tr("Delete all %1 saved run log(s) for %2?").arg(Math.max(1, (root.log?.runs ?? []).length)).arg(root.game?.title ?? ""),
+                            confirmLabel: Tr.tr("Delete all"),
+                            onConfirm: () => Admin.exec([Games.helper, "game-log", root.game.key, "delete"], Tr.tr("Delete %1's logs").arg(root.game.title), () => root.readLog())
+                        })
                         // (all of this game's kept launches)
                     }
 
@@ -550,7 +557,7 @@ PageBase {
 
         RowButton {
             Layout.fillWidth: true
-            Layout.topMargin: Tokens.spacing.large
+            groupStart: true
             visible: !!root.game?.removable
             disabled: !root.canChange
             icon: "playlist_remove"

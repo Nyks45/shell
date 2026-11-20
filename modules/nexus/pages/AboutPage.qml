@@ -1,10 +1,12 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import Quickshell.Io
 import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
+import qs.components.controls
 import qs.services
 import qs.utils
 import qs.modules.nexus.common
@@ -17,8 +19,41 @@ PageBase {
 
     property string quickshellVersion
     property string cliVersion
+    property string hyprVersion
+    property string uptime
     // Hardware: processor, graphics, memory, storage (lines from hwProc)
     property var hw: ({})
+
+    function formattedStorage(): string {
+        const [size, used] = (root.hw.disk ?? "").split(" ").map(Number);
+        if (!size)
+            return "";
+        const gb = b => b >= 1e12 ? `${(b / 1e12).toFixed(2)} TB` : `${Math.round(b / 1e9)} GB`;
+        return Tr.tr("%1 used of %2 (system drive)").arg(gb(used)).arg(gb(size));
+    }
+
+    function copySystemInfo(): void {
+        const lines = [
+            `Computer name: ${SysInfo.hostname}`,
+            SysInfo.device ? `Device: ${SysInfo.device}` : "",
+            `Operating system: ${SysInfo.osPrettyName || SysInfo.osName}`,
+            `Kernel: ${SysInfo.kernel}`,
+            SysInfo.firmware ? `Firmware: ${SysInfo.firmware}` : "",
+            root.uptime ? `Uptime: ${root.uptime}` : "",
+            root.hw.cpu ? `Processor: ${root.hw.cpu} (${root.hw.cores} threads)` : "",
+            ...(root.hw.gpus ?? []).map((g, i) => `${i === 0 ? "Graphics" : "Graphics " + (i + 1)}: ${g}`),
+            root.hw.mem ? `Memory: ${(parseInt(root.hw.mem) / 1048576).toFixed(1)} GiB` : "",
+            root.formattedStorage() ? `Storage: ${root.formattedStorage()}` : "",
+            `Shell: ${CUtils.version || "unknown"}`,
+            root.cliVersion ? `Command-line tool: ${root.cliVersion}` : "",
+            root.quickshellVersion ? `Quickshell: ${root.quickshellVersion}` : "",
+            `Qt: ${CUtils.qtVersion || "unknown"}`,
+            root.hyprVersion ? `Hyprland: ${root.hyprVersion}` : "",
+            `Loaded plugins: ${root.pluginCount}`
+        ].filter(Boolean).join("\n");
+        Quickshell.execDetached(["sh", "-c", "printf '%s\\n' \"$1\" | wl-copy", "sh", lines]);
+        Toaster.toast(Tr.tr("System information copied"), "", "content_copy");
+    }
 
     title: Tr.tr("About")
 
@@ -60,6 +95,8 @@ echo "cores=$(nproc)"
 lspci 2>/dev/null | grep -Ei 'vga|3d controller|display controller' | sed -E 's/^[0-9a-f:.]+ [^:]+: //' | while read -r g; do echo "gpu=$g"; done
 echo "mem=$(awk '/MemTotal/ {print $2}' /proc/meminfo)"
 df -B1 --output=size,used / | tail -1 | awk '{print "disk=" $1 " " $2}'
+echo "up=$(uptime -p 2>/dev/null | sed 's/^up *//')"
+echo "hypr=$(hyprctl version 2>/dev/null | head -n1 | awk '{print $2}')"
 `]
             stdout: StdioCollector {
                 onStreamFinished: {
@@ -72,7 +109,11 @@ df -B1 --output=size,used / | tail -1 | awk '{print "disk=" $1 " " $2}'
                             continue;
                         const k = line.slice(0, i), v = line.slice(i + 1).trim();
                         if (k === "gpu")
-                            hw.gpus.push(v.replace(/\s*\(rev [0-9a-f]+\)$/, "").replace(/^(NVIDIA|Advanced Micro Devices, Inc\.|Intel) Corporation /, "$1 "));
+                            hw.gpus.push(v.replace(/\s*\(rev [0-9a-f]+\)$/i, "").replace(/\s*\[[0-9a-f]{4}:[0-9a-f]{4}\]/gi, "").replace(/Advanced Micro Devices, Inc\.\s*\[AMD\/ATI\]\s*/g, "AMD ").replace(/^(NVIDIA|Advanced Micro Devices, Inc\.|Intel) Corporation\s+/, "$1 "));
+                        else if (k === "up")
+                            root.uptime = v;
+                        else if (k === "hypr")
+                            root.hyprVersion = v;
                         else
                             hw[k] = v;
                     }
@@ -121,7 +162,7 @@ df -B1 --output=size,used / | tail -1 | awk '{print "disk=" $1 " " $2}'
         }
 
         InfoRow {
-            label: Tr.tr("Hostname")
+            label: Tr.tr("Computer name")
             value: SysInfo.hostname
         }
 
@@ -131,7 +172,7 @@ df -B1 --output=size,used / | tail -1 | awk '{print "disk=" $1 " " $2}'
         }
 
         InfoRow {
-            label: Tr.tr("Distro")
+            label: Tr.tr("Operating system")
             value: SysInfo.osPrettyName || SysInfo.osName
         }
 
@@ -146,6 +187,12 @@ df -B1 --output=size,used / | tail -1 | awk '{print "disk=" $1 " " $2}'
             value: SysInfo.firmware
         }
 
+        InfoRow {
+            visible: !!root.uptime
+            label: Tr.tr("Uptime")
+            value: root.uptime
+        }
+
         // Hardware
         SectionHeader {
             text: Tr.tr("Hardware")
@@ -153,7 +200,8 @@ df -B1 --output=size,used / | tail -1 | awk '{print "disk=" $1 " " $2}'
 
         InfoRow {
             label: Tr.tr("Processor")
-            value: root.hw.cpu ? Tr.tr("%1 (%2 threads)").arg(root.hw.cpu).arg(root.hw.cores) : ""
+            value: root.hw.cpu ?? ""
+            subtext: root.hw.cores ? Tr.tr("%1 threads").arg(root.hw.cores) : ""
         }
 
         Repeater {
@@ -175,13 +223,7 @@ df -B1 --output=size,used / | tail -1 | awk '{print "disk=" $1 " " $2}'
 
         InfoRow {
             label: Tr.tr("Storage")
-            value: {
-                const [size, used] = (root.hw.disk ?? "").split(" ").map(Number);
-                if (!size)
-                    return "";
-                const gb = b => b >= 1e12 ? `${(b / 1e12).toFixed(2)} TB` : `${Math.round(b / 1e9)} GB`;
-                return Tr.tr("%1 used of %2 (system drive)").arg(gb(used)).arg(gb(size));
-            }
+            value: root.formattedStorage()
         }
 
         // Software
@@ -195,7 +237,7 @@ df -B1 --output=size,used / | tail -1 | awk '{print "disk=" $1 " " $2}'
         }
 
         InfoRow {
-            label: Tr.trCtx("CLI", "the caelestia command line tool")
+            label: Tr.tr("Command-line tool")
             value: root.cliVersion || "…"
         }
 
@@ -209,6 +251,12 @@ df -B1 --output=size,used / | tail -1 | awk '{print "disk=" $1 " " $2}'
             value: CUtils.qtVersion || "…"
         }
 
+        InfoRow {
+            visible: !!root.hyprVersion
+            label: "Hyprland"
+            value: root.hyprVersion
+        }
+
         // Plugins
         SectionHeader {
             text: Tr.tr("Plugins")
@@ -217,6 +265,14 @@ df -B1 --output=size,used / | tail -1 | awk '{print "disk=" $1 " " $2}'
         InfoRow {
             label: Tr.tr("Loaded plugins")
             value: root.pluginCount.toString()
+        }
+
+        RowButton {
+            Layout.fillWidth: true
+            icon: "content_copy"
+            text: Tr.tr("Copy system information")
+            subtext: Tr.tr("Copies OS, hardware and software versions for bug reports")
+            onClicked: root.copySystemInfo()
         }
 
         // Non-visual helpers (the page takes one item: they live in its column)

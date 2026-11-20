@@ -200,6 +200,13 @@ PageBase {
         }, JSON.stringify(payload()));
     }
 
+    function undoChanges(): void {
+        root.draft = JSON.parse(JSON.stringify(root.start));
+        root.optionsError = "";
+        optionsRow.field.isError = false;
+        optionsRow.field.text = Qt.binding(() => root.draft?.options.join(" ") ?? "");
+    }
+
     title: Tr.tr("Recovery & boot")
 
     Component.onCompleted: load()
@@ -290,12 +297,7 @@ PageBase {
                 visible: !root.applying
                 text: Tr.tr("Undo changes")
                 type: TextButton.Text
-                onClicked: {
-                    root.draft = JSON.parse(JSON.stringify(root.start));
-                    root.optionsError = "";
-                    optionsRow.field.isError = false;
-                    optionsRow.field.text = Qt.binding(() => root.draft?.options.join(" ") ?? "");
-                }
+                onClicked: root.undoChanges()
             }
 
             TextButton {
@@ -770,6 +772,45 @@ PageBase {
             }
         }
 
+        ConnectedRect {
+            Layout.fillWidth: true
+            visible: root.dirty || root.applying
+            implicitHeight: bottomDraftRow.implicitHeight + Tokens.padding.medium * 2
+
+            RowLayout {
+                id: bottomDraftRow
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Tokens.padding.largeIncreased
+                anchors.rightMargin: Tokens.padding.largeIncreased
+                spacing: Tokens.spacing.small
+
+                StyledText {
+                    Layout.fillWidth: true
+                    text: root.applying ? Tr.tr("Writing the boot menu…") : Tr.tr("Unsaved start option changes")
+                    color: Colours.palette.m3primary
+                    font: Tokens.font.body.small
+                    wrapMode: Text.WordWrap
+                }
+
+                TextButton {
+                    visible: !root.applying
+                    text: Tr.tr("Undo")
+                    type: TextButton.Text
+                    onClicked: root.undoChanges()
+                }
+
+                TextButton {
+                    visible: !root.applying
+                    text: Tr.tr("Apply")
+                    type: TextButton.Filled
+                    onClicked: root.apply()
+                }
+            }
+        }
+
         DialogRowButton {
             id: restoreBootDialog
 
@@ -864,6 +905,27 @@ PageBase {
                 source: "repo",
                 name: "fwupd"
             }, () => root.load())
+        }
+
+        RowButton {
+            Layout.fillWidth: true
+            visible: !!root.fw
+            icon: "restart_alt"
+            text: Tr.tr("Restart to UEFI firmware settings…")
+            subtext: Tr.tr("Reboot directly into your motherboard's BIOS / UEFI setup screen")
+            onClicked: uefiRebootDialog.ask({
+                header: Tr.tr("Restart to UEFI firmware settings?"),
+                body: Tr.tr("Your computer will restart immediately and open the motherboard UEFI/BIOS setup screen. Save any open work before continuing."),
+                confirmLabel: Tr.tr("Restart now"),
+                icon: "restart_alt",
+                onConfirm: () => Quickshell.execDetached(["systemctl", "reboot", "--firmware-setup"])
+            })
+        }
+
+        ConfirmDialog {
+            id: uefiRebootDialog
+
+            hostFlickable: root.flickable
         }
 
         FileDialog {

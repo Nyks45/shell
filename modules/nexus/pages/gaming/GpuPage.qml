@@ -9,6 +9,7 @@ import qs.components
 import qs.components.controls
 import qs.services
 import qs.utils
+import qs.modules.nexus
 import qs.modules.nexus.common
 
 // The graphics card (nvidia-settings' job on Wayland): live readings, the
@@ -81,12 +82,16 @@ PageBase {
             value: `${((root.gpu?.memoryUsed ?? 0) / 1024).toFixed(1)} / ${((root.gpu?.memoryTotal ?? 0) / 1024).toFixed(0)} GB`
         }
 
-        InfoRow {
+        NavRow {
             visible: !!root.gpu?.nvidia
             icon: "mode_fan"
-            label: Tr.tr("Fan")
-            value: `${Math.round(root.gpu?.fanSpeed ?? 0)} %`
-            subtext: Tr.tr("Automatic (fan control isn't possible on Wayland with NVIDIA's driver)")
+            text: Tr.tr("Fan speed")
+            subtext: Tr.tr("%1% · Automatic on Wayland (system fan curves are in Devices › Fans)").arg(Math.round(root.gpu?.fanSpeed ?? 0))
+            onClicked: root.nState.goTo({
+                page: PageRegistry.find("devices"),
+                tab: "fans",
+                path: []
+            })
         }
 
         // Power limit

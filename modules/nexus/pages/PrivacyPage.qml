@@ -21,6 +21,7 @@ PageBase {
     property string firewall // "active", "inactive", "" (no ufw)
     property bool firewallPending
     property bool hasCliphist
+    property string secureBootState: "unknown"
     property bool checked
 
     function refresh(): void {
@@ -39,12 +40,13 @@ PageBase {
             id: fwProc
 
             running: true
-            command: ["sh", "-c", "if command -v ufw >/dev/null; then if [ \"$(systemctl is-active ufw)\" = active ] && grep -qx 'ENABLED=yes' /etc/ufw/ufw.conf 2>/dev/null; then echo active; else echo inactive; fi; else echo none; fi; command -v cliphist >/dev/null && echo cliphist"]
+            command: ["sh", "-c", "if command -v ufw >/dev/null; then if [ \"$(systemctl is-active ufw)\" = active ] && grep -qx 'ENABLED=yes' /etc/ufw/ufw.conf 2>/dev/null; then echo active; else echo inactive; fi; else echo none; fi; command -v cliphist >/dev/null && echo cliphist; sb=$(ls /sys/firmware/efi/efivars/SecureBoot-* 2>/dev/null | head -n1); if [ -n \"$sb\" ] && [ \"$(od -An -t u1 -j 4 -N 1 \"$sb\" 2>/dev/null | tr -d ' ')\" = \"1\" ]; then echo sb:enabled; elif [ -d /sys/firmware/efi ]; then echo sb:disabled; else echo sb:bios; fi"]
             stdout: StdioCollector {
                 onStreamFinished: {
                     const lines = text.split("\n").map(l => l.trim());
                     root.firewall = lines[0] === "none" ? "" : lines[0];
                     root.hasCliphist = lines.includes("cliphist");
+                    root.secureBootState = lines.includes("sb:enabled") ? "enabled" : lines.includes("sb:disabled") ? "disabled" : lines.includes("sb:bios") ? "bios" : "unknown";
                     root.firewallPending = false;
                     root.checked = true;
                 }
@@ -92,6 +94,28 @@ PageBase {
                 page: PageRegistry.find("power"),
                 path: [],
                 text: Tr.tr("Lock the screen after")
+            })
+        }
+
+        NavRow {
+            icon: "verified_user"
+            text: Tr.tr("Secure Boot")
+            subtext: root.secureBootState === "enabled" ? Tr.tr("Enabled · Manage keys and boot entries in Recovery & boot") : root.secureBootState === "disabled" ? Tr.tr("Disabled · Manage keys and boot entries in Recovery & boot") : Tr.tr("Not available (legacy BIOS)")
+            onClicked: root.nState.goTo({
+                page: PageRegistry.find("recovery"),
+                tab: "",
+                path: []
+            })
+        }
+
+        NavRow {
+            icon: "system_update_alt"
+            text: Tr.tr("System updates")
+            subtext: Tr.tr("Keep system packages and security patches up to date")
+            onClicked: root.nState.goTo({
+                page: PageRegistry.find("updates"),
+                tab: "",
+                path: []
             })
         }
 
@@ -148,6 +172,21 @@ PageBase {
                 onConfirm: () => {
                     Quickshell.execDetached(["cliphist", "wipe"]);
                     Toaster.toast(Tr.tr("Clipboard history cleared"), "", "content_paste_off");
+                }
+            })
+        }
+
+        RowButton {
+            icon: "image"
+            text: Tr.tr("Clear thumbnail cache")
+            subtext: Tr.tr("Cached previews of images, videos and documents in ~/.cache/thumbnails")
+            onClicked: confirmDialog.ask({
+                header: Tr.tr("Clear thumbnail cache?"),
+                body: Tr.tr("Delete all cached image and video preview thumbnails? Apps will recreate them when needed."),
+                confirmLabel: Tr.trCtx("Clear", "button"),
+                onConfirm: () => {
+                    Quickshell.execDetached(["sh", "-c", "rm -rf \"${XDG_CACHE_HOME:-$HOME/.cache}/thumbnails\"/*"]);
+                    Toaster.toast(Tr.tr("Thumbnail cache cleared"), "", "image");
                 }
             })
         }

@@ -761,7 +761,7 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Hostname",
+            "label": "Computer name",
             "ctx": "",
             "sub": "",
             "section": "System",
@@ -781,7 +781,7 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Distro",
+            "label": "Operating system",
             "ctx": "",
             "sub": "",
             "section": "System",
@@ -802,6 +802,16 @@ QtObject {
         },
         {
             "label": "Firmware",
+            "ctx": "",
+            "sub": "",
+            "section": "System",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Uptime",
             "ctx": "",
             "sub": "",
             "section": "System",
@@ -851,8 +861,8 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "CLI",
-            "ctx": "the caelestia command line tool",
+            "label": "Command-line tool",
+            "ctx": "",
             "sub": "",
             "section": "Software",
             "page": 6,
@@ -864,6 +874,16 @@ QtObject {
             "label": "Loaded plugins",
             "ctx": "",
             "sub": "",
+            "section": "Plugins",
+            "page": 6,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Copy system information",
+            "ctx": "",
+            "sub": "Copies OS, hardware and software versions for bug reports",
             "section": "Plugins",
             "page": 6,
             "path": [],
@@ -3842,9 +3862,9 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Print key: the whole screen, as above",
+            "label": "Print key uses these screenshot settings",
             "ctx": "",
-            "sub": "Off: the caelestia command's own screenshot",
+            "sub": "Off: falls back to caelestia's built-in default",
             "section": "Keys",
             "tab": "screenshots",
             "page": 13,
@@ -3878,6 +3898,28 @@ QtObject {
             "label": "Video format",
             "ctx": "",
             "sub": "H.264 plays everywhere; HEVC and AV1 are smaller",
+            "section": "Screen recording",
+            "tab": "screenshots",
+            "page": 13,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Frame rate",
+            "ctx": "",
+            "sub": "Automatic matches the monitor's refresh rate",
+            "section": "Screen recording",
+            "tab": "screenshots",
+            "page": 13,
+            "path": [],
+            "trail": [],
+            "keywords": "fps live wallpaper"
+        },
+        {
+            "label": "Audio source",
+            "ctx": "",
+            "sub": "Always capture audio, or only when using the sound shortcut",
             "section": "Screen recording",
             "tab": "screenshots",
             "page": 13,
@@ -4162,9 +4204,9 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Fan",
+            "label": "Fan speed",
             "ctx": "",
-            "sub": "Automatic (fan control isn't possible on Wayland with NVIDIA's driver)",
+            "sub": "",
             "section": "",
             "tab": "gpu",
             "page": 15,
@@ -4334,6 +4376,16 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Hardware and system groups",
+            "ctx": "",
+            "sub": "",
+            "section": "Your access",
+            "page": 16,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Add someone",
             "ctx": "",
             "sub": "",
@@ -4377,9 +4429,42 @@ QtObject {
             "keywords": "12 24 hour am pm"
         },
         {
+            "label": "Keep hardware clock in local time (Windows dual-boot)",
+            "ctx": "",
+            "sub": "Off (recommended): hardware clock uses UTC; turn on if Windows shows the wrong time after rebooting",
+            "section": "Time",
+            "tab": "datetime",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "UI language",
             "ctx": "",
-            "sub": "The language used in the shell UI",
+            "sub": "The language used in the shell UI (apps follow your system locale)",
+            "section": "Language",
+            "tab": "language",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Regional format",
+            "ctx": "",
+            "sub": "",
+            "section": "Language",
+            "tab": "language",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Keyboard layouts",
+            "ctx": "",
+            "sub": "Input languages and layout switching in Devices › Mouse & keyboard",
             "section": "Language",
             "tab": "language",
             "page": 17,
@@ -4562,6 +4647,26 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Secure Boot",
+            "ctx": "",
+            "sub": "Enabled · Manage keys and boot entries in Recovery & boot",
+            "section": "Security",
+            "page": 19,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "System updates",
+            "ctx": "",
+            "sub": "Keep system packages and security patches up to date",
+            "section": "Security",
+            "page": 19,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Remember recently used files",
             "ctx": "",
             "sub": "Apps list them under Recent",
@@ -4595,6 +4700,16 @@ QtObject {
             "label": "Clear clipboard history",
             "ctx": "",
             "sub": "",
+            "section": "History",
+            "page": 19,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Clear thumbnail cache",
+            "ctx": "",
+            "sub": "Cached previews of images, videos and documents in ~/.cache/thumbnails",
             "section": "History",
             "page": 19,
             "path": [],
@@ -4662,9 +4777,31 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Show matches across all services",
+            "ctx": "",
+            "sub": "The current search has no matches in the selected state filter",
+            "section": "",
+            "tab": "systemd",
+            "page": 21,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "What went wrong in the previous boot",
             "ctx": "",
             "sub": "Its errors, e.g. after a crash or a freeze",
+            "section": "",
+            "tab": "logs",
+            "page": 21,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Hide firewall block messages (UFW)",
+            "ctx": "",
+            "sub": "Filters out noisy [UFW BLOCK] kernel entries",
             "section": "",
             "tab": "logs",
             "page": 21,

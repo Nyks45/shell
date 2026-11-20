@@ -33,7 +33,7 @@ ColumnLayout {
             required property var modelData
 
             text: modelData.about
-            subtext: Tr.tr("Group %1").arg(modelData.name)
+            subtext: root.criticalGroups.includes(modelData.name) ? Tr.tr("Group %1 · Required for normal desktop use").arg(modelData.name) : Tr.tr("Group %1").arg(modelData.name)
             checked: root.user?.groups.includes(modelData.name) ?? false
             onToggled: {
                 const runChange = add => Admin.run("group-member", [root.user.name, modelData.name, add ? "add" : "remove"], add ? Tr.tr("Add %1 to %2").arg(root.user.name).arg(modelData.name) : Tr.tr("Remove %1 from %2").arg(root.user.name).arg(modelData.name), () => {

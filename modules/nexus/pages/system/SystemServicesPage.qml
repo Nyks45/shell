@@ -199,13 +199,23 @@ PageBase {
                 required property var modelData
                 readonly property bool isTimer: root.tab === "timers"
                 readonly property string unitState: isTimer ? "" : modelData.active
+                readonly property string unitName: (modelData.name ?? modelData.unit).replace(/\.(service|timer)$/, "")
 
                 icon: isTimer ? "schedule" : unitState === "failed" ? "error" : unitState === "active" ? (modelData.sub === "exited" ? "check_circle" : "play_circle") : "pause_circle"
-                text: (modelData.name ?? modelData.unit).replace(/\.(service|timer)$/, "")
-                subtext: isTimer ? [modelData.user ? Tr.tr("Yours") : "", modelData.description, modelData.next ? Tr.tr("next %1").arg(root.when(modelData.next)) : Tr.tr("not scheduled"), modelData.last ? Tr.tr("last %1").arg(root.when(modelData.last)) : ""].filter(x => x).join(" · ") : [modelData.description, unitState === "active" ? (modelData.sub === "exited" ? Tr.tr("ran and finished") : Tr.tr("running")) : unitState === "failed" ? Tr.tr("failed") : Tr.tr("stopped"), modelData.enabled === "enabled" ? Tr.tr("starts at boot") : modelData.enabled === "masked" ? Tr.tr("blocked") : ""].filter(x => x).join(" · ")
+                text: modelData.description || unitName
+                subtext: isTimer ? [modelData.user ? Tr.tr("Yours") : "", modelData.description ? unitName : "", modelData.next ? Tr.tr("next %1").arg(root.when(modelData.next)) : Tr.tr("not scheduled"), modelData.last ? Tr.tr("last %1").arg(root.when(modelData.last)) : ""].filter(x => x).join(" · ") : [modelData.description ? unitName : "", unitState === "active" ? (modelData.sub === "exited" ? Tr.tr("ran and finished") : Tr.tr("running")) : unitState === "failed" ? Tr.tr("failed") : Tr.tr("stopped"), modelData.enabled === "enabled" ? Tr.tr("starts at boot") : modelData.enabled === "masked" ? Tr.tr("blocked") : ""].filter(x => x).join(" · ")
                 iconLabel.color: unitState === "failed" ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
                 onClicked: root.open(modelData.name ?? modelData.unit, isTimer ? !!modelData.user : root.tab === "user")
             }
+        }
+
+        RowButton {
+            Layout.fillWidth: true
+            visible: root.shown.length === 0 && !root.loading && root.search.trim().length > 0 && root.tab !== "timers" && root.filter !== "all"
+            icon: "filter_alt_off"
+            text: Tr.tr("Show matches across all services")
+            subtext: Tr.tr("The current search has no matches in the selected state filter")
+            onClicked: root.filter = "all"
         }
 
         RowButton {

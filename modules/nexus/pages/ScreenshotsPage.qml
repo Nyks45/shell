@@ -124,8 +124,8 @@ PageBase {
         }
 
         ToggleRow {
-            text: Tr.tr("Print key: the whole screen, as above")
-            subtext: Tr.tr("Off: the caelestia command's own screenshot")
+            text: Tr.tr("Print key uses these screenshot settings")
+            subtext: Tr.tr("Off: falls back to caelestia's built-in default")
             checked: HyprSettings.saved.screenshotKey ?? true
             onToggled: HyprSettings.update({
                 screenshotKey: checked
@@ -194,6 +194,56 @@ PageBase {
             ]
             active: menuItems.find(i => i.value === root.recArg("-k", "")) ?? null
             onSelected: item => root.setRecArg("-k", item.value)
+        }
+
+        SelectRow {
+            label: Tr.tr("Frame rate")
+            subtext: Tr.tr("Automatic matches the monitor's refresh rate")
+            menuItems: [
+                MenuItem {
+                    text: Tr.tr("Automatic")
+                    value: ""
+                },
+                MenuItem {
+                    text: "30 fps"
+                    value: "30"
+                },
+                MenuItem {
+                    text: "60 fps"
+                    value: "60"
+                },
+                MenuItem {
+                    text: "120 fps"
+                    value: "120"
+                }
+            ]
+            active: menuItems.find(i => i.value === root.recArg("-f", "")) ?? null
+            onSelected: item => root.setRecArg("-f", item.value)
+        }
+
+        SelectRow {
+            label: Tr.tr("Audio source")
+            subtext: Tr.tr("Always capture audio, or only when using the sound shortcut")
+            menuItems: [
+                MenuItem {
+                    text: Tr.tr("From shortcut (-s)")
+                    value: ""
+                },
+                MenuItem {
+                    text: Tr.tr("Desktop audio")
+                    value: "default_output"
+                },
+                MenuItem {
+                    text: Tr.tr("Microphone")
+                    value: "default_input"
+                },
+                MenuItem {
+                    text: Tr.tr("Desktop audio + Microphone")
+                    value: "default_output|default_input"
+                }
+            ]
+            active: menuItems.find(i => i.value === root.recArg("-a", "")) ?? null
+            onSelected: item => root.setRecArg("-a", item.value)
         }
 
         ToggleRow {

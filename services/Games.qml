@@ -34,6 +34,23 @@ Singleton {
     // [key, title, "on" value, "off" value, on by default (without the key)]
     readonly property var nvidiaOptions: [["NVPRESENT_ENABLE_SMOOTH_MOTION", Tr.tr("Smooth Motion"), "1", "0"], ["DXVK_NVAPI_VKREFLEX", Tr.tr("NVIDIA Reflex"), "1", "0"], ["PROTON_DLSS_UPGRADE", Tr.tr("Newest DLSS"), "1", "0"], ["PROTON_DLSS_INDICATOR", Tr.tr("DLSS indicator"), "1", "0"], ["PROTON_NVIDIA_LIBS", Tr.tr("CUDA and PhysX"), "1", "0"], ["__GL_THREADED_OPTIMIZATIONS", Tr.tr("Threaded optimisations (OpenGL)"), "1", "0"], ["__GL_SHARPEN_ENABLE", Tr.tr("Image sharpening"), "1", "0"]]
     readonly property var protonOptions: [["DXVK_HDR", Tr.tr("HDR"), "1", "0"], ["PROTON_NO_NTSYNC", Tr.tr("NTSync"), "0", "1", true], ["PROTON_USE_PIPEWIRE", Tr.tr("PipeWire audio"), "1", "0", true], ["PROTON_ENABLE_WAYLAND", Tr.tr("Native Wayland"), "1", "0"], ["PROTON_LOCAL_SHADER_CACHE", Tr.tr("Shader cache per game"), "1", "0"], ["PROTON_PREFER_SDL", Tr.tr("SDL for controllers"), "1", "0"], ["PROTON_DXVK_LOWLATENCY", Tr.tr("Low-latency DXVK"), "1", "0"], ["PROTON_LOG", Tr.tr("Proton logs"), "1", "0"]]
+    readonly property var optionDescriptions: ({
+            NVPRESENT_ENABLE_SMOOTH_MOTION: Tr.tr("The driver adds generated frames (RTX 40+, DX11/DX12/Vulkan)"),
+            DXVK_NVAPI_VKREFLEX: Tr.tr("Lower input lag in games that support Reflex"),
+            PROTON_DLSS_UPGRADE: Tr.tr("Games using DLSS get its newest version (downloaded once)"),
+            PROTON_DLSS_INDICATOR: Tr.tr("Shows which DLSS version and preset a game uses"),
+            PROTON_NVIDIA_LIBS: Tr.tr("Enables PhysX, CUDA and NVENC for games that need them"),
+            __GL_THREADED_OPTIMIZATIONS: Tr.tr("Can raise frame rates in OpenGL games; some run worse"),
+            __GL_SHARPEN_ENABLE: Tr.tr("Sharpens every OpenGL and Vulkan game"),
+            DXVK_HDR: Tr.tr("HDR in games that support it (requires an HDR display with HDR on)"),
+            PROTON_NO_NTSYNC: Tr.tr("Faster kernel ntsync thread syncing; turn off if a game misbehaves"),
+            PROTON_USE_PIPEWIRE: Tr.tr("Talk to PipeWire directly instead of PulseAudio"),
+            PROTON_ENABLE_WAYLAND: Tr.tr("Run natively as a Wayland window instead of XWayland"),
+            PROTON_LOCAL_SHADER_CACHE: Tr.tr("Keeps each game's compiled shaders locally"),
+            PROTON_PREFER_SDL: Tr.tr("Try when a controller isn't detected or misbehaves"),
+            PROTON_DXVK_LOWLATENCY: Tr.tr("Lower frame-pacing latency in DX9-11 games"),
+            PROTON_LOG: Tr.tr("Write ~/steam-<id>.log for troubleshooting")
+        })
 
     function load(): void {
         if (!libProc.running)

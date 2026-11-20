@@ -20,6 +20,8 @@ PageBase {
     id: root
 
     property string filter: "all"
+    property string searchQuery: ""
+    property string sortBy: "name" // "name", "launcher", "custom"
     property bool adding
     // The game being added
     property string addTitle
@@ -27,7 +29,21 @@ PageBase {
     property string addLauncher: "faugus"
     property string addProton
 
-    readonly property var shown: Games.games.filter(g => filter === "all" || g.launcher === filter)
+    function ownCount(g: var): int {
+        return Object.keys(g.env ?? {}).length + (g.mangohud ? 1 : 0) + (g.perf ? 1 : 0);
+    }
+
+    readonly property var shown: {
+        const q = searchQuery.trim().toLowerCase();
+        const filtered = Games.games.filter(g => (filter === "all" || g.launcher === filter) && (!q || (g.title ?? "").toLowerCase().includes(q)));
+        return [...filtered].sort((a, b) => {
+            if (sortBy === "launcher")
+                return (a.launcher ?? "").localeCompare(b.launcher ?? "") || (a.title ?? "").localeCompare(b.title ?? "");
+            if (sortBy === "custom")
+                return ownCount(b) - ownCount(a) || (a.title ?? "").localeCompare(b.title ?? "");
+            return (a.title ?? "").localeCompare(b.title ?? "");
+        });
+    }
     readonly property var addChoices: (Games.launchers[addLauncher]?.choices ?? []).filter(c => c[0] !== "Linux-Native")
 
     function protonLabel(g: var): string {
@@ -58,9 +74,16 @@ PageBase {
             onTriggered: Games.check()
         }
 
+        TextFieldRow {
+            Layout.bottomMargin: Tokens.spacing.small
+            label: Tr.tr("Search")
+            placeholderText: Tr.tr("Filter games by name")
+            onValueEdited: v => root.searchQuery = v
+        }
+
         Flow {
             Layout.fillWidth: true
-            Layout.bottomMargin: Tokens.spacing.small
+            Layout.bottomMargin: Tokens.spacing.extraSmall
             spacing: Tokens.spacing.small
 
             Repeater {
@@ -79,11 +102,46 @@ PageBase {
             }
         }
 
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.bottomMargin: Tokens.spacing.small
+            visible: Games.games.length > 1
+            spacing: Tokens.spacing.small
+
+            StyledText {
+                Layout.alignment: Qt.AlignVCenter
+                text: Tr.tr("Sort:")
+                color: Colours.palette.m3outline
+                font: Tokens.font.label.medium
+                rightPadding: Tokens.padding.extraSmall
+            }
+
+            Flow {
+                Layout.fillWidth: true
+                spacing: Tokens.spacing.small
+
+                Repeater {
+                    model: [["name", Tr.tr("Name")], ["launcher", Tr.tr("Launcher")], ["custom", Tr.tr("Custom settings")]]
+
+                    TextButton {
+                        required property var modelData
+
+                        text: modelData[1]
+                        isToggle: true
+                        followChecked: true
+                        checked: root.sortBy === modelData[0]
+                        type: TextButton.Tonal
+                        onClicked: root.sortBy = modelData[0]
+                    }
+                }
+            }
+        }
+
         StyledText {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
-            visible: !Games.loaded || Games.games.length === 0
-            text: Games.loaded ? Tr.tr("No games yet: install one in Steam, or add one below") : Tr.tr("Reading the launchers…")
+            visible: !Games.loaded || Games.games.length === 0 || root.shown.length === 0
+            text: !Games.loaded ? Tr.tr("Reading the launchers…") : Games.games.length === 0 ? Tr.tr("No games yet: install one in Steam, or add one below") : Tr.tr("No games match your filter.")
             color: Colours.palette.m3onSurfaceVariant
             font: Tokens.font.body.small
         }

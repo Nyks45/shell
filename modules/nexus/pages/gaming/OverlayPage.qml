@@ -20,7 +20,22 @@ PageBase {
 
     property var opts: null
     property var envValues: ({})
+    property string gpuName: ""
     readonly property string helper: `${Paths.libdir}/caelestia-gaming`
+    readonly property var presetMinimal: ["fps"]
+    readonly property var presetStandard: ["fps", "frametime", "cpu_stats", "cpu_temp", "gpu_stats", "gpu_temp", "vram", "ram"]
+    readonly property var presetDetailed: ["fps", "frametime", "frame_timing", "gpu_stats", "gpu_temp", "gpu_power", "gpu_core_clock", "gpu_fan", "vram", "cpu_stats", "cpu_temp", "cpu_power", "ram", "gpu_name", "time"]
+
+    function isPreset(keys: var): bool {
+        return !!opts && items.every(i => on(i[0]) === keys.includes(i[0]));
+    }
+
+    function applyPreset(keys: var): void {
+        save(o => {
+            for (const item of items)
+                o[item[0]] = keys.includes(item[0]);
+        });
+    }
     // Shown by MangoHud unless turned off
     readonly property var defaultOn: ["fps", "frame_timing", "cpu_stats", "gpu_stats"]
     readonly property var items: [["fps", Tr.tr("Frame rate")], ["frametime", Tr.tr("Frame time")], ["frame_timing", Tr.tr("Frame time graph")], ["gpu_stats", Tr.tr("Graphics card load")], ["gpu_temp", Tr.tr("Graphics card temperature")], ["gpu_power", Tr.tr("Graphics card power")], ["gpu_core_clock", Tr.tr("Graphics card clock")], ["gpu_fan", Tr.tr("Graphics card fan")], ["vram", Tr.tr("Video memory")], ["cpu_stats", Tr.tr("Processor load")], ["cpu_temp", Tr.tr("Processor temperature")], ["cpu_power", Tr.tr("Processor power")], ["ram", Tr.tr("Memory")], ["gpu_name", Tr.tr("Graphics card name")], ["time", Tr.tr("Clock")], ["show_fps_limit", Tr.tr("Frame limit")]]
@@ -106,7 +121,7 @@ PageBase {
                     Cell {
                         visible: root.on("gpu_name")
                         Layout.columnSpan: hud.horiz ? 1 : 3
-                        text: "RTX 4070 Ti SUPER"
+                        text: root.gpuName || Tr.tr("Graphics Card")
                         color: "#2E9762"
                     }
 
@@ -221,6 +236,31 @@ PageBase {
             text: Tr.tr("Shift (right) + F12 shows or hides it in a game.")
             color: Colours.palette.m3outline
             font: Tokens.font.label.small
+        }
+
+        SectionHeader {
+            text: Tr.tr("Presets")
+        }
+
+        Flow {
+            Layout.fillWidth: true
+            Layout.bottomMargin: Tokens.spacing.small
+            spacing: Tokens.spacing.small
+
+            Repeater {
+                model: [[Tr.tr("Minimal"), root.presetMinimal], [Tr.tr("Standard"), root.presetStandard], [Tr.tr("Detailed"), root.presetDetailed]]
+
+                TextButton {
+                    required property var modelData
+
+                    text: modelData[0]
+                    isToggle: true
+                    followChecked: true
+                    checked: root.isPreset(modelData[1])
+                    type: TextButton.Tonal
+                    onClicked: root.applyPreset(modelData[1])
+                }
+            }
         }
 
         SectionHeader {
@@ -353,6 +393,20 @@ PageBase {
                 onStreamFinished: {
                     try {
                         root.envValues = JSON.parse(text).values ?? {};
+                    } catch (e) {}
+                }
+            }
+        }
+
+        Process {
+            id: gpuProc
+
+            running: true
+            command: [root.helper, "gpu"]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    try {
+                        root.gpuName = JSON.parse(text).name ?? "";
                     } catch (e) {}
                 }
             }

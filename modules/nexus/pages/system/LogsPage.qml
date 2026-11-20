@@ -23,12 +23,31 @@ PageBase {
     property string priority: "4" // "3" errors, "4" warnings and worse, "" everything
     property string unit: nState.logUnit
     property string search
+    property bool hideFirewall: false
     property var entries: []
+    readonly property var filteredEntries: hideFirewall ? entries.filter(e => !(e.message ?? "").includes("[UFW BLOCK]")) : entries
     property var boots: []
     property var crashes: []
     property bool loading
     property string copied
     property int limit: 80
+
+    function signalLabel(sig: var): string {
+        const s = String(sig ?? "").trim();
+        const names = {
+            "4": "SIGILL (Illegal instruction)",
+            "SIGILL": "SIGILL (Illegal instruction)",
+            "5": "SIGTRAP (Breakpoint / trap)",
+            "SIGTRAP": "SIGTRAP (Breakpoint / trap)",
+            "6": "SIGABRT (Aborted)",
+            "SIGABRT": "SIGABRT (Aborted)",
+            "8": "SIGFPE (Math error)",
+            "SIGFPE": "SIGFPE (Math error)",
+            "11": "SIGSEGV (Invalid memory access)",
+            "SIGSEGV": "SIGSEGV (Invalid memory access)"
+        };
+        return names[s] ?? Tr.tr("signal %1").arg(s);
+    }
 
     function load(): void {
         loading = true;
@@ -210,9 +229,16 @@ PageBase {
             }
         }
 
+        ToggleRow {
+            text: Tr.tr("Hide firewall block messages (UFW)")
+            subtext: Tr.tr("Filters out noisy [UFW BLOCK] kernel entries")
+            checked: root.hideFirewall
+            onToggled: root.hideFirewall = checked
+        }
+
         // ---- The lines ------------------------------------------------------
         SectionHeader {
-            text: root.loading ? Tr.tr("Reading…") : Tr.tr("%1 lines, newest first").arg(root.entries.length)
+            text: root.loading ? Tr.tr("Reading…") : Tr.tr("%1 lines, newest first").arg(root.filteredEntries.length)
         }
 
         StyledText {
@@ -227,15 +253,15 @@ PageBase {
         }
 
         RowButton {
-            visible: root.entries.length > 0
+            visible: root.filteredEntries.length > 0
             icon: "content_copy"
             text: Tr.tr("Copy these lines")
-            onClicked: root.copy(root.entries.map(e => `${new Date(e.time).toISOString()} ${e.ident}: ${e.message}`).reverse().join("\n"), Tr.tr("The lines are copied."))
+            onClicked: root.copy(root.filteredEntries.map(e => `${new Date(e.time).toISOString()} ${e.ident}: ${e.message}`).reverse().join("\n"), Tr.tr("The lines are copied."))
         }
 
         ConnectedRect {
             Layout.fillWidth: true
-            visible: root.entries.length > 0
+            visible: root.filteredEntries.length > 0
             implicitHeight: lines.implicitHeight + Tokens.padding.large * 2
 
             Column {
@@ -248,7 +274,7 @@ PageBase {
                 spacing: Tokens.spacing.extraSmall
 
                 Repeater {
-                    model: root.entries.slice(0, root.limit)
+                    model: root.filteredEntries.slice(0, root.limit)
 
                     StyledText {
                         required property var modelData
@@ -277,7 +303,7 @@ PageBase {
         StyledText {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
-            visible: !root.loading && root.entries.length === 0
+            visible: !root.loading && root.filteredEntries.length === 0
             text: Tr.tr("Nothing matches")
             color: Colours.palette.m3onSurfaceVariant
             font: Tokens.font.body.small
@@ -306,7 +332,7 @@ PageBase {
 
                 icon: "bug_report"
                 text: name || Tr.tr("Unknown program")
-                subtext: Tr.tr("%1 · signal %2 · click to copy the report").arg(new Date(modelData.time / 1000).toLocaleString(Qt.locale(), Locale.ShortFormat)).arg(modelData.sig)
+                subtext: Tr.tr("%1 · %2 · click to copy the report").arg(new Date(modelData.time / 1000).toLocaleString(Qt.locale(), Locale.ShortFormat)).arg(root.signalLabel(modelData.sig))
                 onClicked: {
                     crashInfo.name = name;
                     crashInfo.command = [root.helper, "crash", String(modelData.pid)];

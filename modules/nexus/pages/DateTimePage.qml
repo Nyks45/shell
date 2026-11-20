@@ -20,6 +20,7 @@ PageBase {
     property string timezone
     property bool ntp
     property bool synced
+    property bool localRtc: false
     property var zoneItems: []
 
     function refresh(): void {
@@ -81,7 +82,7 @@ PageBase {
             menuOnTop: true
             menuItems: [
                 MenuItem {
-                    text: Tr.tr("Auto")
+                    text: Qt.locale().timeFormat(Locale.ShortFormat).includes("AP") || Qt.locale().timeFormat(Locale.ShortFormat).includes("ap") ? Tr.tr("Auto (12-hour)") : Tr.tr("Auto (24-hour)")
                     value: ClockFormat.Auto
                 },
                 MenuItem {
@@ -95,6 +96,21 @@ PageBase {
             ]
             active: menuItems.find(i => i.value === GlobalConfig.services.clockFormat) ?? null
             onSelected: item => GlobalConfig.services.clockFormat = item.value
+        }
+
+        ToggleRow {
+            text: Tr.tr("Keep hardware clock in local time (Windows dual-boot)")
+            subtext: Tr.tr("Off (recommended): hardware clock uses UTC; turn on if Windows shows the wrong time after rebooting")
+            checked: root.localRtc
+            onToggled: {
+                const want = checked;
+                checked = Qt.binding(() => root.localRtc);
+                setProc.actionTitle = Tr.tr("Hardware clock updated");
+                setProc.failTitle = Tr.tr("Couldn't update hardware clock");
+                setProc.actionDetail = want ? Tr.tr("Local time (Windows dual-boot)") : Tr.tr("UTC (recommended)");
+                setProc.actionIcon = "schedule";
+                setProc.exec(["timedatectl", "set-local-rtc", want ? "1" : "0"]);
+            }
         }
 
         TimeZonePickerDialog {
@@ -125,6 +141,7 @@ PageBase {
                     root.timezone = get("Timezone");
                     root.ntp = get("NTP") === "yes";
                     root.synced = get("NTPSynchronized") === "yes";
+                    root.localRtc = get("LocalRTC") === "yes";
                 }
             }
         }

@@ -65,6 +65,25 @@ PageBase {
             proc.running = true;
     }
 
+    function schedulerTitle(name: string): string {
+        const titles = {
+            scx_lavd: `LAVD (${name})`,
+            scx_bpfland: `Bpfland (${name})`,
+            scx_flash: `Flash (${name})`,
+            scx_cosmos: `Cosmos (${name})`,
+            scx_pandemonium: `Pandemonium (${name})`,
+            scx_p2dq: `P2DQ (${name})`,
+            scx_rusty: `Rusty (${name})`,
+            scx_cake: `Cake (${name})`,
+            scx_beerland: `Beerland (${name})`,
+            scx_tickless: `Tickless (${name})`
+        };
+        if (titles[name])
+            return titles[name];
+        const short = name.replace(/^scx_/, "");
+        return `${short.charAt(0).toUpperCase() + short.slice(1)} (${name})`;
+    }
+
     function pick(sched: string, mode: string): void {
         Admin.run("scx", sched ? [sched, mode] : ["off"], root.what, () => root.load());
     }
@@ -114,7 +133,7 @@ PageBase {
                 Layout.fillWidth: true
                 disabled: root.busy
                 icon: root.chosen === modelData ? "radio_button_checked" : "radio_button_unchecked"
-                text: modelData.replace("scx_", "")
+                text: root.schedulerTitle(modelData)
                 subtext: root.described[modelData]
                 onClicked: if (root.chosen !== modelData)
                     root.pick(modelData, root.mode)

@@ -30,6 +30,33 @@ PageBase {
         proc.running = true;
     }
 
+    function flavorDescription(name: string, desc: string): string {
+        const n = (name ?? "").toLowerCase();
+        if (n === "linux-cachyos")
+            return Tr.tr("Default CachyOS kernel (BORE scheduler + gaming/desktop tuning)");
+        if (n.includes("cachyos-lts"))
+            return Tr.tr("Long-term support kernel with CachyOS tuning");
+        if (n.includes("cachyos-eevdf"))
+            return Tr.tr("CachyOS kernel using the mainline EEVDF scheduler");
+        if (n.includes("cachyos-bore"))
+            return Tr.tr("CachyOS kernel with BORE desktop responsiveness tuning");
+        if (n.includes("cachyos-lto"))
+            return Tr.tr("CachyOS kernel compiled with Link-Time Optimisation");
+        if (n.includes("cachyos-server"))
+            return Tr.tr("Server-tuned throughput kernel (fewer preemption interrupts)");
+        if (n.includes("cachyos-rt") || n === "linux-rt" || n === "linux-rt-lts")
+            return Tr.tr("Real-time low-latency kernel (for pro audio and realtime tasks)");
+        if (n === "linux")
+            return Tr.tr("Standard Arch mainline kernel");
+        if (n === "linux-lts")
+            return Tr.tr("Arch Long-Term Support kernel (conservative stability updates)");
+        if (n === "linux-zen")
+            return Tr.tr("Arch Zen kernel tuned for desktop and multimedia");
+        if (n === "linux-hardened")
+            return Tr.tr("Security-hardened Arch kernel with stricter exploit mitigations");
+        return desc ?? "";
+    }
+
     title: Tr.tr("Kernels")
 
     Component.onCompleted: load()
@@ -152,7 +179,7 @@ PageBase {
                 disabled: working
                 icon: working ? "downloading" : "add"
                 text: modelData.name
-                subtext: working ? Tr.tr("Installing (with headers and modules), signing, adding to the boot menu…") : `${modelData.version} · ${modelData.desc}`
+                subtext: working ? Tr.tr("Installing (with headers and modules), signing, adding to the boot menu…") : `${modelData.version} · ${root.flavorDescription(modelData.name, modelData.desc)}`
                 onClicked: confirmDialog.ask({
                     header: Tr.tr("Install %1?").arg(modelData.name),
                     body: Tr.tr("Installs version %1 along with its headers and modules, signs it for Secure Boot, and adds it to the boot menu.").arg(modelData.version),

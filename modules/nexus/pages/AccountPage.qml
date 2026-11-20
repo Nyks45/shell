@@ -30,6 +30,7 @@ PageBase {
     property int uid: -1
     // Whether there is a picture (no file: the placeholder, without a load error)
     property bool hasFace
+    property bool showGroups: false
 
     function checkFace(): void {
         faceProc.running = false;
@@ -235,10 +236,16 @@ PageBase {
             visible: root.hasFace
             icon: "hide_image"
             text: Tr.tr("Remove picture")
-            onClicked: {
-                CUtils.deleteFile(Qt.resolvedUrl(Paths.face));
-                Paths.reloadFace();
-            }
+            onClicked: removeFaceDialog.ask({
+                header: Tr.tr("Remove profile picture?"),
+                body: Tr.tr("Delete your profile picture (~/.face)? You can pick another one at any time."),
+                confirmLabel: Tr.tr("Remove"),
+                icon: "hide_image",
+                onConfirm: () => {
+                    CUtils.deleteFile(Qt.resolvedUrl(Paths.face));
+                    Paths.reloadFace();
+                }
+            })
         }
 
         ConnectedRect {
@@ -455,8 +462,17 @@ PageBase {
             text: Tr.tr("Your access")
         }
 
-        GroupToggles {
+        RowButton {
             visible: !!Users.me
+            icon: "admin_panel_settings"
+            text: Tr.tr("Hardware and system groups")
+            subtext: Tr.tr("%1 active · Expand to manage device and service permissions").arg((Users.me?.groups ?? []).filter(g => g !== "wheel" && Users.groups.some(ug => ug.name === g)).length)
+            trailingIcon: root.showGroups ? "expand_less" : "expand_more"
+            onClicked: root.showGroups = !root.showGroups
+        }
+
+        GroupToggles {
+            visible: !!Users.me && root.showGroups
             Layout.fillWidth: true
             hostFlickable: root.flickable
             user: Users.me
@@ -658,6 +674,12 @@ PageBase {
                     }
                 }
             }
+        }
+
+        ConfirmDialog {
+            id: removeFaceDialog
+
+            hostFlickable: root.flickable
         }
 
         // Read back what took (a cancelled password prompt changes nothing)

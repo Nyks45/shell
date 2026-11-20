@@ -159,9 +159,11 @@ PageBase {
                                         Games.unqueue(row.removeWhat);
                                         return;
                                     }
+                                    const affected = Games.games.filter(g => g.proton && (g.proton === row.modelData.name || g.proton === row.modelData.dir || g.proton.endsWith("/" + row.modelData.dir))).map(g => g.title);
+                                    const baseBody = row.modelData.target === "steam" && root.tools?.steamRunning ? Tr.tr("Steam is open: any games using this version will move to the matching Latest copy once Steam closes.") : Tr.tr("Any games using this version will move to the matching Latest copy.");
                                     confirmDialog.ask({
                                         header: Tr.tr("Remove %1?").arg(row.modelData.name),
-                                        body: row.modelData.target === "steam" && root.tools?.steamRunning ? Tr.tr("Steam is open: any games using this version will move to the matching Latest copy once Steam closes.") : Tr.tr("Any games using this version will move to the matching Latest copy."),
+                                        body: affected.length > 0 ? baseBody + "\n\n" + Tr.tr("Used by: %1").arg(affected.join(", ")) : baseBody,
                                         confirmLabel: Tr.tr("Remove"),
                                         onConfirm: () => {
                                             if (row.modelData.target === "steam")

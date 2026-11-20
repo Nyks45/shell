@@ -6,6 +6,7 @@ import Caelestia.I18n
 import qs.components
 import qs.components.controls
 import qs.services
+import qs.modules.nexus
 import qs.modules.nexus.common
 
 PageBase {
@@ -14,7 +15,7 @@ PageBase {
     // Temperature units (there must be one for each value of the TemperatureUnit enum)
     readonly property list<MenuItem> tempItems: [
         MenuItem {
-            text: Tr.tr("Auto")
+            text: Tr.tr("Auto (°C)")
             value: TemperatureUnit.Auto
         },
         MenuItem {
@@ -26,7 +27,7 @@ PageBase {
             value: TemperatureUnit.Fahrenheit
         },
         MenuItem {
-            text: Tr.tr("K")
+            text: Tr.tr("Kelvin (K)")
             value: TemperatureUnit.Kelvin
         }
     ]
@@ -58,7 +59,7 @@ PageBase {
 
         SelectRow {
             label: Tr.tr("UI language")
-            subtext: Tr.tr("The language used in the shell UI")
+            subtext: Tr.tr("The language used in the shell UI (apps follow your system locale)")
             active: menuItems.find(i => i.modelData === Tr.language) ?? autoLang
             onSelected: item => {
                 Tr.language = item.modelData ?? ""; // qmllint disable missing-property
@@ -86,6 +87,23 @@ PageBase {
                     }
                 }
             }
+        }
+
+        InfoRow {
+            icon: "calendar_today"
+            label: Tr.tr("Regional format")
+            value: `${Qt.locale().nativeCountryName || Qt.locale().name} · ${Qt.formatDate(new Date(), Qt.locale().dateFormat(Locale.ShortFormat))} · ${(1234.56).toLocaleString(Qt.locale(), "f", 2)}`
+        }
+
+        NavRow {
+            icon: "keyboard"
+            text: Tr.tr("Keyboard layouts")
+            subtext: Tr.tr("Input languages and layout switching in Devices › Mouse & keyboard")
+            onClicked: root.nState.goTo({
+                page: PageRegistry.find("devices"),
+                tab: "input",
+                path: []
+            })
         }
 
         // Weather
