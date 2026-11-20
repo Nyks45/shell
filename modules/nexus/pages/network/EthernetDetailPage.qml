@@ -131,10 +131,16 @@ PageBase {
                 implicitHeight: connectLayout.implicitHeight + Tokens.padding.medium * 2
 
                 onClicked: {
-                    if (root.device?.connected)
-                        Nmcli.disconnectEthernet(root.connectionName);
-                    else
+                    if (root.device?.connected) {
+                        confirmDialog.ask({
+                            header: Tr.tr("Disconnect %1?").arg(root.connectionName || root.ifaceName),
+                            body: Tr.tr("This is a wired network connection. You may lose internet access until you reconnect."),
+                            confirmLabel: Tr.tr("Disconnect"),
+                            onConfirm: () => Nmcli.disconnectEthernet(root.connectionName)
+                        });
+                    } else {
                         Nmcli.connectEthernet(root.connectionName, root.ifaceName);
+                    }
                 }
 
                 ColumnLayout {
@@ -347,6 +353,12 @@ PageBase {
                     }
                 }
             }
+        }
+
+        ConfirmDialog {
+            id: confirmDialog
+
+            hostFlickable: root.flickable
         }
     }
 }

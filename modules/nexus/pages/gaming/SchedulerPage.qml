@@ -139,7 +139,7 @@ PageBase {
             Layout.leftMargin: Tokens.padding.small
             Layout.topMargin: Tokens.spacing.small
             visible: !!root.chosen
-            text: Tr.tr("\"Performance mode while it runs\" (game-performance, in Games) switches to Gaming mode for that game only.")
+            text: Tr.tr("\"Performance mode while it runs\" (game-performance, in Game options) switches to Gaming mode for that game only.")
             wrapMode: Text.WordWrap
             color: Colours.palette.m3outline
             font: Tokens.font.label.small

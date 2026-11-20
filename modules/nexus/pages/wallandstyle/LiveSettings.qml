@@ -265,19 +265,17 @@ PageBase {
             RowButton {
                 required property var modelData
                 required property int index
-                property bool confirm
 
                 icon: "rule"
                 text: modelData.app
-                subtext: confirm ? Tr.tr("Click again to delete this rule") : `${root.whenText(modelData.when)} → ${root.actionText(modelData.action)}`
+                subtext: `${root.whenText(modelData.when)} → ${root.actionText(modelData.action)}`
                 trailingIcon: "delete"
-                onClicked: {
-                    if (!confirm) {
-                        confirm = true;
-                        return;
-                    }
-                    LiveWallpaper.setAppRules(LiveWallpaper.appRules.filter((r, i) => i !== index));
-                }
+                onClicked: confirmDialog.ask({
+                    header: Tr.tr("Delete rule for %1?").arg(modelData.app),
+                    body: Tr.tr("This app-specific live wallpaper rule will be removed."),
+                    confirmLabel: Tr.trCtx("Delete", "button"),
+                    onConfirm: () => LiveWallpaper.setAppRules(LiveWallpaper.appRules.filter((r, i) => i !== index))
+                })
             }
         }
 
@@ -418,6 +416,12 @@ PageBase {
             label: "linux-wallpaperengine"
             subtext: Tr.tr("The renderer build installed (updated with its package, not from here)")
             value: LiveWallpaper.engineVersion || Tr.tr("Not installed")
+        }
+
+        ConfirmDialog {
+            id: confirmDialog
+
+            hostFlickable: root.flickable
         }
     }
 

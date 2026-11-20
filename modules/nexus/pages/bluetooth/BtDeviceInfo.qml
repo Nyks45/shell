@@ -65,10 +65,15 @@ PageBase {
                 implicitWidth: forgetBtnLayout.implicitWidth + Tokens.padding.extraLarge * 2
                 implicitHeight: forgetBtnLayout.implicitHeight + Tokens.padding.medium * 2
 
-                onClicked: {
-                    root.device?.forget();
-                    root.nState.closeSubPage();
-                }
+                onClicked: confirmDialog.ask({
+                    header: Tr.tr("Forget %1?").arg(root.title),
+                    body: Tr.tr("You'll need to pair it again to reconnect."),
+                    confirmLabel: Tr.trCtx("Forget", "button"),
+                    onConfirm: () => {
+                        root.device?.forget();
+                        root.nState.closeSubPage();
+                    }
+                })
 
                 ColumnLayout {
                     id: forgetBtnLayout
@@ -253,6 +258,12 @@ PageBase {
                     font: Tokens.font.body.small
                 }
             }
+        }
+
+        ConfirmDialog {
+            id: confirmDialog
+
+            hostFlickable: root.flickable
         }
     }
 }

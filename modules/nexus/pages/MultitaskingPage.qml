@@ -363,6 +363,12 @@ PageBase {
                 }
             }
         }
+
+        ConfirmDialog {
+            id: confirmDialog
+
+            hostFlickable: root.flickable
+        }
     }
 
     component RuleRow: ConnectedRect {
@@ -448,7 +454,18 @@ PageBase {
                 IconButton {
                     icon: rule.open ? "expand_less" : "delete"
                     type: IconButton.Text
-                    onClicked: rule.open ? root.openRule = -1 : root.removeRule(rule.index)
+                    onClicked: {
+                        if (rule.open) {
+                            root.openRule = -1;
+                        } else {
+                            confirmDialog.ask({
+                                header: Tr.tr("Delete rule for %1?").arg(rule.app),
+                                body: Tr.tr("Removes this app's window opening rules."),
+                                confirmLabel: Tr.trCtx("Delete", "button"),
+                                onConfirm: () => root.removeRule(rule.index)
+                            });
+                        }
+                    }
                 }
             }
 

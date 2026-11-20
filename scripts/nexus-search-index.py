@@ -59,7 +59,57 @@ SYNONYMS = {
     "Frame rate": "fps live wallpaper",
     "Copy to the clipboard": "screenshot clipboard",
     "Test which wallpapers work": "compatibility live wallpaper engine",
+    "Add someone": "add user new user create account",
+    "Change password": "passwd keyring login unlock",
+    "Empty the Trash": "delete bin clean up",
+    "Remove unused packages": "orphans pacman cleanup",
+    "Other apps' volume": "app volumes mixer per-app audio",
 }
+
+EXCLUDE_LABELS = {"Unknown program", "Copy these lines", "Boot", "Name", "Add", "Save", "Cancel"}
+EXCLUDE_SECTIONS = {"Add a game", "Entries"}
+
+# List-built / dynamic rows and key tabs that Repeaters don't statically declare
+EXTRA_ENTRIES = [
+    # Workspaces & shortcuts -> Shortcuts
+    ("workspaces", "shortcuts", "Shortcuts", "Close window", "Super+Q window close kill", "Shortcut"),
+    ("workspaces", "shortcuts", "Shortcuts", "Open terminal", "terminal foot kitty alacritty shortcut", "Shortcut"),
+    ("workspaces", "shortcuts", "Shortcuts", "App launcher", "launcher dmenu rofi shortcut", "Shortcut"),
+    ("workspaces", "shortcuts", "Shortcuts", "Lock screen", "lock session suspend shortcut", "Shortcut"),
+    ("workspaces", "shortcuts", "Shortcuts", "Take a screenshot", "screenshot capture snip print shortcut", "Shortcut"),
+    ("workspaces", "shortcuts", "Shortcuts", "Switch workspace", "workspace focus move shortcut", "Shortcut"),
+    ("workspaces", "shortcuts", "Shortcuts", "Custom keyboard shortcuts", "hotkey keybind shortcut bind", "Your own shortcuts"),
+    # Gaming tabs & generated options
+    ("gaming", "gamemode", "Gaming", "GameMode", "gamemode performance cpu governor", "Overview"),
+    ("gaming", "games", "Gaming", "NVIDIA Reflex", "reflex low latency nvidia game options", "Game options"),
+    ("gaming", "games", "Gaming", "DLSS", "dlss frame generation upscaling nvidia", "Game options"),
+    ("gaming", "games", "Gaming", "HDR in games", "hdr dxvk gamescope", "Game options"),
+    ("gaming", "games", "Gaming", "NTSync", "ntsync fsync esync wine proton", "Game options"),
+    ("gaming", "games", "Gaming", "FSR / upscaling", "fsr gamescope upscaling sharp", "Game options"),
+    ("gaming", "overlay", "Gaming", "MangoHud overlay", "mangohud fps overlay hud metrics", "Overlay"),
+    ("gaming", "scheduler", "Gaming", "CPU scheduler (scx)", "sched-ext scx_lavd bpfland ananicy gaming scheduler", "Scheduler"),
+    ("gaming", "proton", "Gaming", "Proton versions (GE-Proton)", "proton wine compatibility ge-proton", "Proton versions"),
+    ("gaming", "gpu", "Gaming", "Graphics card (NVIDIA)", "gpu nvidia power limit clocks", "Graphics card"),
+    # System tabs & dynamic boot/kernel/service rows
+    ("system", "boot", "System", "Boot menu", "refind bootloader dual boot menu", "Boot menu"),
+    ("system", "boot", "System", "Quiet start", "boot kernel quiet refind", "Boot menu"),
+    ("system", "boot", "System", "Splash screen", "plymouth boot splash animation", "Boot menu"),
+    ("system", "boot", "System", "Starts by default", "default boot os windows cachyos", "Boot menu"),
+    ("system", "boot", "System", "Secure Boot", "sbctl uefi keys signed", "Boot menu"),
+    ("system", "boot", "System", "UEFI boot order", "efibootmgr boot priority", "Boot menu"),
+    ("system", "boot", "System", "Restore previous boot menu", "boot backup undo refind", "Boot menu"),
+    ("system", "kernels", "System", "Kernels", "linux kernel cachyos lts headers", "Kernels"),
+    ("system", "systemd", "System", "System services", "systemd service unit daemon start stop", "Services"),
+    ("system", "systemd", "System", "Scheduled tasks", "systemd timer timers cron schedule", "Services"),
+    ("system", "logs", "System", "System logs", "journalctl log logs error warnings crash coredump", "Logs"),
+    ("system", "plugins", "System", "Hyprland plugins", "hyprpm plugin hyprflow hyprscroller", "Plugins"),
+    # Storage & Account
+    ("storage", "backups", "Storage", "Snapshots", "backup backups snapper btrfs restore", "Snapshots"),
+    ("storage", "backups", "Storage", "Home folder snapshots", "home partition backup snapper", "Snapshots"),
+    ("account", "", "Asks for your password when you save", "Full name", "real name display name profile", "Profile"),
+    ("account", "", "How it shows up on networks and Bluetooth", "Computer name", "hostname device name pc name", "This computer"),
+    ("account", "", "Account", "Groups and permissions", "groups access audio video input storage network", "Your access"),
+]
 
 TR = re.compile(r'Tr\.(tr|trCtx)\("((?:[^"\\]|\\.)*)"(?:\s*,\s*"((?:[^"\\]|\\.)*)")?')
 PROP = re.compile(r'^\s*(label|text|subtext|title)\s*:\s*(.*)$')
@@ -119,6 +169,15 @@ def registry():
     return pages
 
 
+def page_ids():
+    """{page id: page index} from PageRegistry.qml."""
+    src = (NEXUS / "PageRegistry.qml").read_text()
+    ids = {}
+    for idx, m in enumerate(re.finditer(r'\bid:\s*"([^"]+)"', src[:src.index("aliases:")])):
+        ids[m.group(1)] = idx
+    return ids
+
+
 def page_file(name: str) -> Path | None:
     hits = list((NEXUS / "pages").rglob(f"{name}.qml"))
     return hits[0] if hits else None
@@ -150,7 +209,7 @@ def parse_page(path: Path):
                 if pm:
                     stack[-1][1][pm.group(1)] = tr_of(pm.group(2))
                 el = stack.pop()
-                section = finish(el, entries, section)
+                section = finish(el, entries, section, any(s[0] == "Repeater" for s in stack))
             continue
         pm = PROP.match(line)
         if pm and stack:
@@ -164,7 +223,7 @@ def parse_page(path: Path):
         for _ in range(line.count("}") - line.count("{")):
             if stack:
                 el = stack.pop()
-                section = finish(el, entries, section)
+                section = finish(el, entries, section, any(s[0] == "Repeater" for s in stack))
     # The page's own title: a root property (4 spaces in), whatever the brace
     # counting above made of function bodies before it. A conditional one
     # ("Edit playlist" : "Playlists") is the page's resting title: the last.
@@ -176,20 +235,26 @@ def parse_page(path: Path):
     return title, entries, subs
 
 
-def finish(el, entries, section):
+def finish(el, entries, section, in_repeater):
     kind, props = el
     if kind == "SectionHeader":
         t = props.get("text")
         return t[0] if t else section
+    if in_repeater:
+        return section
     if kind in ROW_TYPES or kind.endswith("Row"):
         lab = props.get("label") or props.get("text")
         # Status lines ("No plugins", "Checking for updates…") aren't settings
         if lab and not re.match(r"^No |^Needs |^Search$|.* need |.* is missing$|.*(…|\.\.\.)$", lab[0]):
-            sub = props.get("subtext")
+            sub_txt = props.get("subtext")[0] if props.get("subtext") else ""
+            if lab[0] in EXCLUDE_LABELS or section in EXCLUDE_SECTIONS or section.endswith("…"):
+                return section
+            if lab[0] in {"Temperature", "Power", "Load", "Background"} and not sub_txt:
+                return section
             entry = {
                 "label": lab[0],
                 "ctx": lab[1],
-                "sub": sub[0] if sub else "",
+                "sub": sub_txt,
                 "section": section,
             }
             if "opens" in props:
@@ -200,6 +265,7 @@ def finish(el, entries, section):
 
 def main() -> int:
     pages = registry()
+    id_map = page_ids()
     out = []
     # A page that is also reachable as another page's sub-page (Notifications
     # under Services) is indexed once, as its own page
@@ -209,13 +275,44 @@ def main() -> int:
         for si, name in enumerate(comps):
             f = page_file(name)
             if f:
+                src_text = f.read_text()
                 title, entries, subs = parse_page(f)
+                # Map embedded page name -> enclosing TabPart key using brace depth
+                embedded_tabs = {}
+                cur_tab = ""
+                tab_depth = -1
+                depth = 0
+                pending_emb = ""
+                for raw in src_text.splitlines():
+                    s = strip_comment(raw)
+                    if re.match(r"^\s*TabPart\s*\{", s):
+                        tab_depth = depth
+                        cur_tab = ""
+                    if tab_depth >= 0:
+                        km = re.search(r'^\s*key:\s*"([^"]+)"', s)
+                        if km:
+                            cur_tab = km.group(1)
+                        em = re.match(r"^\s*([A-Z][A-Za-z0-9_]*)\s*\{", s)
+                        if em and em.group(1) != "TabPart":
+                            pending_emb = em.group(1)
+                        if pending_emb and re.search(r"\bembedded:\s*true\b", s):
+                            embedded_tabs[pending_emb] = cur_tab
+                            pending_emb = ""
+                    depth += s.count("{") - s.count("}")
+                    if tab_depth >= 0 and depth <= tab_depth:
+                        tab_depth = -1
+                        cur_tab = ""
+                        pending_emb = ""
                 # A merged page (pages/merged): its rows are those of the
                 # pages embedded in it (shown as its parts or in folds)
-                for embedded in EMBEDDED.findall(f.read_text()):
+                for embedded in EMBEDDED.findall(src_text):
                     ef = page_file(embedded)
                     if ef:
                         _, e_entries, e_subs = parse_page(ef)
+                        tab_key = embedded_tabs.get(embedded, "")
+                        for ee in e_entries:
+                            if tab_key:
+                                ee["tab"] = tab_key
                         entries = entries + e_entries
                         subs = subs + e_subs
                 parsed[si] = (name, title, entries, subs)
@@ -250,6 +347,20 @@ def main() -> int:
                 e["trail"] = trail
                 e["keywords"] = SYNONYMS.get(e["label"], "")
                 out.append(e)
+
+    for page_id, tab, sub, label, keywords, section in EXTRA_ENTRIES:
+        if page_id in id_map:
+            out.append({
+                "label": label,
+                "ctx": "",
+                "sub": sub,
+                "section": section,
+                "page": id_map[page_id],
+                "path": [],
+                "trail": [],
+                "tab": tab,
+                "keywords": keywords,
+            })
 
     # Same label twice on one page (e.g. a "Muted" for output and input): keep both,
     # they read differently with their sections

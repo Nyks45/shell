@@ -78,6 +78,46 @@ PageBase {
             onExited: code => root.hasFace = code === 0
         }
 
+        Process {
+            id: realNameSaveProc
+
+            property string pendingValue
+            property string errText
+
+            stderr: StdioCollector {
+                onStreamFinished: realNameSaveProc.errText = text.trim()
+            }
+            onExited: code => {
+                if (code === 0) {
+                    root.realName = pendingValue;
+                    Toaster.toast(Tr.tr("Full name updated"), pendingValue || root.userName, "badge");
+                    infoProc.running = true;
+                } else {
+                    Toaster.toast(Tr.tr("Couldn't change full name"), errText || Tr.tr("The change was cancelled or refused."), "error");
+                }
+            }
+        }
+
+        Process {
+            id: hostSaveProc
+
+            property string pendingValue
+            property string errText
+
+            stderr: StdioCollector {
+                onStreamFinished: hostSaveProc.errText = text.trim()
+            }
+            onExited: code => {
+                if (code === 0) {
+                    root.hostname = pendingValue;
+                    Toaster.toast(Tr.tr("Computer name updated"), pendingValue, "computer");
+                    infoProc.running = true;
+                } else {
+                    Toaster.toast(Tr.tr("Couldn't change computer name"), errText || Tr.tr("The change was cancelled or refused."), "error");
+                }
+            }
+        }
+
         Connections {
             function onFaceSourceChanged(): void {
                 if (Paths.faceSource)
@@ -201,17 +241,70 @@ PageBase {
             }
         }
 
-        TextFieldRow {
-            label: Tr.tr("Full name")
-            subtext: Tr.tr("Asks for your password")
-            value: root.realName
-            placeholderText: root.userName
-            onEditingFinished: v => {
-                if (v === root.realName || root.uid < 0)
-                    return;
-                root.realName = v;
-                Quickshell.execDetached(["busctl", "call", "org.freedesktop.Accounts", `/org/freedesktop/Accounts/User${root.uid}`, "org.freedesktop.Accounts.User", "SetRealName", "s", v]);
-                reloadInfo.restart();
+        ConnectedRect {
+            readonly property string label: Tr.tr("Full name")
+
+            Layout.fillWidth: true
+            implicitHeight: fullNameRow.implicitHeight + Tokens.padding.medium + Math.max(0, Tokens.padding.large - fullNameField.verticalPadding) * 2
+
+            RowLayout {
+                id: fullNameRow
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Tokens.padding.largeIncreased
+                anchors.rightMargin: Tokens.padding.largeIncreased
+                spacing: Tokens.spacing.medium
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: Tr.tr("Full name")
+                        font: Tokens.font.body.small
+                        elide: Text.ElideRight
+                    }
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: realNameSaveProc.running ? Tr.tr("Saving…") : Tr.tr("Asks for your password when you save")
+                        color: Colours.palette.m3outline
+                        font: Tokens.font.label.small
+                        wrapMode: Text.WordWrap
+                    }
+                }
+
+                StyledTextField {
+                    id: fullNameField
+
+                    Layout.preferredWidth: Tokens.sizes.nexus.textFieldWidth
+                    Layout.maximumWidth: parent.width * 0.42
+                    Layout.alignment: Qt.AlignVCenter
+                    verticalPadding: Tokens.padding.small
+                    floatingPlaceholder: false
+                    placeholderText: root.userName
+                    text: root.realName
+                    onAccepted: if (!saveRealNameBtn.disabled)
+                        saveRealNameBtn.clicked(null)
+                }
+
+                TextButton {
+                    id: saveRealNameBtn
+
+                    Layout.alignment: Qt.AlignVCenter
+                    text: Tr.trCtx("Save", "button")
+                    type: TextButton.Tonal
+                    disabled: fullNameField.text === root.realName || root.uid < 0 || realNameSaveProc.running
+                    onClicked: {
+                        realNameSaveProc.pendingValue = fullNameField.text;
+                        realNameSaveProc.errText = "";
+                        realNameSaveProc.command = ["busctl", "call", "org.freedesktop.Accounts", `/org/freedesktop/Accounts/User${root.uid}`, "org.freedesktop.Accounts.User", "SetRealName", "s", fullNameField.text];
+                        realNameSaveProc.running = true;
+                    }
+                }
             }
         }
 
@@ -365,6 +458,7 @@ PageBase {
         GroupToggles {
             visible: !!Users.me
             Layout.fillWidth: true
+            hostFlickable: root.flickable
             user: Users.me
             groups: Users.groups
             changed: () => Users.reload()
@@ -497,18 +591,72 @@ PageBase {
             text: Tr.tr("This computer")
         }
 
-        TextFieldRow {
-            label: Tr.tr("Computer name")
-            subtext: Tr.tr("How it shows up on networks and Bluetooth; asks for your password")
-            value: root.hostname
-            validate: t => /^[A-Za-z0-9][A-Za-z0-9-]{0,62}$/.test(t)
-            errorText: Tr.tr("Letters, numbers and dashes only")
-            onEditingFinished: v => {
-                if (!v || v === root.hostname || !/^[A-Za-z0-9][A-Za-z0-9-]{0,62}$/.test(v))
-                    return;
-                root.hostname = v;
-                Quickshell.execDetached(["hostnamectl", "set-hostname", v]);
-                reloadInfo.restart();
+        ConnectedRect {
+            readonly property string label: Tr.tr("Computer name")
+            readonly property bool validHost: /^[A-Za-z0-9][A-Za-z0-9-]{0,62}$/.test(hostnameField.text)
+
+            Layout.fillWidth: true
+            implicitHeight: hostnameRow.implicitHeight + Tokens.padding.medium + Math.max(0, Tokens.padding.large - hostnameField.verticalPadding) * 2
+
+            RowLayout {
+                id: hostnameRow
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Tokens.padding.largeIncreased
+                anchors.rightMargin: Tokens.padding.largeIncreased
+                spacing: Tokens.spacing.medium
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: Tr.tr("Computer name")
+                        font: Tokens.font.body.small
+                        elide: Text.ElideRight
+                    }
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: hostnameField.isError ? Tr.tr("Letters, numbers and dashes only") : hostSaveProc.running ? Tr.tr("Saving…") : Tr.tr("How it shows up on networks and Bluetooth; asks for your password")
+                        color: hostnameField.isError ? Colours.palette.m3error : Colours.palette.m3outline
+                        font: Tokens.font.label.small
+                        wrapMode: Text.WordWrap
+                    }
+                }
+
+                StyledTextField {
+                    id: hostnameField
+
+                    Layout.preferredWidth: Tokens.sizes.nexus.textFieldWidth
+                    Layout.maximumWidth: parent.width * 0.42
+                    Layout.alignment: Qt.AlignVCenter
+                    verticalPadding: Tokens.padding.small
+                    floatingPlaceholder: false
+                    text: root.hostname
+                    isError: text.length > 0 && !/^[A-Za-z0-9][A-Za-z0-9-]{0,62}$/.test(text)
+                    onTextChanged: isError = text.length > 0 && !/^[A-Za-z0-9][A-Za-z0-9-]{0,62}$/.test(text)
+                    onAccepted: if (!saveHostBtn.disabled)
+                        saveHostBtn.clicked(null)
+                }
+
+                TextButton {
+                    id: saveHostBtn
+
+                    Layout.alignment: Qt.AlignVCenter
+                    text: Tr.trCtx("Save", "button")
+                    type: TextButton.Tonal
+                    disabled: !hostnameField.text || hostnameField.text === root.hostname || !/^[A-Za-z0-9][A-Za-z0-9-]{0,62}$/.test(hostnameField.text) || hostSaveProc.running
+                    onClicked: {
+                        hostSaveProc.pendingValue = hostnameField.text;
+                        hostSaveProc.errText = "";
+                        hostSaveProc.command = ["hostnamectl", "set-hostname", hostnameField.text];
+                        hostSaveProc.running = true;
+                    }
+                }
             }
         }
 

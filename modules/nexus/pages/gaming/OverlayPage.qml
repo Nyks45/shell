@@ -325,7 +325,7 @@ PageBase {
 
         ToggleRow {
             text: Tr.tr("In every Vulkan game")
-            subtext: Tr.tr("Without adding it per game; other Vulkan apps show it too (after logging in again). Per game: \"mangohud %command%\" in Games")
+            subtext: Tr.tr("Without adding it per game; other Vulkan apps show it too (after logging in again). Per game: \"mangohud %command%\" in Library")
             checked: root.envValues.MANGOHUD === "1"
             onToggled: Admin.exec([root.helper, "env-set", "MANGOHUD", checked ? "1" : "--unset"], Tr.tr("Change a game option"), () => envProc.running = true)
         }

@@ -156,12 +156,21 @@ PageBase {
                                 text: Games.isQueued(row.removeWhat) ? Tr.tr("Removed when Steam closes") : Tr.tr("Remove")
                                 type: TextButton.Tonal
                                 onClicked: {
-                                    if (Games.isQueued(row.removeWhat))
+                                    if (Games.isQueued(row.removeWhat)) {
                                         Games.unqueue(row.removeWhat);
-                                    else if (row.modelData.target === "steam")
-                                        Games.whenClosed("steam", [root.helper, "remove", row.modelData.target, row.modelData.dir], row.removeWhat, () => root.load());
-                                    else
-                                        Admin.exec([root.helper, "remove", row.modelData.target, row.modelData.dir], row.removeWhat, () => root.load());
+                                        return;
+                                    }
+                                    confirmDialog.ask({
+                                        header: Tr.tr("Remove %1?").arg(row.modelData.name),
+                                        body: row.modelData.target === "steam" && root.tools?.steamRunning ? Tr.tr("Steam is open: any games using this version will move to the matching Latest copy once Steam closes.") : Tr.tr("Any games using this version will move to the matching Latest copy."),
+                                        confirmLabel: Tr.tr("Remove"),
+                                        onConfirm: () => {
+                                            if (row.modelData.target === "steam")
+                                                Games.whenClosed("steam", [root.helper, "remove", row.modelData.target, row.modelData.dir], row.removeWhat, () => root.load());
+                                            else
+                                                Admin.exec([root.helper, "remove", row.modelData.target, row.modelData.dir], row.removeWhat, () => root.load());
+                                        }
+                                    });
                                 }
                             }
                         }
@@ -312,6 +321,12 @@ PageBase {
                     root.loadingReleases = false;
                 }
             }
+        }
+
+        ConfirmDialog {
+            id: confirmDialog
+
+            hostFlickable: root.flickable
         }
     }
 }

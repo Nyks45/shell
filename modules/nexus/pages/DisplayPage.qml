@@ -438,21 +438,77 @@ PageBase {
             }
         }
 
-        RowButton {
-            icon: "palette"
-            text: Tr.tr("Colour profile")
-            subtext: {
-                const icc = HyprSettings.saved.monitors?.[root.monitor?.name]?.icc ?? "";
-                return icc ? icc.split("/").pop() : Tr.tr("None: an ICC file from the screen's maker or a calibration");
+        ConnectedRect {
+            id: iccRow
+
+            readonly property string iccPath: HyprSettings.saved.monitors?.[root.monitor?.name]?.icc ?? ""
+
+            Layout.fillWidth: true
+            implicitHeight: iccRowLayout.implicitHeight + Tokens.padding.medium * 2
+
+            StateLayer {
+                onClicked: iccPicker.open()
             }
-            trailingIcon: (HyprSettings.saved.monitors?.[root.monitor?.name]?.icc ?? "") ? "close" : "folder_open"
-            onClicked: {
-                if (HyprSettings.saved.monitors?.[root.monitor?.name]?.icc)
-                    root.change({
-                        icc: ""
-                    });
-                else
-                    iccPicker.open();
+
+            RowLayout {
+                id: iccRowLayout
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.margins: Tokens.padding.largeIncreased
+                spacing: Tokens.spacing.medium
+
+                MaterialIcon {
+                    text: "palette"
+                    color: Colours.palette.m3onSurfaceVariant
+                    fontStyle: Tokens.font.icon.medium
+                    fill: 1
+                }
+
+                Column {
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    StyledText {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        text: Tr.tr("Colour profile")
+                        font: Tokens.font.body.small
+                        elide: Text.ElideRight
+                    }
+
+                    StyledText {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        visible: text.length > 0
+                        text: iccRow.iccPath ? iccRow.iccPath.split("/").pop() : Tr.tr("None: an ICC file from the screen's maker or a calibration")
+                        color: Colours.palette.m3outline
+                        font: Tokens.font.label.small
+                        wrapMode: Text.WordWrap
+                    }
+                }
+
+                MaterialIcon {
+                    visible: !iccRow.iccPath
+                    text: "folder_open"
+                    color: Colours.palette.m3onSurfaceVariant
+                    fontStyle: Tokens.font.icon.medium
+                }
+
+                IconButton {
+                    visible: !!iccRow.iccPath
+                    icon: "close"
+                    type: IconButton.Text
+                    onClicked: confirmDialog.ask({
+                        header: Tr.tr("Remove colour profile?"),
+                        body: Tr.tr("Clears %1 from this monitor.").arg(iccRow.iccPath.split("/").pop()),
+                        confirmLabel: Tr.tr("Remove"),
+                        onConfirm: () => root.change({
+                            icc: ""
+                        })
+                    })
+                }
             }
         }
 
@@ -653,6 +709,12 @@ PageBase {
             path: root.sunsetConf
             printErrors: false
             blockLoading: false
+        }
+
+        ConfirmDialog {
+            id: confirmDialog
+
+            hostFlickable: root.flickable
         }
     }
 }

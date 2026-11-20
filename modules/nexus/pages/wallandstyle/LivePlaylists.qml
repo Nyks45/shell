@@ -385,11 +385,22 @@ PageBase {
                 visible: !!root.draftOriginal
                 text: Tr.trCtx("Delete", "button")
                 type: TextButton.Text
-                onClicked: {
-                    LiveWallpaper.deletePlaylist(root.draftOriginal);
-                    root.draft = null;
-                }
+                onClicked: confirmDialog.ask({
+                    header: Tr.tr("Delete playlist \"%1\"?").arg(root.draftOriginal),
+                    body: Tr.tr("Removes this playlist configuration. Your wallpaper files are not deleted."),
+                    confirmLabel: Tr.trCtx("Delete", "button"),
+                    onConfirm: () => {
+                        LiveWallpaper.deletePlaylist(root.draftOriginal);
+                        root.draft = null;
+                    }
+                })
             }
+        }
+
+        ConfirmDialog {
+            id: confirmDialog
+
+            hostFlickable: root.flickable
         }
     }
 }

@@ -196,7 +196,7 @@ PageBase {
             checked: root.enabled === "masked"
             onToggled: {
                 if (checked && root.vital && root.confirm !== "mask") {
-                    checked = false;
+                    checked = Qt.binding(() => root.enabled === "masked");
                     root.confirm = "mask";
                     confirmReset.restart();
                     return;

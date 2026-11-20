@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
+import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
@@ -109,7 +110,15 @@ PageBase {
         RowButton {
             icon: "history"
             text: Tr.tr("Clear recent files")
-            onClicked: Quickshell.execDetached(["sh", "-c", `printf '<?xml version="1.0" encoding="UTF-8"?>\\n<xbel version="1.0"/>\\n' > "\${XDG_DATA_HOME:-$HOME/.local/share}/recently-used.xbel"`])
+            onClicked: confirmDialog.ask({
+                header: Tr.tr("Clear recent files?"),
+                body: Tr.tr("Removes your GTK/app recently used files list. The files themselves are not deleted."),
+                confirmLabel: Tr.trCtx("Clear", "button"),
+                onConfirm: () => {
+                    Quickshell.execDetached(["sh", "-c", `printf '<?xml version="1.0" encoding="UTF-8"?>\\n<xbel version="1.0"/>\\n' > "\${XDG_DATA_HOME:-$HOME/.local/share}/recently-used.xbel"`]);
+                    Toaster.toast(Tr.tr("Recent files cleared"), "", "history");
+                }
+            })
         }
 
         RowButton {
@@ -117,17 +126,37 @@ PageBase {
             text: Tr.tr("Clear notification history")
             subtext: Tr.trN("%n notification", "%n notifications", Notifs.list.length)
             disabled: Notifs.list.length === 0
-            onClicked: {
-                for (const n of Notifs.list.slice())
-                    n.close();
-            }
+            onClicked: confirmDialog.ask({
+                header: Tr.tr("Clear notification history?"),
+                body: Tr.tr("Dismisses all %1 stored notifications.").arg(Notifs.list.length),
+                confirmLabel: Tr.trCtx("Clear", "button"),
+                onConfirm: () => {
+                    for (const n of Notifs.list.slice())
+                        n.close();
+                    Toaster.toast(Tr.tr("Notification history cleared"), "", "notifications_off");
+                }
+            })
         }
 
         RowButton {
             visible: root.hasCliphist
             icon: "content_paste_off"
             text: Tr.tr("Clear clipboard history")
-            onClicked: Quickshell.execDetached(["cliphist", "wipe"])
+            onClicked: confirmDialog.ask({
+                header: Tr.tr("Clear clipboard history?"),
+                body: Tr.tr("Removes all entries saved in your clipboard history."),
+                confirmLabel: Tr.trCtx("Clear", "button"),
+                onConfirm: () => {
+                    Quickshell.execDetached(["cliphist", "wipe"]);
+                    Toaster.toast(Tr.tr("Clipboard history cleared"), "", "content_paste_off");
+                }
+            })
+        }
+
+        ConfirmDialog {
+            id: confirmDialog
+
+            hostFlickable: root.flickable
         }
     }
 }

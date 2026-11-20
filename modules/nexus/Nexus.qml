@@ -51,10 +51,27 @@ Item {
         onTapped: root.focus = true
     }
 
-    // The mouse's back button: up one sub-page (or out of the search)
+    // The mouse's back / forward buttons and Alt+Left / Alt+Right
     TapHandler {
         acceptedButtons: Qt.BackButton
         onTapped: root.nState.back()
+    }
+
+    TapHandler {
+        acceptedButtons: Qt.ForwardButton
+        onTapped: root.nState.forward()
+    }
+
+    Shortcut {
+        sequences: [StandardKey.Back, "Alt+Left"]
+        context: Qt.WindowShortcut
+        onActivated: root.nState.back()
+    }
+
+    Shortcut {
+        sequences: [StandardKey.Forward, "Alt+Right"]
+        context: Qt.WindowShortcut
+        onActivated: root.nState.forward()
     }
 
     BlobGroup {
@@ -106,7 +123,12 @@ Item {
         inactiveOnColour: hovered ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
         stateLayer.opacity: 0
         onClicked: {
-            WindowFactory.create();
+            WindowFactory.create(null, {
+                startEntry: {
+                    page: root.nState.currentPageIdx,
+                    path: Array.from(root.nState.subPageIdxStack)
+                }
+            });
             root.close();
         }
 

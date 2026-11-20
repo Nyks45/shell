@@ -122,6 +122,7 @@ PageBase {
         GroupToggles {
             visible: !!root.user
             Layout.fillWidth: true
+            hostFlickable: root.flickable
             user: root.user
             groups: Users.groups
             changed: () => Users.reload()

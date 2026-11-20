@@ -521,7 +521,7 @@ PageBase {
             label: Tr.tr("Look")
             subtext: Tr.tr("Sets windows' strength (and so everything that follows it)")
             menuItems: [nebulaBlur, strongBlur, frostedBlur]
-            active: root.winBlurSize === 4 && root.winBlurPasses === 1 ? nebulaBlur : root.winBlurSize === 8 && root.winBlurPasses === 2 ? strongBlur : root.winBlurSize === 8 && root.winBlurPasses === 3 && root.frostedPanels ? frostedBlur : null
+            active: root.winBlurSize === 4 && root.winBlurPasses === 1 ? nebulaBlur : root.winBlurSize === 8 && root.winBlurPasses === 2 ? strongBlur : root.winBlurSize === 8 && root.winBlurPasses === 3 && (root.frostedPanels || (GlobalConfig.appearance.blur.shellSize === 12 && GlobalConfig.appearance.blur.shellPasses === 4)) ? frostedBlur : null
             fallbackText: Tr.tr("Your own")
             onSelected: item => {
                 HyprSettings.setOption("decoration:blur:size", item.value[0]);
@@ -535,10 +535,12 @@ PageBase {
                     t.layers = 0.3;
                     b.shellSize = 12;
                     b.shellPasses = 4;
-                } else if (root.frostedPanels) {
-                    // Back from Frosted: the panels' usual opacity
+                } else if (root.frostedPanels || (b.shellSize === 12 && b.shellPasses === 4)) {
+                    // Back from Deep glass: restore panels' usual opacity and own blur
                     t.base = 0.85;
                     t.layers = 0.4;
+                    b.shellSize = 0;
+                    b.shellPasses = 0;
                 }
             }
 

@@ -16,7 +16,7 @@ ColumnLayout {
 
     spacing: Tokens.spacing.medium
 
-    // The window's title, like DankMaterialShell's settings
+    // The window's title, plus back / forward history controls
     RowLayout {
         Layout.fillWidth: true
         Layout.leftMargin: Tokens.padding.small
@@ -32,6 +32,24 @@ ColumnLayout {
             Layout.fillWidth: true
             text: Tr.tr("Settings")
             font: Tokens.font.title.medium
+        }
+
+        IconButton {
+            Layout.alignment: Qt.AlignVCenter
+            icon: "arrow_back"
+            type: IconButton.Text
+            stateLayer.disabled: !root.nState.canGoBack
+            opacity: root.nState.canGoBack ? 1 : 0.35
+            onClicked: root.nState.back()
+        }
+
+        IconButton {
+            Layout.alignment: Qt.AlignVCenter
+            icon: "arrow_forward"
+            type: IconButton.Text
+            stateLayer.disabled: !root.nState.canGoForward
+            opacity: root.nState.canGoForward ? 1 : 0.35
+            onClicked: root.nState.forward()
         }
     }
 

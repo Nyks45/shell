@@ -72,6 +72,7 @@ VerticalFadeFlickable {
                 page: e.page,
                 // A row that opens a sub-page opens it, rather than flashing the row
                 path: opens ? e.path.concat([e.opens]) : e.path,
+                tab: e.tab ?? "",
                 title: label,
                 where: opens && sub ? sub : where,
                 icon: opens ? page.icon : "",

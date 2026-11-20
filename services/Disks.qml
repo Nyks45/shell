@@ -24,6 +24,7 @@ Singleton {
     property var cachedFolders: ({})
     property var cachedSizes: ({})
     property int cachedOrphans: -1
+    property list<string> cachedOrphanNames: []
     property double cachedAt: 0
 
     function open(): void {

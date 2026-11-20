@@ -557,10 +557,21 @@ PageBase {
             icon: "playlist_remove"
             text: Tr.tr("Take it off %1's list").arg(Games.launcherNames[root.game?.launcher] ?? "")
             subtext: Tr.tr("Its files and Wine prefix stay where they are")
-            onClicked: {
-                Games.remove(root.game.key, root.game.title);
-                root.nState.closeSubPage();
-            }
+            onClicked: confirmDialog.ask({
+                header: Tr.tr("Remove %1?").arg(root.game?.title ?? ""),
+                body: Tr.tr("Takes it off %1's list. Its files and Wine prefix stay where they are.").arg(Games.launcherNames[root.game?.launcher] ?? ""),
+                confirmLabel: Tr.tr("Remove"),
+                onConfirm: () => {
+                    Games.remove(root.game.key, root.game.title);
+                    root.nState.closeSubPage();
+                }
+            })
+        }
+
+        ConfirmDialog {
+            id: confirmDialog
+
+            hostFlickable: root.flickable
         }
     }
 }

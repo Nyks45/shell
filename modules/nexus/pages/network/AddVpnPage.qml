@@ -187,12 +187,17 @@ PageBase {
                 iconLabel.grade: 25
                 icon: "delete_forever"
                 text: Tr.tr("Delete")
-                onClicked: {
-                    if (root.existing.id === VPN.selectedProvider && VPN.connected)
-                        VPN.disconnect();
-                    VPN.deleteProvider(root.editIndex);
-                    root.nState.closeSubPage();
-                }
+                onClicked: confirmDialog.ask({
+                    header: Tr.tr("Delete VPN provider?"),
+                    body: Tr.tr("Removes %1 from your saved VPN providers.").arg(root.existing?.name ?? ""),
+                    confirmLabel: Tr.tr("Delete"),
+                    onConfirm: () => {
+                        if (root.existing?.id === VPN.selectedProvider && VPN.connected)
+                            VPN.disconnect();
+                        VPN.deleteProvider(root.editIndex);
+                        root.nState.closeSubPage();
+                    }
+                })
             }
 
             Item {
@@ -222,6 +227,12 @@ PageBase {
                     onClicked: root.submit()
                 }
             }
+        }
+
+        ConfirmDialog {
+            id: confirmDialog
+
+            hostFlickable: root.flickable
         }
     }
 }

@@ -351,8 +351,14 @@ PageBase {
                 icon: "history"
                 text: Tr.tr("Go back to %1").arg(modelData.version)
                 subtext: Tr.tr("From the package cache (%1); the password prompt asks").arg(Qt.formatDate(new Date(modelData.date * 1000), "d MMM yyyy"))
-                onClicked: Admin.run("downgrade", [modelData.file], Tr.tr("Install %1 %2").arg(root.sel.name).arg(modelData.version), () => {
-                    Packages.afterChange();
+                onClicked: confirmDialog.ask({
+                    header: Tr.tr("Go back to %1?").arg(modelData.version),
+                    body: Tr.tr("Replaces %1 with version %2 from your package cache.").arg(root.sel.name).arg(modelData.version),
+                    warning: Tr.tr("Consider turning on 'Keep at this version' if you don't want the next update to upgrade it again."),
+                    confirmLabel: Tr.tr("Install %1").arg(modelData.version),
+                    onConfirm: () => Admin.run("downgrade", [modelData.file], Tr.tr("Install %1 %2").arg(root.sel.name).arg(modelData.version), () => {
+                        Packages.afterChange();
+                    })
                 })
             }
         }
@@ -411,6 +417,12 @@ PageBase {
             function onChanged(): void {
                 root.load();
             }
+        }
+
+        ConfirmDialog {
+            id: confirmDialog
+
+            hostFlickable: root.flickable
         }
     }
 }

@@ -308,12 +308,27 @@ ColumnLayout {
             subtitle: "Gone for good"
 
             ActionButton {
+                property bool confirming: false
+
+                Timer {
+                    id: removeConfirmTimer
+
+                    interval: 5000
+                    onTriggered: parent.confirming = false
+                }
+
                 icon: "delete"
-                text: "Remove"
+                text: confirming ? "Confirm remove?" : "Remove"
                 danger: true
                 filled: true
                 anchors.verticalCenter: parent.verticalCenter
                 onClicked: {
+                    if (!confirming) {
+                        confirming = true;
+                        removeConfirmTimer.restart();
+                        return;
+                    }
+                    removeConfirmTimer.stop();
                     const id = page.arg;
                     page.navigate("");
                     Widgets.remove(id);

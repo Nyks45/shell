@@ -111,7 +111,12 @@ PageBase {
                         enabled: !k.removing
                         text: k.removing ? Tr.tr("Removing…") : Tr.tr("Remove")
                         type: TextButton.Tonal
-                        onClicked: Admin.run("kernel-remove", [k.modelData.name], k.removeWhat, () => root.load())
+                        onClicked: confirmDialog.ask({
+                            header: Tr.tr("Remove %1?").arg(k.modelData.name),
+                            body: Tr.tr("Removes this kernel package and updates the boot menu."),
+                            confirmLabel: Tr.tr("Remove"),
+                            onConfirm: () => Admin.run("kernel-remove", [k.modelData.name], k.removeWhat, () => root.load())
+                        })
                     }
                 }
             }
@@ -149,7 +154,13 @@ PageBase {
                 icon: working ? "downloading" : "add"
                 text: modelData.name
                 subtext: working ? Tr.tr("Installing (with headers and modules), signing, adding to the boot menu…") : `${modelData.version} · ${modelData.desc}`
-                onClicked: Admin.run("kernel-install", [modelData.name], what, () => root.load())
+                onClicked: confirmDialog.ask({
+                    header: Tr.tr("Install %1?").arg(modelData.name),
+                    body: Tr.tr("Installs version %1 along with its headers and modules, signs it for Secure Boot, and adds it to the boot menu.").arg(modelData.version),
+                    confirmLabel: Tr.trCtx("Install", "button"),
+                    icon: "download",
+                    onConfirm: () => Admin.run("kernel-install", [modelData.name], what, () => root.load())
+                })
             }
         }
 
@@ -172,6 +183,12 @@ PageBase {
                     } catch (e) {}
                 }
             }
+        }
+
+        ConfirmDialog {
+            id: confirmDialog
+
+            hostFlickable: root.flickable
         }
     }
 }

@@ -25,10 +25,9 @@ PageBase {
     property var folders: Object.assign({}, Disks.cachedFolders)
     property var sizes: Object.assign({}, Disks.cachedSizes)
     property int orphans: Disks.cachedOrphans
+    property list<string> orphanNames: Disks.cachedOrphanNames
     property var _scanFolders: ({})
     property bool measuringFolders
-    property bool trashConfirm
-    property bool paruConfirm
 
     function human(bytes: real): string {
         if (!(bytes >= 0))
@@ -77,6 +76,7 @@ echo "pkg=$(s /var/cache/pacman/pkg)"
 echo "paru=$(s "\${XDG_CACHE_HOME:-$HOME/.cache}/paru")"
 echo "journal=$(journalctl --disk-usage 2>/dev/null | grep -oE '[0-9.]+[KMGT]?' | head -1)"
 echo "orphans=$(pacman -Qdtq 2>/dev/null | wc -l)"
+echo "orphan_list=$(pacman -Qdtq 2>/dev/null | paste -sd ',' -)"
 `]
             stdout: StdioCollector {
                 onStreamFinished: {
@@ -97,6 +97,9 @@ echo "orphans=$(pacman -Qdtq 2>/dev/null | wc -l)"
                         } else if (k === "orphans") {
                             root.orphans = parseInt(v);
                             Disks.cachedOrphans = root.orphans;
+                        } else if (k === "orphan_list") {
+                            root.orphanNames = v ? v.split(",").filter(Boolean) : [];
+                            Disks.cachedOrphanNames = root.orphanNames;
                         } else {
                             sizes[k] = parseInt(v);
                         }
@@ -165,20 +168,6 @@ done
                 if (--left <= 0)
                     stop();
             }
-        }
-
-        Timer {
-            id: paruConfirmTimer
-
-            interval: 4000
-            onTriggered: root.paruConfirm = false
-        }
-
-        Timer {
-            id: trashConfirmTimer
-
-            interval: 4000
-            onTriggered: root.trashConfirm = false
         }
 
         SectionHeader {
@@ -252,20 +241,20 @@ done
 
         RowButton {
             icon: "delete"
-            text: root.trashConfirm ? Tr.tr("Click again to empty the Trash") : Tr.tr("Empty the Trash")
-            subtext: root.trashConfirm ? Tr.tr("Deleted files can't be brought back") : root.sizes.trash > 0 ? Tr.tr("%1 in the Trash").arg(root.human(root.sizes.trash)) : Tr.tr("The Trash is empty")
+            text: Tr.tr("Empty the Trash")
+            subtext: root.sizes.trash > 0 ? Tr.tr("%1 in the Trash").arg(root.human(root.sizes.trash)) : Tr.tr("The Trash is empty")
             disabled: !(root.sizes.trash > 0)
-            onClicked: {
-                if (!root.trashConfirm) {
-                    root.trashConfirm = true;
-                    trashConfirmTimer.restart();
-                    return;
+            onClicked: confirmDialog.ask({
+                header: Tr.tr("Empty the Trash?"),
+                body: Tr.tr("Permanently deletes %1 currently in the Trash.").arg(root.human(root.sizes.trash)),
+                warning: Tr.tr("Deleted files can't be brought back."),
+                confirmLabel: Tr.tr("Empty Trash"),
+                onConfirm: () => {
+                    Quickshell.execDetached(["gio", "trash", "--empty"]);
+                    refreshTimer.left = 1;
+                    refreshTimer.restart();
                 }
-                root.trashConfirm = false;
-                Quickshell.execDetached(["gio", "trash", "--empty"]);
-                refreshTimer.left = 1;
-                refreshTimer.restart();
-            }
+            })
         }
 
         RowButton {
@@ -295,18 +284,17 @@ done
             visible: (root.sizes.paru ?? 0) > 0
             icon: "build"
             text: Tr.tr("Clear AUR build files")
-            subtext: root.paruConfirm ? Tr.tr("Click again: packages are then rebuilt from scratch on their next update") : Tr.tr("%1 that paru keeps from building AUR packages").arg(root.human(root.sizes.paru ?? 0))
-            onClicked: {
-                if (!root.paruConfirm) {
-                    root.paruConfirm = true;
-                    paruConfirmTimer.restart();
-                    return;
+            subtext: Tr.tr("%1 that paru keeps from building AUR packages").arg(root.human(root.sizes.paru ?? 0))
+            onClicked: confirmDialog.ask({
+                header: Tr.tr("Clear AUR build files?"),
+                body: Tr.tr("Deletes %1 of cached AUR build directories. Packages will rebuild from scratch on their next update.").arg(root.human(root.sizes.paru ?? 0)),
+                confirmLabel: Tr.trCtx("Clear", "button"),
+                onConfirm: () => {
+                    Quickshell.execDetached(["sh", "-c", `rm -rf "\${XDG_CACHE_HOME:-$HOME/.cache}/paru/clone"`]);
+                    refreshTimer.left = 2;
+                    refreshTimer.restart();
                 }
-                root.paruConfirm = false;
-                Quickshell.execDetached(["sh", "-c", `rm -rf "\${XDG_CACHE_HOME:-$HOME/.cache}/paru/clone"`]);
-                refreshTimer.left = 2;
-                refreshTimer.restart();
-            }
+            })
         }
 
         RowButton {
@@ -317,7 +305,16 @@ done
             text: what
             subtext: busy ? Tr.tr("Removing…") : root.orphans === 0 ? Tr.tr("None") : Tr.tr("%1 installed as dependencies of packages that are gone").arg(root.orphans)
             disabled: root.orphans === 0 || busy
-            onClicked: Admin.run("remove-orphans", [], what, () => root.refresh())
+            onClicked: {
+                const shown = root.orphanNames.slice(0, 25).join(", ");
+                const extra = root.orphanNames.length > 25 ? Tr.tr(" … and %1 more").arg(root.orphanNames.length - 25) : "";
+                confirmDialog.ask({
+                    header: Tr.tr("Remove %1 unused packages?").arg(root.orphans),
+                    body: shown ? Tr.tr("Packages to remove: %1%2").arg(shown).arg(extra) : Tr.tr("%1 unused dependency packages will be removed.").arg(root.orphans),
+                    confirmLabel: Tr.tr("Remove"),
+                    onConfirm: () => Admin.run("remove-orphans", [], what, () => root.refresh())
+                });
+            }
         }
 
         RowButton {
@@ -329,6 +326,12 @@ done
             subtext: busy ? Tr.tr("Trimming…") : Tr.tr("%1 of logs; keeps the last two weeks").arg(root.human(root.sizes.journal ?? 0))
             disabled: busy
             onClicked: Admin.run("journal-vacuum", ["2weeks"], what, () => root.refresh())
+        }
+
+        ConfirmDialog {
+            id: confirmDialog
+
+            hostFlickable: root.flickable
         }
     }
 }
