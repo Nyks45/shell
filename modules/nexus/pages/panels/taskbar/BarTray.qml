@@ -10,6 +10,12 @@ import qs.modules.nexus.common
 PageBase {
     id: root
 
+    function friendlyId(id: string): string {
+        const tail = String(id ?? "").split(/[./]/).filter(s => s).pop() || String(id ?? "");
+        const words = tail.replace(/[-_]+/g, " ").trim();
+        return words ? words.charAt(0).toUpperCase() + words.slice(1) : id;
+    }
+
     title: Tr.tr("Tray")
     isSubPage: true
 
@@ -44,13 +50,13 @@ PageBase {
             model: {
                 const items = SystemTray.items.values.filter(i => i.status !== Status.Passive || GlobalConfig.bar.tray.hiddenIcons.includes(i.id)).map(i => ({
                             id: i.id,
-                            title: i.tooltipTitle || i.title || i.id
+                            title: i.tooltipTitle || i.title || root.friendlyId(i.id)
                         }));
                 for (const id of GlobalConfig.bar.tray.hiddenIcons)
                     if (!items.some(i => i.id === id))
                         items.push({
                             id,
-                            title: id
+                            title: root.friendlyId(id)
                         });
                 return items;
             }
@@ -60,7 +66,6 @@ PageBase {
                 required property int index
 
                 text: modelData.title
-                subtext: modelData.title !== modelData.id ? modelData.id : ""
                 checked: !GlobalConfig.bar.tray.hiddenIcons.includes(modelData.id)
                 onToggled: {
                     const hidden = GlobalConfig.bar.tray.hiddenIcons.filter(i => i !== modelData.id);

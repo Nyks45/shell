@@ -215,6 +215,7 @@ PageBase {
 
         ToggleRow {
             text: Tr.tr("Display wallpaper")
+            subtext: !checked ? Tr.tr("Turn on to pick a picture wallpaper") : ""
             checked: Config.background.wallpaperEnabled || root.live
             onToggled: {
                 // Off means no wallpaper at all, a live one included

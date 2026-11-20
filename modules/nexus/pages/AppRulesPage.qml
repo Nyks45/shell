@@ -108,6 +108,23 @@ PageBase {
         readonly property string app: modelData.class.replace(/^\^\(/, "").replace(/\)\$$/, "").replace(/\\(.)/g, "$1")
         readonly property DesktopEntry desktopEntry: DesktopEntries.heuristicLookup(app) ?? DesktopEntries.byId(app)
         readonly property string displayName: desktopEntry ? desktopEntry.name : app
+        property real draftOpacity: -1
+        readonly property real shownOpacity: draftOpacity > 0 ? draftOpacity : (modelData.opacity ?? 1)
+
+        Timer {
+            id: opacityDebounce
+
+            interval: 150
+            onTriggered: {
+                if (rule.draftOpacity > 0) {
+                    const v = rule.draftOpacity;
+                    rule.draftOpacity = -1;
+                    root.setRule(rule.index, {
+                        opacity: v
+                    });
+                }
+            }
+        }
 
         Layout.fillWidth: true
         implicitHeight: ruleLayout.implicitHeight + Tokens.padding.medium * 2
@@ -257,7 +274,7 @@ PageBase {
                     }
 
                     RuleSwitch {
-                        text: Tr.tr("Keep the screen awake")
+                        text: Tr.tr("Keep awake while focused")
                         checked: !!rule.modelData.idleInhibit
                         onToggled: root.setRule(rule.index, {
                             idleInhibit: checked ? "focus" : ""
@@ -265,7 +282,7 @@ PageBase {
                     }
 
                     RuleSwitch {
-                        text: Tr.tr("Allow tearing (games)")
+                        text: Tr.tr("Reduce input latency (allow tearing)")
                         checked: !!rule.modelData.immediate
                         onToggled: root.setRule(rule.index, {
                             immediate: checked
@@ -327,15 +344,16 @@ PageBase {
                         Layout.fillWidth: true
                         from: 0.3
                         to: 1
-                        value: rule.modelData.opacity ?? 1
-                        onMoved: root.setRule(rule.index, {
-                            opacity: Math.round(value * 100) / 100
-                        })
+                        value: rule.shownOpacity
+                        onMoved: {
+                            rule.draftOpacity = Math.round(value * 100) / 100;
+                            opacityDebounce.restart();
+                        }
                     }
 
                     StyledText {
                         Layout.minimumWidth: 40
-                        text: `${Math.round((rule.modelData.opacity ?? 1) * 100)}%`
+                        text: `${Math.round(rule.shownOpacity * 100)}%`
                         font: Tokens.font.label.medium
                         color: Colours.palette.m3onSurfaceVariant
                     }

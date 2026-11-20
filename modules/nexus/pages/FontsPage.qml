@@ -34,7 +34,7 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         SectionHeader {
-            text: Tr.tr("Shell")
+            text: Tr.tr("Shell text")
         }
 
         FontRow {
@@ -54,6 +54,7 @@ PageBase {
 
         FontRow {
             label: Tr.tr("Clock font")
+            subtext: Tr.tr("Lock screen, dashboard and desktop clock widget")
             family: Config.appearance.font.clock
             onPicked: f => GlobalConfig.appearance.font.clock = f
         }
@@ -68,7 +69,7 @@ PageBase {
         }
 
         SectionHeader {
-            text: Tr.tr("Apps")
+            text: Tr.tr("App text")
         }
 
         FontRow {
@@ -101,6 +102,16 @@ PageBase {
             onPicked: f => AppLook.setGtkFont("document-font-name", f, root.gtkDoc.size)
         }
 
+        StepperRow {
+            label: Tr.tr("Document font size")
+            subtext: Tr.tr("In points")
+            value: root.gtkDoc.size
+            from: 7
+            to: 24
+            stepSize: 1
+            onMoved: v => AppLook.setGtkFont("document-font-name", root.gtkDoc.family, v)
+        }
+
         FontRow {
             label: Tr.tr("App monospace font")
             subtext: Tr.tr("Terminals and code in apps")
@@ -126,12 +137,12 @@ PageBase {
         }
 
         SectionHeader {
-            text: Tr.tr("Rendering")
+            text: Tr.tr("Text rendering")
         }
 
         SelectRow {
             label: Tr.tr("Smoothing")
-            subtext: Tr.tr("How the edges of letters are softened")
+            subtext: Tr.tr("How the edges of letters are softened across apps")
             menuItems: [
                 MenuItem {
                     text: Tr.tr("Greyscale")
@@ -147,7 +158,10 @@ PageBase {
                 }
             ]
             active: menuItems.find(i => i.value === AppLook.get(root.gtkSchema, "font-antialiasing", "grayscale")) ?? null
-            onSelected: item => AppLook.set(root.gtkSchema, "font-antialiasing", item.value)
+            onSelected: item => {
+                AppLook.set(root.gtkSchema, "font-antialiasing", item.value);
+                AppLook.setFontRendering(item.value, AppLook.get(root.gtkSchema, "font-hinting", "slight"));
+            }
         }
 
         SelectRow {
@@ -173,7 +187,10 @@ PageBase {
                 }
             ]
             active: menuItems.find(i => i.value === AppLook.get(root.gtkSchema, "font-hinting", "slight")) ?? null
-            onSelected: item => AppLook.set(root.gtkSchema, "font-hinting", item.value)
+            onSelected: item => {
+                AppLook.set(root.gtkSchema, "font-hinting", item.value);
+                AppLook.setFontRendering(AppLook.get(root.gtkSchema, "font-antialiasing", "grayscale"), item.value);
+            }
         }
     }
 }

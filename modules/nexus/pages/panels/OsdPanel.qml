@@ -2,8 +2,10 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import Caelestia.Config
 import Caelestia.I18n
+import qs.components.controls
 import qs.modules.nexus.common
 
 PageBase {
@@ -41,14 +43,27 @@ PageBase {
             onToggled: GlobalConfig.osd.enableMicrophone = checked
         }
 
-        StepperRow {
+        SelectRow {
             label: Tr.tr("Hide after")
-            subtext: Tr.tr("Milliseconds")
-            value: Config.osd.hideDelay
-            from: 500
-            to: 10000
-            stepSize: 250
-            onMoved: v => GlobalConfig.osd.hideDelay = v
+            subtext: Tr.tr("How long the on-screen display stays visible")
+            menuOnTop: true
+            menuItems: osdDelayItems.instances
+            active: osdDelayItems.instances.find(i => i.value === Config.osd.hideDelay) ?? null
+            fallbackText: Tr.tr("%1 s").arg((Config.osd.hideDelay / 1000).toFixed(1).replace(/\.0$/, ""))
+            onSelected: item => GlobalConfig.osd.hideDelay = item.value
+
+            Variants {
+                id: osdDelayItems
+
+                model: [1000, 1500, 2000, 3000, 5000]
+
+                MenuItem {
+                    required property int modelData
+
+                    text: modelData === 1000 ? Tr.tr("1 second") : Tr.tr("%1 seconds").arg(modelData / 1000)
+                    value: modelData
+                }
+            }
         }
     }
 }

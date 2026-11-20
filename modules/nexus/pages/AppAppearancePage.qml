@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import Quickshell.Widgets
+import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
@@ -14,9 +15,8 @@ import qs.services
 import qs.modules.nexus
 import qs.modules.nexus.common
 
-// How apps look: icon theme (GTK, Qt, the shell's taskbar), Qt style, and the
-// cursor (kept on Keyboard & mouse, linked from here). App colours follow the
-// colour scheme (Wallpaper & style > Colours).
+// How apps look: icon theme (GTK, Qt, the shell's taskbar), KDE & Qt style, and
+// cursor style & size. App colours follow the colour scheme (Wallpaper & style > Colours).
 PageBase {
     id: root
 
@@ -26,6 +26,32 @@ PageBase {
     // Icon name -> file in the chosen theme (the shell itself keeps the theme it
     // started with, so it can't show a new one)
     property var previewPaths: ({})
+    property list<string> cursorThemes
+    property string gsCursorTheme
+    property int gsCursorSize: 24
+    readonly property string cursorTheme: HyprSettings.varValue("cursorTheme", gsCursorTheme)
+    readonly property int cursorSize: HyprSettings.varValue("cursorSize", gsCursorSize)
+
+    function friendlyStyle(s: string): string {
+        return ({
+                Darkly: Tr.tr("Darkly (modern translucent dark)"),
+                Lightly: Tr.tr("Lightly (modern translucent light)"),
+                Breeze: Tr.tr("Breeze (KDE classic)"),
+                Fusion: Tr.tr("Fusion (built-in standard)"),
+                kvantum: Tr.tr("Kvantum (SVG theme engine)"),
+                Oxygen: Tr.tr("Oxygen")
+            })[s] ?? s;
+    }
+
+    function setCursor(theme: string, size: int): void {
+        gsCursorTheme = theme;
+        gsCursorSize = size;
+        HyprSettings.setVar("cursorTheme", theme);
+        HyprSettings.setVar("cursorSize", size);
+        Hypr.extras.message(`setcursor ${theme} ${size}`);
+        Quickshell.execDetached(["gsettings", "set", "org.gnome.desktop.interface", "cursor-theme", theme]);
+        Quickshell.execDetached(["gsettings", "set", "org.gnome.desktop.interface", "cursor-size", String(size)]);
+    }
 
     // After the command binding has the new theme (handlers can run before it)
     onPreviewThemeChanged: Qt.callLater(() => {
@@ -160,15 +186,16 @@ for name in names:
         }
 
         SectionHeader {
-            text: Tr.tr("Qt apps")
+            text: Tr.tr("App style (KDE & Qt apps)")
         }
 
         SelectRow {
             label: Tr.tr("Style")
-            subtext: Tr.tr("How buttons, menus and other controls of Qt apps are drawn")
+            subtext: Tr.tr("How buttons, menus and controls look in apps like Dolphin and KDE apps")
+            segmentedAllowed: false
             menuItems: styleItems.instances
             active: styleItems.instances.find(i => i.value === AppLook.qt("style", "Darkly")) ?? null
-            fallbackText: AppLook.qt("style", "Darkly")
+            fallbackText: root.friendlyStyle(AppLook.qt("style", "Darkly"))
             onSelected: item => AppLook.setQt("style", item.value)
 
             Variants {
@@ -179,7 +206,7 @@ for name in names:
                 MenuItem {
                     required property string modelData
 
-                    text: modelData
+                    text: root.friendlyStyle(modelData)
                     value: modelData
                 }
             }
@@ -209,6 +236,40 @@ for name in names:
         }
 
         SectionHeader {
+            text: Tr.tr("Cursor")
+        }
+
+        SelectRow {
+            label: Tr.tr("Cursor style")
+            menuItems: cursorThemeItems.instances
+            active: cursorThemeItems.instances.find(i => i.value === root.cursorTheme) ?? null
+            fallbackText: root.cursorTheme.replace(/[-_]/g, " ")
+            onSelected: item => root.setCursor(item.value, root.cursorSize)
+
+            Variants {
+                id: cursorThemeItems
+
+                model: root.cursorThemes
+
+                MenuItem {
+                    required property string modelData
+
+                    text: modelData.replace(/[-_]/g, " ")
+                    value: modelData
+                }
+            }
+        }
+
+        StepperRow {
+            label: Tr.tr("Cursor size")
+            value: root.cursorSize
+            from: 16
+            to: 96
+            stepSize: 8
+            onMoved: v => root.setCursor(root.cursorTheme, v)
+        }
+
+        SectionHeader {
             text: Tr.tr("More")
         }
 
@@ -223,28 +284,24 @@ for name in names:
             })
         }
 
-        NavRow {
-            icon: "text_fields"
-            text: Tr.tr("Fonts")
-            subtext: Tr.tr("App and shell fonts")
-            onClicked: root.nState.goTo({
-                page: PageRegistry.find("fonts"),
-                tab: "fonts",
-                path: []
-            })
+        Process {
+            running: true
+            command: ["sh", "-c", "for d in \"$HOME/.icons\"/* \"$HOME/.local/share/icons\"/* /usr/share/icons/*; do [ -d \"$d/cursors\" ] && basename \"$d\"; done | sort -u"]
+            stdout: StdioCollector {
+                onStreamFinished: root.cursorThemes = text.split("\n").filter(s => s && s !== "default")
+            }
         }
 
-        NavRow {
-            icon: "arrow_selector_tool"
-            text: Tr.tr("Cursor")
-            subtext: Tr.tr("Style and size, on Keyboard & mouse")
-            onClicked: root.nState.goTo({
-                page: PageRegistry.find("input"),
-                tab: "input",
-                path: [],
-                text: Tr.tr("Cursor style"),
-                sectionText: Tr.tr("Cursor")
-            })
+        Process {
+            running: true
+            command: ["sh", "-c", "gsettings get org.gnome.desktop.interface cursor-theme; gsettings get org.gnome.desktop.interface cursor-size"]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    const [theme, size] = text.split("\n");
+                    root.gsCursorTheme = (theme ?? "").replace(/'/g, "").trim();
+                    root.gsCursorSize = parseInt(size) || 24;
+                }
+            }
         }
     }
 }

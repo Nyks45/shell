@@ -127,8 +127,11 @@ PageBase {
         Timer {
             running: root.visible
             repeat: true
-            interval: 10000
-            onTriggered: LiveWallpaper.rescan()
+            interval: 30000
+            onTriggered: {
+                if (!LiveWallpaper.scanning && !LiveWallpaper.workshopLoading)
+                    LiveWallpaper.rescan();
+            }
         }
 
         // Signed in done: close the sign-in panel after a moment

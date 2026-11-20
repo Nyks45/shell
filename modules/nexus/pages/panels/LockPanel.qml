@@ -15,7 +15,7 @@ PageBase {
     property bool checked
 
     title: Tr.tr("Lock screen")
-    isSubPage: true
+    isSubPage: false
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter

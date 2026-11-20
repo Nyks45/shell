@@ -72,14 +72,54 @@ PageBase {
             onToggled: GlobalConfig.dashboard.showWallpapers = checked
         }
 
-        // Performance widgets
+        // Performance gauges
+        SectionHeader {
+            visible: Config.dashboard.showPerformance
+            text: Tr.tr("Performance gauges")
+        }
+
+        ToggleRow {
+            visible: Config.dashboard.showPerformance
+            text: Tr.tr("Processor")
+            checked: Config.dashboard.performance.showCpu
+            onToggled: GlobalConfig.dashboard.performance.showCpu = checked
+        }
+
+        ToggleRow {
+            visible: Config.dashboard.showPerformance
+            text: Tr.tr("Graphics")
+            checked: Config.dashboard.performance.showGpu
+            onToggled: GlobalConfig.dashboard.performance.showGpu = checked
+        }
+
+        ToggleRow {
+            visible: Config.dashboard.showPerformance
+            text: Tr.tr("Memory")
+            checked: Config.dashboard.performance.showMemory
+            onToggled: GlobalConfig.dashboard.performance.showMemory = checked
+        }
+
+        ToggleRow {
+            visible: Config.dashboard.showPerformance
+            text: Tr.tr("Storage")
+            checked: Config.dashboard.performance.showStorage
+            onToggled: GlobalConfig.dashboard.performance.showStorage = checked
+        }
+
+        ToggleRow {
+            visible: Config.dashboard.showPerformance
+            text: Tr.tr("Network speed")
+            checked: Config.dashboard.performance.showNetwork
+            onToggled: GlobalConfig.dashboard.performance.showNetwork = checked
+        }
+
         SectionHeader {
             text: Tr.tr("Behaviour")
         }
 
         StepperRow {
             label: Tr.tr("Drag threshold")
-            subtext: Tr.tr("Pixels dragged before the dashboard opens")
+            subtext: Tr.tr("Distance dragged down from the top edge before the dashboard opens")
             value: Config.dashboard.dragThreshold
             from: 0
             to: 200

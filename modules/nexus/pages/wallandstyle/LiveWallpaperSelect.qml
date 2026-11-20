@@ -103,7 +103,7 @@ PageBase {
 
             visible: !LiveWallpaper.hasEngine
             icon: "wallpaper"
-            text: Tr.tr("Needs linux-wallpaperengine")
+            text: Tr.tr("Needs the live wallpaper renderer")
             subtext: busy ? (progress || Tr.tr("Building…")) : (installError || Tr.tr("The renderer for Wallpaper Engine wallpapers. Installing it builds the local fork package (asks for your password)."))
             actionText: busy ? "" : Tr.tr("Install")
             onAction: {
@@ -461,6 +461,7 @@ PageBase {
         SelectRow {
             visible: root.showFilters
             label: Tr.tr("Works with Linux")
+            subtext: Tr.tr("Card dots: green = works, yellow = small glitches, orange = partial, red = broken")
             menuItems: [
                 MenuItem {
                     text: Tr.tr("Show all")
@@ -672,10 +673,36 @@ PageBase {
                 // How well it works with the renderer (tested or set by hand)
                 StyledRect {
                     visible: !!card.grade
-                    implicitWidth: 10
-                    implicitHeight: 10
-                    radius: 5
-                    color: card.grade === "perfect" ? "#43a047" : card.grade === "minor" ? "#fdd835" : card.grade === "major" ? "#fb8c00" : Colours.palette.m3error
+                    implicitWidth: cardState.containsMouse ? gradeRow.implicitWidth + Tokens.padding.small * 1.5 : 10
+                    implicitHeight: cardState.containsMouse ? gradeRow.implicitHeight + 2 : 10
+                    radius: height / 2
+                    color: cardState.containsMouse ? Qt.alpha(gradeDot.dotColor, 0.2) : gradeDot.dotColor
+
+                    RowLayout {
+                        id: gradeRow
+
+                        anchors.centerIn: parent
+                        spacing: 4
+
+                        Rectangle {
+                            id: gradeDot
+
+                            readonly property color dotColor: card.grade === "perfect" ? "#43a047" : card.grade === "minor" ? "#fdd835" : card.grade === "major" ? "#fb8c00" : Colours.palette.m3error
+
+                            implicitWidth: 8
+                            implicitHeight: 8
+                            radius: 4
+                            color: dotColor
+                            visible: cardState.containsMouse
+                        }
+
+                        StyledText {
+                            visible: cardState.containsMouse
+                            text: card.grade === "perfect" ? Tr.tr("Works") : card.grade === "minor" ? Tr.tr("Glitches") : card.grade === "major" ? Tr.tr("Partial") : Tr.tr("Broken")
+                            color: gradeDot.dotColor
+                            font: Tokens.font.label.small
+                        }
+                    }
                 }
 
                 MaterialIcon {

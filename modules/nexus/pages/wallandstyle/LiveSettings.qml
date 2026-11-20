@@ -49,9 +49,30 @@ PageBase {
         width: root.cappedWidth
         spacing: Tokens.spacing.extraSmall / 2
 
-        // Playback (all live wallpapers)
+        // Performance (all live wallpapers)
         SectionHeader {
-            text: Tr.tr("Playback")
+            text: Tr.tr("Performance")
+        }
+
+        SelectRow {
+            label: Tr.tr("Quality")
+            subtext: Tr.tr("Bloom and lighting effects (Ultra enables HDR bloom)")
+            menuItems: [
+                MenuItem {
+                    text: Tr.tr("Low (effects off)")
+                    value: "off"
+                },
+                MenuItem {
+                    text: Tr.tr("Medium (standard bloom)")
+                    value: "normal"
+                },
+                MenuItem {
+                    text: Tr.tr("Ultra (HDR bloom)")
+                    value: "ultra"
+                }
+            ]
+            active: menuItems.find(i => i.value === LiveWallpaper.setting("postProcessing", "ultra")) ?? null
+            onSelected: item => LiveWallpaper.set("postProcessing", item.value)
         }
 
         SelectRow {
@@ -80,45 +101,35 @@ PageBase {
         }
 
         SelectRow {
-            label: Tr.tr("Post-processing")
-            subtext: Tr.tr("Ultra enables HDR bloom in wallpapers that support it")
+            label: Tr.tr("Video decoding")
+            subtext: Tr.tr("Hardware decoding saves CPU on video wallpapers")
             menuItems: [
                 MenuItem {
-                    text: Tr.tr("Off")
-                    value: "off"
+                    text: Tr.tr("Automatic")
+                    value: "auto"
                 },
                 MenuItem {
-                    text: Tr.tr("Normal")
-                    value: "normal"
+                    text: Tr.tr("NVIDIA (NVDEC)")
+                    value: "nvdec-copy"
                 },
                 MenuItem {
-                    text: Tr.tr("Ultra / HDR bloom")
-                    value: "ultra"
+                    text: Tr.tr("Software (CPU)")
+                    value: "no"
                 }
             ]
-            active: menuItems.find(i => i.value === LiveWallpaper.setting("postProcessing", "ultra")) ?? null
-            onSelected: item => LiveWallpaper.set("postProcessing", item.value)
+            active: menuItems.find(i => i.value === LiveWallpaper.setting("hwdec", "auto")) ?? null
+            onSelected: item => LiveWallpaper.set("hwdec", item.value)
         }
 
         ToggleRow {
-            text: Tr.tr("Pause behind fullscreen apps")
-            subtext: Tr.tr("Games and videos get the GPU to themselves")
-            checked: LiveWallpaper.setting("pauseOnFullscreen", true)
-            onToggled: LiveWallpaper.set("pauseOnFullscreen", checked)
+            text: Tr.tr("Particles")
+            subtext: Tr.tr("Off saves GPU on busy wallpapers")
+            checked: !LiveWallpaper.setting("disableParticles", false)
+            onToggled: LiveWallpaper.set("disableParticles", !checked)
         }
 
-        // Fullscreen apps that don't pause it
-        AppListEditor {
-            visible: LiveWallpaper.setting("pauseOnFullscreen", true)
-            hostFlickable: root.flickable
-            values: LiveWallpaper.setting("pauseIgnore", [])
-            addLabel: Tr.tr("Add an app to ignore")
-            emptyText: Tr.tr("Every fullscreen app pauses live wallpapers")
-            pickerHeader: Tr.tr("Don't pause for app")
-            includeRunning: true
-            allowCustom: true
-            useWmClass: true
-            onEdited: v => LiveWallpaper.set("pauseIgnore", v)
+        SectionHeader {
+            text: Tr.tr("Sound & interaction")
         }
 
         ToggleRow {
@@ -139,7 +150,8 @@ PageBase {
 
         ToggleRow {
             visible: !LiveWallpaper.setting("silent", true)
-            text: Tr.tr("Quiet while other apps play sound")
+            text: Tr.tr("Mute when any app plays audio (PipeWire)")
+            subtext: Tr.tr("Built-in renderer auto-mute for any sound stream")
             checked: !LiveWallpaper.setting("noAutomute", false)
             onToggled: LiveWallpaper.set("noAutomute", !checked)
         }
@@ -160,7 +172,7 @@ PageBase {
                     value: "fill"
                 },
                 MenuItem {
-                    text: Tr.tr("Fit (bars at the sides)")
+                    text: Tr.tr("Fit (keep aspect ratio)")
                     value: "fit"
                 },
                 MenuItem {
@@ -189,24 +201,38 @@ PageBase {
             onToggled: LiveWallpaper.set("disableParallax", !checked)
         }
 
-        ToggleRow {
-            text: Tr.tr("Particles")
-            subtext: Tr.tr("Off saves GPU on busy wallpapers")
-            checked: !LiveWallpaper.setting("disableParticles", false)
-            onToggled: LiveWallpaper.set("disableParticles", !checked)
-        }
-
-        // Where wallpapers are found
-        // Wallpaper Engine's "Other application ..." rules and its app rules
+        // Wallpaper Engine's "Other application ..." playback rules
         SectionHeader {
             text: Tr.tr("When other apps are in use")
+        }
+
+        ToggleRow {
+            text: Tr.tr("Pause behind fullscreen apps")
+            subtext: Tr.tr("Games and videos get the GPU to themselves")
+            checked: LiveWallpaper.setting("pauseOnFullscreen", true)
+            onToggled: LiveWallpaper.set("pauseOnFullscreen", checked)
+        }
+
+        // Fullscreen apps that don't pause it
+        AppListEditor {
+            visible: LiveWallpaper.setting("pauseOnFullscreen", true)
+            hostFlickable: root.flickable
+            values: LiveWallpaper.setting("pauseIgnore", [])
+            addLabel: Tr.tr("Add an app to ignore")
+            emptyText: Tr.tr("Every fullscreen app pauses live wallpapers")
+            pickerHeader: Tr.tr("Don't pause for app")
+            includeRunning: true
+            allowCustom: true
+            useWmClass: true
+            onEdited: v => LiveWallpaper.set("pauseIgnore", v)
         }
 
         Repeater {
             model: [
                 {
                     key: "focused",
-                    text: Tr.tr("Another app is focused")
+                    text: Tr.tr("Another app is focused"),
+                    sub: Tr.tr("Any open window on the screen counts as focused — Pause here pauses whenever a window is active")
                 },
                 {
                     key: "maximized",
@@ -215,7 +241,7 @@ PageBase {
                 {
                     key: "audio",
                     text: Tr.tr("Media is playing"),
-                    sub: Tr.tr("Music, videos, browsers (anything that shows in the media controls)")
+                    sub: Tr.tr("Music or video players shown in media controls (can pause or stop as well as mute)")
                 }
             ]
 
@@ -449,7 +475,7 @@ PageBase {
                     Layout.fillWidth: true
                     spacing: Tokens.spacing.small
 
-                    SelectButtonLike {
+                    RuleChoiceButton {
                         id: ruleWhen
 
                         options: [["running", root.whenText("running")], ["focused", root.whenText("focused")], ["maximized", root.whenText("maximized")], ["fullscreen", root.whenText("fullscreen")], ["audio", root.whenText("audio")]]
@@ -459,7 +485,7 @@ PageBase {
                         text: "→"
                     }
 
-                    SelectButtonLike {
+                    RuleChoiceButton {
                         id: ruleAction
 
                         options: [["pause", root.actionText("pause")], ["mute", root.actionText("mute")], ["stop", root.actionText("stop")]]
@@ -588,14 +614,18 @@ PageBase {
             }
         }
 
-        StyledText {
-            Layout.fillWidth: true
-            Layout.leftMargin: Tokens.padding.small
-            Layout.topMargin: Tokens.spacing.medium
-            text: Tr.tr("For shortcuts (Keyboard shortcuts > Your own): caelestia shell liveWallpaper random | pause | stop")
-            color: Colours.palette.m3outline
-            font: Tokens.font.label.small
-            wrapMode: Text.WordWrap
+        SectionHeader {
+            text: Tr.tr("More")
+        }
+
+        NavRow {
+            icon: "keyboard"
+            text: Tr.tr("Keyboard shortcuts")
+            subtext: Tr.tr("Set keys to pause, stop or pick a random live wallpaper")
+            onClicked: root.nState.goTo(Object.assign(PageRegistry.target("shortcuts"), {
+                path: [],
+                text: Tr.tr("Your own shortcuts")
+            }))
         }
 
         // The renderer: local Nyks45 fork build (linux-wallpaperengine-nyks-git)
@@ -605,8 +635,8 @@ PageBase {
 
         InfoRow {
             icon: "memory"
-            label: "linux-wallpaperengine"
-            subtext: Tr.tr("The renderer build installed (updated with its package, not from here)")
+            label: Tr.tr("Live wallpaper engine")
+            subtext: Tr.tr("Installed renderer build (linux-wallpaperengine)")
             value: LiveWallpaper.engineVersion || Tr.tr("Not installed")
         }
 
@@ -623,14 +653,35 @@ PageBase {
         }
     }
 
-    // A compact choice: click to go to the next option
-    component SelectButtonLike: TextButton {
+    component RuleChoiceButton: SplitButton {
+        id: choiceBtn
+
         property var options: []
-        property int current
+        property int current: 0
         readonly property string value: options[current]?.[0] ?? ""
 
-        text: `${options[current]?.[1] ?? ""} ▾`
-        type: TextButton.Tonal
-        onClicked: current = (current + 1) % options.length
+        type: SplitButton.Tonal
+        menuItems: choiceItems.instances
+        active: choiceItems.instances[current] ?? null
+        fallbackText: options[current]?.[1] ?? ""
+        stateLayer.onClicked: choiceBtn.expanded = !choiceBtn.expanded
+        menu.onItemSelected: item => {
+            const idx = choiceItems.instances.indexOf(item);
+            if (idx >= 0)
+                choiceBtn.current = idx;
+        }
+
+        Variants {
+            id: choiceItems
+
+            model: choiceBtn.options
+
+            MenuItem {
+                required property var modelData
+
+                text: modelData[1]
+                value: modelData[0]
+            }
+        }
     }
 }

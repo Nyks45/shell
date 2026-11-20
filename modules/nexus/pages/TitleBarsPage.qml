@@ -16,6 +16,13 @@ PageBase {
 
     readonly property bool hyprflowLoaded: HyprSettings.values["plugin:hyprflow:bar_enabled"] !== undefined
     readonly property bool barOn: hyprflowLoaded && HyprSettings.value("plugin:hyprflow:bar_enabled", true)
+    property string savedMenu: "fullscreen, maximize, float, pin, -, close"
+
+    Component.onCompleted: {
+        const cur = HyprSettings.value("plugin:hyprflow:bar_menu", "");
+        if (cur)
+            savedMenu = cur;
+    }
 
     title: Tr.tr("Title bars")
 
@@ -24,6 +31,16 @@ PageBase {
         anchors.top: parent.top
         width: root.cappedWidth
         spacing: Tokens.spacing.extraSmall / 2
+
+        Connections {
+            function onValuesChanged(): void {
+                const cur = HyprSettings.value("plugin:hyprflow:bar_menu", "");
+                if (cur)
+                    root.savedMenu = cur;
+            }
+
+            target: HyprSettings
+        }
 
         RequirementRow {
             visible: !root.hyprflowLoaded
@@ -78,7 +95,7 @@ PageBase {
         StepperRow {
             visible: root.hyprflowLoaded && HyprSettings.value("plugin:hyprflow:bar_autohide", false)
             label: Tr.tr("Hover delay")
-            subtext: Tr.tr("Milliseconds before the bar shows")
+            subtext: Tr.tr("Delay in ms before the bar appears (0 = instant)")
             value: HyprSettings.value("plugin:hyprflow:bar_autohide_delay_ms", 0)
             from: 0
             to: 1000
@@ -88,8 +105,8 @@ PageBase {
 
         ToggleRow {
             visible: root.hyprflowLoaded
-            text: Tr.tr("Bars on apps with their own")
-            subtext: Tr.tr("Apps that draw their own title bar (GNOME apps, browsers) get one too")
+            text: Tr.tr("Add title bars to apps that draw their own")
+            subtext: Tr.tr("Browsers and GNOME apps get a system title bar above their own header bar")
             checked: HyprSettings.value("plugin:hyprflow:bar_csd", "bar") === "bar"
             onToggled: HyprSettings.setHyprflow("bar_csd", checked ? "bar" : "skip")
         }
@@ -304,7 +321,7 @@ PageBase {
             text: Tr.tr("Right-click menu")
             subtext: Tr.tr("Maximize, float, pin, close and more, from the title bar")
             checked: HyprSettings.value("plugin:hyprflow:bar_menu", "x") !== ""
-            onToggled: HyprSettings.setHyprflow("bar_menu", checked ? "fullscreen, maximize, float, pin, -, close" : "")
+            onToggled: HyprSettings.setHyprflow("bar_menu", checked ? (root.savedMenu || "fullscreen, maximize, float, pin, -, close") : "")
         }
     }
 

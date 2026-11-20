@@ -82,11 +82,40 @@ PageBase {
         }
 
         SelectRow {
+            id: defaultPlayerRow
+
+            readonly property var playerChoices: {
+                const seen = new Set();
+                const list = [];
+                const push = name => {
+                    const clean = String(name ?? "").trim();
+                    if (clean && !seen.has(clean)) {
+                        seen.add(clean);
+                        list.push(clean);
+                    }
+                };
+                for (const p of Players.list)
+                    push(Players.getIdentity(p));
+                push(GlobalConfig.services.defaultPlayer);
+                const installed = [];
+                for (const e of DesktopEntries.applications.values) {
+                    const cats = e.categories ?? [];
+                    if (!e.name || cats.includes("WebBrowser") || cats.includes("System") || cats.includes("AudioVideoEditing") || cats.includes("Recorder") || cats.includes("Settings"))
+                        continue;
+                    if (cats.includes("Player") || cats.includes("Music"))
+                        installed.push(e.name);
+                }
+                installed.sort((a, b) => a.localeCompare(b));
+                for (const name of installed)
+                    push(name);
+                return list;
+            }
+
             label: Tr.tr("Default media player")
             subtext: Tr.tr("Preferred player when several are open")
             segmentedAllowed: false
             menuItems: [autoPlayer, ...playerVariants.instances]
-            active: menuItems.find(i => i.value === GlobalConfig.services.defaultPlayer) ?? null
+            active: menuItems.find(i => i.value === GlobalConfig.services.defaultPlayer) ?? autoPlayer
             fallbackIcon: "music_note"
             fallbackText: GlobalConfig.services.defaultPlayer || Tr.trCtx("Auto", "default media player")
             onSelected: item => GlobalConfig.services.defaultPlayer = item.value
@@ -95,23 +124,20 @@ PageBase {
                 id: autoPlayer
 
                 text: Tr.trCtx("Auto", "default media player")
-                icon: !GlobalConfig.services.defaultPlayer ? "check" : ""
-                activeIcon: "music_note"
+                icon: "autorenew"
                 value: ""
             }
 
-            // Detected running players, used as default-player options
             Variants {
                 id: playerVariants
 
-                model: [...new Set(Players.list.map(p => Players.getIdentity(p)).filter(id => id))]
+                model: defaultPlayerRow.playerChoices
 
                 MenuItem {
                     required property string modelData
 
                     text: modelData
-                    icon: modelData === GlobalConfig.services.defaultPlayer ? "check" : ""
-                    activeIcon: "music_note"
+                    icon: "music_note"
                     value: modelData
                 }
             }

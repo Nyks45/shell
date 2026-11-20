@@ -141,9 +141,10 @@ PageBase {
         }
     }
 
-    // Back to the author's value removes the change
+    // Back to the author's value removes the change (compare hex for colours so 1.00000 matches 1)
     function setProp(p: var, v: var): void {
-        LiveWallpaper.setProperty(path, p.name, String(v) === String(p.value) ? null : v);
+        const same = p.type === "color" ? toHex(String(v)).toLowerCase() === toHex(String(p.value)).toLowerCase() : String(v) === String(p.value);
+        LiveWallpaper.setProperty(path, p.name, same ? null : v);
     }
 
     title: w.title ?? Tr.tr("Live wallpaper")
@@ -397,7 +398,7 @@ PageBase {
                     value: "fill"
                 },
                 MenuItem {
-                    text: Tr.tr("Fit (bars at the sides)")
+                    text: Tr.tr("Fit (keep aspect ratio)")
                     value: "fit"
                 },
                 MenuItem {

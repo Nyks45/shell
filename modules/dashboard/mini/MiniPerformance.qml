@@ -52,11 +52,17 @@ Item {
         spacing: Tokens.spacing.small
 
         RowLayout {
+            id: upperRow
+
+            readonly property bool anyGauge: Config.dashboard.performance.showCpu || (root.hasGpu && Config.dashboard.performance.showGpu) || Config.dashboard.performance.showMemory || Config.dashboard.performance.showStorage
+
+            visible: anyGauge
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: Tokens.spacing.small
 
             Gauge {
+                visible: Config.dashboard.performance.showCpu
                 icon: "memory"
                 label: Tr.tr("Processor")
                 value: Cpu.percentage
@@ -66,7 +72,7 @@ Item {
             }
 
             Gauge {
-                visible: root.hasGpu
+                visible: root.hasGpu && Config.dashboard.performance.showGpu
                 icon: "developer_board"
                 label: Tr.tr("Graphics")
                 value: Gpu.percentage
@@ -77,6 +83,7 @@ Item {
             }
 
             Gauge {
+                visible: Config.dashboard.performance.showMemory
                 icon: "memory_alt"
                 label: Tr.tr("Memory")
                 value: Memory.percentage
@@ -87,6 +94,7 @@ Item {
             }
 
             Gauge {
+                visible: Config.dashboard.performance.showStorage
                 icon: "hard_drive"
                 label: Tr.tr("Storage")
                 value: Storage.primaryDisk?.perc ?? Storage.percentage
@@ -98,6 +106,9 @@ Item {
         }
 
         RowLayout {
+            id: speedRow
+
+            visible: Config.dashboard.performance.showNetwork
             Layout.alignment: Qt.AlignHCenter
             spacing: Tokens.spacing.large
 
@@ -109,6 +120,19 @@ Item {
             Speed {
                 icon: "upload"
                 text: Units.formatBytes(NetworkUsage.uploadSpeed ?? 0, true)
+            }
+        }
+
+        Item {
+            visible: !upperRow.visible && !speedRow.visible
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+
+            StyledText {
+                anchors.centerIn: parent
+                text: Tr.tr("All performance gauges are hidden in Settings › Panels › Dashboard")
+                color: Colours.palette.m3onSurfaceVariant
+                font: Tokens.font.body.small
             }
         }
     }

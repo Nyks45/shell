@@ -11,6 +11,8 @@ import qs.modules.nexus.common
 PageBase {
     id: root
 
+    property bool showAdvanced: false
+
     title: Tr.tr("Launcher")
     isSubPage: true
 
@@ -55,41 +57,6 @@ PageBase {
             onSelected: item => GlobalConfig.launcher.style = item.value
         }
 
-        TextFieldRow {
-            id: prefixRow
-
-            label: Tr.tr("Action prefix")
-            subtext: Tr.tr("Prefix used to run actions in the launcher")
-            errorText: Tr.tr("Prefix must not be alphanumeric")
-            value: GlobalConfig.launcher.actionPrefix === ">" ? "" : GlobalConfig.launcher.actionPrefix // TODO: replace with empty only when not loaded once loaded state is exposed
-            placeholderText: ">"
-            maximumLength: 1
-            smallField: true
-            validate: /^[^a-zA-Z0-9\s]$/
-            onEditingFinished: value => {
-                if (!field.valid)
-                    return;
-                /// TODO: replace with GlobalConfig.launcher.resetOption("actionPrefix") on empty commit when reset is fixed
-                GlobalConfig.launcher.actionPrefix = value || ">";
-                if (GlobalConfig.launcher.actionPrefix === ">")
-                    clear();
-            }
-        }
-
-        TextFieldRow {
-            label: Tr.tr("Special prefix")
-            subtext: Tr.tr("Starts the launcher's special searches")
-            value: GlobalConfig.launcher.specialPrefix
-            placeholderText: "@"
-            maximumLength: 1
-            smallField: true
-            validate: /^[^a-zA-Z0-9\s]$/
-            onEditingFinished: value => {
-                if (field.valid && value)
-                    GlobalConfig.launcher.specialPrefix = value;
-            }
-        }
-
         // The launcher's actions (after the action prefix): on or off
         SectionHeader {
             text: Tr.tr("Actions")
@@ -118,7 +85,7 @@ PageBase {
 
         StepperRow {
             label: Tr.tr("Max items shown")
-                        value: Config.launcher.maxShown
+            value: Config.launcher.maxShown
             from: 1
             to: 20
             stepSize: 1
@@ -127,7 +94,7 @@ PageBase {
 
         StepperRow {
             label: Tr.tr("Max wallpapers")
-                        value: Config.launcher.maxWallpapers
+            value: Config.launcher.maxWallpapers
             from: 1
             to: 30
             stepSize: 1
@@ -136,7 +103,7 @@ PageBase {
 
         StepperRow {
             label: Tr.tr("Drag threshold")
-            subtext: Tr.tr("Pixels dragged before the launcher opens")
+            subtext: Tr.tr("Distance dragged up from the bottom edge before the launcher opens")
             value: Config.launcher.dragThreshold
             from: 0
             to: 200
@@ -144,12 +111,57 @@ PageBase {
             onMoved: v => GlobalConfig.launcher.dragThreshold = v
         }
 
-        // Behaviour
+        // Advanced
         SectionHeader {
-            text: Tr.tr("Behaviour")
+            text: Tr.tr("Advanced")
+        }
+
+        RowButton {
+            icon: root.showAdvanced ? "expand_less" : "expand_more"
+            text: Tr.tr("Advanced options")
+            subtext: Tr.tr("Command prefixes, Vim navigation, power actions and fuzzy matching")
+            onClicked: root.showAdvanced = !root.showAdvanced
+        }
+
+        TextFieldRow {
+            id: prefixRow
+
+            visible: root.showAdvanced
+            label: Tr.tr("Action prefix")
+            subtext: Tr.tr("Symbol typed first to run actions in the launcher")
+            errorText: Tr.tr("Prefix must be a symbol (not a letter or number)")
+            value: GlobalConfig.launcher.actionPrefix === ">" ? "" : GlobalConfig.launcher.actionPrefix
+            placeholderText: ">"
+            maximumLength: 1
+            smallField: true
+            validate: /^[^a-zA-Z0-9\s]$/
+            onEditingFinished: value => {
+                if (!field.valid)
+                    return;
+                GlobalConfig.launcher.actionPrefix = value || ">";
+                if (GlobalConfig.launcher.actionPrefix === ">")
+                    clear();
+            }
+        }
+
+        TextFieldRow {
+            visible: root.showAdvanced
+            label: Tr.tr("Special prefix")
+            subtext: Tr.tr("Symbol typed first for wallpaper and colour searches")
+            errorText: Tr.tr("Prefix must be a symbol (not a letter or number)")
+            value: GlobalConfig.launcher.specialPrefix
+            placeholderText: "@"
+            maximumLength: 1
+            smallField: true
+            validate: /^[^a-zA-Z0-9\s]$/
+            onEditingFinished: value => {
+                if (field.valid && value)
+                    GlobalConfig.launcher.specialPrefix = value;
+            }
         }
 
         ToggleRow {
+            visible: root.showAdvanced
             text: Tr.tr("Vim keybinds")
             subtext: Tr.tr("Navigate results with Ctrl+hjkl")
             checked: GlobalConfig.launcher.vimKeybinds
@@ -157,42 +169,48 @@ PageBase {
         }
 
         ToggleRow {
-            text: Tr.tr("Enable dangerous actions")
-            subtext: Tr.tr("Allow actions that shut down or log out")
+            visible: root.showAdvanced
+            text: Tr.tr("Allow shutdown and logout actions")
+            subtext: Tr.tr("Include power off, reboot and log out in launcher results")
             checked: GlobalConfig.launcher.enableDangerousActions
             onToggled: GlobalConfig.launcher.enableDangerousActions = checked
         }
 
-        // Fuzzy search
         SectionHeader {
+            visible: root.showAdvanced
             text: Tr.tr("Fuzzy search")
         }
 
         ToggleRow {
+            visible: root.showAdvanced
             text: Tr.tr("Apps")
             checked: GlobalConfig.launcher.useFuzzy.apps
             onToggled: GlobalConfig.launcher.useFuzzy.apps = checked
         }
 
         ToggleRow {
+            visible: root.showAdvanced
             text: Tr.tr("Actions")
             checked: GlobalConfig.launcher.useFuzzy.actions
             onToggled: GlobalConfig.launcher.useFuzzy.actions = checked
         }
 
         ToggleRow {
-            text: Tr.tr("Schemes")
+            visible: root.showAdvanced
+            text: Tr.tr("Colour schemes")
             checked: GlobalConfig.launcher.useFuzzy.schemes
             onToggled: GlobalConfig.launcher.useFuzzy.schemes = checked
         }
 
         ToggleRow {
-            text: Tr.tr("Variants")
+            visible: root.showAdvanced
+            text: Tr.tr("Scheme styles")
             checked: GlobalConfig.launcher.useFuzzy.variants
             onToggled: GlobalConfig.launcher.useFuzzy.variants = checked
         }
 
         ToggleRow {
+            visible: root.showAdvanced
             text: Tr.tr("Wallpapers")
             checked: GlobalConfig.launcher.useFuzzy.wallpapers
             onToggled: GlobalConfig.launcher.useFuzzy.wallpapers = checked

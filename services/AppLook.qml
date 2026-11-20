@@ -73,6 +73,17 @@ Singleton {
         }));
     }
 
+    // Written to ~/.config/fontconfig/conf.d/99-caelestia-rendering.conf by apply-app-look.py
+    // so Qt, Electron and Firefox respect the same smoothing and hinting as GTK.
+    function setFontRendering(antialiasing: string, hinting: string): void {
+        savePrefs(Object.assign({}, prefs, {
+            rendering: {
+                antialiasing,
+                hinting
+            }
+        }));
+    }
+
     // "" goes back to the CLI's default (Papirus-Dark / Papirus-Light)
     function setIconTheme(name: string): void {
         const theme = Object.assign({}, cli.theme ?? {});

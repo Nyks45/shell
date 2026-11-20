@@ -52,7 +52,8 @@ PageBase {
         }
 
         SectionHeader {
-            text: Tr.tr("Frame")
+            icon: "select_window"
+            text: Tr.tr("Borders & opacity")
         }
 
         StepperRow {
@@ -65,8 +66,23 @@ PageBase {
             onMoved: v => HyprSettings.setOption("general:border_size", v)
         }
 
+        SliderRow {
+            icon: "opacity"
+            label: Tr.tr("Window opacity")
+            subtext: Tr.tr("Applies to all non-fullscreen windows (use App rules to keep specific apps at 100%)")
+            valueLabel: `${Math.round(HyprSettings.varValue("windowOpacity", 0.95) * 100)}%`
+            // 50% .. 100%
+            value: (HyprSettings.varValue("windowOpacity", 0.95) - 0.5) / 0.5
+            onMoved: v => HyprSettings.setVar("windowOpacity", Math.round((0.5 + v * 0.5) * 100) / 100)
+        }
+
+        SectionHeader {
+            icon: "rounded_corner"
+            text: Tr.tr("Corners")
+        }
+
         StepperRow {
-            label: Tr.tr("Corner rounding")
+            label: Tr.tr("Window corners")
             subtext: Tr.tr("Radius of window corners; 0 for square")
             value: HyprSettings.value("decoration:rounding", 0)
             from: 0
@@ -75,13 +91,37 @@ PageBase {
             onMoved: v => HyprSettings.setOption("decoration:rounding", v)
         }
 
+        StepperRow {
+            label: Tr.tr("Screen corners")
+            subtext: Tr.tr("Rounding of the screen frame (maximized windows follow it)")
+            value: Config.border.rounding
+            from: 0
+            to: 60
+            stepSize: 1
+            onMoved: v => {
+                GlobalConfig.border.rounding = v;
+                HyprSettings.reloadSoon();
+            }
+        }
+
+        StepperRow {
+            label: Tr.tr("Screen frame")
+            subtext: Tr.tr("Thickness of the shell's frame around the screen; 0 for none")
+            value: Config.border.thickness
+            from: 0
+            to: 30
+            stepSize: 1
+            onMoved: v => GlobalConfig.border.thickness = v
+        }
+
         SliderRow {
-            icon: "opacity"
-            label: Tr.tr("Window opacity")
-            valueLabel: `${Math.round(HyprSettings.varValue("windowOpacity", 0.95) * 100)}%`
-            // 50% .. 100%
-            value: (HyprSettings.varValue("windowOpacity", 0.95) - 0.5) / 0.5
-            onMoved: v => HyprSettings.setVar("windowOpacity", Math.round((0.5 + v * 0.5) * 100) / 100)
+            icon: "rounded_corner"
+            label: Tr.tr("Shell roundness")
+            subtext: Tr.tr("Panels, cards, buttons and menus")
+            valueLabel: `${Math.round(Config.appearance.rounding.scale * 100)}%`
+            // 0% (square) .. 200%
+            value: Config.appearance.rounding.scale / 2
+            onMoved: v => GlobalConfig.appearance.rounding.scale = Math.round(v * 40) / 20
         }
 
         SectionHeader {
@@ -129,33 +169,6 @@ PageBase {
             subtext: Tr.tr("Windows and workspaces move instead of appearing at once")
             checked: HyprSettings.value("animations:enabled", true)
             onToggled: HyprSettings.setOption("animations:enabled", checked)
-        }
-
-        SectionHeader {
-            text: Tr.tr("Screen")
-        }
-
-        StepperRow {
-            label: Tr.tr("Screen frame")
-            subtext: Tr.tr("Thickness of the shell's frame around the screen; 0 for none")
-            value: Config.border.thickness
-            from: 0
-            to: 30
-            stepSize: 1
-            onMoved: v => GlobalConfig.border.thickness = v
-        }
-
-        StepperRow {
-            label: Tr.tr("Screen corners")
-            subtext: Tr.tr("Rounding of the screen's corners (maximized windows follow it)")
-            value: Config.border.rounding
-            from: 0
-            to: 60
-            stepSize: 1
-            onMoved: v => {
-                GlobalConfig.border.rounding = v;
-                HyprSettings.reloadSoon();
-            }
         }
     }
 }

@@ -17,6 +17,39 @@ from pathlib import Path
 config = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
 prefs_path = config / "caelestia/app-look.json"
 qt_path = config / "qtengine/config.json"
+fc_path = config / "fontconfig/conf.d/99-caelestia-rendering.conf"
+
+HINT_STYLES = {
+    "none": "hintnone",
+    "slight": "hintslight",
+    "medium": "hintmedium",
+    "full": "hintfull",
+}
+
+
+def write_fontconfig(rendering: dict) -> None:
+    aa = rendering.get("antialiasing", "grayscale")
+    hint = rendering.get("hinting", "slight")
+    aa_bool = "false" if aa == "none" else "true"
+    hint_bool = "false" if hint == "none" else "true"
+    hint_style = HINT_STYLES.get(hint, "hintslight")
+    rgba = "rgb" if aa == "rgba" else "none"
+    xml = f"""<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<!-- Managed by Caelestia Settings (Fonts > Text rendering) -->
+<fontconfig>
+    <match target="font">
+        <edit name="antialias" mode="assign"><bool>{aa_bool}</bool></edit>
+        <edit name="hinting" mode="assign"><bool>{hint_bool}</bool></edit>
+        <edit name="hintstyle" mode="assign"><const>{hint_style}</const></edit>
+        <edit name="rgba" mode="assign"><const>{rgba}</const></edit>
+    </match>
+</fontconfig>
+"""
+    fc_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = fc_path.with_suffix(".conf.tmp")
+    tmp.write_text(xml)
+    tmp.replace(fc_path)
 
 
 def main() -> int:
@@ -25,6 +58,9 @@ def main() -> int:
     except (OSError, ValueError):
         return 0
     qt = prefs.get("qt") or {}
+    rendering = prefs.get("rendering") or {}
+    if rendering:
+        write_fontconfig(rendering)
     if not qt and not prefs.get("iconTheme"):
         return 0
 

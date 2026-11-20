@@ -7,11 +7,13 @@ import Caelestia.I18n
 import qs.components
 import qs.components.controls
 import qs.services
+import qs.modules.nexus
 import qs.modules.nexus.common
 
 PageBase {
     id: root
 
+    property bool showAdvancedBlur: false
     readonly property bool blurOn: HyprSettings.value("decoration:blur:enabled", true)
     // The Deep glass look's panel opacity (its other values are in the Look menu)
     readonly property real frostedBase: 0.55
@@ -34,7 +36,7 @@ PageBase {
         ToggleRow {
             text: Tr.tr("Transparency")
             // TRANSLATORS: %1/%2 = opacity percentage values for the base surface and layered surfaces
-            subtext: Tr.tr("Panels %1%, layers %2%").arg(Math.round(Colours.transparency.base * 100)).arg(Math.round(Colours.transparency.layers * 100))
+            subtext: Tr.tr("Panels %1%, inner cards %2%").arg(Math.round(Colours.transparency.base * 100)).arg(Math.round(Colours.transparency.layers * 100))
             checked: Colours.transparency.enabled
             onToggled: GlobalConfig.appearance.transparency.enabled = checked
         }
@@ -43,6 +45,7 @@ PageBase {
             visible: Colours.transparency.enabled
             icon: "opacity"
             label: Tr.tr("Panel opacity")
+            subtext: Tr.tr("Panels, the bar, the launcher and menus")
             valueLabel: `${Math.round(GlobalConfig.appearance.transparency.base * 100)}%`
             value: GlobalConfig.appearance.transparency.base
             onMoved: v => GlobalConfig.appearance.transparency.base = Math.round(v * 100) / 100
@@ -51,7 +54,8 @@ PageBase {
         SliderRow {
             visible: Colours.transparency.enabled
             icon: "layers"
-            label: Tr.tr("Opacity of layers on panels")
+            label: Tr.tr("Inner card opacity")
+            subtext: Tr.tr("Cards, buttons and controls inside panels")
             valueLabel: `${Math.round(GlobalConfig.appearance.transparency.layers * 100)}%`
             value: GlobalConfig.appearance.transparency.layers
             onMoved: v => GlobalConfig.appearance.transparency.layers = Math.round(v * 100) / 100
@@ -60,10 +64,23 @@ PageBase {
         SliderRow {
             icon: "rounded_corner"
             label: Tr.tr("Roundness of the shell")
+            subtext: Tr.tr("Buttons, cards, menus and panels")
             valueLabel: `${Math.round(Config.appearance.rounding.scale * 100)}%`
             // 0% (square) .. 200%
             value: Config.appearance.rounding.scale / 2
             onMoved: v => GlobalConfig.appearance.rounding.scale = Math.round(v * 40) / 20
+        }
+
+        NavRow {
+            icon: "rounded_corner"
+            text: Tr.tr("Window and screen corners")
+            subtext: Tr.tr("Corner rounding for windows and the screen frame, on Windows › Look")
+            onClicked: root.nState.goTo({
+                page: PageRegistry.find("windows"),
+                tab: "windows-look",
+                path: [],
+                text: Tr.tr("Window corners")
+            })
         }
 
         // Every blur setting for windows, shell panels and desktop items
@@ -81,28 +98,31 @@ PageBase {
         SelectRow {
             visible: root.blurOn
             label: Tr.tr("Look")
-            subtext: Tr.tr("Sets windows' strength (and so everything that follows it)")
+            subtext: Tr.tr("Sets windows' blur strength and panel glass preset")
             menuItems: [nebulaBlur, strongBlur, frostedBlur]
             active: root.winBlurSize === 4 && root.winBlurPasses === 1 ? nebulaBlur : root.winBlurSize === 8 && root.winBlurPasses === 2 ? strongBlur : root.winBlurSize === 8 && root.winBlurPasses === 3 && (root.frostedPanels || (GlobalConfig.appearance.blur.shellSize === 12 && GlobalConfig.appearance.blur.shellPasses === 4)) ? frostedBlur : null
-            fallbackText: Tr.tr("Your own")
+            fallbackText: Tr.tr("Custom")
             onSelected: item => {
                 HyprSettings.setOption("decoration:blur:size", item.value[0]);
                 HyprSettings.setOption("decoration:blur:passes", item.value[1]);
                 const t = GlobalConfig.appearance.transparency;
                 const b = GlobalConfig.appearance.blur;
                 if (item === frostedBlur) {
-                    // Deep glass like DankMaterialShell: see-through panels over a heavy blur
+                    // Deep glass: see-through panels over a heavy blur
                     t.enabled = true;
                     t.base = root.frostedBase;
                     t.layers = 0.3;
                     b.shellSize = 12;
                     b.shellPasses = 4;
-                } else if (root.frostedPanels || (b.shellSize === 12 && b.shellPasses === 4)) {
-                    // Back from Deep glass: restore panels' usual opacity and own blur
-                    t.base = 0.85;
-                    t.layers = 0.4;
-                    b.shellSize = 0;
-                    b.shellPasses = 0;
+                } else {
+                    if (root.frostedPanels) {
+                        t.base = 0.85;
+                        t.layers = 0.4;
+                    }
+                    if (b.shellSize === 12 && b.shellPasses === 4) {
+                        b.shellSize = 0;
+                        b.shellPasses = 0;
+                    }
                 }
             }
 
@@ -128,8 +148,16 @@ PageBase {
             }
         }
 
-        BlurRow {
+        RowButton {
             visible: root.blurOn
+            icon: root.showAdvancedBlur ? "expand_less" : "expand_more"
+            text: Tr.tr("Fine-tune blur by surface")
+            subtext: Tr.tr("Separate blur strength and smoothness for windows, panels and widgets")
+            onClicked: root.showAdvancedBlur = !root.showAdvancedBlur
+        }
+
+        BlurRow {
+            visible: root.blurOn && root.showAdvancedBlur
             label: Tr.tr("Windows")
             subtext: Tr.tr("See-through windows; also everything below set to \"as windows\"")
             size: root.winBlurSize
@@ -140,9 +168,9 @@ PageBase {
         }
 
         BlurRow {
-            visible: root.blurOn
-            label: Tr.tr("Islands and pill")
-            subtext: Tr.tr("The pill, the top island, the launcher, notifications and menus")
+            visible: root.blurOn && root.showAdvancedBlur
+            label: ShellStyle.current === "full" ? Tr.tr("Panels and bar") : Tr.tr("Islands and pill")
+            subtext: ShellStyle.current === "full" ? Tr.tr("The bar, side panels, launcher, notifications and menus") : Tr.tr("The pill, the top island, the launcher, notifications and menus")
             size: GlobalConfig.appearance.blur.shellSize
             passes: GlobalConfig.appearance.blur.shellPasses
             onSizeMoved: v => GlobalConfig.appearance.blur.shellSize = v
@@ -150,7 +178,7 @@ PageBase {
         }
 
         BlurRow {
-            visible: root.blurOn
+            visible: root.blurOn && root.showAdvancedBlur
             label: Tr.tr("Desktop widgets")
             subtext: Tr.tr("The desktop widgets and their menus")
             size: GlobalConfig.appearance.blur.widgetsSize
@@ -168,7 +196,7 @@ PageBase {
         }
     }
 
-    // Strength (blur size) and quality (passes) of one kind of surface; 0 = "as windows"
+    // Strength (blur size) and smoothness (passes) of one kind of surface; 0 = "as windows"
     component BlurRow: ColumnLayout {
         id: blurRow
 
@@ -195,8 +223,8 @@ PageBase {
         }
 
         StepperRow {
-            label: Tr.tr("%1: quality").arg(blurRow.label)
-            subtext: blurRow.minimum === 0 && blurRow.passes === 0 ? Tr.tr("Passes: more is smoother and costs more · as windows") : Tr.tr("Passes: more is smoother and costs more")
+            label: Tr.tr("%1: smoothness").arg(blurRow.label)
+            subtext: blurRow.minimum === 0 && blurRow.passes === 0 ? Tr.tr("More passes make the blur smoother and use more GPU · as windows") : Tr.tr("More passes make the blur smoother and use more GPU")
             value: blurRow.passes
             from: blurRow.minimum
             to: 6

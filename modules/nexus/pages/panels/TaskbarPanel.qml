@@ -3,10 +3,14 @@ pragma ComponentBehavior: Bound
 import QtQuick.Layouts
 import Caelestia.Config
 import Caelestia.I18n
+import qs.components.controls
+import qs.services
 import qs.modules.nexus.common
 
 PageBase {
     id: root
+
+    readonly property bool isPill: ShellStyle.current === "compact"
 
     title: Tr.tr("Taskbar")
     isSubPage: true
@@ -22,37 +26,60 @@ PageBase {
             text: Tr.tr("Behaviour")
         }
 
-        ToggleRow {
-            text: Tr.tr("Persistent")
-            subtext: Tr.tr("Keep the pill out at all times")
-            checked: Config.bar.persistent
-            onToggled: GlobalConfig.bar.persistent = checked
-        }
+        SelectRow {
+            label: Tr.tr("Visibility")
+            subtext: root.isPill ? Tr.tr("How the pill opens") : Tr.tr("How the bar opens")
+            menuItems: [alwaysItem, hoverItem, dragItem]
+            active: Config.bar.persistent ? alwaysItem : Config.bar.showOnHover ? hoverItem : dragItem
+            onSelected: item => {
+                if (item.value === "persistent") {
+                    GlobalConfig.bar.persistent = true;
+                } else {
+                    GlobalConfig.bar.persistent = false;
+                    GlobalConfig.bar.showOnHover = item.value === "hover";
+                }
+            }
 
-        ToggleRow {
-            text: Tr.tr("Show on hover")
-            subtext: Tr.tr("Bring the pill out when the cursor reaches the middle of the left edge")
-            checked: Config.bar.showOnHover
-            onToggled: GlobalConfig.bar.showOnHover = checked
+            MenuItem {
+                id: alwaysItem
+
+                text: Tr.tr("Always shown")
+                value: "persistent"
+            }
+
+            MenuItem {
+                id: hoverItem
+
+                text: Tr.tr("Show on hover")
+                value: "hover"
+            }
+
+            MenuItem {
+                id: dragItem
+
+                text: Tr.tr("Pull from edge")
+                value: "drag"
+            }
         }
 
         ToggleRow {
             text: Tr.tr("Window previews")
-            subtext: Tr.tr("Hovering an app on the pill shows its windows")
+            subtext: root.isPill ? Tr.tr("Hovering an app on the pill shows its windows") : Tr.tr("Hovering an app on the bar shows its windows")
             checked: Config.bar.popouts.taskbar
             onToggled: GlobalConfig.bar.popouts.taskbar = checked
         }
 
         ToggleRow {
             text: Tr.tr("Over fullscreen apps")
-            subtext: Tr.tr("The islands and the pill can open over a fullscreen window")
+            subtext: root.isPill ? Tr.tr("The islands and the pill can open over a fullscreen window") : Tr.tr("Panels and the bar can open over a fullscreen window")
             checked: Config.general.showOverFullscreen
             onToggled: GlobalConfig.general.showOverFullscreen = checked
         }
 
         StepperRow {
+            visible: !Config.bar.persistent
             label: Tr.tr("Drag threshold")
-            subtext: Tr.tr("Pixels dragged before the pill comes out")
+            subtext: root.isPill ? Tr.tr("Distance dragged from the edge before the pill comes out") : Tr.tr("Distance dragged from the edge before the bar comes out")
             value: Config.bar.dragThreshold
             from: 0
             to: 200

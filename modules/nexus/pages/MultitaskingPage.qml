@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import Caelestia.Config
 import Caelestia.I18n
+import qs.components
 import qs.components.controls
 import qs.services
 import qs.modules.nexus
@@ -40,16 +41,16 @@ PageBase {
         }
 
         ToggleRow {
-            text: Tr.tr("Focus follows the mouse")
-            subtext: Tr.tr("In the scrolling layout: the window under the pointer gets the keyboard")
+            text: Tr.tr("Focus follows the mouse (scrolling layout)")
+            subtext: Tr.tr("In the scrolling layout, the window under the pointer gets keyboard focus")
             checked: HyprSettings.modeValue("tiling", "input:follow_mouse", 1) === 1
             onToggled: HyprSettings.setModeOption("tiling", "input:follow_mouse", checked ? 1 : 0)
         }
 
         ToggleRow {
-            text: Tr.tr("Focus follows the mouse in desktop mode")
+            text: Tr.tr("Focus follows the mouse (desktop mode)")
             disabled: !root.hyprflowLoaded
-            subtext: root.hyprflowLoaded ? Tr.tr("Off: click a window to use it, like Windows") : Tr.tr("Needs the hyprflow plugin (desktop mode)")
+            subtext: root.hyprflowLoaded ? Tr.tr("In floating desktop mode; off means click to focus, like Windows") : Tr.tr("Needs the hyprflow plugin (desktop mode)")
             checked: HyprSettings.modeValue("desktop", "input:follow_mouse", 2) === 1
             onToggled: HyprSettings.setModeOption("desktop", "input:follow_mouse", checked ? 1 : 2)
         }
@@ -202,7 +203,7 @@ PageBase {
         StepperRow {
             visible: root.scrollerLoaded && root.sc("follow_hover", false)
             label: Tr.tr("Hover delay")
-            subtext: Tr.tr("Milliseconds")
+            subtext: Tr.tr("How long the pointer rests before scrolling (in milliseconds)")
             value: root.sc("hover_delay_ms", 500)
             from: 100
             to: 2000
@@ -213,7 +214,7 @@ PageBase {
         StepperRow {
             visible: root.scrollerLoaded
             label: Tr.tr("Peek at neighbours")
-            subtext: Tr.tr("Pixels of the columns beside the view that stay visible")
+            subtext: Tr.tr("How much of the next column stays visible at the screen edge (0 = none)")
             value: root.sc("peek_width", 0)
             from: 0
             to: 200
@@ -252,16 +253,100 @@ PageBase {
             onToggled: root.setSc("focus_wrap", checked ? 1 : 0)
         }
 
-        TextFieldRow {
+        ConnectedRect {
+            id: widthPresetsRow
+
+            readonly property var presets: [
+                {
+                    pct: 25,
+                    val: "0.25"
+                },
+                {
+                    pct: 33,
+                    val: "0.333"
+                },
+                {
+                    pct: 50,
+                    val: "0.5"
+                },
+                {
+                    pct: 67,
+                    val: "0.667"
+                },
+                {
+                    pct: 75,
+                    val: "0.75"
+                },
+                {
+                    pct: 100,
+                    val: "1.0"
+                }
+            ]
+            readonly property var activeNums: String(root.sc("explicit_column_widths", "") || root.sc("column_widths", "0.333,0.5,0.667,1.0")).split(",").map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0 && n <= 1.01)
+
+            function isSelected(pct: int): bool {
+                return activeNums.some(n => Math.abs(n * 100 - pct) <= 1.5);
+            }
+
+            function togglePreset(pct: int): void {
+                const chosen = presets.filter(p => p.pct === pct ? !isSelected(p.pct) : isSelected(p.pct));
+                if (chosen.length === 0)
+                    return;
+                root.setSc("explicit_column_widths", chosen.map(p => p.val).join(","));
+            }
+
             visible: root.scrollerLoaded
-            label: Tr.tr("Column widths to cycle through")
-            subtext: Tr.tr("Fractions of the screen, e.g. 0.333,0.5,0.667,1")
-            value: root.sc("explicit_column_widths", "") || root.sc("column_widths", "0.333,0.5,0.667,1.0")
-            validate: t => /^\s*(0?\.\d+|1(\.0+)?)(\s*,\s*(0?\.\d+|1(\.0+)?))*\s*$/.test(t)
-            errorText: Tr.tr("Numbers from 0 to 1, separated by commas")
-            onEditingFinished: v => {
-                if (/^\s*(0?\.\d+|1(\.0+)?)(\s*,\s*(0?\.\d+|1(\.0+)?))*\s*$/.test(v))
-                    root.setSc("explicit_column_widths", v.replace(/\s+/g, ""));
+            Layout.fillWidth: true
+            implicitHeight: widthCol.implicitHeight + Tokens.padding.medium * 2
+
+            ColumnLayout {
+                id: widthCol
+
+                anchors.fill: parent
+                anchors.margins: Tokens.padding.medium
+                anchors.leftMargin: Tokens.padding.largeIncreased
+                anchors.rightMargin: Tokens.padding.largeIncreased
+                spacing: Tokens.spacing.small
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: Tr.tr("Column widths to cycle through")
+                        font: Tokens.font.body.small
+                        elide: Text.ElideRight
+                    }
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: Tr.tr("Widths available when cycling column size")
+                        color: Colours.palette.m3outline
+                        font: Tokens.font.label.small
+                        wrapMode: Text.WordWrap
+                    }
+                }
+
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Tokens.spacing.extraSmall
+
+                    Repeater {
+                        model: widthPresetsRow.presets
+
+                        TextButton {
+                            required property var modelData
+
+                            text: `${modelData.pct}%`
+                            isToggle: true
+                            followChecked: true
+                            checked: widthPresetsRow.isSelected(modelData.pct)
+                            type: TextButton.Tonal
+                            onClicked: widthPresetsRow.togglePreset(modelData.pct)
+                        }
+                    }
+                }
             }
         }
 

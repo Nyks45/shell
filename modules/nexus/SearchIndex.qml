@@ -1310,7 +1310,7 @@ QtObject {
         {
             "label": "Display wallpaper",
             "ctx": "",
-            "sub": "",
+            "sub": "Turn on to pick a picture wallpaper",
             "section": "",
             "tab": "background",
             "page": 9,
@@ -1387,7 +1387,7 @@ QtObject {
         {
             "label": "Panel opacity",
             "ctx": "",
-            "sub": "",
+            "sub": "Panels, the bar, the launcher and menus",
             "section": "Transparency & shape",
             "tab": "effects",
             "page": 9,
@@ -1396,9 +1396,9 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Opacity of layers on panels",
+            "label": "Inner card opacity",
             "ctx": "",
-            "sub": "",
+            "sub": "Cards, buttons and controls inside panels",
             "section": "Transparency & shape",
             "tab": "effects",
             "page": 9,
@@ -1409,7 +1409,18 @@ QtObject {
         {
             "label": "Roundness of the shell",
             "ctx": "",
-            "sub": "",
+            "sub": "Buttons, cards, menus and panels",
+            "section": "Transparency & shape",
+            "tab": "effects",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Window and screen corners",
+            "ctx": "",
+            "sub": "Corner rounding for windows and the screen frame, on Windows › Look",
             "section": "Transparency & shape",
             "tab": "effects",
             "page": 9,
@@ -1431,7 +1442,18 @@ QtObject {
         {
             "label": "Look",
             "ctx": "",
-            "sub": "Sets windows' strength (and so everything that follows it)",
+            "sub": "Sets windows' blur strength and panel glass preset",
+            "section": "Blur",
+            "tab": "effects",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Fine-tune blur by surface",
+            "ctx": "",
+            "sub": "Separate blur strength and smoothness for windows, panels and widgets",
             "section": "Blur",
             "tab": "effects",
             "page": 9,
@@ -1451,9 +1473,9 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Islands and pill",
+            "label": "Panels and bar",
             "ctx": "",
-            "sub": "The pill, the top island, the launcher, notifications and menus",
+            "sub": "The bar, side panels, launcher, notifications and menus",
             "section": "Blur",
             "tab": "effects",
             "page": 9,
@@ -1864,10 +1886,26 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Quality",
+            "ctx": "",
+            "sub": "Bloom and lighting effects (Ultra enables HDR bloom)",
+            "section": "Performance",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Add a wallpaper folder"
+            ],
+            "keywords": ""
+        },
+        {
             "label": "Frame rate",
             "ctx": "",
             "sub": "Higher is smoother and uses more power",
-            "section": "Playback",
+            "section": "Performance",
             "page": 9,
             "path": [
                 4,
@@ -1880,138 +1918,10 @@ QtObject {
             "keywords": "fps live wallpaper"
         },
         {
-            "label": "Post-processing",
+            "label": "Video decoding",
             "ctx": "",
-            "sub": "Ultra enables HDR bloom in wallpapers that support it",
-            "section": "Playback",
-            "page": 9,
-            "path": [
-                4,
-                8
-            ],
-            "trail": [
-                "Live wallpapers",
-                "Add a wallpaper folder"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Pause behind fullscreen apps",
-            "ctx": "",
-            "sub": "Games and videos get the GPU to themselves",
-            "section": "Playback",
-            "page": 9,
-            "path": [
-                4,
-                8
-            ],
-            "trail": [
-                "Live wallpapers",
-                "Add a wallpaper folder"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Sound",
-            "ctx": "",
-            "sub": "For wallpapers that have it",
-            "section": "Playback",
-            "page": 9,
-            "path": [
-                4,
-                8
-            ],
-            "trail": [
-                "Live wallpapers",
-                "Add a wallpaper folder"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Volume",
-            "ctx": "",
-            "sub": "",
-            "section": "Playback",
-            "page": 9,
-            "path": [
-                4,
-                8
-            ],
-            "trail": [
-                "Live wallpapers",
-                "Add a wallpaper folder"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Quiet while other apps play sound",
-            "ctx": "",
-            "sub": "",
-            "section": "Playback",
-            "page": 9,
-            "path": [
-                4,
-                8
-            ],
-            "trail": [
-                "Live wallpapers",
-                "Add a wallpaper folder"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "React to music",
-            "ctx": "",
-            "sub": "Audio visualisers in wallpapers follow what's playing",
-            "section": "Playback",
-            "page": 9,
-            "path": [
-                4,
-                8
-            ],
-            "trail": [
-                "Live wallpapers",
-                "Add a wallpaper folder"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Fit",
-            "ctx": "",
-            "sub": "",
-            "section": "Playback",
-            "page": 9,
-            "path": [
-                4,
-                8
-            ],
-            "trail": [
-                "Live wallpapers",
-                "Add a wallpaper folder"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "React to the mouse",
-            "ctx": "",
-            "sub": "",
-            "section": "Playback",
-            "page": 9,
-            "path": [
-                4,
-                8
-            ],
-            "trail": [
-                "Live wallpapers",
-                "Add a wallpaper folder"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Parallax",
-            "ctx": "",
-            "sub": "Layers shift as the mouse moves",
-            "section": "Playback",
+            "sub": "Hardware decoding saves CPU on video wallpapers",
+            "section": "Performance",
             "page": 9,
             "path": [
                 4,
@@ -2027,7 +1937,135 @@ QtObject {
             "label": "Particles",
             "ctx": "",
             "sub": "Off saves GPU on busy wallpapers",
-            "section": "Playback",
+            "section": "Performance",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Add a wallpaper folder"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Sound",
+            "ctx": "",
+            "sub": "For wallpapers that have it",
+            "section": "Sound & interaction",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Add a wallpaper folder"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Volume",
+            "ctx": "",
+            "sub": "",
+            "section": "Sound & interaction",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Add a wallpaper folder"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Mute when any app plays audio (PipeWire)",
+            "ctx": "",
+            "sub": "Built-in renderer auto-mute for any sound stream",
+            "section": "Sound & interaction",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Add a wallpaper folder"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "React to music",
+            "ctx": "",
+            "sub": "Audio visualisers in wallpapers follow what's playing",
+            "section": "Sound & interaction",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Add a wallpaper folder"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Fit",
+            "ctx": "",
+            "sub": "",
+            "section": "Sound & interaction",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Add a wallpaper folder"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "React to the mouse",
+            "ctx": "",
+            "sub": "",
+            "section": "Sound & interaction",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Add a wallpaper folder"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Parallax",
+            "ctx": "",
+            "sub": "Layers shift as the mouse moves",
+            "section": "Sound & interaction",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Add a wallpaper folder"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Pause behind fullscreen apps",
+            "ctx": "",
+            "sub": "Games and videos get the GPU to themselves",
+            "section": "When other apps are in use",
             "page": 9,
             "path": [
                 4,
@@ -2088,6 +2126,38 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Keyboard shortcuts",
+            "ctx": "",
+            "sub": "Set keys to pause, stop or pick a random live wallpaper",
+            "section": "More",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Add a wallpaper folder"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Live wallpaper engine",
+            "ctx": "",
+            "sub": "Installed renderer build (linux-wallpaperengine)",
+            "section": "Renderer",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Add a wallpaper folder"
+            ],
+            "keywords": ""
+        },
+        {
             "label": "Widget",
             "ctx": "",
             "sub": "",
@@ -2103,7 +2173,7 @@ QtObject {
             "label": "Interface font",
             "ctx": "",
             "sub": "Panels, menus, the launcher and this app",
-            "section": "Shell",
+            "section": "Shell text",
             "tab": "fonts",
             "page": 10,
             "path": [],
@@ -2114,7 +2184,7 @@ QtObject {
             "label": "Monospace font",
             "ctx": "",
             "sub": "Where the shell shows code or numbers in columns",
-            "section": "Shell",
+            "section": "Shell text",
             "tab": "fonts",
             "page": 10,
             "path": [],
@@ -2124,8 +2194,8 @@ QtObject {
         {
             "label": "Clock font",
             "ctx": "",
-            "sub": "",
-            "section": "Shell",
+            "sub": "Lock screen, dashboard and desktop clock widget",
+            "section": "Shell text",
             "tab": "fonts",
             "page": 10,
             "path": [],
@@ -2136,7 +2206,7 @@ QtObject {
             "label": "Shell text size",
             "ctx": "",
             "sub": "",
-            "section": "Shell",
+            "section": "Shell text",
             "tab": "fonts",
             "page": 10,
             "path": [],
@@ -2147,7 +2217,7 @@ QtObject {
             "label": "App font",
             "ctx": "",
             "sub": "GTK and Qt apps' menus, buttons and labels",
-            "section": "Apps",
+            "section": "App text",
             "tab": "fonts",
             "page": 10,
             "path": [],
@@ -2158,7 +2228,7 @@ QtObject {
             "label": "App font size",
             "ctx": "",
             "sub": "In points",
-            "section": "Apps",
+            "section": "App text",
             "tab": "fonts",
             "page": 10,
             "path": [],
@@ -2169,7 +2239,18 @@ QtObject {
             "label": "Document font",
             "ctx": "",
             "sub": "For reading, in apps that use it",
-            "section": "Apps",
+            "section": "App text",
+            "tab": "fonts",
+            "page": 10,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Document font size",
+            "ctx": "",
+            "sub": "In points",
+            "section": "App text",
             "tab": "fonts",
             "page": 10,
             "path": [],
@@ -2180,7 +2261,7 @@ QtObject {
             "label": "App monospace font",
             "ctx": "",
             "sub": "Terminals and code in apps",
-            "section": "Apps",
+            "section": "App text",
             "tab": "fonts",
             "page": 10,
             "path": [],
@@ -2191,7 +2272,7 @@ QtObject {
             "label": "App monospace font size",
             "ctx": "",
             "sub": "In points",
-            "section": "Apps",
+            "section": "App text",
             "tab": "fonts",
             "page": 10,
             "path": [],
@@ -2201,8 +2282,8 @@ QtObject {
         {
             "label": "Smoothing",
             "ctx": "",
-            "sub": "How the edges of letters are softened",
-            "section": "Rendering",
+            "sub": "How the edges of letters are softened across apps",
+            "section": "Text rendering",
             "tab": "fonts",
             "page": 10,
             "path": [],
@@ -2213,7 +2294,7 @@ QtObject {
             "label": "Hinting",
             "ctx": "",
             "sub": "Fitting letters to the pixel grid: crisper, less true to the font",
-            "section": "Rendering",
+            "section": "Text rendering",
             "tab": "fonts",
             "page": 10,
             "path": [],
@@ -2234,8 +2315,8 @@ QtObject {
         {
             "label": "Style",
             "ctx": "",
-            "sub": "How buttons, menus and other controls of Qt apps are drawn",
-            "section": "Qt apps",
+            "sub": "How buttons, menus and controls look in apps like Dolphin and KDE apps",
+            "section": "App style (KDE & Qt apps)",
             "tab": "appearance",
             "page": 10,
             "path": [],
@@ -2246,7 +2327,7 @@ QtObject {
             "label": "Icons in menus",
             "ctx": "",
             "sub": "",
-            "section": "Qt apps",
+            "section": "App style (KDE & Qt apps)",
             "tab": "appearance",
             "page": 10,
             "path": [],
@@ -2257,7 +2338,29 @@ QtObject {
             "label": "Open files with a single click",
             "ctx": "",
             "sub": "In Qt file managers and dialogs",
-            "section": "Qt apps",
+            "section": "App style (KDE & Qt apps)",
+            "tab": "appearance",
+            "page": 10,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Cursor style",
+            "ctx": "",
+            "sub": "",
+            "section": "Cursor",
+            "tab": "appearance",
+            "page": 10,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Cursor size",
+            "ctx": "",
+            "sub": "",
+            "section": "Cursor",
             "tab": "appearance",
             "page": 10,
             "path": [],
@@ -2268,28 +2371,6 @@ QtObject {
             "label": "Colours",
             "ctx": "",
             "sub": "App colours follow the colour scheme",
-            "section": "More",
-            "tab": "appearance",
-            "page": 10,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Fonts",
-            "ctx": "",
-            "sub": "App and shell fonts",
-            "section": "More",
-            "tab": "appearance",
-            "page": 10,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Cursor",
-            "ctx": "",
-            "sub": "Style and size, on Keyboard & mouse",
             "section": "More",
             "tab": "appearance",
             "page": 10,
@@ -2323,7 +2404,7 @@ QtObject {
             "label": "Border thickness",
             "ctx": "",
             "sub": "The coloured line around windows; 0 for none",
-            "section": "Frame",
+            "section": "Borders & opacity",
             "tab": "windows-look",
             "page": 11,
             "path": [],
@@ -2331,26 +2412,59 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Corner rounding",
-            "ctx": "",
-            "sub": "Radius of window corners; 0 for square",
-            "section": "Frame",
-            "tab": "windows-look",
-            "page": 11,
-            "path": [],
-            "trail": [],
-            "keywords": "radius rounded corners"
-        },
-        {
             "label": "Window opacity",
             "ctx": "",
             "sub": "",
-            "section": "Frame",
+            "section": "Borders & opacity",
             "tab": "windows-look",
             "page": 11,
             "path": [],
             "trail": [],
             "keywords": "transparency transparent"
+        },
+        {
+            "label": "Window corners",
+            "ctx": "",
+            "sub": "Radius of window corners; 0 for square",
+            "section": "Corners",
+            "tab": "windows-look",
+            "page": 11,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Screen corners",
+            "ctx": "",
+            "sub": "Rounding of the screen frame (maximized windows follow it)",
+            "section": "Corners",
+            "tab": "windows-look",
+            "page": 11,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Screen frame",
+            "ctx": "",
+            "sub": "Thickness of the shell's frame around the screen; 0 for none",
+            "section": "Corners",
+            "tab": "windows-look",
+            "page": 11,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Shell roundness",
+            "ctx": "",
+            "sub": "Panels, cards, buttons and menus",
+            "section": "Corners",
+            "tab": "windows-look",
+            "page": 11,
+            "path": [],
+            "trail": [],
+            "keywords": ""
         },
         {
             "label": "Blur",
@@ -2401,28 +2515,6 @@ QtObject {
             "ctx": "",
             "sub": "Windows and workspaces move instead of appearing at once",
             "section": "Effects",
-            "tab": "windows-look",
-            "page": 11,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Screen frame",
-            "ctx": "",
-            "sub": "Thickness of the shell's frame around the screen; 0 for none",
-            "section": "Screen",
-            "tab": "windows-look",
-            "page": 11,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Screen corners",
-            "ctx": "",
-            "sub": "Rounding of the screen's corners (maximized windows follow it)",
-            "section": "Screen",
             "tab": "windows-look",
             "page": 11,
             "path": [],
@@ -2586,7 +2678,7 @@ QtObject {
         {
             "label": "Hover delay",
             "ctx": "",
-            "sub": "Milliseconds before the bar shows",
+            "sub": "Delay in ms before the bar appears (0 = instant)",
             "section": "Title bars",
             "tab": "titlebars",
             "page": 11,
@@ -2595,9 +2687,9 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Bars on apps with their own",
+            "label": "Add title bars to apps that draw their own",
             "ctx": "",
-            "sub": "Apps that draw their own title bar (GNOME apps, browsers) get one too",
+            "sub": "Browsers and GNOME apps get a system title bar above their own header bar",
             "section": "Title bars",
             "tab": "titlebars",
             "page": 11,
@@ -2847,16 +2939,6 @@ QtObject {
             "keywords": "lyrics backend lrclib netease"
         },
         {
-            "label": "Default media player",
-            "ctx": "",
-            "sub": "Preferred player when several are open",
-            "section": "Media",
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": "mpris media player auto"
-        },
-        {
             "label": "Shell style",
             "ctx": "",
             "sub": "Building the other style… (about two minutes)",
@@ -2965,9 +3047,79 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Processor",
+            "ctx": "",
+            "sub": "",
+            "section": "Performance gauges",
+            "page": 12,
+            "path": [
+                1
+            ],
+            "trail": [
+                "Dashboard"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Graphics",
+            "ctx": "",
+            "sub": "",
+            "section": "Performance gauges",
+            "page": 12,
+            "path": [
+                1
+            ],
+            "trail": [
+                "Dashboard"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Memory",
+            "ctx": "",
+            "sub": "",
+            "section": "Performance gauges",
+            "page": 12,
+            "path": [
+                1
+            ],
+            "trail": [
+                "Dashboard"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Storage",
+            "ctx": "",
+            "sub": "",
+            "section": "Performance gauges",
+            "page": 12,
+            "path": [
+                1
+            ],
+            "trail": [
+                "Dashboard"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Network speed",
+            "ctx": "",
+            "sub": "",
+            "section": "Performance gauges",
+            "page": 12,
+            "path": [
+                1
+            ],
+            "trail": [
+                "Dashboard"
+            ],
+            "keywords": ""
+        },
+        {
             "label": "Drag threshold",
             "ctx": "",
-            "sub": "Pixels dragged before the dashboard opens",
+            "sub": "Distance dragged down from the top edge before the dashboard opens",
             "section": "Behaviour",
             "page": 12,
             "path": [
@@ -2979,23 +3131,9 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Persistent",
+            "label": "Visibility",
             "ctx": "",
-            "sub": "Keep the pill out at all times",
-            "section": "Behaviour",
-            "page": 12,
-            "path": [
-                2
-            ],
-            "trail": [
-                "Taskbar"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Show on hover",
-            "ctx": "",
-            "sub": "Bring the pill out when the cursor reaches the middle of the left edge",
+            "sub": "How the pill opens",
             "section": "Behaviour",
             "page": 12,
             "path": [
@@ -3037,7 +3175,7 @@ QtObject {
         {
             "label": "Drag threshold",
             "ctx": "",
-            "sub": "Pixels dragged before the pill comes out",
+            "sub": "Distance dragged from the edge before the pill comes out",
             "section": "Behaviour",
             "page": 12,
             "path": [
@@ -3134,34 +3272,6 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Action prefix",
-            "ctx": "",
-            "sub": "Prefix used to run actions in the launcher",
-            "section": "General",
-            "page": 12,
-            "path": [
-                3
-            ],
-            "trail": [
-                "Launcher"
-            ],
-            "keywords": ""
-        },
-        {
-            "label": "Special prefix",
-            "ctx": "",
-            "sub": "Starts the launcher's special searches",
-            "section": "General",
-            "page": 12,
-            "path": [
-                3
-            ],
-            "trail": [
-                "Launcher"
-            ],
-            "keywords": ""
-        },
-        {
             "label": "Max items shown",
             "ctx": "",
             "sub": "",
@@ -3192,8 +3302,50 @@ QtObject {
         {
             "label": "Drag threshold",
             "ctx": "",
-            "sub": "Pixels dragged before the launcher opens",
+            "sub": "Distance dragged up from the bottom edge before the launcher opens",
             "section": "Display",
+            "page": 12,
+            "path": [
+                3
+            ],
+            "trail": [
+                "Launcher"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Advanced options",
+            "ctx": "",
+            "sub": "Command prefixes, Vim navigation, power actions and fuzzy matching",
+            "section": "Advanced",
+            "page": 12,
+            "path": [
+                3
+            ],
+            "trail": [
+                "Launcher"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Action prefix",
+            "ctx": "",
+            "sub": "Symbol typed first to run actions in the launcher",
+            "section": "Advanced",
+            "page": 12,
+            "path": [
+                3
+            ],
+            "trail": [
+                "Launcher"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Special prefix",
+            "ctx": "",
+            "sub": "Symbol typed first for wallpaper and colour searches",
+            "section": "Advanced",
             "page": 12,
             "path": [
                 3
@@ -3207,7 +3359,7 @@ QtObject {
             "label": "Vim keybinds",
             "ctx": "",
             "sub": "Navigate results with Ctrl+hjkl",
-            "section": "Behaviour",
+            "section": "Advanced",
             "page": 12,
             "path": [
                 3
@@ -3218,10 +3370,10 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Enable dangerous actions",
+            "label": "Allow shutdown and logout actions",
             "ctx": "",
-            "sub": "Allow actions that shut down or log out",
-            "section": "Behaviour",
+            "sub": "Include power off, reboot and log out in launcher results",
+            "section": "Advanced",
             "page": 12,
             "path": [
                 3
@@ -3260,7 +3412,7 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Schemes",
+            "label": "Colour schemes",
             "ctx": "",
             "sub": "",
             "section": "Fuzzy search",
@@ -3274,7 +3426,7 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Variants",
+            "label": "Scheme styles",
             "ctx": "",
             "sub": "",
             "section": "Fuzzy search",
@@ -3378,7 +3530,7 @@ QtObject {
         {
             "label": "Hide after",
             "ctx": "",
-            "sub": "Milliseconds",
+            "sub": "How long the on-screen display stays visible",
             "section": "General",
             "page": 12,
             "path": [
@@ -3390,9 +3542,9 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Focus follows the mouse",
+            "label": "Focus follows the mouse (scrolling layout)",
             "ctx": "",
-            "sub": "In the scrolling layout: the window under the pointer gets the keyboard",
+            "sub": "In the scrolling layout, the window under the pointer gets keyboard focus",
             "section": "Focus",
             "tab": "multitasking",
             "page": 13,
@@ -3401,9 +3553,9 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Focus follows the mouse in desktop mode",
+            "label": "Focus follows the mouse (desktop mode)",
             "ctx": "",
-            "sub": "Off: click a window to use it, like Windows",
+            "sub": "In floating desktop mode; off means click to focus, like Windows",
             "section": "Focus",
             "tab": "multitasking",
             "page": 13,
@@ -3535,7 +3687,7 @@ QtObject {
         {
             "label": "Hover delay",
             "ctx": "",
-            "sub": "Milliseconds",
+            "sub": "How long the pointer rests before scrolling (in milliseconds)",
             "section": "Scrolling layout",
             "tab": "multitasking",
             "page": 13,
@@ -3546,7 +3698,7 @@ QtObject {
         {
             "label": "Peek at neighbours",
             "ctx": "",
-            "sub": "Pixels of the columns beside the view that stay visible",
+            "sub": "How much of the next column stays visible at the screen edge (0 = none)",
             "section": "Scrolling layout",
             "tab": "multitasking",
             "page": 13,
@@ -3591,17 +3743,6 @@ QtObject {
             "label": "Wrap around at the ends",
             "ctx": "",
             "sub": "Moving focus past the last column goes to the first",
-            "section": "Scrolling layout",
-            "tab": "multitasking",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Column widths to cycle through",
-            "ctx": "",
-            "sub": "Fractions of the screen, e.g. 0.333,0.5,0.667,1",
             "section": "Scrolling layout",
             "tab": "multitasking",
             "page": 13,
