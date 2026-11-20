@@ -7,6 +7,7 @@ import Quickshell.Widgets
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
+import qs.components.effects
 import qs.services
 
 StackView {
@@ -130,7 +131,7 @@ StackView {
 
                             active: item.modelData.icon !== ""
 
-                            sourceComponent: IconImage {
+                            sourceComponent: ThemedIcon {
                                 asynchronous: true
                                 implicitSize: label.implicitHeight
 

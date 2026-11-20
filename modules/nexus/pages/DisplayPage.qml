@@ -244,6 +244,16 @@ PageBase {
             onMoved: v => bm?.setBrightness(v)
         }
 
+        StepperRow {
+            label: Tr.tr("Brightness step")
+            subtext: Tr.tr("Amount the brightness changes per scroll or key press (%)")
+            value: Math.round(GlobalConfig.services.brightnessIncrement * 100)
+            from: 1
+            to: 50
+            stepSize: 1
+            onMoved: v => GlobalConfig.services.brightnessIncrement = v / 100
+        }
+
         SelectRow {
             id: resRow
 

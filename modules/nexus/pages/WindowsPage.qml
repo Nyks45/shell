@@ -92,9 +92,10 @@ PageBase {
             Layout.fillWidth: true
             icon: "blur_on"
             text: Tr.tr("Blur")
-            subtext: Tr.tr("All blur settings (windows, panels, widgets, title bars) are in Wallpaper & style > Blur")
+            subtext: Tr.tr("All blur settings (windows, panels, widgets) are in Wallpaper & style › Effects")
             onClicked: root.nState.goTo({
-                page: PageRegistry.find("wallpaper"),
+                page: PageRegistry.find("effects"),
+                tab: "effects",
                 path: [],
                 text: Tr.tr("Blur")
             })

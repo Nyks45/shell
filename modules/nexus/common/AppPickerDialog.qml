@@ -10,6 +10,7 @@ import Caelestia.I18n
 import qs.components
 import qs.components.controls
 import qs.components.containers
+import qs.components.effects
 import qs.services
 
 // Searchable app picker modal built on DialogRowButton. Supports installed
@@ -217,9 +218,10 @@ DialogRowButton {
                                 implicitWidth: 32
                                 implicitHeight: 32
 
-                                IconImage {
+                                ThemedIcon {
                                     anchors.fill: parent
                                     asynchronous: true
+                                    monochrome: true
                                     visible: entryRect.modelData.icon.length > 0
                                     source: entryRect.modelData.icon ? Quickshell.iconPath(entryRect.modelData.icon, "application-x-executable") : ""
                                 }

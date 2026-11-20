@@ -41,7 +41,55 @@ QtObject {
 
     // Ordered page and sub-page table matching PageRegistry indices
     readonly property var specs: [
-        // 0: Wallpaper & style
+        // 0: Display
+        [
+            "DisplayPage.qml"
+        ],
+        // 1: Sound
+        [
+            "AudioPage.qml",
+            "audio/AppVolumes.qml"
+        ],
+        // 2: Notifications
+        [
+            ["services/NotificationsPage.qml", { isSubPage: false }]
+        ],
+        // 3: Power & sleep
+        [
+            "PowerPage.qml"
+        ],
+        // 4: Storage: drives, clean up, snapshots (0), one partition (1), a drive's health (2), one snapshot (3)
+        [
+            "merged/StorageAllPage.qml",
+            "disks/DiskPartitionPage.qml",
+            "disks/DiskHealthPage.qml",
+            "SnapshotPage.qml"
+        ],
+        // 5: Recovery & boot
+        [
+            ["system/BootPage.qml", { isSubPage: false }]
+        ],
+        // 6: About
+        [
+            "AboutPage.qml"
+        ],
+        // 7: Devices: Bluetooth, keyboard & mouse, lighting, fans (0), a device (1), pairing (2)
+        [
+            "merged/DevicesPage.qml",
+            "bluetooth/BtDeviceInfo.qml",
+            "bluetooth/BluetoothPairing.qml"
+        ],
+        // 8: Network
+        [
+            "NetworkPage.qml",
+            "network/EthernetDetailPage.qml",
+            "network/AddNetworkPage.qml",
+            "network/NetworkDetailPage.qml",
+            "network/AddVpnPage.qml",
+            "network/AllNetworksPage.qml",
+            "network/SavedNetworksPage.qml"
+        ],
+        // 9: Wallpaper & style
         [
             "WallpaperAndStyle.qml",
             "wallandstyle/WallpaperSelect.qml",
@@ -56,106 +104,65 @@ QtObject {
             // The desktop widgets' own pages (9): the widgets, one widget, add one, pick an image
             "style/NebulaPages.qml"
         ],
-        // 1: Fonts & themes
+        // 10: Fonts & themes
         [
             "merged/FontsThemesPage.qml"
         ],
-        // 2: Windows (look + desktop mode)
+        // 11: Windows (look + desktop mode + title bars + app rules)
         [
             "merged/WindowsDesktopPage.qml"
         ],
-        // 3: Panels (+ shell services, folded)
+        // 12: Panels: top-level (0), dashboard (1), taskbar (2), launcher (3), taskbar tray (4), OSD (5)
         [
-            "merged/PanelsAllPage.qml",
+            "PanelsPage.qml",
             "panels/DashboardPanel.qml",
             "panels/TaskbarPanel.qml",
             "panels/LauncherPanel.qml",
-            // The pill's tray
             "panels/taskbar/BarTray.qml",
-            "panels/LockPanel.qml",
             "panels/OsdPanel.qml"
         ],
-        // 4: Display
+        // 13: Workspaces & shortcuts (+ screenshots & recording)
         [
-            "DisplayPage.qml"
+            "merged/WorkspacesAllPage.qml"
         ],
-        // 5: Audio
-        [
-            "AudioPage.qml",
-            "audio/AppVolumes.qml"
-        ],
-        // 6: Notifications
-        [
-            ["services/NotificationsPage.qml", { isSubPage: false }]
-        ],
-        // 7: Power & sleep
-        [
-            "PowerPage.qml"
-        ],
-        // 8: Storage: the page (drives, clean up, snapshots) (0), one partition (1), a drive's health (2), one snapshot (3)
-        [
-            "merged/StorageAllPage.qml",
-            "disks/DiskPartitionPage.qml",
-            "disks/DiskHealthPage.qml",
-            "SnapshotPage.qml"
-        ],
-        // 9: Devices: Bluetooth + keyboard & mouse (0), a device (1), pairing (2)
-        [
-            "merged/DevicesPage.qml",
-            "bluetooth/BtDeviceInfo.qml",
-            "bluetooth/BluetoothPairing.qml"
-        ],
-        // 10: Network
-        [
-            "NetworkPage.qml",
-            "network/EthernetDetailPage.qml",
-            "network/AddNetworkPage.qml",
-            "network/NetworkDetailPage.qml",
-            "network/AddVpnPage.qml",
-            "network/AllNetworksPage.qml",
-            "network/SavedNetworksPage.qml"
-        ],
-        // 11: Apps: installed, get apps, updates, defaults, startup (0), all apps (1), one app's launcher settings (2), one package (3)
+        // 14: Apps: installed, get apps, defaults, startup (0), all apps (1), one app's launcher settings (2), one package (3)
         [
             "merged/AppsAllPage.qml",
             "apps/AllApps.qml",
             "apps/AppInfo.qml",
             "apps/PackagePage.qml"
         ],
-        // 12: Workspaces & shortcuts (+ screenshots & recording)
-        [
-            "merged/WorkspacesAllPage.qml"
-        ],
-        // 13: Account: you and the others (0), another person's account (1)
-        [
-            "AccountPage.qml",
-            "system/UserPage.qml"
-        ],
-        // 14: Time & language
-        [
-            "merged/TimeLanguagePage.qml"
-        ],
-        // 15: Accessibility
-        [
-            "AccessibilityPage.qml"
-        ],
-        // 16: Privacy & security
-        [
-            "PrivacyPage.qml"
-        ],
-        // 17: Gaming (0), one game (1)
+        // 15: Gaming (0), one game (1)
         [
             "gaming/GamingPage.qml",
             "gaming/GamePage.qml"
         ],
-        // 18: System: services (+ logs, plugins, folded) (0), one service (1)
+        // 16: Account: you and the others (0), another person's account (1)
         [
-            "merged/SystemPage.qml",
-            "system/ServicePage.qml"
+            "AccountPage.qml",
+            "system/UserPage.qml"
         ],
-        // 19: About
+        // 17: Time & language
         [
-            "AboutPage.qml"
+            "merged/TimeLanguagePage.qml"
+        ],
+        // 18: Accessibility
+        [
+            "AccessibilityPage.qml"
+        ],
+        // 19: Privacy & security
+        [
+            "PrivacyPage.qml"
+        ],
+        // 20: Updates (0), one package (1)
+        [
+            "UpdatesPage.qml",
+            "apps/PackagePage.qml"
+        ],
+        // 21: Advanced: services, logs, kernels, performance, plugins (0), one service (1)
+        [
+            "merged/AdvancedPage.qml",
+            "system/ServicePage.qml"
         ]
     ]
 

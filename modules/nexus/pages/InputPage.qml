@@ -74,6 +74,7 @@ PageBase {
             icon: "keyboard"
             label: Tr.tr("Layout")
             status: root.layoutName(root.layouts[0] ?? "us")
+            currentCode: root.layouts[0] ?? "us"
             onPicked: code => root.setLayouts([code, ...root.layouts.slice(1).filter(c => c !== code)])
         }
 
@@ -82,6 +83,7 @@ PageBase {
             label: Tr.tr("Second layout")
             status: root.layouts.length > 1 ? root.layoutName(root.layouts[1]) : Tr.tr("None")
             allowNone: true
+            currentCode: root.layouts.length > 1 ? root.layouts[1] : ""
             onPicked: code => root.setLayouts(code ? [root.layouts[0] ?? "us", code] : [root.layouts[0] ?? "us"])
         }
 
@@ -326,9 +328,39 @@ PageBase {
         id: row
 
         property bool allowNone
-        readonly property int popupHeight: root.flickable.height - y + root.flickable.contentY - Tokens.padding.large - Tokens.padding.extraExtraLarge
+        property string currentCode
+        property string query
+
+        readonly property real rowH: Math.ceil(itemMetrics.height) + Tokens.padding.small * 2
+        readonly property var baseLayouts: row.allowNone ? [{
+                code: "",
+                name: Tr.tr("None")
+            }, ...root.allLayouts] : root.allLayouts
+        readonly property var filteredLayouts: {
+            const q = query.trim().toLowerCase();
+            if (!q)
+                return baseLayouts;
+            return baseLayouts.filter(l => (l.name ?? "").toLowerCase().includes(q) || (l.code ?? "").toLowerCase().includes(q));
+        }
+        readonly property real listH: filteredLayouts.length > 0 ? Math.min(220, filteredLayouts.length * rowH + Math.max(0, filteredLayouts.length - 1) * 2) : 48
 
         signal picked(code: string)
+
+        onOpenChanged: {
+            if (open) {
+                query = "";
+                Qt.callLater(() => (popup.item as Item)?.forceActiveFocus());
+            }
+        }
+
+        Connections {
+            function onActiveChanged(): void {
+                if (!row.popup.active)
+                    row.query = "";
+            }
+
+            target: row.popup
+        }
 
         keepPopupAsChild: {
             if (root.nState.animatingContainer || root.opacity < 1)
@@ -339,59 +371,121 @@ PageBase {
                 p = p.parent;
             return p?.opacity < 1;
         }
-        popup.topMovement: Math.max(Tokens.sizes.nexus.minPopupHeight - popupHeight, Tokens.padding.large)
+        popupWidth: 256
+        popupHeight: rowH + Tokens.spacing.small + listH
+        maxPopupHeight: 280
 
-        Loader {
-            anchors.centerIn: parent
-            active: row.popup.animDriver > 0
+        FontMetrics {
+            id: itemMetrics
 
-            sourceComponent: VerticalFadeListView {
-                id: list
+            font: Tokens.font.body.small
+        }
 
-                implicitWidth: Tokens.sizes.nexus.popupWidth
-                // As tall as its items (a short list doesn't get an empty tail), up to the usual height
-                implicitHeight: Math.min(contentHeight + topMargin + bottomMargin, CUtils.clamp(row.popupHeight, Tokens.sizes.nexus.minPopupHeight, Tokens.sizes.nexus.maxPopupHeight))
+        popupContent: Component {
+            ColumnLayout {
+                id: popupCol
 
-                model: row.allowNone ? [{
-                        code: "",
-                        name: Tr.tr("None")
-                    }, ...root.allLayouts] : root.allLayouts
+                spacing: Tokens.spacing.small
+                onActiveFocusChanged: if (activeFocus)
+                    filter.forceActiveFocus()
 
-                delegate: StateLayer {
-                    id: item
+                SearchBar {
+                    id: filter
 
-                    required property var modelData
-
-                    anchors.fill: undefined
-                    anchors.left: list.contentItem.left
-                    anchors.right: list.contentItem.right
-                    implicitHeight: itemLayout.implicitHeight + itemLayout.anchors.margins * 2
-                    radius: Tokens.rounding.small
-
-                    onClicked: {
-                        row.popup.open = false;
-                        row.picked(modelData.code);
+                    Layout.fillWidth: true
+                    implicitHeight: row.rowH
+                    placeholderText: Tr.tr("Search layouts")
+                    font: Tokens.font.body.small
+                    topPadding: Tokens.padding.small
+                    bottomPadding: Tokens.padding.small
+                    bg.color: Colours.tPalette.m3surfaceContainerLowest
+                    bg.border.width: 1
+                    bg.border.color: Qt.alpha(Colours.palette.m3outlineVariant, 0.35)
+                    onTextChanged: row.query = text
+                    Keys.onEscapePressed: row.open = false
+                    onAccepted: {
+                        if (row.filteredLayouts.length > 0) {
+                            row.open = false;
+                            row.picked(row.filteredLayouts[0].code);
+                        }
                     }
 
-                    RowLayout {
-                        id: itemLayout
+                    Connections {
+                        function onQueryChanged(): void {
+                            if (filter.text !== row.query)
+                                filter.text = row.query;
+                        }
+
+                        target: row
+                    }
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+
+                    VerticalFadeListView {
+                        id: list
 
                         anchors.fill: parent
-                        anchors.margins: Tokens.padding.medium
-                        spacing: Tokens.spacing.medium
+                        clip: true
+                        fadeAmount: 0.08
+                        spacing: 2
+                        boundsBehavior: Flickable.StopAtBounds
+                        model: row.filteredLayouts
 
-                        StyledText {
-                            Layout.fillWidth: true
-                            text: item.modelData.name
-                            font: Tokens.font.body.small
-                            elide: Text.ElideRight
-                        }
+                        delegate: StyledRect {
+                            id: item
 
-                        StyledText {
-                            text: item.modelData.code
-                            color: Colours.palette.m3outline
-                            font: Tokens.font.label.small
+                            required property var modelData
+                            readonly property bool current: modelData.code === row.currentCode
+
+                            width: ListView.view.width
+                            implicitHeight: row.rowH
+                            radius: height / 2
+                            color: current ? Colours.palette.m3secondaryContainer : "transparent"
+
+                            StateLayer {
+                                anchors.fill: parent
+                                radius: parent.radius
+                                color: item.current ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
+                                onClicked: {
+                                    row.open = false;
+                                    row.picked(item.modelData.code);
+                                }
+                            }
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: Tokens.padding.medium
+                                anchors.rightMargin: Tokens.padding.medium
+                                spacing: Tokens.spacing.medium
+
+                                StyledText {
+                                    Layout.fillWidth: true
+                                    Layout.alignment: Qt.AlignVCenter
+                                    text: item.modelData.name
+                                    font: Tokens.font.body.small
+                                    color: item.current ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
+                                    elide: Text.ElideRight
+                                }
+
+                                StyledText {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    text: item.modelData.code
+                                    color: item.current ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3outline
+                                    font: Tokens.font.label.small
+                                }
+                            }
                         }
+                    }
+
+                    StyledText {
+                        anchors.centerIn: parent
+                        visible: row.filteredLayouts.length === 0
+                        text: Tr.tr("No layouts match")
+                        color: Colours.palette.m3outline
+                        font: Tokens.font.body.small
                     }
                 }
             }

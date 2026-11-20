@@ -19,13 +19,17 @@ ColumnLayout {
             p.open = p === part;
     }
 
+    function findPart(k: string): Item {
+        return parts.find(p => p.key === k || p.altKeys.includes(k)) ?? null;
+    }
+
     Layout.fillWidth: true
     spacing: Tokens.spacing.extraSmall / 2
 
     Component.onCompleted: {
         // Opened at a former page id: that tab
         const pending = PageRegistry.pendingTab && Date.now() - PageRegistry.pendingTabAt < 3000;
-        const wanted = pending ? parts.find(p => p.key === PageRegistry.pendingTab) : null;
+        const wanted = pending ? findPart(PageRegistry.pendingTab) : null;
         if (wanted) {
             show(wanted);
         } else if (!chosen && parts.length > 0) {
@@ -36,7 +40,7 @@ ColumnLayout {
     // A link to one of these tabs while the page is already open
     Connections {
         function onPendingTabAtChanged(): void {
-            const wanted = root.parts.find(p => p.key === PageRegistry.pendingTab);
+            const wanted = root.findPart(PageRegistry.pendingTab);
             if (wanted)
                 root.show(wanted);
         }

@@ -18,6 +18,9 @@ class ImageAnalyser : public QObject {
     Q_PROPERTY(int rescaleSize READ rescaleSize WRITE setRescaleSize NOTIFY rescaleSizeChanged)
     Q_PROPERTY(QColor dominantColour READ dominantColour NOTIFY dominantColourChanged)
     Q_PROPERTY(qreal luminance READ luminance NOTIFY luminanceChanged)
+    Q_PROPERTY(bool analysed READ analysed NOTIFY analysedChanged)
+    Q_PROPERTY(bool monochromeDark READ monochromeDark NOTIFY monochromeDarkChanged)
+    Q_PROPERTY(bool monochromeLight READ monochromeLight NOTIFY monochromeLightChanged)
 
 public:
     explicit ImageAnalyser(QObject* parent = nullptr);
@@ -33,6 +36,9 @@ public:
 
     [[nodiscard]] QColor dominantColour() const;
     [[nodiscard]] qreal luminance() const;
+    [[nodiscard]] bool analysed() const;
+    [[nodiscard]] bool monochromeDark() const;
+    [[nodiscard]] bool monochromeLight() const;
 
     Q_INVOKABLE void requestUpdate();
 
@@ -42,9 +48,17 @@ signals:
     void rescaleSizeChanged();
     void dominantColourChanged();
     void luminanceChanged();
+    void analysedChanged();
+    void monochromeDarkChanged();
+    void monochromeLightChanged();
 
 private:
-    using AnalyseResult = QPair<QColor, qreal>;
+    struct AnalyseResult {
+        QColor dominantColour;
+        qreal luminance = 0.0;
+        bool monochromeDark = false;
+        bool monochromeLight = false;
+    };
 
     QFutureWatcher<AnalyseResult>* const m_futureWatcher;
 
@@ -54,6 +68,9 @@ private:
 
     QColor m_dominantColour;
     qreal m_luminance;
+    bool m_analysed;
+    bool m_monochromeDark;
+    bool m_monochromeLight;
 
     void update();
     static void analyse(QPromise<AnalyseResult>& promise, const QImage& image, int rescaleSize);

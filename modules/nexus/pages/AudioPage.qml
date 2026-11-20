@@ -12,7 +12,7 @@ import qs.modules.nexus.common
 PageBase {
     id: root
 
-    title: Tr.tr("Audio")
+    title: Tr.tr("Sound")
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -81,6 +81,30 @@ PageBase {
             text: Tr.tr("App volumes")
             subtext: Audio.streams.length === 0 ? Tr.tr("No apps playing audio") : Tr.trN("%n app playing audio", "%n apps playing audio", Audio.streams.length)
             onClicked: root.nState.openSubPage(1)
+        }
+
+        SectionHeader {
+            text: Tr.tr("Volume controls")
+        }
+
+        StepperRow {
+            label: Tr.tr("Volume step")
+            subtext: Tr.tr("Amount the volume changes per scroll or key press (%)")
+            value: Math.round(GlobalConfig.services.audioIncrement * 100)
+            from: 1
+            to: 50
+            stepSize: 1
+            onMoved: v => GlobalConfig.services.audioIncrement = v / 100
+        }
+
+        StepperRow {
+            label: Tr.tr("Max volume")
+            subtext: Tr.tr("Upper limit for output volume (%)")
+            value: Math.round(GlobalConfig.services.maxVolume * 100)
+            from: 50
+            to: 200
+            stepSize: 5
+            onMoved: v => GlobalConfig.services.maxVolume = v / 100
         }
 
         // Sounds: a chime for notifications (the shell plays it), and apps'

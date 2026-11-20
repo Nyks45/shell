@@ -4,6 +4,7 @@ import Quickshell.Widgets
 import Caelestia.Config
 import qs.components
 import qs.components.controls
+import qs.components.effects
 import qs.services
 import qs.utils
 import qs.modules.launcher.services
@@ -76,7 +77,7 @@ Item {
         anchors.rightMargin: Tokens.padding.medium
         anchors.margins: Tokens.padding.small
 
-        IconImage {
+        ThemedIcon {
             id: icon
 
             asynchronous: true

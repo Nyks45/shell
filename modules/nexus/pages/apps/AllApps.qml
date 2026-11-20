@@ -7,6 +7,7 @@ import Quickshell.Widgets
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
+import qs.components.effects
 import qs.services
 import qs.utils
 import qs.modules.nexus.common
@@ -53,8 +54,9 @@ PageBase {
                     anchors.rightMargin: Tokens.padding.largeIncreased
                     spacing: Tokens.spacing.medium
 
-                    IconImage {
+                    ThemedIcon {
                         asynchronous: true
+                        monochrome: true
                         implicitSize: Math.round(Tokens.font.icon.large.pointSize * 1.8)
                         source: Quickshell.iconPath(appItem.modelData.icon, "image-missing")
                     }

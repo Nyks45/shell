@@ -208,9 +208,8 @@ ColumnLayout {
                 sourceComponent: IconButton {
                     icon: "arrow_back"
                     font: Tokens.font.icon.medium
-                    type: IconButton.Tonal
+                    type: IconButton.Text
                     isRound: true
-                    inactiveColour: Colours.tPalette.m3surfaceContainerHigh
                     inactiveOnColour: Colours.palette.m3onSurfaceVariant
                     onClicked: root.nState.back()
                 }

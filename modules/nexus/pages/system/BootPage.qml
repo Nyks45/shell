@@ -200,7 +200,7 @@ PageBase {
         }, JSON.stringify(payload()));
     }
 
-    title: Tr.tr("Boot menu")
+    title: Tr.tr("Recovery & boot")
 
     Component.onCompleted: load()
 

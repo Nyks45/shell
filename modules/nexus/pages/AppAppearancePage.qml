@@ -9,6 +9,7 @@ import Caelestia.Config
 import Caelestia.I18n
 import qs.components
 import qs.components.controls
+import qs.components.effects
 import qs.services
 import qs.modules.nexus
 import qs.modules.nexus.common
@@ -147,7 +148,7 @@ for name in names:
                 Repeater {
                     model: root.previewIcons
 
-                    IconImage {
+                    ThemedIcon {
                         required property string modelData
 
                         implicitSize: 36
@@ -216,8 +217,9 @@ for name in names:
             text: Tr.tr("Colours")
             subtext: Tr.tr("App colours follow the colour scheme")
             onClicked: root.nState.goTo({
-                page: 0,
-                path: [3]
+                page: PageRegistry.find("colours"),
+                tab: "colours",
+                path: []
             })
         }
 

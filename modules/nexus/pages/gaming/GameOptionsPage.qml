@@ -15,15 +15,13 @@ import qs.modules.nexus.common
 // Options for every game (Proton, DXVK and the NVIDIA driver read them when a
 // game starts): kept in the environment.d gaming file (caelestia-gaming env),
 // read at login. Each says what it does, its catch and what it needs (NVIDIA
-// README 620, proton-cachyos README, CachyOS wiki). For one game only: the
-// launch options line built below, to paste into Steam.
+// README 620, proton-cachyos README, CachyOS wiki).
 PageBase {
     id: root
 
     property var env: null
     property var mfg: null
     readonly property var values: env?.values ?? {}
-    property var wrappers: ["game-performance"]
     property bool changed
     readonly property string mfgFetchWhat: Tr.tr("Download MFG Unlocker")
     readonly property bool mfgFetching: Admin.jobs.some(j => j.what === mfgFetchWhat)
@@ -33,8 +31,6 @@ PageBase {
     readonly property var nvidiaOptions: [["NVPRESENT_ENABLE_SMOOTH_MOTION", Tr.tr("Smooth Motion"), Tr.tr("The driver adds generated frames (RTX 40 and newer; 64-bit DX11/DX12/Vulkan games). A little more input lag, artefacts in fast motion; not with DLSS frame generation; use the game's own frame cap"), "1"], ["DXVK_NVAPI_VKREFLEX", Tr.tr("NVIDIA Reflex"), Tr.tr("Lower input lag in games that support Reflex"), "1"], ["PROTON_DLSS_UPGRADE", Tr.tr("Newest DLSS"), Tr.tr("Games using DLSS get its newest version (downloaded once)"), "1"], ["PROTON_DLSS_INDICATOR", Tr.tr("DLSS indicator"), Tr.tr("Shows which DLSS version and preset a game uses (bottom left)"), "1"], ["PROTON_NVIDIA_LIBS", Tr.tr("CUDA and PhysX for games"), Tr.tr("For games using PhysX, CUDA or NVENC; only when a game needs it"), "1"], ["__GL_THREADED_OPTIMIZATIONS", Tr.tr("Threaded optimisations (OpenGL)"), Tr.tr("Can raise frame rates in OpenGL games; some run worse"), "1"], ["__GL_SHARPEN_ENABLE", Tr.tr("Image sharpening"), Tr.tr("The driver sharpens every OpenGL and Vulkan game"), "1"]]
     readonly property var protonOptions: [["DXVK_HDR", Tr.tr("HDR"), Tr.tr("HDR in games that support it (an HDR monitor with HDR turned on)"), "1"], ["PROTON_NO_NTSYNC", Tr.tr("NTSync"), Tr.tr("Faster thread syncing (the kernel's ntsync); turn off if a game misbehaves"), "1", true], ["PROTON_USE_PIPEWIRE", Tr.tr("PipeWire audio"), Tr.tr("Games talk to PipeWire directly; off: through PulseAudio"), "0", true], ["PROTON_ENABLE_WAYLAND", Tr.tr("Native Wayland (experimental)"), Tr.tr("Games run as Wayland windows instead of through XWayland; some launchers show a white window"), "1"], ["PROTON_LOCAL_SHADER_CACHE", Tr.tr("Shader cache per game"), Tr.tr("Keeps each game's compiled shaders, also with Steam's pre-caching off"), "1"], ["PROTON_PREFER_SDL", Tr.tr("SDL for controllers"), Tr.tr("Try this when a controller isn't detected or misbehaves"), "1"], ["PROTON_DXVK_LOWLATENCY", Tr.tr("Low-latency DXVK"), Tr.tr("A DXVK build with better frame pacing (DX9-11 games)"), "1"], ["PROTON_LOG", Tr.tr("Proton logs"), Tr.tr("Writes a log per game (~/steam-<id>.log) for troubleshooting; off normally"), "1"]]
     readonly property var cacheSizes: [["", Tr.tr("Driver default")], ["4000000000", "4 GB"], ["12000000000", "12 GB"], ["20000000000", "20 GB"]]
-    readonly property var wrapperNames: [["game-performance", Tr.tr("Performance mode while it runs")], ["mangohud", Tr.tr("Overlay")], ["dlss-swapper", Tr.tr("Latest DLSS preset")], ["gamescope", Tr.tr("Gamescope")]]
-    readonly property string launchLine: [...wrappers.filter(w => w !== "gamescope"), ...(wrappers.includes("gamescope") ? ["gamescope", "--"] : []), "%command%"].join(" ")
 
     function load(): void {
         if (!proc.running)
@@ -63,6 +59,10 @@ PageBase {
         anchors.top: parent.top
         width: root.cappedWidth
         spacing: Tokens.spacing.extraSmall / 2
+
+        SectionHeader {
+            text: Tr.tr("Game options")
+        }
 
         StyledText {
             Layout.fillWidth: true
@@ -310,40 +310,6 @@ PageBase {
                 checked: root.isOn(modelData)
                 onToggled: root.setVar(modelData[0], checked === !modelData[4] ? modelData[3] : "--unset")
             }
-        }
-
-        // One game: the launch options line
-        SectionHeader {
-            text: Tr.tr("For one game (Steam launch options)")
-        }
-
-        Flow {
-            Layout.fillWidth: true
-            Layout.bottomMargin: Tokens.spacing.small
-            spacing: Tokens.spacing.small
-
-            Repeater {
-                model: root.wrapperNames
-
-                TextButton {
-                    required property var modelData
-
-                    text: modelData[1]
-                    isToggle: true
-                    followChecked: true
-                    checked: root.wrappers.includes(modelData[0])
-                    type: TextButton.Tonal
-                    onClicked: root.wrappers = checked ? root.wrappers.filter(w => w !== modelData[0]) : [...root.wrappers, modelData[0]]
-                }
-            }
-        }
-
-        RowButton {
-            Layout.fillWidth: true
-            icon: "content_copy"
-            text: root.launchLine
-            subtext: Tr.tr("Copy, then in Steam: the game › Properties › Launch options")
-            onClicked: Quickshell.execDetached(["wl-copy", root.launchLine])
         }
 
         Process {

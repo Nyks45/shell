@@ -10,6 +10,7 @@ import Caelestia.Config
 import Caelestia.Services
 import qs.components
 import qs.components.controls
+import qs.components.effects
 import qs.services
 import qs.utils
 
@@ -660,7 +661,7 @@ Item {
                             width: rowItem.depth > 0 ? 24 : 30
                             height: width
 
-                            IconImage {
+                            ThemedIcon {
                                 anchors.fill: parent
                                 visible: rowItem.info.icon !== ""
                                 asynchronous: true

@@ -41,7 +41,7 @@ PageBase {
 
         ToggleRow {
             text: Tr.tr("Allow screen tearing")
-            subtext: Tr.tr("Lower input lag for games that ask for it; per app under Workspaces & shortcuts › Workspaces › App rules")
+            subtext: Tr.tr("Lower input lag for games that ask for it; per app under Windows › App rules")
             checked: HyprSettings.value("general:allow_tearing", false)
             onToggled: HyprSettings.setOption("general:allow_tearing", checked)
         }

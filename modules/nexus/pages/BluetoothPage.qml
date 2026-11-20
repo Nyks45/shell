@@ -89,25 +89,17 @@ PageBase {
                     anchors.rightMargin: Tokens.padding.largeIncreased
                     spacing: Tokens.spacing.medium
 
-                    StyledRect {
-                        implicitWidth: implicitHeight
-                        implicitHeight: deviceIcon.implicitHeight + Tokens.padding.small * 2
-                        radius: Tokens.rounding.full
-                        color: device.connected ? Colours.palette.m3primary : Colours.palette.m3secondaryContainer
+                    MaterialIcon {
+                        id: deviceIcon
 
-                        MaterialIcon {
-                            id: deviceIcon
+                        text: Icons.getBluetoothIcon(device.modelData?.icon ?? "")
+                        color: device.connected ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
+                        fontStyle: Tokens.font.icon.medium
+                        fill: device.connected ? 1 : 0
+                        opacity: device.textOpacity
 
-                            anchors.centerIn: parent
-                            text: Icons.getBluetoothIcon(device.modelData?.icon ?? "")
-                            color: device.connected ? Colours.palette.m3onPrimary : Colours.palette.m3onSecondaryContainer
-                            fontStyle: Tokens.font.icon.medium
-                            fill: device.connected ? 1 : 0
-                            opacity: device.textOpacity
-
-                            Behavior on fill {
-                                Anim {}
-                            }
+                        Behavior on fill {
+                            Anim {}
                         }
                     }
 

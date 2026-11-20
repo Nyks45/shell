@@ -52,24 +52,16 @@ ItemList {
             anchors.rightMargin: Tokens.padding.largeIncreased
             spacing: Tokens.spacing.medium
 
-            StyledRect {
-                implicitWidth: implicitHeight
-                implicitHeight: devIcon.implicitHeight + Tokens.padding.small * 2
-                radius: Tokens.rounding.full
-                color: device.active ? Colours.palette.m3primary : Colours.palette.m3secondaryContainer
+            MaterialIcon {
+                id: devIcon
 
-                MaterialIcon {
-                    id: devIcon
+                text: root.iconName
+                color: device.active ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
+                fontStyle: Tokens.font.icon.medium
+                fill: device.active ? 1 : 0
 
-                    anchors.centerIn: parent
-                    text: root.iconName
-                    color: device.active ? Colours.palette.m3onPrimary : Colours.palette.m3onSecondaryContainer
-                    fontStyle: Tokens.font.icon.medium
-                    fill: device.active ? 1 : 0
-
-                    Behavior on fill {
-                        Anim {}
-                    }
+                Behavior on fill {
+                    Anim {}
                 }
             }
 

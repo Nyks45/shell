@@ -8,6 +8,7 @@ import Caelestia.Config
 import Caelestia.I18n
 import qs.components
 import qs.components.controls
+import qs.components.effects
 import qs.services
 import qs.modules.nexus
 import qs.modules.nexus.common
@@ -78,7 +79,7 @@ ConnectedRect {
             implicitWidth: Math.round(Tokens.font.icon.large.pointSize * 1.8)
             implicitHeight: implicitWidth
 
-            IconImage {
+            ThemedIcon {
                 anchors.fill: parent
                 visible: !!root.iconSource
                 asynchronous: true

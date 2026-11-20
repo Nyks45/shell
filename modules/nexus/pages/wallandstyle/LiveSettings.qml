@@ -8,6 +8,7 @@ import Caelestia.Config
 import Caelestia.I18n
 import qs.components
 import qs.components.controls
+import qs.components.effects
 import qs.components.filedialog
 import qs.services
 import qs.utils
@@ -293,9 +294,10 @@ PageBase {
                         implicitWidth: 28
                         implicitHeight: 28
 
-                        IconImage {
+                        ThemedIcon {
                             anchors.fill: parent
                             asynchronous: true
+                            monochrome: true
                             visible: !!(lwRuleRow.desktopEntry?.icon)
                             source: lwRuleRow.desktopEntry?.icon ? Quickshell.iconPath(lwRuleRow.desktopEntry.icon, "application-x-executable") : ""
                         }
@@ -401,9 +403,10 @@ PageBase {
                             implicitWidth: 24
                             implicitHeight: 24
 
-                            IconImage {
+                            ThemedIcon {
                                 anchors.fill: parent
                                 asynchronous: true
+                                monochrome: true
                                 visible: newRuleCard.selectedIcon.length > 0
                                 source: newRuleCard.selectedIcon ? Quickshell.iconPath(newRuleCard.selectedIcon, "application-x-executable") : ""
                             }

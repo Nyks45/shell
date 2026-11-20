@@ -8,13 +8,12 @@ import qs.modules.nexus.common
 import qs.modules.nexus.pages
 import qs.modules.nexus.pages.system
 
-// System: services and scheduled tasks, logs, Hyprland plugins; one at a
-// time (each is a long list).
-// The parts are the former pages, embedded (PageBase.embedded).
+// Advanced: services and scheduled tasks, logs, kernels, CPU scheduler & shell
+// monitoring performance, and Hyprland plugins; one at a time (tabs).
 PageBase {
     id: root
 
-    title: Tr.tr("System")
+    title: Tr.tr("Advanced")
 
     // A service's page opened its full log: show the Logs part
     function showLogUnit(): void {
@@ -41,16 +40,34 @@ PageBase {
         PartTabs {
             id: tabs
 
-            parts: [bootPart, kernelsPart, servicesPart, logsPart, pluginsPart]
+            parts: [servicesPart, logsPart, kernelsPart, perfPart, pluginsPart]
         }
 
         TabPart {
-            id: bootPart
+            id: servicesPart
 
-            key: "boot"
-            title: Tr.tr("Boot menu")
+            key: "systemd"
+            altKeys: ["services"]
+            title: Tr.tr("Services")
+            icon: "settings_applications"
+            summary: Tr.tr("What runs in the background: start, stop, start at boot")
 
-            BootPage {
+            SystemServicesPage {
+                embedded: true
+                nState: root.nState
+                hostFlickable: root.flickable
+            }
+        }
+
+        TabPart {
+            id: logsPart
+
+            key: "logs"
+            title: Tr.tr("Logs")
+            icon: "receipt_long"
+            summary: Tr.tr("System messages, errors, crash reports")
+
+            LogsPage {
                 embedded: true
                 nState: root.nState
                 hostFlickable: root.flickable
@@ -71,31 +88,13 @@ PageBase {
         }
 
         TabPart {
-            id: servicesPart
+            id: perfPart
 
-            key: "systemd"
+            key: "scheduler"
+            altKeys: ["performance"]
+            title: Tr.tr("Performance")
 
-            title: Tr.tr("Services")
-            icon: "settings_applications"
-            summary: Tr.tr("What runs in the background: start, stop, start at boot")
-
-            SystemServicesPage {
-                embedded: true
-                nState: root.nState
-                hostFlickable: root.flickable
-            }
-        }
-
-        TabPart {
-            id: logsPart
-
-            key: "logs"
-
-            title: Tr.tr("Logs")
-            icon: "receipt_long"
-            summary: Tr.tr("System messages, errors, crash reports")
-
-            LogsPage {
+            PerformancePage {
                 embedded: true
                 nState: root.nState
                 hostFlickable: root.flickable
@@ -106,7 +105,6 @@ PageBase {
             id: pluginsPart
 
             key: "plugins"
-
             title: Tr.tr("Plugins")
             icon: "extension"
             summary: Tr.tr("Hyprland plugins")

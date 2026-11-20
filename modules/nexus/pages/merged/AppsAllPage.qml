@@ -8,10 +8,9 @@ import qs.modules.nexus.common
 import qs.modules.nexus.pages
 import qs.modules.nexus.pages.apps
 
-// Apps: what's installed, getting apps (repositories, AUR, Flathub), updates,
-// default apps, apps that start at login; one at a time (tabs). The parts are
-// pages of their own, embedded (PageBase.embedded); each tab's key is its
-// former page id (opening Settings at "updates" shows that tab).
+// Apps: what's installed, getting apps (repositories, AUR, Flatpak),
+// default apps, apps that start at login; one at a time (tabs).
+// Each tab's key is its former page id.
 PageBase {
     id: root
 
@@ -24,7 +23,7 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         PartTabs {
-            parts: [installedPart, getPart, updatesPart, defaultsPart, startupPart]
+            parts: [installedPart, getPart, defaultsPart, startupPart]
         }
 
         TabPart {
@@ -47,19 +46,6 @@ PageBase {
             title: Tr.tr("Get apps")
 
             GetAppsPage {
-                embedded: true
-                nState: root.nState
-                hostFlickable: root.flickable
-            }
-        }
-
-        TabPart {
-            id: updatesPart
-
-            key: "updates"
-            title: Tr.tr("Updates")
-
-            UpdatesPage {
                 embedded: true
                 nState: root.nState
                 hostFlickable: root.flickable

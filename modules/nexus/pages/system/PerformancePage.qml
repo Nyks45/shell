@@ -5,16 +5,15 @@ import QtQuick.Layouts
 import Quickshell.Io
 import Caelestia.Config
 import Caelestia.I18n
+import Caelestia.Services
 import qs.components
 import qs.components.controls
 import qs.services
 import qs.utils
 import qs.modules.nexus.common
 
-// The CPU scheduler (scx-manager's job): the kernel's own one, or a sched-ext
-// one started by scx_loader at boot (/etc/scx_loader/config.toml) with a mode;
-// ananicy-cpp (process priorities by rules). Descriptions from the schedulers'
-// own READMEs (sched-ext/scx); none is officially "the" gaming one.
+// Performance: CPU scheduler (sched-ext / scx_loader), process priorities
+// (ananicy-cpp), and shell monitoring intervals / GPU override.
 PageBase {
     id: root
 
@@ -45,6 +44,22 @@ PageBase {
     readonly property var order: ["scx_lavd", "scx_bpfland", "scx_flash", "scx_cosmos", "scx_pandemonium", "scx_p2dq", "scx_rusty", "scx_cake", "scx_beerland", "scx_tickless"]
     readonly property var modes: [["Auto", Tr.tr("Automatic")], ["Gaming", Tr.tr("Gaming")], ["LowLatency", Tr.tr("Low latency")], ["PowerSave", Tr.tr("Power saving")], ["Server", Tr.tr("Server")]]
 
+    // GPU types, ordered to match config::GpuType (Auto, Nvidia, Generic, None)
+    readonly property list<MenuItem> gpuItems: [
+        MenuItem {
+            text: Tr.trCtx("Auto", "gpu type")
+        },
+        MenuItem {
+            text: "NVIDIA"
+        },
+        MenuItem {
+            text: Tr.trCtx("Generic", "gpu type")
+        },
+        MenuItem {
+            text: Tr.trCtx("None", "gpu type")
+        }
+    ]
+
     function load(): void {
         if (!proc.running)
             proc.running = true;
@@ -54,7 +69,7 @@ PageBase {
         Admin.run("scx", sched ? [sched, mode] : ["off"], root.what, () => root.load());
     }
 
-    title: Tr.tr("Scheduler")
+    title: Tr.tr("Performance")
 
     Component.onCompleted: load()
 
@@ -76,7 +91,7 @@ PageBase {
         }
 
         SectionHeader {
-            text: Tr.tr("Scheduler")
+            text: Tr.tr("CPU scheduler")
         }
 
         RowButton {
@@ -138,7 +153,7 @@ PageBase {
             Layout.leftMargin: Tokens.padding.small
             Layout.topMargin: Tokens.spacing.small
             visible: !!root.chosen
-            text: Tr.tr("\"Performance mode while it runs\" (game-performance, in Game options) switches to Gaming mode for that game only.")
+            text: Tr.tr("\"Performance mode\" (per game in Gaming › Library) switches to Gaming mode for that game only.")
             wrapMode: Text.WordWrap
             color: Colours.palette.m3outline
             font: Tokens.font.label.small
@@ -154,6 +169,46 @@ PageBase {
             subtext: Tr.tr("Gives known apps and games higher or lower priority by rules. Turn off if a game stutters with a scheduler above, and don't use it together with GameMode")
             checked: !!root.scx?.ananicy
             onToggled: Admin.run("ananicy", [checked ? "on" : "off"], checked ? Tr.tr("Turn on automatic priorities") : Tr.tr("Turn off automatic priorities"), () => root.load())
+        }
+
+        SectionHeader {
+            text: Tr.tr("Shell monitoring")
+        }
+
+        SelectRow {
+            label: Tr.tr("Update frequency")
+            subtext: Tr.tr("How often system stats, media and network status refresh")
+            segmentedAllowed: active !== null
+            menuItems: [
+                MenuItem {
+                    text: Tr.tr("Fast")
+                    value: [250, 500, 10000]
+                },
+                MenuItem {
+                    text: Tr.tr("Normal")
+                    value: [500, 1000, 15000]
+                },
+                MenuItem {
+                    text: Tr.tr("Power saver")
+                    value: [1000, 3000, 60000]
+                }
+            ]
+            active: menuItems.find(i => i.value[0] === GlobalConfig.dashboard.mediaUpdateInterval && i.value[1] === GlobalConfig.dashboard.resourceUpdateInterval && i.value[2] === GlobalConfig.nexus.networkRescanInterval) ?? null
+            fallbackText: Tr.tr("Custom")
+            onSelected: item => {
+                GlobalConfig.dashboard.mediaUpdateInterval = item.value[0];
+                GlobalConfig.dashboard.resourceUpdateInterval = item.value[1];
+                GlobalConfig.nexus.networkRescanInterval = item.value[2];
+            }
+        }
+
+        SelectRow {
+            label: Tr.tr("GPU monitoring")
+            subtext: Gpu.name ? Tr.tr("Detected: %1").arg(Gpu.name) : Tr.tr("Override which GPU the shell monitors")
+            menuOnTop: true
+            menuItems: root.gpuItems
+            active: root.gpuItems[GlobalConfig.services.gpuType]
+            onSelected: item => GlobalConfig.services.gpuType = root.gpuItems.indexOf(item)
         }
 
         Process {

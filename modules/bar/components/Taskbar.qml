@@ -9,6 +9,7 @@ import Caelestia
 import Caelestia.Config
 import qs.components
 import qs.components.controls
+import qs.components.effects
 import qs.services
 import qs.utils
 
@@ -371,7 +372,7 @@ StyledRect {
 
         // In colour when focused, grey otherwise; minimized ones fainter and
         // smaller; pinned apps that aren't open fainter still.
-        IconImage {
+        ThemedIcon {
             id: icon
 
             property real saturation: item.active ? 0 : -1

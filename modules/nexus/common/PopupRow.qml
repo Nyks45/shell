@@ -1,11 +1,10 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Layouts
-import Quickshell
-import Caelestia
 import Caelestia.Config
 import qs.components
 import qs.services
-import qs.modules.drawers
 import qs.modules.nexus.common
 
 ConnectedRect {
@@ -15,8 +14,13 @@ ConnectedRect {
     property alias label: label.text
     property alias status: status.text
     property bool keepPopupAsChild
-    readonly property alias popup: popup
-    default required property Item content
+
+    property alias open: floating.expanded
+    property alias popupWidth: floating.contentWidth
+    property alias popupHeight: floating.contentHeight
+    property alias maxPopupHeight: floating.maxHeight
+    property alias popupContent: floating.content
+    readonly property alias popup: floating
 
     Layout.fillWidth: true
     implicitHeight: navLayout.implicitHeight + navLayout.anchors.margins * 2
@@ -24,8 +28,7 @@ ConnectedRect {
     StateLayer {
         id: stateLayer
 
-        manualHoverOverride: popup.hovered && !popup.open
-        onClicked: popup.open = true
+        onClicked: floating.expanded = !floating.expanded
     }
 
     RowLayout {
@@ -71,56 +74,40 @@ ConnectedRect {
         Item {
             id: triggerArea
 
-            implicitWidth: popup.implicitWidth
-            implicitHeight: popup.implicitHeight
+            implicitWidth: unfoldIcon.implicitWidth + Tokens.padding.extraSmall * 2
+            implicitHeight: unfoldIcon.implicitHeight + Tokens.padding.extraSmall * 2
 
-            TransformWatcher {
-                id: tWatcher
+            MaterialIcon {
+                id: unfoldIcon
 
-                a: area.parent
-                b: triggerArea
-            }
+                anchors.centerIn: parent
+                text: "unfold_more"
+                color: floating.expanded ? Colours.palette.m3primary : (stateLayer.containsMouse ? Colours.palette.m3onSurface : Colours.palette.m3onSurfaceVariant)
+                fontStyle: Tokens.font.icon.medium
 
-            MouseArea {
-                id: area
-
-                parent: {
-                    if (root.keepPopupAsChild)
-                        return triggerArea;
-
-                    const win = QsWindow.window;
-                    const contentWin = win as ContentWindow; // If inside the drawer content window, put it inside the interaction wrapper so hover works
-                    return contentWin ? contentWin.interactionWrapper : (win as QsWindow).contentItem;
-                }
-                anchors.fill: parent
-                // Moved up into the window (above): hidden with its row (e.g. a
-                // settings tab not shown), which no longer hides it by itself
-                visible: triggerArea.visible
-                enabled: popup.open
-                hoverEnabled: popup.open
-                cursorShape: popup.open ? Qt.ArrowCursor : undefined
-                z: popup.animDriver > 0 ? 1 : 0
-
-                onClicked: popup.open = false
-
-                BlobPopup {
-                    id: popup
-
-                    x: {
-                        CUtils.dependency(tWatcher.transform);
-                        return triggerArea.mapToItem(area.parent, 0, 0).x;
-                    }
-                    y: {
-                        CUtils.dependency(tWatcher.transform);
-                        return triggerArea.mapToItem(area.parent, 0, 0).y;
-                    }
-                    padding: Tokens.padding.small
-                    content: root.content
-                    pressOverride: stateLayer.pressed
-                    hoverOverride: stateLayer.containsMouse
-                    color: open || hovered || stateLayer.containsMouse ? Colours.palette.m3secondaryContainer : Colours.palette.m3surfaceContainerHighest
+                Behavior on color {
+                    CAnim {}
                 }
             }
         }
+    }
+
+    // Anchor spans the row's full height and right edge so the popup opens
+    // cleanly below/above the row and flush with the chevron without overlapping it
+    Item {
+        id: triggerAnchor
+
+        anchors.right: navLayout.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: triggerArea.width
+    }
+
+    FloatingPopup {
+        id: floating
+
+        attachTo: triggerAnchor
+        ownArea: root
+        keepAsChild: root.keepPopupAsChild
     }
 }

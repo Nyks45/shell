@@ -222,7 +222,7 @@ PageBase {
                         name: modelData.name,
                         title: modelData.name
                     };
-                    root.nState.openSubPage(3);
+                    root.nState.openSubPage(1);
                 }
             }
         }

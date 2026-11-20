@@ -38,6 +38,7 @@ NEEDS_SELECTION = {
 SYNONYMS = {
     "Live wallpapers": "animated moving video wallpaper engine background",
     "Dark theme": "dark mode light mode night",
+    "Theme": "dark mode light mode dark theme night",
     "Natural scrolling": "reverse scroll direction",
     "Pointer speed": "mouse sensitivity dpi",
     "Scale": "zoom size hidpi",
@@ -67,6 +68,15 @@ SYNONYMS = {
     "Empty the Trash": "delete bin clean up",
     "Remove unused packages": "orphans pacman cleanup",
     "Other apps' volume": "app volumes mixer per-app audio",
+    "Update frequency": "polling refresh interval stats",
+    "GPU monitoring": "gpu type nvidia override",
+    "Shell style": "compact pill full classic bar",
+    "Visualiser bars": "spectrum analyser bars",
+    "Volume step": "audio increment scroll",
+    "Brightness step": "backlight increment scroll",
+    "Max volume": "volume limit boost",
+    "Lyrics source": "lyrics backend lrclib netease",
+    "Default media player": "mpris media player auto",
 }
 
 EXCLUDE_LABELS = {"Unknown program", "Copy these lines", "Boot", "Name", "Add", "Save", "Cancel"}
@@ -74,6 +84,13 @@ EXCLUDE_SECTIONS = {"Add a game", "Entries"}
 
 # List-built / dynamic rows and key tabs that Repeaters don't statically declare
 EXTRA_ENTRIES = [
+    # Wallpaper & style / Windows tab shortcuts
+    ("wallpaper", "colours", "Wallpaper & style", "Colours", "colour scheme dark light theme palette accent dynamic", "Colours"),
+    ("wallpaper", "effects", "Wallpaper & style", "Effects", "transparency opacity roundness blur frosted glass", "Effects"),
+    ("wallpaper", "desktop", "Wallpaper & style", "Desktop", "desktop icons widgets nebula audio visualiser bars", "Desktop"),
+    ("wallpaper", "lockscreen", "Wallpaper & style", "Lock screen", "lockscreen wallpaper logo notifications power buttons fingerprint face howdy", "Lock screen"),
+    ("windows", "titlebars", "Windows", "Title bars", "window title bar font blur buttons hover double middle click", "Title bars"),
+    ("windows", "apprules", "Windows", "App rules", "window rules float centre pin workspace opacity tearing", "App rules"),
     # Workspaces & shortcuts -> Shortcuts
     ("workspaces", "shortcuts", "Shortcuts", "Close window", "Super+Q window close kill", "Shortcut"),
     ("workspaces", "shortcuts", "Shortcuts", "Open terminal", "terminal foot kitty alacritty shortcut", "Shortcut"),
@@ -84,28 +101,29 @@ EXTRA_ENTRIES = [
     ("workspaces", "shortcuts", "Shortcuts", "Custom keyboard shortcuts", "hotkey keybind shortcut bind", "Your own shortcuts"),
     # Gaming tabs & generated options
     ("gaming", "gamemode", "Gaming", "GameMode", "gamemode performance cpu governor", "Overview"),
-    ("gaming", "games", "Gaming", "NVIDIA Reflex", "reflex low latency nvidia game options", "Game options"),
-    ("gaming", "games", "Gaming", "DLSS", "dlss frame generation upscaling nvidia", "Game options"),
-    ("gaming", "games", "Gaming", "HDR in games", "hdr dxvk gamescope", "Game options"),
-    ("gaming", "games", "Gaming", "NTSync", "ntsync fsync esync wine proton", "Game options"),
-    ("gaming", "games", "Gaming", "FSR / upscaling", "fsr gamescope upscaling sharp", "Game options"),
+    ("gaming", "gpu", "Gaming", "NVIDIA Reflex", "reflex low latency nvidia game options", "Graphics"),
+    ("gaming", "gpu", "Gaming", "DLSS", "dlss frame generation upscaling nvidia", "Graphics"),
+    ("gaming", "gpu", "Gaming", "HDR in games", "hdr dxvk gamescope", "Graphics"),
+    ("gaming", "gpu", "Gaming", "NTSync", "ntsync fsync esync wine proton", "Graphics"),
+    ("gaming", "gpu", "Gaming", "FSR / upscaling", "fsr gamescope upscaling sharp", "Graphics"),
     ("gaming", "overlay", "Gaming", "MangoHud overlay", "mangohud fps overlay hud metrics", "Overlay"),
-    ("gaming", "scheduler", "Gaming", "CPU scheduler (scx)", "sched-ext scx_lavd bpfland ananicy gaming scheduler", "Scheduler"),
-    ("gaming", "proton", "Gaming", "Proton versions (GE-Proton)", "proton wine compatibility ge-proton", "Proton versions"),
-    ("gaming", "gpu", "Gaming", "Graphics card (NVIDIA)", "gpu nvidia power limit clocks", "Graphics card"),
-    # System tabs & dynamic boot/kernel/service rows
-    ("system", "boot", "System", "Boot menu", "refind bootloader dual boot menu", "Boot menu"),
-    ("system", "boot", "System", "Quiet start", "boot kernel quiet refind", "Boot menu"),
-    ("system", "boot", "System", "Splash screen", "plymouth boot splash animation", "Boot menu"),
-    ("system", "boot", "System", "Starts by default", "default boot os windows cachyos", "Boot menu"),
-    ("system", "boot", "System", "Secure Boot", "sbctl uefi keys signed", "Boot menu"),
-    ("system", "boot", "System", "UEFI boot order", "efibootmgr boot priority", "Boot menu"),
-    ("system", "boot", "System", "Restore previous boot menu", "boot backup undo refind", "Boot menu"),
-    ("system", "kernels", "System", "Kernels", "linux kernel cachyos lts headers", "Kernels"),
-    ("system", "systemd", "System", "System services", "systemd service unit daemon start stop", "Services"),
-    ("system", "systemd", "System", "Scheduled tasks", "systemd timer timers cron schedule", "Services"),
-    ("system", "logs", "System", "System logs", "journalctl log logs error warnings crash coredump", "Logs"),
-    ("system", "plugins", "System", "Hyprland plugins", "hyprpm plugin hyprflow hyprscroller", "Plugins"),
+    ("gaming", "proton", "Gaming", "Proton versions (GE-Proton)", "proton wine compatibility ge-proton", "Compatibility"),
+    ("gaming", "gpu", "Gaming", "Graphics card (NVIDIA)", "gpu nvidia power limit clocks", "Graphics"),
+    # Recovery & boot
+    ("recovery", "", "Recovery & boot", "Boot menu", "refind bootloader dual boot menu", "Recovery & boot"),
+    ("recovery", "", "Recovery & boot", "Quiet start", "boot kernel quiet refind", "Recovery & boot"),
+    ("recovery", "", "Recovery & boot", "Splash screen", "plymouth boot splash animation", "Recovery & boot"),
+    ("recovery", "", "Recovery & boot", "Starts by default", "default boot os windows cachyos", "Recovery & boot"),
+    ("recovery", "", "Recovery & boot", "Secure Boot", "sbctl uefi keys signed", "Recovery & boot"),
+    ("recovery", "", "Recovery & boot", "UEFI boot order", "efibootmgr boot priority", "Recovery & boot"),
+    ("recovery", "", "Recovery & boot", "Restore previous boot menu", "boot backup undo refind", "Recovery & boot"),
+    # Advanced tabs & dynamic service rows
+    ("advanced", "systemd", "Advanced", "System services", "systemd service unit daemon start stop", "Services"),
+    ("advanced", "systemd", "Advanced", "Scheduled tasks", "systemd timer timers cron schedule", "Services"),
+    ("advanced", "logs", "Advanced", "System logs", "journalctl log logs error warnings crash coredump", "Logs"),
+    ("advanced", "kernels", "Advanced", "Kernels", "linux kernel cachyos lts headers", "Kernels"),
+    ("advanced", "scheduler", "Advanced", "CPU scheduler (scx)", "sched-ext scx_lavd bpfland ananicy gaming scheduler cpu", "Performance"),
+    ("advanced", "plugins", "Advanced", "Hyprland plugins", "hyprpm plugin hyprflow hyprscroller", "Plugins"),
     # Storage & Account
     ("storage", "backups", "Storage", "Snapshots", "backup backups snapper btrfs restore", "Snapshots"),
     ("storage", "backups", "Storage", "Home folder snapshots", "home partition backup snapper", "Snapshots"),

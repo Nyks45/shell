@@ -19,45 +19,45 @@ VerticalFadeFlickable {
     // Categories folded away (by key), for as long as the window is open
     property var folded: ({})
 
-    // The order, like DankMaterialShell's: the look first, then the shell's panels, work,
-    // hardware, connections, and the system last. A page left out lands in "More".
+    // Windows-like order: core hardware & system first, then devices & network,
+    // personalisation, apps & gaming, account & preferences, updates & advanced.
     readonly property var groups: {
         const spec = [
-            {
-                key: "look",
-                label: Tr.tr("Personalise"),
-                icon: "palette",
-                ids: ["wallpaper", "themes", "windows", "time"]
-            },
-            {
-                key: "shell",
-                label: Tr.tr("Panels & notifications"),
-                icon: "dashboard",
-                ids: ["panels", "notifications"]
-            },
-            {
-                key: "work",
-                label: Tr.tr("Workspaces & apps"),
-                icon: "apps",
-                ids: ["workspaces", "apps", "gaming"]
-            },
-            {
-                key: "hardware",
-                label: Tr.tr("Display & sound"),
-                icon: "monitor",
-                ids: ["display", "audio"]
-            },
-            {
-                key: "connect",
-                label: Tr.tr("Network & devices"),
-                icon: "wifi",
-                ids: ["network", "devices"]
-            },
             {
                 key: "system",
                 label: Tr.tr("System"),
                 icon: "computer",
-                ids: ["power", "storage", "account", "privacy", "accessibility", "system", "about"]
+                ids: ["display", "audio", "notifications", "power", "storage", "recovery", "about"]
+            },
+            {
+                key: "connect",
+                label: Tr.tr("Devices & network"),
+                icon: "devices_other",
+                ids: ["devices", "network"]
+            },
+            {
+                key: "personalise",
+                label: Tr.tr("Personalisation"),
+                icon: "palette",
+                ids: ["wallpaper", "themes", "windows", "panels", "workspaces"]
+            },
+            {
+                key: "apps",
+                label: Tr.tr("Apps & gaming"),
+                icon: "apps",
+                ids: ["apps", "gaming"]
+            },
+            {
+                key: "you",
+                label: Tr.tr("Accounts & preferences"),
+                icon: "person",
+                ids: ["account", "time", "accessibility", "privacy"]
+            },
+            {
+                key: "advanced",
+                label: Tr.tr("Updates & advanced"),
+                icon: "tune",
+                ids: ["updates", "advanced"]
             }
         ];
         const used = new Set();
@@ -100,6 +100,22 @@ VerticalFadeFlickable {
         folded = next;
     }
 
+    function ensureVisible(it: Item): void {
+        Qt.callLater(() => {
+            if (!it || root.height <= 0 || it.height <= 0)
+                return;
+            const pad = Tokens.padding.large;
+            const top = it.mapToItem(contentItem, 0, 0).y;
+            const bot = top + it.height;
+            const minY = -topMargin;
+            const maxY = Math.max(minY, contentHeight - height + bottomMargin);
+            if (top < contentY + pad)
+                contentY = Math.max(minY, top - pad);
+            else if (bot > contentY + height - pad)
+                contentY = Math.min(maxY, bot + pad - height);
+        });
+    }
+
     topMargin: Tokens.padding.small
     bottomMargin: Tokens.padding.large
     contentHeight: content.implicitHeight
@@ -126,6 +142,9 @@ VerticalFadeFlickable {
                 required property int index
                 readonly property bool open: !root.folded[modelData.key]
                 readonly property bool hasCurrent: modelData.pages.some(p => p.index === root.nState.currentPageIdx)
+
+                onHasCurrentChanged: if (hasCurrent && root.folded[modelData.key])
+                    root.toggle(modelData.key)
 
                 Layout.fillWidth: true
                 Layout.topMargin: index === 0 ? 0 : Tokens.spacing.small
@@ -207,6 +226,11 @@ VerticalFadeFlickable {
 
                                 required property var modelData
                                 readonly property bool current: modelData.index === root.nState.currentPageIdx
+
+                                onCurrentChanged: if (current)
+                                    root.ensureVisible(item)
+                                Component.onCompleted: if (current)
+                                    root.ensureVisible(item)
 
                                 Layout.fillWidth: true
                                 implicitHeight: itemRow.implicitHeight + Tokens.padding.small * 2

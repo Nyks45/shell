@@ -8,6 +8,7 @@ import Caelestia.Config
 import Caelestia.I18n
 import qs.components
 import qs.components.controls
+import qs.components.effects
 import qs.services
 
 // Editable list of apps (pinned, hidden, ignore rules) backed by AppPickerDialog.
@@ -55,9 +56,10 @@ ColumnLayout {
                     implicitWidth: 24
                     implicitHeight: 24
 
-                    IconImage {
+                    ThemedIcon {
                         anchors.fill: parent
                         asynchronous: true
+                        monochrome: true
                         visible: !!(entryRect.desktopEntry?.icon)
                         source: entryRect.desktopEntry?.icon ? Quickshell.iconPath(entryRect.desktopEntry.icon, "application-x-executable") : ""
                     }

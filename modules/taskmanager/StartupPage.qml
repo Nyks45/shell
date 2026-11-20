@@ -8,6 +8,7 @@ import Quickshell.Widgets
 import Caelestia.Config
 import qs.components
 import qs.components.controls
+import qs.components.effects
 import qs.services
 import qs.utils
 
@@ -423,7 +424,7 @@ print(json.dumps(out))
                 color: entry.on ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurfaceVariant
             }
 
-            IconImage {
+            ThemedIcon {
                 anchors.fill: parent
                 anchors.margins: 2
                 visible: entry.iconSource !== ""

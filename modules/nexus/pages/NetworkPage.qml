@@ -186,22 +186,14 @@ PageBase {
                     anchors.rightMargin: Tokens.padding.medium
                     spacing: Tokens.spacing.medium
 
-                    StyledRect {
-                        implicitWidth: implicitHeight
-                        implicitHeight: providerIcon.implicitHeight + Tokens.padding.small * 2
-                        radius: Tokens.rounding.full
-                        color: provider.isConnected ? Colours.palette.m3primaryContainer : provider.isSelected ? Colours.palette.m3secondaryContainer : Colours.palette.m3surfaceContainerHighest
+                    MaterialIcon {
+                        id: providerIcon
 
-                        MaterialIcon {
-                            id: providerIcon
-
-                            anchors.centerIn: parent
-                            text: provider.isConnected || provider.isSelected ? "vpn_key" : "vpn_key_off"
-                            fill: provider.isConnected ? 1 : 0
-                            color: provider.isConnected ? Colours.palette.m3onPrimaryContainer : provider.isSelected ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurfaceVariant
-                            fontStyle: Tokens.font.icon.medium
-                            animate: true
-                        }
+                        text: provider.isConnected || provider.isSelected ? "vpn_key" : "vpn_key_off"
+                        fill: provider.isConnected ? 1 : 0
+                        color: provider.isConnected || provider.isSelected ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
+                        fontStyle: Tokens.font.icon.medium
+                        animate: true
                     }
 
                     ColumnLayout {
@@ -334,7 +326,7 @@ PageBase {
 
                     IconButton {
                         implicitWidth: implicitHeight + (Tokens.padding.large - padding) * 2
-                        type: IconButton.Tonal
+                        type: IconButton.Text
                         isRound: true
                         icon: "edit"
                         onClicked: {

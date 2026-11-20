@@ -115,22 +115,14 @@ ColumnLayout {
                 anchors.rightMargin: Tokens.padding.medium
                 spacing: Tokens.spacing.medium
 
-                StyledRect {
-                    implicitWidth: implicitHeight
-                    implicitHeight: ethIcon.implicitHeight + Tokens.padding.small * 2
-                    radius: Tokens.rounding.full
-                    color: ethRow.isConnected ? Colours.palette.m3primaryContainer : Colours.palette.m3surfaceContainerHighest
+                MaterialIcon {
+                    id: ethIcon
 
-                    MaterialIcon {
-                        id: ethIcon
-
-                        anchors.centerIn: parent
-                        text: ethRow.isConnected ? "lan" : "settings_ethernet"
-                        fill: text === "lan" ? 1 : 0
-                        color: ethRow.isConnected ? Colours.palette.m3onPrimaryContainer : Colours.palette.m3onSurfaceVariant
-                        fontStyle: Tokens.font.icon.medium
-                        animate: true
-                    }
+                    text: ethRow.isConnected ? "lan" : "settings_ethernet"
+                    fill: text === "lan" ? 1 : 0
+                    color: ethRow.isConnected ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
+                    fontStyle: Tokens.font.icon.medium
+                    animate: true
                 }
 
                 // Name + interface
@@ -205,7 +197,7 @@ ColumnLayout {
 
                 // Connect / disconnect
                 IconButton {
-                    type: IconButton.Tonal
+                    type: IconButton.Text
                     isToggle: true
                     isRound: true
                     checked: ethRow.isConnected

@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Widgets
 import Caelestia.Config
 import qs.components
+import qs.components.effects
 import qs.services
 import qs.modules.launcher.services
 
@@ -77,7 +78,7 @@ GridView {
             width: parent.width - Tokens.padding.small * 2
             spacing: Tokens.spacing.small
 
-            IconImage {
+            ThemedIcon {
                 anchors.horizontalCenter: parent.horizontalCenter
                 implicitSize: 48
                 asynchronous: true

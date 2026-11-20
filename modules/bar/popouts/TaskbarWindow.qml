@@ -11,6 +11,7 @@ import Caelestia
 import Caelestia.Config
 import qs.components
 import qs.components.controls
+import qs.components.effects
 import qs.services
 import qs.utils
 
@@ -77,7 +78,7 @@ Item {
             Layout.leftMargin: Tokens.padding.extraSmall
             spacing: Tokens.spacing.small
 
-            IconImage {
+            ThemedIcon {
                 implicitSize: 20
                 asynchronous: true
                 source: root.app?.entry?.icon ? Quickshell.iconPath(root.app.entry.icon, "application-x-executable") : Icons.getAppIcon(root.app?.cls ?? "", "application-x-executable")
@@ -221,7 +222,7 @@ Item {
                     constraintSize.height: card.previewW / card.aspect
                 }
 
-                IconImage {
+                ThemedIcon {
                     anchors.centerIn: parent
                     anchors.verticalCenterOffset: -8
                     visible: card.minimized

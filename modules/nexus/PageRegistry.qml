@@ -11,38 +11,6 @@ QtObject {
 
     readonly property list<var> pages: [
         {
-            id: "wallpaper",
-            label: Tr.tr("Wallpaper & style"),
-            icon: "palette",
-            description: Tr.tr("Wallpaper, colours, dark theme"),
-            keywords: "background theme colour scheme light dark mode transparency desktop icons live wallpaper engine animated video workshop playlist & style",
-            category: "personalise"
-        },
-        {
-            id: "themes",
-            label: Tr.tr("Fonts & themes"),
-            icon: "text_fields",
-            description: Tr.tr("Fonts, icon theme, app style"),
-            keywords: "typeface font size text smoothing hinting antialiasing icons theme gtk qt look style papirus fonts app appearance",
-            category: "personalise"
-        },
-        {
-            id: "windows",
-            label: Tr.tr("Windows"),
-            icon: "select_window",
-            description: Tr.tr("Look, title bars, snapping"),
-            keywords: "border rounding opacity transparency effects hyprflow floating windows like title bar snap minimize maximize corners desktop mode",
-            category: "personalise"
-        },
-        {
-            id: "panels",
-            label: Tr.tr("Panels"),
-            icon: "dock_to_bottom",
-            description: Tr.tr("Taskbar, dashboard, launcher, sidebar"),
-            keywords: "bar taskbar dashboard launcher sidebar lock screen osd power menu lyrics media player polling volume step panels shell services",
-            category: "personalise"
-        },
-        {
             id: "display",
             label: Tr.tr("Display"),
             icon: "monitor",
@@ -54,8 +22,8 @@ QtObject {
             id: "audio",
             label: Tr.tr("Sound"),
             icon: "volume_up",
-            description: Tr.tr("Devices, app volumes, sounds"),
-            keywords: "sound volume speakers microphone headphones output input notification audio",
+            description: Tr.tr("Devices, app volumes, sounds, volume step"),
+            keywords: "sound volume speakers microphone headphones output input notification audio step max boost",
             category: "system"
         },
         {
@@ -83,12 +51,28 @@ QtObject {
             category: "system"
         },
         {
+            id: "recovery",
+            label: Tr.tr("Recovery & boot"),
+            icon: "settings_backup_restore",
+            description: Tr.tr("Boot menu, default system, Secure Boot, UEFI"),
+            keywords: "refind boot menu bootloader grub theme secure boot sbctl uefi bios firmware fwupd windows dual boot timeout recovery restore &",
+            category: "system"
+        },
+        {
+            id: "about",
+            label: Tr.tr("About"),
+            icon: "info",
+            description: Tr.tr("System information, credits"),
+            keywords: "system information version hardware cpu gpu memory about",
+            category: "system"
+        },
+        {
             id: "devices",
             label: Tr.tr("Devices"),
             icon: "devices_other",
             description: Tr.tr("Bluetooth, keyboard, mouse, lighting, fans"),
             keywords: "rgb lighting openrgb mystic light leds colour effect keyboard lighting fans fan curve speed rpm cooling temperature cpu fan pump dpi polling report rate logitech solaar bluetooth pair headphones mouse keyboard battery layout language pointer sensitivity scroll touchpad cursor connected devices &",
-            category: "devices",
+            category: "connect",
             noFill: true
         },
         {
@@ -97,22 +81,62 @@ QtObject {
             icon: "wifi",
             description: Tr.tr("Wi-Fi, ethernet, VPN"),
             keywords: "internet wifi wireless ethernet vpn wireguard ip dns network",
-            category: "devices"
+            category: "connect"
         },
         {
-            id: "apps",
-            label: Tr.tr("Apps"),
-            icon: "apps",
-            description: Tr.tr("Updates, default apps, startup apps"),
-            keywords: "default applications browser editor file manager open with favourites autostart startup login update upgrade packages pacman aur flatpak apps updates",
-            category: "apps"
+            id: "wallpaper",
+            label: Tr.tr("Wallpaper & style"),
+            icon: "palette",
+            description: Tr.tr("Background, colours, effects, desktop, lock screen"),
+            keywords: "background wallpaper theme colour scheme light dark mode transparency blur frosted glass desktop icons widgets visualiser lock screen fingerprint face live animated video workshop playlist & style",
+            category: "personalise"
+        },
+        {
+            id: "themes",
+            label: Tr.tr("Fonts & themes"),
+            icon: "text_fields",
+            description: Tr.tr("Fonts, icon theme, app style"),
+            keywords: "typeface font size text smoothing hinting antialiasing icons theme gtk qt look style papirus fonts app appearance &",
+            category: "personalise"
+        },
+        {
+            id: "windows",
+            label: Tr.tr("Windows"),
+            icon: "select_window",
+            description: Tr.tr("Look, desktop mode, title bars, app rules"),
+            keywords: "border rounding opacity transparency effects hyprflow floating windows like title bar font blur buttons snap minimize maximize corners desktop mode app rules window rules",
+            category: "personalise"
+        },
+        {
+            id: "panels",
+            label: Tr.tr("Panels"),
+            icon: "dock_to_bottom",
+            description: Tr.tr("Taskbar, dashboard, launcher, media, shell style"),
+            keywords: "bar taskbar dashboard launcher osd tray lyrics media player default player shell style compact pill full classic panels",
+            category: "personalise"
         },
         {
             id: "workspaces",
             label: Tr.tr("Workspaces & shortcuts"),
             icon: "view_quilt",
             description: Tr.tr("Focus, workspaces, shortcuts, screenshots"),
-            keywords: "focus follows mouse workspaces window rules float scrolling layout columns keybinds hotkeys shortcuts binds keys screenshot print capture snip clipboard swappy satty editor recording video record & keyboard screenshots",
+            keywords: "focus follows mouse workspaces float scrolling layout columns keybinds hotkeys shortcuts binds keys screenshot print capture snip clipboard swappy satty editor recording video record & keyboard screenshots",
+            category: "personalise"
+        },
+        {
+            id: "apps",
+            label: Tr.tr("Apps"),
+            icon: "apps",
+            description: Tr.tr("Installed apps, get apps, default apps, startup"),
+            keywords: "default applications browser editor file manager open with favourites autostart startup login packages pacman aur flatpak apps installed",
+            category: "apps"
+        },
+        {
+            id: "gaming",
+            label: Tr.tr("Gaming"),
+            icon: "sports_esports",
+            description: Tr.tr("Overview, library, graphics, Proton, overlay"),
+            keywords: "library my games per game faugus add game launch options games gaming game mode tearing fullscreen performance nvidia nvidia-settings graphics card gpu power limit persistence driver dlss reflex smooth motion frame generation hdr ntsync shader cache proton proton-ge protonplus wine lutris heroic steam compatibility tool mangohud goverlay overlay fps counter frame limit",
             category: "apps"
         },
         {
@@ -148,36 +172,35 @@ QtObject {
             category: "you"
         },
         {
-            id: "gaming",
-            label: Tr.tr("Gaming"),
-            icon: "sports_esports",
-            description: Tr.tr("Games, graphics card, Proton, overlay"),
-            keywords: "library my games per game faugus add game launch options games gaming game mode tearing fullscreen performance nvidia nvidia-settings graphics card gpu power limit persistence driver dlss reflex smooth motion frame generation hdr ntsync shader cache proton proton-ge protonplus wine lutris heroic steam launch options compatibility tool mangohud goverlay overlay fps counter frame limit scheduler sched-ext scx scx_lavd bpfland ananicy cpu",
-            category: "you"
-        },
-        {
-            id: "system",
-            label: Tr.tr("System"),
-            icon: "settings_applications",
-            description: Tr.tr("Boot menu, kernels, services, logs"),
-            keywords: "refind boot menu bootloader grub theme kernel kernels linux-cachyos lts secure boot sbctl uefi bios firmware fwupd windows dual boot timeout systemd service services daemon unit start stop restart enable disable mask boot startup timer timers scheduled task cron failed journal journalctl log logs error errors warnings previous crash crashes coredump bug report dmesg hyprpm plugins hyprland system",
+            id: "updates",
+            label: Tr.tr("Updates"),
+            icon: "system_update",
+            description: Tr.tr("System, AUR and Flatpak updates, news"),
+            keywords: "update upgrade updates packages pacman aur flatpak pacnew news restart automatic checks",
             category: "advanced"
         },
         {
-            id: "about",
-            label: Tr.tr("About"),
-            icon: "info",
-            description: Tr.tr("System information, credits"),
-            keywords: "system information version hardware cpu gpu memory about",
+            id: "advanced",
+            label: Tr.tr("Advanced"),
+            icon: "settings_applications",
+            description: Tr.tr("Services, logs, kernels, performance, plugins"),
+            keywords: "systemd service services daemon unit start stop restart enable disable mask timer timers scheduled task cron failed journal journalctl log logs error errors warnings crash coredump dmesg kernel kernels linux-cachyos lts headers scheduler sched-ext scx lavd bpfland ananicy polling refresh rate gpu monitoring hyprpm plugins hyprland system",
             category: "advanced"
         }
     ]
-    // Former page ids (pages merged on 2026-11-08) -> the page that holds them now
+    // Former and tab-specific page ids -> the top-level page that holds them now
     readonly property var aliases: ({
             "style": "wallpaper",
+            background: "wallpaper",
+            colours: "wallpaper",
+            effects: "wallpaper",
+            desktop: "wallpaper",
+            lockscreen: "wallpaper",
             fonts: "themes",
             appearance: "themes",
             desktopmode: "windows",
+            titlebars: "windows",
+            apprules: "windows",
             services: "panels",
             backups: "storage",
             disks: "storage",
@@ -186,7 +209,6 @@ QtObject {
             lighting: "devices",
             fans: "devices",
             startup: "apps",
-            updates: "apps",
             getapps: "apps",
             installed: "apps",
             defaultapps: "apps",
@@ -195,17 +217,20 @@ QtObject {
             screenshots: "workspaces",
             datetime: "time",
             language: "time",
-            systemd: "system",
-            logs: "system",
-            plugins: "system",
-            boot: "system",
-            kernels: "system",
+            boot: "recovery",
+            system: "advanced",
+            systemd: "advanced",
+            logs: "advanced",
+            kernels: "advanced",
+            plugins: "advanced",
+            scheduler: "advanced",
+            performance: "advanced",
+            gamemode: "gaming",
             library: "gaming",
             gpu: "gaming",
             games: "gaming",
             proton: "gaming",
-            overlay: "gaming",
-            scheduler: "gaming"
+            overlay: "gaming"
         })
 
     // A tab to show when a page opens at a former id (createAt "updates" ->

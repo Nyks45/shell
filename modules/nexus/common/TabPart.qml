@@ -11,6 +11,7 @@ ColumnLayout {
     property string title
     // Its former page id (a page opened at it shows this tab: PageRegistry.pendingTab)
     property string key
+    property list<string> altKeys
     property string icon
     // What it has (its row before one is chosen)
     property string summary

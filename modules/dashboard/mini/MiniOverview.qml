@@ -9,6 +9,7 @@ import Caelestia.I18n
 import Caelestia.Services
 import qs.components
 import qs.components.controls
+import qs.components.effects
 import qs.services
 import qs.utils
 
@@ -353,7 +354,7 @@ Item {
                         }
                     }
 
-                    IconImage {
+                    ThemedIcon {
                         anchors.centerIn: parent
                         implicitSize: 24
                         asynchronous: true

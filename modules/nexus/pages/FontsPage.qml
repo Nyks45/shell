@@ -6,11 +6,10 @@ import Caelestia.Config
 import Caelestia.I18n
 import qs.components.controls
 import qs.services
-import qs.modules.nexus
 import qs.modules.nexus.common
 
-// Fonts: the shell's own, apps' (GTK through gsettings, Qt through qtengine),
-// the window title bars' (hyprflow) and how text is drawn.
+// Fonts: the shell's own, apps' (GTK through gsettings, Qt through qtengine)
+// and how text is drawn.
 PageBase {
     id: root
 
@@ -124,66 +123,6 @@ PageBase {
                 AppLook.setGtkFont("monospace-font-name", root.gtkMono.family, v);
                 AppLook.setQt("fontFixedSize", v);
             }
-        }
-
-        SectionHeader {
-            text: Tr.tr("Window title bars")
-        }
-
-        RequirementRow {
-            visible: HyprSettings.values["plugin:hyprflow:bar_font"] === undefined
-            text: Tr.tr("Needs the hyprflow plugin")
-            subtext: Tr.tr("Window title bars come from hyprflow, which isn't loaded.")
-            actionText: Tr.tr("Plugins")
-            onAction: root.nState.goTo({
-                page: PageRegistry.find("plugins"),
-                tab: "plugins",
-                path: []
-            })
-        }
-
-        FontRow {
-            visible: HyprSettings.values["plugin:hyprflow:bar_font"] !== undefined
-            label: Tr.tr("Title font")
-            family: HyprSettings.value("plugin:hyprflow:bar_font", "")
-            onPicked: f => HyprSettings.setHyprflow("bar_font", f)
-        }
-
-        StepperRow {
-            visible: HyprSettings.values["plugin:hyprflow:bar_font"] !== undefined
-            label: Tr.tr("Title size")
-            subtext: Tr.tr("In points")
-            value: HyprSettings.value("plugin:hyprflow:bar_text_size", 10)
-            from: 7
-            to: 18
-            stepSize: 1
-            onMoved: v => HyprSettings.setHyprflow("bar_text_size", v)
-        }
-
-        SelectRow {
-            visible: HyprSettings.values["plugin:hyprflow:bar_font"] !== undefined
-            label: Tr.tr("Title weight")
-            menuOnTop: true
-            menuItems: [
-                MenuItem {
-                    text: Tr.tr("Regular")
-                    value: 400
-                },
-                MenuItem {
-                    text: Tr.tr("Medium")
-                    value: 500
-                },
-                MenuItem {
-                    text: Tr.tr("Semi-bold")
-                    value: 600
-                },
-                MenuItem {
-                    text: Tr.tr("Bold")
-                    value: 700
-                }
-            ]
-            active: menuItems.find(i => i.value === HyprSettings.value("plugin:hyprflow:bar_text_weight", 600)) ?? null
-            onSelected: item => HyprSettings.setHyprflow("bar_text_weight", item.value)
         }
 
         SectionHeader {

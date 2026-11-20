@@ -9,6 +9,7 @@ import Caelestia.Config
 import Caelestia.I18n
 import qs.components
 import qs.components.controls
+import qs.components.effects
 import qs.services
 import qs.modules.nexus.common
 
@@ -103,7 +104,7 @@ PageBase {
 
                 readonly property string src: root.info?.icon ? `file://${root.info.icon}` : root.info?.iconName && Quickshell.iconPath(root.info.iconName, true) ? Quickshell.iconPath(root.info.iconName, true) : root.entry?.icon ? Quickshell.iconPath(root.entry.icon, true) : Quickshell.iconPath(root.sel?.name ?? "", true)
 
-                IconImage {
+                ThemedIcon {
                     anchors.fill: parent
                     visible: !!parent.src
                     asynchronous: true

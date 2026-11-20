@@ -156,6 +156,10 @@ Scope {
 
         // At a page: `caelestia shell nexus openPage wallpaper live`
         function openPage(page: string, sub: string): void {
+            if (page === "wallpaper" && sub === "colours") {
+                WindowFactory.createAt("colours", []);
+                return;
+            }
             const subs = {
                 live: [4],
                 playlists: [4, 6],

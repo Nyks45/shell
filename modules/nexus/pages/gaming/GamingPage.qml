@@ -6,10 +6,8 @@ import Caelestia.Config
 import Caelestia.I18n
 import qs.modules.nexus.common
 
-// Gaming: the overview (game mode, tearing…), the games of every launcher
-// (each with its own settings: GamePage), the graphics card, options for
-// every game, Proton versions, the overlay and the CPU scheduler; one at a
-// time. The parts are pages, embedded (PageBase.embedded).
+// Gaming: overview, library (with per-game settings), graphics (GPU + global
+// game options), Proton compatibility versions, and MangoHud overlay; 5 single-row tabs.
 PageBase {
     id: root
 
@@ -22,7 +20,7 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         PartTabs {
-            parts: [overviewPart, libraryPart, gpuPart, gamesPart, protonPart, overlayPart, schedulerPart]
+            parts: [overviewPart, libraryPart, graphicsPart, compatPart, overlayPart]
         }
 
         TabPart {
@@ -52,36 +50,38 @@ PageBase {
         }
 
         TabPart {
-            id: gpuPart
+            id: graphicsPart
 
             key: "gpu"
-            title: Tr.tr("Graphics card")
+            altKeys: ["games"]
+            title: Tr.tr("Graphics")
 
-            GpuPage {
-                embedded: true
-                nState: root.nState
-                hostFlickable: root.flickable
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Tokens.spacing.extraSmall / 2
+
+                GpuPage {
+                    embedded: true
+                    Layout.fillWidth: true
+                    nState: root.nState
+                    hostFlickable: root.flickable
+                }
+
+                GameOptionsPage {
+                    embedded: true
+                    Layout.fillWidth: true
+                    Layout.topMargin: Tokens.spacing.largeIncreased
+                    nState: root.nState
+                    hostFlickable: root.flickable
+                }
             }
         }
 
         TabPart {
-            id: gamesPart
-
-            key: "games"
-            title: Tr.tr("Game options")
-
-            GameOptionsPage {
-                embedded: true
-                nState: root.nState
-                hostFlickable: root.flickable
-            }
-        }
-
-        TabPart {
-            id: protonPart
+            id: compatPart
 
             key: "proton"
-            title: Tr.tr("Proton versions")
+            title: Tr.tr("Compatibility")
 
             ProtonPage {
                 embedded: true
@@ -97,19 +97,6 @@ PageBase {
             title: Tr.tr("Overlay")
 
             OverlayPage {
-                embedded: true
-                nState: root.nState
-                hostFlickable: root.flickable
-            }
-        }
-
-        TabPart {
-            id: schedulerPart
-
-            key: "scheduler"
-            title: Tr.tr("Scheduler")
-
-            SchedulerPage {
                 embedded: true
                 nState: root.nState
                 hostFlickable: root.flickable

@@ -9,6 +9,7 @@ import Caelestia.Config
 import Caelestia.Models
 import qs.components
 import qs.components.controls
+import qs.components.effects
 import qs.services
 import qs.modules.nexus
 
@@ -375,7 +376,7 @@ Item {
         Component {
             id: themed
 
-            IconImage {
+            ThemedIcon {
                 asynchronous: true
                 implicitSize: root.iconSize
                 source: {

@@ -155,7 +155,7 @@ Item {
 
             anchors.fill: parent
 
-            deformScale: 0.00005
+            deformScale: root.open || dialogTransition.running ? 0.00005 : 0
             group: blobGroup
             opacity: blobGroup.color.a
 

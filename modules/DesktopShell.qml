@@ -40,7 +40,7 @@ Scope {
         running: true
         onTriggered: {
             // Pre-warm the default Settings landing page in idle time so opening Settings is instant
-            PageCompRegistry.subComp("WallpaperAndStyle.qml");
+            PageCompRegistry.subComp("DisplayPage.qml");
         }
     }
 

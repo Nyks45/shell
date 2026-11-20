@@ -2,15 +2,12 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
-import Quickshell
-import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
 import qs.components.containers
 import qs.components.controls
 import qs.services
-import qs.modules.drawers
 import qs.modules.nexus.common
 
 // A font setting: the current family, shown in itself; clicking opens a
@@ -22,23 +19,28 @@ ConnectedRect {
     property string subtext
     property string family
     property bool monoOnly
-    property bool expanded
+    property alias expanded: popup.expanded
+    property string query
 
     readonly property var list: {
         const all = monoOnly ? Fonts.monoFamilies : Fonts.families;
-        const q = filter.text.trim().toLowerCase();
+        const q = query.trim().toLowerCase();
         return q ? all.filter(f => f.toLowerCase().includes(q)) : all;
     }
 
     signal picked(family: string)
 
     onVisibleChanged: if (!visible)
-        expanded = false
-    onExpandedChanged: if (!expanded)
-        filter.text = ""
+        popup.expanded = false
 
     Layout.fillWidth: true
     implicitHeight: headerRow.implicitHeight + Tokens.padding.medium * 2
+
+    FontMetrics {
+        id: entryMetrics
+
+        font: Tokens.font.body.small
+    }
 
     RowLayout {
         id: headerRow
@@ -87,16 +89,16 @@ ConnectedRect {
             color: Colours.palette.m3secondaryContainer
 
             onVisibleChanged: if (!visible)
-                root.expanded = false
+                popup.expanded = false
 
             StateLayer {
                 anchors.fill: parent
                 radius: parent.radius
                 color: Colours.palette.m3onSecondaryContainer
                 onClicked: {
-                    root.expanded = !root.expanded;
-                    if (root.expanded)
-                        Qt.callLater(() => filter.forceActiveFocus());
+                    popup.expanded = !popup.expanded;
+                    if (popup.expanded)
+                        Qt.callLater(() => (popup.item as Item)?.forceActiveFocus());
                 }
             }
 
@@ -121,104 +123,87 @@ ConnectedRect {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.rightMargin: Tokens.padding.medium
-                text: root.expanded ? "expand_less" : "expand_more"
+                text: popup.expanded ? "expand_less" : "expand_more"
                 color: Colours.palette.m3onSecondaryContainer
                 fontStyle: Tokens.font.icon.small
             }
         }
     }
 
-    TransformWatcher {
-        id: tWatcher
+    FloatingPopup {
+        id: popup
 
-        a: backdrop.parent
-        b: pill
-    }
+        readonly property real rowH: Math.ceil(entryMetrics.height) + Tokens.padding.small * 2
+        readonly property real searchH: Math.ceil(entryMetrics.height) + Tokens.padding.small * 2
+        readonly property real listH: root.list.length > 0 ? Math.min(210, root.list.length * rowH + Math.max(0, root.list.length - 1) * 2) : 48
 
-    // Floating overlay in the window's content area so opening it doesn't push
-    // rows below down and clicking outside closes it immediately
-    MouseArea {
-        id: backdrop
+        attachTo: pill
+        ownArea: pill
+        contentWidth: 256
+        contentHeight: searchH + Tokens.spacing.small + listH
+        maxHeight: 280
+        onExpandedChanged: if (expanded)
+            root.query = ""
+        onActiveChanged: if (!active)
+            root.query = ""
 
-        parent: {
-            const win = QsWindow.window;
-            if (!win)
-                return root;
-            const contentWin = win as ContentWindow;
-            return contentWin ? contentWin.interactionWrapper : (win as QsWindow).contentItem;
-        }
-        anchors.fill: parent
-        visible: root.expanded && pill.visible
-        enabled: visible
-        hoverEnabled: visible
-        z: 10
-        onClicked: root.expanded = false
-
-        StyledRect {
-            id: popupPanel
-
-            readonly property point pillPos: {
-                CUtils.dependency(tWatcher.transform);
-                return pill.mapToItem(backdrop, 0, 0);
-            }
-            readonly property real belowY: pillPos.y + pill.height + Tokens.spacing.small
-            readonly property real aboveY: pillPos.y - height - Tokens.spacing.small
-            readonly property real maxX: Math.max(Tokens.padding.medium, backdrop.width - width - Tokens.padding.medium)
-            readonly property real maxY: Math.max(Tokens.padding.medium, backdrop.height - height - Tokens.padding.medium)
-
-            x: CUtils.clamp(pillPos.x + pill.width - width, Tokens.padding.medium, maxX)
-            y: belowY + height <= backdrop.height - Tokens.padding.medium ? belowY : CUtils.clamp(aboveY, Tokens.padding.medium, maxY)
-            width: Math.min(360, Math.max(240, backdrop.width - Tokens.padding.medium * 2))
-            implicitHeight: popupCol.implicitHeight + Tokens.padding.small * 2
-
-            radius: Tokens.rounding.large
-            color: Colours.palette.m3surfaceContainerHigh
-            border.width: 1
-            border.color: Colours.palette.m3outlineVariant
-
-            // Swallow clicks inside the popup so the backdrop doesn't dismiss it
-            MouseArea {
-                anchors.fill: parent
-            }
-
+        content: Component {
             ColumnLayout {
                 id: popupCol
 
-                anchors.fill: parent
-                anchors.margins: Tokens.padding.small
+                function focusSearch(): void {
+                    filter.forceActiveFocus();
+                }
+
                 spacing: Tokens.spacing.small
+
+                onActiveFocusChanged: if (activeFocus)
+                    focusSearch()
 
                 SearchBar {
                     id: filter
 
                     Layout.fillWidth: true
+                    implicitHeight: popup.searchH
                     placeholderText: Tr.tr("Search fonts")
                     font: Tokens.font.body.small
-                    topPadding: Tokens.padding.medium
-                    bottomPadding: Tokens.padding.medium
-                    bg.color: Colours.palette.m3surfaceContainer
-                    Keys.onEscapePressed: root.expanded = false
+                    topPadding: Tokens.padding.small
+                    bottomPadding: Tokens.padding.small
+                    bg.color: Colours.tPalette.m3surfaceContainerLowest
+                    bg.border.width: 1
+                    bg.border.color: Qt.alpha(Colours.palette.m3outlineVariant, 0.35)
+                    onTextChanged: root.query = text
+                    Keys.onEscapePressed: popup.expanded = false
                     onAccepted: {
                         if (root.list.length > 0) {
                             root.picked(root.list[0]);
-                            root.expanded = false;
+                            popup.expanded = false;
                         }
+                    }
+
+                    Connections {
+                        function onQueryChanged(): void {
+                            if (filter.text !== root.query)
+                                filter.text = root.query;
+                        }
+
+                        target: root
                     }
                 }
 
-                StyledRect {
+                Item {
                     Layout.fillWidth: true
-                    implicitHeight: 260
-                    radius: Tokens.rounding.medium
-                    color: Colours.palette.m3surfaceContainerLow
+                    Layout.fillHeight: true
 
                     VerticalFadeListView {
                         id: listView
 
                         anchors.fill: parent
-                        anchors.margins: Tokens.padding.extraSmall
                         clip: true
-                        model: root.expanded ? root.list : []
+                        fadeAmount: 0.08
+                        spacing: 2
+                        boundsBehavior: Flickable.StopAtBounds
+                        model: root.list
                         reuseItems: true
 
                         delegate: StyledRect {
@@ -228,16 +213,17 @@ ConnectedRect {
                             readonly property bool current: modelData === root.family
 
                             width: ListView.view.width
-                            implicitHeight: entryText.implicitHeight + Tokens.padding.small * 2
-                            radius: Tokens.rounding.small
-                            color: current ? Colours.palette.m3tertiaryContainer : "transparent"
+                            implicitHeight: popup.rowH
+                            radius: height / 2
+                            color: current ? Colours.palette.m3secondaryContainer : "transparent"
 
                             StateLayer {
                                 anchors.fill: parent
                                 radius: parent.radius
+                                color: entry.current ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
                                 onClicked: {
                                     root.picked(entry.modelData);
-                                    root.expanded = false;
+                                    popup.expanded = false;
                                 }
                             }
 
@@ -251,8 +237,8 @@ ConnectedRect {
                                 anchors.rightMargin: Tokens.padding.medium
                                 text: entry.modelData
                                 font.family: entry.modelData
-                                font.pointSize: Tokens.font.body.medium.pointSize
-                                color: entry.current ? Colours.palette.m3onTertiaryContainer : Colours.palette.m3onSurface
+                                font.pointSize: Tokens.font.body.small.pointSize
+                                color: entry.current ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3onSurface
                                 elide: Text.ElideRight
                             }
                         }
