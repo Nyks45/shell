@@ -42,6 +42,25 @@ PageBase {
 
     property string powerProfile
     property list<string> powerProfiles
+    property bool powerProfilesChecked
+    property var activeInhibitors: []
+
+    readonly property string inhibitorSummary: {
+        const reasons = [];
+        for (const item of activeInhibitors)
+            if (!reasons.includes(item))
+                reasons.push(item);
+        if (GlobalConfig.general.idle.inhibitWhenAudio) {
+            for (const p of Players.list) {
+                if (p?.isPlaying) {
+                    const name = Players.getIdentity(p) || Tr.tr("Media playback");
+                    if (!reasons.includes(name))
+                        reasons.push(name);
+                }
+            }
+        }
+        return reasons.join(", ");
+    }
 
     // The idle timeout doing `kind` (lock, screen, sleep), or null
     function timeoutFor(kind: string): var {
@@ -127,13 +146,7 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         SectionHeader {
-            text: Tr.tr("When idle")
-        }
-
-        TimeoutRow {
-            kind: "lock"
-            label: Tr.tr("Lock the screen after")
-            subtext: Tr.tr("Time without input before the lock screen shows")
+            text: Tr.tr("Screen & sleep")
         }
 
         TimeoutRow {
@@ -143,13 +156,15 @@ PageBase {
         }
 
         TimeoutRow {
+            kind: "lock"
+            label: Tr.tr("Lock the screen after")
+            subtext: Tr.tr("Time without input before the lock screen shows")
+        }
+
+        TimeoutRow {
             kind: "sleep"
             label: Tr.tr("Sleep after")
             subtext: Tr.tr("The PC goes to sleep; press a key or the power button to wake it")
-        }
-
-        SectionHeader {
-            text: Tr.tr("Sleep")
         }
 
         ToggleRow {
@@ -159,6 +174,10 @@ PageBase {
             onToggled: GlobalConfig.general.idle.lockBeforeSleep = checked
         }
 
+        SectionHeader {
+            text: Tr.tr("Keep awake")
+        }
+
         ToggleRow {
             text: Tr.tr("Stay awake while audio plays")
             subtext: Tr.tr("Music or a video playing keeps the screen on and the PC awake")
@@ -166,9 +185,22 @@ PageBase {
             onToggled: GlobalConfig.general.idle.inhibitWhenAudio = checked
         }
 
+        ToggleRow {
+            text: Tr.tr("Stay awake in fullscreen apps")
+            subtext: Tr.tr("No screen lock or sleep while a game or video is fullscreen")
+            checked: HyprSettings.saved.fullscreenInhibit ?? false
+            onToggled: HyprSettings.setFullscreenInhibit(checked)
+        }
+
+        InfoRow {
+            visible: root.inhibitorSummary.length > 0
+            icon: "bolt"
+            label: Tr.tr("Currently kept awake by")
+            subtext: root.inhibitorSummary
+        }
+
         SectionHeader {
-            visible: root.powerProfiles.length > 0
-            text: Tr.tr("Power mode")
+            text: Tr.tr("Performance")
         }
 
         SelectRow {
@@ -194,6 +226,14 @@ PageBase {
                     value: modelData
                 }
             }
+        }
+
+        RequirementRow {
+            visible: root.powerProfilesChecked && root.powerProfiles.length === 0
+            neutral: true
+            icon: "speed"
+            text: Tr.tr("Power modes aren't available")
+            subtext: Tr.tr("power-profiles-daemon isn't running or isn't installed.")
         }
 
         // The power button: logind handles it (shut down, sleep, nothing);
@@ -265,6 +305,7 @@ PageBase {
             stdout: StdioCollector {
                 onStreamFinished: root.powerProfiles = Strings.allMatches(text, /^[ *]+([a-z-]+):\s*$/gm).map(m => m[1])
             }
+            onExited: root.powerProfilesChecked = true
         }
 
         Process {
@@ -272,6 +313,33 @@ PageBase {
             command: ["powerprofilesctl", "get"]
             stdout: StdioCollector {
                 onStreamFinished: root.powerProfile = text.trim()
+            }
+        }
+
+        Process {
+            id: inhibitProc
+
+            running: true
+            command: ["systemd-inhibit", "--list", "--json=short"]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    try {
+                        const list = JSON.parse(text);
+                        root.activeInhibitors = list
+                            .filter(e => e.mode === "block" && String(e.what ?? "").split(":").some(w => w === "idle" || w === "sleep"))
+                            .map(e => e.why ? `${e.who} (${e.why})` : String(e.who ?? ""));
+                    } catch (e) {}
+                }
+            }
+        }
+
+        Timer {
+            interval: 5000
+            running: root.visible
+            repeat: true
+            onTriggered: {
+                inhibitProc.running = false;
+                inhibitProc.running = true;
             }
         }
     }

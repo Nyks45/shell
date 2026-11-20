@@ -47,18 +47,23 @@ PageBase {
         }
 
         ToggleRow {
-            text: Tr.tr("Keep the screen awake in fullscreen")
-            subtext: Tr.tr("No screen lock or sleep while a game or video is fullscreen")
-            checked: HyprSettings.saved.fullscreenInhibit ?? false
-            onToggled: HyprSettings.setFullscreenInhibit(checked)
-        }
-
-        ToggleRow {
             disabled: HyprSettings.values["plugin:hyprscrolling:fullscreen_screen_sized"] === undefined
             text: Tr.tr("Games open fullscreen")
             subtext: HyprSettings.values["plugin:hyprscrolling:fullscreen_screen_sized"] === undefined ? Tr.tr("Needs the hyprscroller plugin (the scrolling layout)") : Tr.tr("Older games that open at the screen's size go fullscreen instead of into a column")
             checked: HyprSettings.value("plugin:hyprscrolling:fullscreen_screen_sized", false)
             onToggled: HyprSettings.setOption("plugin:hyprscrolling:fullscreen_screen_sized", checked ? 1 : 0)
+        }
+
+        NavRow {
+            icon: "visibility"
+            text: Tr.tr("Keep the screen awake in fullscreen")
+            subtext: (HyprSettings.saved.fullscreenInhibit ? Tr.tr("On") : Tr.tr("Off")) + " · " + Tr.tr("On Power & sleep")
+            onClicked: root.nState.goTo({
+                page: PageRegistry.find("power"),
+                path: [],
+                text: Tr.tr("Stay awake in fullscreen apps"),
+                sectionText: Tr.tr("Keep awake")
+            })
         }
 
         NavRow {

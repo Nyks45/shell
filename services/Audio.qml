@@ -18,6 +18,7 @@ Singleton {
     property list<PwNode> sinks: []
     property list<PwNode> sources: []
     property list<PwNode> streams: []
+    property list<PwNode> recordingStreams: []
 
     readonly property PwNode sink: Pipewire.defaultAudioSink
     readonly property PwNode source: Pipewire.defaultAudioSource
@@ -106,10 +107,32 @@ Singleton {
         return stream.properties["application.name"] || stream.description || stream.name || Tr.trCtx("Unknown application", "unknown application audio stream");
     }
 
+    // Friendly device name for Settings dropdowns and lists.
+    function friendlyDeviceName(node: PwNode): string {
+        if (!node)
+            return Tr.trCtx("Unknown", "unknown audio device");
+        const nick = node.properties?.["node.nick"];
+        const raw = nick || node.description || node.name || "";
+        return raw.replace(/\s*High Definition Audio Controller\b/g, "").replace(/\s{2,}/g, " ").trim() || Tr.trCtx("Unknown", "unknown audio device");
+    }
+
+    function moveStreamToSink(stream: PwNode, targetSink: PwNode): void {
+        const serial = stream?.properties?.["object.serial"];
+        if (serial && targetSink?.name)
+            Quickshell.execDetached(["pactl", "move-sink-input", String(serial), targetSink.name]);
+    }
+
+    function moveRecordingToSource(stream: PwNode, targetSource: PwNode): void {
+        const serial = stream?.properties?.["object.serial"];
+        if (serial && targetSource?.name)
+            Quickshell.execDetached(["pactl", "move-source-output", String(serial), targetSource.name]);
+    }
+
     function refreshNodes(): void {
         const newSinks = [];
         const newSources = [];
         const newStreams = [];
+        const newRec = [];
 
         for (const node of Pipewire.nodes.values) {
             if (!node.isStream) {
@@ -119,12 +142,18 @@ Singleton {
                     newSources.push(node);
             } else if (node.audio && node.type === PwNodeType.AudioOutStream) {
                 newStreams.push(node);
+            } else if (node.audio && node.type === PwNodeType.AudioInStream) {
+                const app = node.properties?.["application.name"] ?? node.name ?? "";
+                if (node.properties?.["stream.monitor"] === "true" || /^(cava|caelestia|quickshell|qs)$/i.test(app))
+                    continue;
+                newRec.push(node);
             }
         }
 
         root.sinks = newSinks;
         root.sources = newSources;
         root.streams = newStreams;
+        root.recordingStreams = newRec;
     }
 
     onSinkChanged: {
@@ -170,7 +199,7 @@ Singleton {
     // Always track the current defaults so volume/mute bind even if the lists
     // momentarily lag behind the default node.
     PwObjectTracker {
-        objects: [root.sink, root.source, ...root.sinks, ...root.sources, ...root.streams].filter(n => n)
+        objects: [root.sink, root.source, ...root.sinks, ...root.sources, ...root.streams, ...root.recordingStreams].filter(n => n)
     }
 
     CavaProvider {

@@ -21,20 +21,21 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         // Output
-        SliderRow {
-            icon: Icons.getVolumeIcon(Audio.volume, Audio.muted)
-            label: Tr.trCtx("Output", "audio output")
-            valueLabel: Strings.percentOne(value)
-            value: Audio.volume
-            enabled: !!Audio.sink && !Audio.muted
-            onMoved: v => Audio.setVolume(v)
+        SectionHeader {
+            text: Tr.trCtx("Output", "audio output")
         }
 
-        ToggleRow {
-            text: Tr.trCtx("Muted", "audio output muted")
-            checked: Audio.muted
-            disabled: !Audio.sink
-            onToggled: Audio.setStreamMuted(Audio.sink, checked)
+        SliderRow {
+            visible: !!Audio.sink
+            icon: Icons.getVolumeIcon(Audio.volume, Audio.muted)
+            iconClickable: true
+            label: Tr.tr("Volume")
+            subtext: Tr.tr("Tap the speaker icon to mute or unmute")
+            valueLabel: Audio.muted ? Tr.tr("Muted") : Strings.percentOne(value)
+            value: Audio.volume
+            enabled: !!Audio.sink
+            onMoved: v => Audio.setVolume(v)
+            onIconClicked: Audio.setStreamMuted(Audio.sink, !Audio.muted)
         }
 
         AudioDeviceList {
@@ -47,21 +48,21 @@ PageBase {
         }
 
         // Input
-        SliderRow {
-            groupStart: true
-            icon: Icons.getMicVolumeIcon(Audio.sourceVolume, Audio.sourceMuted)
-            label: Tr.trCtx("Input", "audio input")
-            valueLabel: Strings.percentOne(value)
-            value: Audio.sourceVolume
-            enabled: !!Audio.source && !Audio.sourceMuted
-            onMoved: v => Audio.setSourceVolume(v)
+        SectionHeader {
+            text: Tr.trCtx("Input", "audio input")
         }
 
-        ToggleRow {
-            text: Tr.trCtx("Muted", "audio input muted")
-            checked: Audio.sourceMuted
-            disabled: !Audio.source
-            onToggled: Audio.setStreamMuted(Audio.source, checked)
+        SliderRow {
+            visible: !!Audio.source
+            icon: Icons.getMicVolumeIcon(Audio.sourceVolume, Audio.sourceMuted)
+            iconClickable: true
+            label: Tr.tr("Volume")
+            subtext: Tr.tr("Tap the microphone icon to mute or unmute")
+            valueLabel: Audio.sourceMuted ? Tr.tr("Muted") : Strings.percentOne(value)
+            value: Audio.sourceVolume
+            enabled: !!Audio.source
+            onMoved: v => Audio.setSourceVolume(v)
+            onIconClicked: Audio.setStreamMuted(Audio.source, !Audio.sourceMuted)
         }
 
         AudioDeviceList {
@@ -73,13 +74,26 @@ PageBase {
             onSelected: node => Audio.setAudioSource(node)
         }
 
-        // Per-app volumes
-        NavRow {
-            groupStart: true
+        // Volume mixer
+        SectionHeader {
+            text: Tr.tr("Volume mixer")
+        }
 
+        NavRow {
             icon: "tune"
             text: Tr.tr("App volumes")
-            subtext: Audio.streams.length === 0 ? Tr.tr("No apps playing audio") : Tr.trN("%n app playing audio", "%n apps playing audio", Audio.streams.length)
+            subtext: {
+                const play = Audio.streams.length;
+                const rec = Audio.recordingStreams.length;
+                if (play === 0 && rec === 0)
+                    return Tr.tr("No apps using audio");
+                const parts = [];
+                if (play > 0)
+                    parts.push(Tr.trN("%n app playing audio", "%n apps playing audio", play));
+                if (rec > 0)
+                    parts.push(Tr.trN("%n app recording audio", "%n apps recording audio", rec));
+                return parts.join(" · ");
+            }
             onClicked: root.nState.openSubPage(1)
         }
 
@@ -151,6 +165,14 @@ PageBase {
                 NotifRules.setSound(true, item.value);
                 NotifRules.play(item.value); // a preview
             }
+        }
+
+        RowButton {
+            visible: NotifRules.sound
+            icon: "play_arrow"
+            text: Tr.tr("Test notification sound")
+            subtext: Tr.tr("Plays the selected chime")
+            onClicked: NotifRules.play("")
         }
 
         ToggleRow {

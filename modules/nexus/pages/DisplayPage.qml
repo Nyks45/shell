@@ -122,6 +122,39 @@ PageBase {
         monitorsProc.running = true;
     }
 
+    function halfHourSlots(startHour: int, endHour: int): var {
+        const out = [];
+        for (let slot = startHour * 2; slot <= endHour * 2 + 1; slot++) {
+            const hh = String(Math.floor(slot / 2)).padStart(2, "0");
+            const mm = slot % 2 === 0 ? "00" : "30";
+            out.push(`${hh}:${mm}`);
+        }
+        return out;
+    }
+
+    function displayInfoLabel(): string {
+        if (!monitor)
+            return Tr.tr("No monitor");
+        const parts = [monitor.make, monitor.model].filter(s => s && !/^fallback$/i.test(s));
+        return parts.join(" ") || monitor.model || monitor.name;
+    }
+
+    function displayInfoSubtext(): string {
+        if (!monitor)
+            return "";
+        const rate = Math.abs(monitor.refreshRate - Math.round(monitor.refreshRate)) < 0.05 ? Math.round(monitor.refreshRate) : monitor.refreshRate.toFixed(1);
+        const parts = [
+            monitor.name,
+            `${monitor.width} × ${monitor.height}`,
+            Tr.tr("%1 Hz").arg(rate),
+            `${Math.round((monitor.scale ?? 1) * 100)}%`
+        ];
+        if ((monitor.physicalWidth ?? 0) > 0 && (monitor.physicalHeight ?? 0) > 0)
+            parts.push(`${(Math.hypot(monitor.physicalWidth, monitor.physicalHeight) / 25.4).toFixed(1)}"`);
+        parts.push(monitor.colorManagementPreset === "hdr" ? Tr.tr("HDR") : Tr.tr("SDR"));
+        return parts.join(" · ");
+    }
+
     // Night light: hyprsunset, scheduled by its config (identity by day)
     function writeSunsetConf(n: var): void {
         const temp = n.temperature ?? 4000;
@@ -220,17 +253,11 @@ PageBase {
         }
 
         SectionHeader {
-            text: Tr.tr("Monitor")
+            text: Tr.tr("Brightness & colour")
         }
 
         // (Several monitors: picker, arrangement, on/off and mirroring are
         // shelved for now; see git history, commit "Shelve multi-monitor UI")
-        InfoRow {
-            label: root.monitor?.model || root.monitor?.name || Tr.tr("No monitor")
-            subtext: root.monitor ? [root.monitor.make, root.monitor.name].filter(s => s && s !== label).join(" · ") : ""
-            icon: "monitor"
-        }
-
         // Brightness: the screen's backlight, or over DDC/CI for external
         // monitors (ddcutil; slow, so the service sends at most two a second)
         SliderRow {
@@ -252,6 +279,136 @@ PageBase {
             to: 50
             stepSize: 1
             onMoved: v => GlobalConfig.services.brightnessIncrement = v / 100
+        }
+
+        RowButton {
+            readonly property string what: Tr.tr("Install night light")
+            readonly property bool busy: Admin.jobs.some(j => j.what === what)
+
+            visible: !root.sunsetInstalled
+            icon: "download"
+            text: what
+            subtext: busy ? Tr.tr("Installing…") : Tr.tr("Needs hyprsunset (asks for your password)")
+            disabled: busy
+            onClicked: Admin.run("install", ["hyprsunset"], what, () => whichSunset.running = true)
+        }
+
+        ToggleRow {
+            visible: root.sunsetInstalled
+            text: Tr.tr("Night light")
+            subtext: Tr.tr("Warmer colours in the evening, easier on the eyes")
+            checked: root.night.enabled ?? false
+            onToggled: root.setNight({
+                enabled: checked
+            })
+        }
+
+        SliderRow {
+            readonly property int effectiveTemp: root.pendingTemp >= 0 ? root.pendingTemp : (root.night.temperature ?? 4000)
+
+            visible: root.sunsetInstalled
+            enabled: root.night.enabled ?? false
+            icon: "thermostat"
+            label: Tr.tr("Strength")
+            subtext: Tr.tr("0% neutral · 100% warmest")
+            valueLabel: `${Math.round((6500 - effectiveTemp) / 40)}%`
+            // 6500 K (0%) .. 2500 K (100%)
+            value: (6500 - effectiveTemp) / 4000
+            onMoved: v => {
+                root.pendingTemp = Math.round((6500 - v * 4000) / 100) * 100;
+                nightDebounce.restart();
+            }
+        }
+
+        ToggleRow {
+            visible: root.sunsetInstalled
+            text: Tr.tr("All day")
+            subtext: Tr.tr("Instead of only in the evening and at night")
+            checked: root.night.always ?? false
+            onToggled: root.setNight({
+                always: checked
+            })
+        }
+
+        SelectRow {
+            visible: root.sunsetInstalled && !(root.night.always ?? false)
+            label: Tr.tr("Turns on at")
+            menuItems: fromItems.instances
+            active: fromItems.instances.find(i => i.value === (root.night.from ?? "20:00")) ?? null
+            fallbackText: root.night.from ?? "20:00"
+            onSelected: item => root.setNight({
+                    from: item.value
+                })
+
+            Variants {
+                id: fromItems
+
+                model: root.halfHourSlots(16, 23)
+
+                MenuItem {
+                    required property string modelData
+
+                    text: modelData
+                    value: modelData
+                }
+            }
+        }
+
+        SelectRow {
+            visible: root.sunsetInstalled && !(root.night.always ?? false)
+            label: Tr.tr("Turns off at")
+            menuItems: toItems.instances
+            active: toItems.instances.find(i => i.value === (root.night.to ?? "07:00")) ?? null
+            fallbackText: root.night.to ?? "07:00"
+            onSelected: item => root.setNight({
+                    to: item.value
+                })
+
+            Variants {
+                id: toItems
+
+                model: root.halfHourSlots(5, 10)
+
+                MenuItem {
+                    required property string modelData
+
+                    text: modelData
+                    value: modelData
+                }
+            }
+        }
+
+        // No way to set this screen's brightness: say why
+        RequirementRow {
+            readonly property var bm: root.monitor ? Brightness.getMonitor(root.monitor.name) : null
+            readonly property string what: Tr.tr("Install ddcutil for monitor brightness")
+            property bool installing
+            property bool installed
+
+            visible: !!root.monitor && !root.hasBacklight && !(bm?.isDdc || bm?.isAppleDisplay)
+            neutral: root.hasDdcutil
+            icon: "brightness_6"
+            text: root.hasDdcutil ? Tr.tr("Brightness: this monitor doesn't answer over DDC/CI") : Tr.tr("Brightness of external monitors needs ddcutil")
+            subtext: installing ? Tr.tr("Installing…") : installed ? Tr.tr("Installed. Log out and back in once so it may use the monitor's cable.") : root.hasDdcutil ? Tr.tr("Turn DDC/CI on in the monitor's own menu, then open this page again. Some monitors and docks don't support it.") : Tr.tr("It sets the brightness over the display cable (DDC/CI). Installing it asks for your password.")
+            actionText: root.hasDdcutil || installing ? "" : Tr.tr("Install")
+            // ddcutil talks to the monitor through /dev/i2c-*: the i2c group
+            onAction: {
+                installing = true;
+                Admin.run("install", ["ddcutil"], what, ok => {
+                    if (!ok) {
+                        installing = false;
+                        return;
+                    }
+                    Admin.run("join-group", ["i2c"], what, ok2 => {
+                        installing = false;
+                        installed = ok2;
+                    });
+                });
+            }
+        }
+
+        SectionHeader {
+            text: Tr.tr("Screen")
         }
 
         SelectRow {
@@ -368,6 +525,10 @@ PageBase {
                 })
         }
 
+        SectionHeader {
+            text: Tr.tr("Advanced")
+        }
+
         SelectRow {
             id: vrrRow
 
@@ -469,17 +630,11 @@ PageBase {
                     }
                 }
 
-                MaterialIcon {
-                    visible: !iccRow.iccPath
-                    text: "folder_open"
-                    color: Colours.palette.m3onSurfaceVariant
-                    fontStyle: Tokens.font.icon.medium
-                }
-
-                IconButton {
+                TextButton {
                     visible: !!iccRow.iccPath
-                    icon: "close"
-                    type: IconButton.Text
+                    text: Tr.tr("Remove")
+                    type: TextButton.Text
+                    isRound: true
                     onClicked: confirmDialog.ask({
                         header: Tr.tr("Remove colour profile?"),
                         body: Tr.tr("Clears %1 from this monitor.").arg(iccRow.iccPath.split("/").pop()),
@@ -489,35 +644,24 @@ PageBase {
                         })
                     })
                 }
+
+                TextButton {
+                    text: iccRow.iccPath ? Tr.tr("Change…") : Tr.tr("Choose…")
+                    type: TextButton.Tonal
+                    isRound: true
+                    onClicked: iccPicker.open()
+                }
             }
         }
 
-        // No way to set this screen's brightness: say why
-        RequirementRow {
-            readonly property var bm: root.monitor ? Brightness.getMonitor(root.monitor.name) : null
-            readonly property string what: Tr.tr("Install ddcutil for monitor brightness")
-            property bool installing
-            property bool installed
+        SectionHeader {
+            text: Tr.tr("Display information")
+        }
 
-            visible: !!root.monitor && !root.hasBacklight && !(bm?.isDdc || bm?.isAppleDisplay)
-            icon: "brightness_6"
-            text: root.hasDdcutil ? Tr.tr("Brightness: this monitor doesn't answer over DDC/CI") : Tr.tr("Brightness of external monitors needs ddcutil")
-            subtext: installing ? Tr.tr("Installing…") : installed ? Tr.tr("Installed. Log out and back in once so it may use the monitor's cable.") : root.hasDdcutil ? Tr.tr("Turn DDC/CI on in the monitor's own menu, then open this page again. Some monitors and docks don't support it.") : Tr.tr("It sets the brightness over the display cable (DDC/CI). Installing it asks for your password.")
-            actionText: root.hasDdcutil || installing ? "" : Tr.tr("Install")
-            // ddcutil talks to the monitor through /dev/i2c-*: the i2c group
-            onAction: {
-                installing = true;
-                Admin.run("install", ["ddcutil"], what, ok => {
-                    if (!ok) {
-                        installing = false;
-                        return;
-                    }
-                    Admin.run("join-group", ["i2c"], what, ok2 => {
-                        installing = false;
-                        installed = ok2;
-                    });
-                });
-            }
+        InfoRow {
+            icon: "monitor"
+            label: root.displayInfoLabel()
+            subtext: root.displayInfoSubtext()
         }
 
         FileDialog {
@@ -529,105 +673,6 @@ PageBase {
             onAccepted: path => root.change({
                 icc: path
             })
-        }
-
-        // Night light
-        SectionHeader {
-            text: Tr.tr("Night light")
-        }
-
-        RowButton {
-            readonly property string what: Tr.tr("Install night light")
-            readonly property bool busy: Admin.jobs.some(j => j.what === what)
-
-            visible: !root.sunsetInstalled
-            icon: "download"
-            text: what
-            subtext: busy ? Tr.tr("Installing…") : Tr.tr("Needs hyprsunset (asks for your password)")
-            disabled: busy
-            onClicked: Admin.run("install", ["hyprsunset"], what, () => whichSunset.running = true)
-        }
-
-        ToggleRow {
-            visible: root.sunsetInstalled
-            text: Tr.tr("Night light")
-            subtext: Tr.tr("Warmer colours in the evening, easier on the eyes")
-            checked: root.night.enabled ?? false
-            onToggled: root.setNight({
-                enabled: checked
-            })
-        }
-
-        SliderRow {
-            visible: root.sunsetInstalled
-            enabled: root.night.enabled ?? false
-            icon: "thermostat"
-            label: Tr.tr("Warmth")
-            valueLabel: `${root.pendingTemp >= 0 ? root.pendingTemp : (root.night.temperature ?? 4000)} K`
-            // 6500 K (none) .. 2500 K (very warm)
-            value: (6500 - (root.pendingTemp >= 0 ? root.pendingTemp : (root.night.temperature ?? 4000))) / 4000
-            onMoved: v => {
-                root.pendingTemp = Math.round((6500 - v * 4000) / 100) * 100;
-                nightDebounce.restart();
-            }
-        }
-
-        ToggleRow {
-            visible: root.sunsetInstalled
-            text: Tr.tr("All day")
-            subtext: Tr.tr("Instead of only in the evening and at night")
-            checked: root.night.always ?? false
-            onToggled: root.setNight({
-                always: checked
-            })
-        }
-
-        SelectRow {
-            visible: root.sunsetInstalled && !(root.night.always ?? false)
-            label: Tr.tr("Turns on at")
-            menuOnTop: true
-            menuItems: fromItems.instances
-            active: fromItems.instances.find(i => i.value === (root.night.from ?? "20:00")) ?? null
-            onSelected: item => root.setNight({
-                    from: item.value
-                })
-
-            Variants {
-                id: fromItems
-
-                model: ["17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"]
-
-                MenuItem {
-                    required property string modelData
-
-                    text: modelData
-                    value: modelData
-                }
-            }
-        }
-
-        SelectRow {
-            visible: root.sunsetInstalled && !(root.night.always ?? false)
-            label: Tr.tr("Turns off at")
-            menuOnTop: true
-            menuItems: toItems.instances
-            active: toItems.instances.find(i => i.value === (root.night.to ?? "07:00")) ?? null
-            onSelected: item => root.setNight({
-                    to: item.value
-                })
-
-            Variants {
-                id: toItems
-
-                model: ["05:00", "06:00", "07:00", "08:00", "09:00", "10:00"]
-
-                MenuItem {
-                    required property string modelData
-
-                    text: modelData
-                    value: modelData
-                }
-            }
         }
 
         // Non-visual helpers (the page takes one item: they live in its column)

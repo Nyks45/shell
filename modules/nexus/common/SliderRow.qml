@@ -13,6 +13,7 @@ ConnectedRect {
 
     property alias icon: icon.text
     property alias label: label.text
+    property string subtext
     property alias valueLabel: valueLabel.text
     property real value
     property bool iconClickable
@@ -56,25 +57,40 @@ ConnectedRect {
             Layout.fillWidth: true
             spacing: Tokens.spacing.medium
 
-            RowLayout {
+            ColumnLayout {
                 Layout.fillWidth: true
-                spacing: Tokens.spacing.small
+                spacing: 0
 
-                StyledText {
-                    id: label
-
+                RowLayout {
                     Layout.fillWidth: true
-                    opacity: root.enabled ? 1 : 0.38
-                    font: Tokens.font.body.small
-                    elide: Text.ElideRight
+                    spacing: Tokens.spacing.small
+
+                    StyledText {
+                        id: label
+
+                        Layout.fillWidth: true
+                        opacity: root.enabled ? 1 : 0.38
+                        font: Tokens.font.body.small
+                        elide: Text.ElideRight
+                    }
+
+                    StyledText {
+                        id: valueLabel
+
+                        opacity: root.enabled ? 1 : 0.38
+                        color: Colours.palette.m3outline
+                        font: Tokens.font.body.small
+                    }
                 }
 
                 StyledText {
-                    id: valueLabel
-
+                    Layout.fillWidth: true
+                    visible: root.subtext.length > 0
+                    text: root.subtext
                     opacity: root.enabled ? 1 : 0.38
                     color: Colours.palette.m3outline
-                    font: Tokens.font.body.small
+                    font: Tokens.font.label.small
+                    wrapMode: Text.WordWrap
                 }
             }
 

@@ -11,8 +11,8 @@ import qs.services
 import qs.modules.nexus
 import qs.modules.nexus.common
 
-// Accessibility: text size, motion, zoom, colour filters (Hyprland screen
-// shaders in assets/shaders), contrast; links to the cursor and key repeat.
+// Accessibility: vision, motion, and links to cursor, keyboard repeat, and
+// notification timing.
 PageBase {
     id: root
 
@@ -36,24 +36,27 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         SectionHeader {
-            text: Tr.tr("Text")
-        }
-
-        SliderRow {
-            icon: "format_size"
-            label: Tr.tr("Text size in apps")
-            valueLabel: `${Math.round(AppLook.get("org.gnome.desktop.interface", "text-scaling-factor", 1) * 100)}%`
-            // 100% .. 200%
-            value: AppLook.get("org.gnome.desktop.interface", "text-scaling-factor", 1) - 1
-            onMoved: v => AppLook.set("org.gnome.desktop.interface", "text-scaling-factor", Math.round((1 + v) * 20) / 20)
+            text: Tr.tr("Vision")
         }
 
         SliderRow {
             icon: "text_increase"
             label: Tr.tr("Text size in the shell")
+            subtext: Tr.tr("Panels, menus, launcher and Settings")
             valueLabel: `${Math.round(Config.appearance.font.scale * 100)}%`
-            value: (Config.appearance.font.scale - 0.8) / 0.7
+            // 80% .. 150%
+            value: Math.max(0, Math.min(1, (Config.appearance.font.scale - 0.8) / 0.7))
             onMoved: v => GlobalConfig.appearance.font.scale = Math.round((0.8 + v * 0.7) * 20) / 20
+        }
+
+        SliderRow {
+            icon: "format_size"
+            label: Tr.tr("Text size in apps")
+            subtext: Tr.tr("GTK apps; some apps need a restart")
+            valueLabel: `${Math.round(AppLook.get("org.gnome.desktop.interface", "text-scaling-factor", 1) * 100)}%`
+            // Aligned 80% .. 150% so 100% matches the shell slider above
+            value: Math.max(0, Math.min(1, (AppLook.get("org.gnome.desktop.interface", "text-scaling-factor", 1) - 0.8) / 0.7))
+            onMoved: v => AppLook.set("org.gnome.desktop.interface", "text-scaling-factor", Math.round((0.8 + v * 0.7) * 20) / 20)
         }
 
         ToggleRow {
@@ -63,17 +66,11 @@ PageBase {
             onToggled: AppLook.set("org.gnome.desktop.a11y.interface", "high-contrast", checked)
         }
 
-        SectionHeader {
-            text: Tr.tr("Seeing the screen")
-        }
-
-        SliderRow {
-            icon: "zoom_in"
-            label: Tr.tr("Zoom")
-            valueLabel: `${Math.round(HyprSettings.value("cursor:zoom_factor", 1) * 100)}%`
-            // 100% .. 400%, around the pointer
-            value: (HyprSettings.value("cursor:zoom_factor", 1) - 1) / 3
-            onMoved: v => HyprSettings.setOption("cursor:zoom_factor", Math.round((1 + v * 3) * 10) / 10)
+        ToggleRow {
+            text: Tr.tr("Reduce transparency")
+            subtext: Tr.tr("Solid backgrounds instead of frosted glass on panels and windows")
+            checked: !GlobalConfig.appearance.transparency.enabled
+            onToggled: GlobalConfig.appearance.transparency.enabled = !checked
         }
 
         SelectRow {
@@ -102,17 +99,14 @@ PageBase {
             onSelected: item => HyprSettings.setOption("decoration:screen_shader", item.value ? `${root.shaderDir}/${item.value}.frag` : "")
         }
 
-        NavRow {
-            icon: "arrow_selector_tool"
-            text: Tr.tr("Bigger cursor")
-            subtext: Tr.tr("Cursor size, on Keyboard & mouse")
-            onClicked: root.nState.goTo({
-                page: PageRegistry.find("input"),
-                tab: "input",
-                path: [],
-                text: Tr.tr("Cursor size"),
-                sectionText: Tr.tr("Cursor")
-            })
+        SliderRow {
+            icon: "zoom_in"
+            label: Tr.tr("Magnifier zoom")
+            subtext: Tr.tr("Zooms around the pointer (100% is off)")
+            valueLabel: `${Math.round(HyprSettings.value("cursor:zoom_factor", 1) * 100)}%`
+            // 100% .. 400%, around the pointer
+            value: (HyprSettings.value("cursor:zoom_factor", 1) - 1) / 3
+            onMoved: v => HyprSettings.setOption("cursor:zoom_factor", Math.round((1 + v * 3) * 10) / 10)
         }
 
         SectionHeader {
@@ -137,7 +131,20 @@ PageBase {
         }
 
         SectionHeader {
-            text: Tr.tr("Keyboard")
+            text: Tr.tr("Interaction")
+        }
+
+        NavRow {
+            icon: "arrow_selector_tool"
+            text: Tr.tr("Bigger cursor")
+            subtext: Tr.tr("Cursor size, on Keyboard & mouse")
+            onClicked: root.nState.goTo({
+                page: PageRegistry.find("input"),
+                tab: "input",
+                path: [],
+                text: Tr.tr("Cursor size"),
+                sectionText: Tr.tr("Cursor")
+            })
         }
 
         NavRow {
@@ -150,6 +157,18 @@ PageBase {
                 path: [],
                 text: Tr.tr("Repeat delay"),
                 sectionText: Tr.tr("Keyboard")
+            })
+        }
+
+        NavRow {
+            icon: "schedule"
+            text: Tr.tr("Notification duration")
+            subtext: Tr.tr("How long notifications stay on screen")
+            onClicked: root.nState.goTo({
+                page: PageRegistry.find("notifications"),
+                path: [],
+                text: Tr.tr("Dismiss notifications after"),
+                sectionText: Tr.tr("General")
             })
         }
     }
