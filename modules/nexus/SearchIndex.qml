@@ -896,18 +896,7 @@ QtObject {
         {
             "label": "Discoverable",
             "ctx": "bluetooth setting",
-            "sub": "Allow nearby devices to find this one",
-            "section": "",
-            "tab": "bluetooth",
-            "page": 7,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Pairable",
-            "ctx": "bluetooth setting",
-            "sub": "Allow nearby devices to pair with this one",
+            "sub": "Allow nearby devices to find this computer while this page is open",
             "section": "",
             "tab": "bluetooth",
             "page": 7,
@@ -951,7 +940,7 @@ QtObject {
         {
             "label": "Repeat delay",
             "ctx": "",
-            "sub": "How long a key is held before it repeats (ms)",
+            "sub": "Wait time in milliseconds before a held key starts repeating",
             "section": "Keyboard",
             "tab": "input",
             "page": 7,
@@ -962,7 +951,7 @@ QtObject {
         {
             "label": "Repeat rate",
             "ctx": "",
-            "sub": "Characters per second while a key repeats",
+            "sub": "Characters repeated per second while holding a key",
             "section": "Keyboard",
             "tab": "input",
             "page": 7,
@@ -1205,6 +1194,20 @@ QtObject {
             "label": "Pairing failed",
             "ctx": "",
             "sub": "",
+            "section": "",
+            "page": 7,
+            "path": [
+                2
+            ],
+            "trail": [
+                "Pair new device"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Show unnamed devices",
+            "ctx": "",
+            "sub": "Include nearby devices that only broadcast a hardware address",
             "section": "",
             "page": 7,
             "path": [
@@ -3916,7 +3919,7 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Audio",
+            "label": "Sound mixer",
             "ctx": "default app category",
             "sub": "",
             "section": "Default applications",
@@ -4042,6 +4045,17 @@ QtObject {
             "sub": "Browse installed apps, set favourites and hidden",
             "section": "Library",
             "opens": 1,
+            "tab": "defaultapps",
+            "page": 14,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Advanced: allow custom regex patterns",
+            "ctx": "",
+            "sub": "Let you type regular expressions matching app IDs when pinning or hiding",
+            "section": "Hidden from the launcher",
             "tab": "defaultapps",
             "page": 14,
             "path": [],

@@ -22,7 +22,7 @@ PageBase {
 
     property var info: null
     readonly property string helper: `${Paths.libdir}/caelestia-devices`
-    readonly property var swatches: ["ffffff", "ffd8a8", "ff0000", "ff7a00", "ffd000", "30e030", "00d0d0", "2060ff", "9040ff", "ff40b0", "000000"]
+    readonly property var swatches: ["ffffff", "ffd8a8", "ff0000", "ff7a00", "ffd000", "30e030", "00d0d0", "2060ff", "9040ff", "ff40b0"]
     readonly property string accent: Colours.palette.m3primary.toString().slice(1, 7)
     // Changes waiting to be sent (sliders move continuously)
     property var pending: null
@@ -84,6 +84,29 @@ PageBase {
 
     function hex(c: string): string {
         return `#${c}`;
+    }
+
+    function typeLabel(t: string): string {
+        switch ((t ?? "").toLowerCase()) {
+        case "motherboard":
+            return Tr.tr("Motherboard");
+        case "gpu":
+            return Tr.tr("Graphics card");
+        case "ram":
+            return Tr.tr("Memory");
+        case "cooler":
+            return Tr.tr("Cooler");
+        case "ledstrip":
+            return Tr.tr("LED strip");
+        case "keyboard":
+            return Tr.tr("Keyboard");
+        case "mouse":
+            return Tr.tr("Mouse");
+        case "case":
+            return Tr.tr("Case");
+        default:
+            return t;
+        }
     }
 
     title: Tr.tr("Lighting")
@@ -241,7 +264,7 @@ PageBase {
                 }
 
                 SectionHeader {
-                    text: `${dev.d.name} · ${dev.d.type}`
+                    text: dev.d.type ? `${dev.d.name} · ${root.typeLabel(dev.d.type)}` : dev.d.name
                 }
 
                 Flow {
@@ -401,7 +424,7 @@ PageBase {
                     Layout.leftMargin: Tokens.padding.small
                     Layout.topMargin: Tokens.spacing.small
                     visible: dev.d.emptyZones.length > 0
-                    text: Tr.tr("Nothing known on %1").arg(dev.d.emptyZones.join(", "))
+                    text: Tr.tr("Unused or unconfigured LED headers: %1").arg(dev.d.emptyZones.join(", "))
                     wrapMode: Text.WordWrap
                     color: Colours.palette.m3outline
                     font: Tokens.font.label.small
@@ -414,7 +437,7 @@ PageBase {
             Layout.leftMargin: Tokens.padding.small
             Layout.topMargin: Tokens.spacing.medium
             visible: !!root.info?.server
-            text: Tr.tr("Not controllable here: the graphics card's lighting (OpenRGB doesn't know this model).")
+            text: Tr.tr("Graphics card lighting isn't shown because OpenRGB doesn't support this GPU model yet.")
             wrapMode: Text.WordWrap
             color: Colours.palette.m3outline
             font: Tokens.font.label.small
@@ -451,9 +474,9 @@ PageBase {
 
                     MaterialIcon {
                         anchors.centerIn: parent
-                        visible: chip.isAccent || chip.modelData === "000000"
-                        text: chip.isAccent ? "palette" : "power_settings_new"
-                        color: chip.modelData === "000000" ? "white" : "black"
+                        visible: chip.isAccent
+                        text: "palette"
+                        color: "black"
                         fontStyle: Tokens.font.icon.small
                     }
 
@@ -463,6 +486,19 @@ PageBase {
                         onClicked: sw.picked(chip.modelData)
                     }
                 }
+            }
+
+            TextButton {
+                text: Tr.trCtx("Off", "lighting state")
+                isToggle: true
+                followChecked: true
+                checked: sw.current.toLowerCase() === "000000"
+                type: TextButton.Tonal
+                font: sw.small ? Tokens.font.label.small : Tokens.font.label.medium
+                horizontalPadding: sw.small ? Tokens.padding.small : Tokens.padding.medium
+                verticalPadding: 0
+                implicitHeight: sw.small ? 26 : 32
+                onClicked: sw.picked("000000")
             }
 
             // Any colour via full picker

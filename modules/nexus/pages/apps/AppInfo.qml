@@ -14,8 +14,12 @@ PageBase {
     id: root
 
     readonly property DesktopEntry app: nState.selectedApp
+    readonly property var pkg: (Packages.installed?.packages ?? []).find(p => (p.apps ?? []).includes(root.app?.id) || p.appId === root.app?.id) ?? null
     readonly property bool favouriteByRegex: app && matchedByRegex(GlobalConfig.launcher.favouriteApps, app.id)
     readonly property bool hiddenByRegex: app && matchedByRegex(GlobalConfig.launcher.hiddenApps, app.id)
+
+    Component.onCompleted: if (!Packages.installed)
+        Packages.loadInstalled()
 
     function isRegexEntry(s: string): bool {
         return /^\^.*\$$/.test(s);
@@ -122,6 +126,23 @@ PageBase {
             label: Tr.tr("Command")
             value: (root.app?.command ?? []).join(" ")
             labelComp.Layout.preferredWidth: Math.max(labelComp.implicitWidth, appId.labelComp.implicitWidth)
+        }
+
+        NavRow {
+            visible: !!root.pkg
+            icon: "package_2"
+            text: Tr.tr("Package details & uninstall")
+            subtext: root.pkg ? [root.pkg.name, root.pkg.version].filter(s => s).join(" · ") : ""
+            onClicked: {
+                if (!root.pkg)
+                    return;
+                root.nState.selectedPackage = {
+                    source: root.pkg.source,
+                    name: root.pkg.appId || root.pkg.name,
+                    title: root.pkg.name
+                };
+                root.nState.openSubPage(3);
+            }
         }
     }
 

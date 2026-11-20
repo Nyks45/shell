@@ -188,6 +188,15 @@ Singleton {
         return iface ? iface.connection : "";
     }
 
+    function delayCall(ms: int, fn: var): void {
+        const t = delayTimerComp.createObject(root, {
+            interval: ms,
+            cb: fn
+        });
+        if (t)
+            t.start();
+    }
+
     function executeCommand(args: list<string>, callback: var): void {
         const proc = commandProc.createObject(root);
         proc.cmdArgs = ["nmcli", ...args];
@@ -309,14 +318,14 @@ Singleton {
         if (connectionName && connectionName.length > 0) {
             executeCommand([root.nmcliCommandConnection, "up", connectionName], result => {
                 if (result.success) {
-                    Qt.callLater(() => {
+                    delayCall(500, () => {
                         getEthernetInterfaces(() => {});
                         if (interfaceName && interfaceName.length > 0) {
-                            Qt.callLater(() => {
+                            delayCall(1000, () => {
                                 getEthernetDeviceDetails(interfaceName, () => {});
-                            }, 1000);
+                            });
                         }
-                    }, 500);
+                    });
                 }
                 if (callback)
                     callback(result);
@@ -324,12 +333,12 @@ Singleton {
         } else if (interfaceName && interfaceName.length > 0) {
             executeCommand([root.nmcliCommandDevice, "connect", interfaceName], result => {
                 if (result.success) {
-                    Qt.callLater(() => {
+                    delayCall(500, () => {
                         getEthernetInterfaces(() => {});
-                        Qt.callLater(() => {
+                        delayCall(1000, () => {
                             getEthernetDeviceDetails(interfaceName, () => {});
-                        }, 1000);
-                    }, 500);
+                        });
+                    });
                 }
                 if (callback)
                     callback(result);
@@ -360,9 +369,9 @@ Singleton {
         executeCommand([root.nmcliCommandConnection, "down", connectionName], result => {
             if (result.success) {
                 root.ethernetDeviceDetails = null;
-                Qt.callLater(() => {
+                delayCall(500, () => {
                     getEthernetInterfaces(() => {});
-                }, 500);
+                });
             }
             if (callback)
                 callback(result);
@@ -466,9 +475,9 @@ Singleton {
 
             if (!result.success && root.pendingConnection && retries < maxRetries) {
                 console.warn(lc, "Connection failed, retrying... (attempt " + (retries + 1) + "/" + maxRetries + ")");
-                Qt.callLater(() => {
+                delayCall(1000, () => {
                     connectWireless(ssid, password, bssid, callback, retries + 1);
-                }, 1000);
+                });
             } else if (!result.success && root.pendingConnection) {} else if (result.success && callback) {} else if (!result.success && !root.pendingConnection) {
                 if (callback)
                     callback(result);
@@ -507,10 +516,10 @@ Singleton {
         executeCommand([root.nmcliCommandConnection, "show", ssid], result => {
             if (result.success) {
                 executeCommand([root.nmcliCommandConnection, "delete", ssid], deleteResult => {
-                    Qt.callLater(() => {
+                    delayCall(300, () => {
                         if (callback)
                             callback();
-                    }, 300);
+                    });
                 });
             } else {
                 if (callback)
@@ -796,9 +805,9 @@ Singleton {
 
         executeCommand([root.nmcliCommandConnection, "delete", connectionName], result => {
             if (result.success) {
-                Qt.callLater(() => {
+                delayCall(500, () => {
                     loadSavedConnections(() => {});
-                }, 500);
+                });
             }
             if (callback)
                 callback(result);
@@ -1402,7 +1411,7 @@ Singleton {
             const newActive = root.active;
 
             if (newActive && newActive.active) {
-                Qt.callLater(() => {
+                delayCall(500, () => {
                     if (root.wirelessInterfaces.length > 0) {
                         const activeWireless = root.wirelessInterfaces.find(iface => {
                             return isConnectedState(iface.state);
@@ -1420,7 +1429,7 @@ Singleton {
                             getEthernetDeviceDetails(activeEthernet.device, () => {});
                         }
                     }
-                }, 500);
+                });
             } else {
                 root.wirelessDeviceDetails = null;
                 root.ethernetDeviceDetails = null;
@@ -1429,9 +1438,9 @@ Singleton {
             getWirelessInterfaces(() => {});
             getEthernetInterfaces(() => {
                 if (root.activeEthernet && root.activeEthernet.connected) {
-                    Qt.callLater(() => {
+                    delayCall(500, () => {
                         getEthernetDeviceDetails(root.activeEthernet.iface, () => {});
-                    }, 500);
+                    });
                 }
             });
         });
@@ -1444,7 +1453,7 @@ Singleton {
         getWirelessInterfaces(() => {});
         getEthernetInterfaces(() => {});
 
-        Qt.callLater(() => {
+        delayCall(2000, () => {
             if (root.wirelessInterfaces.length > 0) {
                 const activeWireless = root.wirelessInterfaces.find(iface => {
                     return isConnectedState(iface.state);
@@ -1462,7 +1471,24 @@ Singleton {
                     getEthernetDeviceDetails(activeEthernet.device, () => {});
                 }
             }
-        }, 2000);
+        });
+    }
+
+    Component {
+        id: delayTimerComp
+
+        Timer {
+            property var cb: null
+
+            repeat: false
+            onTriggered: {
+                const f = cb;
+                cb = null;
+                destroy();
+                if (typeof f === "function")
+                    f();
+            }
+        }
     }
 
     Component {

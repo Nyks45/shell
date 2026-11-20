@@ -52,6 +52,13 @@ ColumnLayout {
 
     Component.onCompleted: load()
 
+    Timer {
+        running: root.visible && !!root.mouse && !root.mouse.awake
+        interval: 2500
+        repeat: true
+        onTriggered: root.load()
+    }
+
     SectionHeader {
         text: root.mouse?.name ?? ""
     }
@@ -64,14 +71,18 @@ ColumnLayout {
         subtext: root.mouse?.charging ? Tr.tr("Charging") : ""
     }
 
-    StyledText {
-        Layout.fillWidth: true
-        Layout.leftMargin: Tokens.padding.small
-        Layout.topMargin: Tokens.spacing.small
+    InfoRow {
         visible: !!root.mouse && !root.mouse.awake
-        text: Tr.tr("Asleep: move it to see and change its settings.")
-        color: Colours.palette.m3outline
-        font: Tokens.font.label.small
+        icon: "bedtime"
+        label: Tr.tr("Mouse is asleep")
+        subtext: Tr.tr("Move or click the mouse to wake it and load its settings")
+    }
+
+    RowButton {
+        visible: !!root.mouse && !root.mouse.awake
+        icon: "refresh"
+        text: Tr.tr("Check again")
+        onClicked: root.load()
     }
 
     ConnectedRect {
@@ -91,7 +102,7 @@ ColumnLayout {
 
             StyledText {
                 Layout.fillWidth: true
-                text: root.mouse?.host ? Tr.tr("Set here: the DPI and report rate below") : Tr.tr("Its own profile: what G HUB saved on it (DPI, report rate, buttons)")
+                text: root.mouse?.host ? Tr.tr("Controlled by this PC: using the DPI and report rate set below") : Tr.tr("On-board memory: using the profile saved on the mouse by G HUB (DPI, report rate, buttons)")
                 wrapMode: Text.WordWrap
                 font: Tokens.font.body.small
             }
@@ -102,7 +113,7 @@ ColumnLayout {
 
                 TextButton {
                     enabled: !root.busy
-                    text: Tr.tr("Its own profile")
+                    text: Tr.tr("On-board memory (G HUB)")
                     isToggle: true
                     followChecked: true
                     checked: !root.mouse?.host
@@ -112,7 +123,7 @@ ColumnLayout {
 
                 TextButton {
                     enabled: !root.busy
-                    text: Tr.tr("Set here")
+                    text: Tr.tr("Controlled by this PC")
                     isToggle: true
                     followChecked: true
                     checked: !!root.mouse?.host

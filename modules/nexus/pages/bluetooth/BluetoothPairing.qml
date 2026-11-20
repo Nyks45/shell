@@ -17,10 +17,18 @@ PageBase {
 
     readonly property BluetoothAdapter adapter: Bluetooth.defaultAdapter
     property string pairError
+    property bool showUnnamed: false
+
+    function isNamed(d: BluetoothDevice): bool {
+        return !!d?.name && d.name !== d.address && !/^[0-9A-Fa-f]{2}([-:][0-9A-Fa-f]{2}){5}$/.test(d.name);
+    }
 
     function setScan(on: bool): void {
-        if (adapter?.enabled)
+        if (adapter?.enabled) {
+            if (on)
+                adapter.pairable = true;
             adapter.discovering = on;
+        }
     }
 
     title: Tr.tr("Pair new device")
@@ -53,8 +61,17 @@ PageBase {
             subtext: root.pairError
         }
 
+        ToggleRow {
+            visible: Bluetooth.devices.values.some(d => !d.bonded && !root.isNamed(d))
+            text: Tr.tr("Show unnamed devices")
+            subtext: Tr.tr("Include nearby devices that only broadcast a hardware address")
+            checked: root.showUnnamed
+            onToggled: root.showUnnamed = checked
+        }
+
         ConnectedRect {
             Layout.fillWidth: true
+            groupStart: true
             implicitHeight: headerText.implicitHeight + Tokens.padding.medium * 2
 
             StyledText {
@@ -82,7 +99,7 @@ PageBase {
             list.anchors.top: scanIndicator.bottom
 
             model: ScriptModel {
-                values: Bluetooth.devices.values.filter(d => !d.bonded).sort((a, b) => (b.pairing - a.pairing) || a.name.localeCompare(b.name))
+                values: Bluetooth.devices.values.filter(d => !d.bonded && (root.showUnnamed || d.pairing || root.isNamed(d))).sort((a, b) => (b.pairing - a.pairing) || a.name.localeCompare(b.name))
             }
 
             delegate: Item {

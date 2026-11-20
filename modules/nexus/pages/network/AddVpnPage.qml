@@ -17,6 +17,14 @@ PageBase {
     readonly property int editIndex: nState.editingVpnIndex
     readonly property bool editing: editIndex >= 0
     readonly property var existing: editing ? (VPN.providers[editIndex] ?? null) : null
+    readonly property var builtInPresets: ({
+            wireguard: "WireGuard",
+            warp: "Cloudflare WARP",
+            tailscale: "Tailscale",
+            netbird: "NetBird"
+        })
+    property string providerType: "wireguard"
+    property bool overrideCommands: false
 
     function splitCmd(arr: var): string {
         return arr?.join(" ") ?? "";
@@ -31,20 +39,51 @@ PageBase {
         return a.length === b.length && a.every((x, i) => x === b[i]);
     }
 
+    function selectType(typeId: string, resetDisplay: bool): void {
+        const prevDefault = builtInPresets[providerType] ?? "";
+        providerType = typeId;
+        const itemMap = {
+            wireguard: wireguardItem,
+            warp: warpItem,
+            tailscale: tailscaleItem,
+            netbird: netbirdItem,
+            custom: customItem
+        };
+        typeSelect.active = itemMap[typeId] ?? customItem;
+        if (typeId !== "custom") {
+            nameField.text = typeId;
+            nameField.isError = false;
+            if (resetDisplay || !displayField.text.trim() || displayField.text.trim() === prevDefault)
+                displayField.text = builtInPresets[typeId] ?? typeId;
+        } else {
+            if (builtInPresets[nameField.text.trim()])
+                nameField.text = "";
+            if (resetDisplay && displayField.text.trim() === prevDefault)
+                displayField.text = "";
+            overrideCommands = true;
+        }
+    }
+
     function submit(): void {
-        const name = nameField.text.trim();
+        const name = root.providerType === "custom" ? nameField.text.trim() : root.providerType;
         if (name.length === 0) {
             nameField.isError = true;
             nameField.forceActiveFocus();
             return;
         }
+        if (root.providerType === "wireguard" && interfaceField.text.trim().length === 0) {
+            interfaceField.isError = true;
+            interfaceField.forceActiveFocus();
+            return;
+        }
 
+        const customCmds = root.providerType === "custom" || root.overrideCommands;
         const data = {
             name: name,
-            displayName: displayField.text.trim() || name,
+            displayName: displayField.text.trim() || root.builtInPresets[name] || name,
             interface: interfaceField.text.trim(),
-            connectCmd: joinCmd(connectField.text),
-            disconnectCmd: joinCmd(disconnectField.text)
+            connectCmd: customCmds ? joinCmd(connectField.text) : [],
+            disconnectCmd: customCmds ? joinCmd(disconnectField.text) : []
         };
 
         if (editing) {
@@ -79,11 +118,16 @@ PageBase {
 
     Component.onCompleted: {
         if (existing) {
+            const typeId = builtInPresets[existing.name] ? existing.name : "custom";
             nameField.text = existing.name;
             displayField.text = existing.displayName;
             interfaceField.text = existing.interface;
             connectField.text = splitCmd(existing.connectCmd);
             disconnectField.text = splitCmd(existing.disconnectCmd);
+            overrideCommands = typeId === "custom" || connectField.text.length > 0 || disconnectField.text.length > 0;
+            selectType(typeId, false);
+        } else {
+            selectType("wireguard", true);
         }
     }
 
@@ -93,26 +137,65 @@ PageBase {
         width: root.cappedWidth
         spacing: Tokens.spacing.large
 
-        StyledText {
-            Layout.fillWidth: true
-            Layout.leftMargin: Tokens.padding.small
-            // TRANSLATORS: the four names in brackets are provider identifiers, leave them untranslated
-            text: Tr.tr("Built-in names (wireguard, warp, tailscale, netbird) auto-fill their commands. For others, provide the connect/disconnect commands.")
-            color: Colours.palette.m3onSurfaceVariant
-            font: Tokens.font.body.small
-            wrapMode: Text.WordWrap
+        SelectRow {
+            id: typeSelect
+
+            label: Tr.tr("VPN type")
+            subtext: root.providerType === "custom" ? Tr.tr("Run your own connect and disconnect commands") : Tr.tr("Uses the built-in integration for %1").arg(root.builtInPresets[root.providerType] ?? root.providerType)
+            segmentedAllowed: false
+            menuItems: [wireguardItem, warpItem, tailscaleItem, netbirdItem, customItem]
+            onSelected: item => root.selectType(String(item.value), true)
+
+            MenuItem {
+                id: wireguardItem
+
+                icon: "vpn_key"
+                text: "WireGuard"
+                value: "wireguard"
+            }
+
+            MenuItem {
+                id: warpItem
+
+                icon: "cloud"
+                text: "Cloudflare WARP"
+                value: "warp"
+            }
+
+            MenuItem {
+                id: tailscaleItem
+
+                icon: "hub"
+                text: "Tailscale"
+                value: "tailscale"
+            }
+
+            MenuItem {
+                id: netbirdItem
+
+                icon: "share"
+                text: "NetBird"
+                value: "netbird"
+            }
+
+            MenuItem {
+                id: customItem
+
+                icon: "terminal"
+                text: Tr.tr("Custom command")
+                value: "custom"
+            }
         }
 
         StyledTextField {
             id: nameField
 
             Layout.fillWidth: true
-            Layout.topMargin: Tokens.spacing.small
-            placeholderText: Tr.tr("Provider name")
+            visible: root.providerType === "custom"
+            placeholderText: Tr.tr("Provider identifier")
             leadingIcon: "vpn_key"
-            // TRANSLATORS: id here means the provider identifier, e.g. wireguard
-            supportingText: Tr.tr("Built-in id or a custom name")
-            errorText: Tr.tr("Provider name is required")
+            supportingText: Tr.tr("Short internal name, e.g. openvpn or work-vpn")
+            errorText: Tr.tr("Provider identifier is required")
             inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
 
             onAccepted: displayField.forceActiveFocus()
@@ -124,36 +207,48 @@ PageBase {
             Layout.fillWidth: true
             placeholderText: Tr.tr("Display name")
             // TRANSLATORS: the name shown in the VPN provider list on the network page
-            supportingText: Tr.tr("Shown in the list")
+            supportingText: Tr.tr("Shown in the Network page list")
             leadingIcon: "label"
             inputMethodHints: Qt.ImhNoPredictiveText
 
-            onAccepted: interfaceField.forceActiveFocus()
+            onAccepted: interfaceField.visible ? interfaceField.forceActiveFocus() : (connectField.visible ? connectField.forceActiveFocus() : root.submit())
         }
 
         StyledTextField {
             id: interfaceField
 
             Layout.fillWidth: true
-            placeholderText: Tr.trCtx("Interface", "network interface")
+            visible: root.providerType === "wireguard" || root.providerType === "custom" || root.overrideCommands
+            placeholderText: root.providerType === "wireguard" ? Tr.tr("WireGuard interface / profile (e.g. wg0)") : Tr.trCtx("Interface", "network interface")
             leadingIcon: "lan"
-            supportingText: Tr.tr("Network interface (for WireGuard / status checks)")
+            supportingText: root.providerType === "wireguard" ? Tr.tr("Config or interface name in /etc/wireguard (required for WireGuard)") : Tr.tr("Network interface used to detect connection status")
+            errorText: Tr.tr("WireGuard interface / profile name is required")
             inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
 
-            onAccepted: connectField.forceActiveFocus()
+            onAccepted: connectField.visible ? connectField.forceActiveFocus() : root.submit()
+        }
+
+        ToggleRow {
+            visible: root.providerType !== "custom"
+            text: Tr.tr("Override connect/disconnect commands")
+            subtext: Tr.tr("Replace the built-in CLI commands with custom ones")
+            checked: root.overrideCommands
+            onToggled: root.overrideCommands = checked
         }
 
         SectionHeader {
-            text: Tr.tr("Custom commands (optional)")
+            visible: root.providerType === "custom" || root.overrideCommands
+            text: root.providerType === "custom" ? Tr.tr("Commands") : Tr.tr("Custom commands (optional)")
         }
 
         StyledTextField {
             id: connectField
 
             Layout.fillWidth: true
+            visible: root.providerType === "custom" || root.overrideCommands
             placeholderText: Tr.tr("Connect command")
             leadingIcon: "play_arrow"
-            supportingText: Tr.tr("Leave empty to use the built-in default")
+            supportingText: root.providerType === "custom" ? Tr.tr("Command run to connect, e.g. wg-quick up myvpn") : Tr.tr("Leave empty to use the built-in default")
             inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
 
             onAccepted: disconnectField.forceActiveFocus()
@@ -163,9 +258,10 @@ PageBase {
             id: disconnectField
 
             Layout.fillWidth: true
+            visible: root.providerType === "custom" || root.overrideCommands
             placeholderText: Tr.tr("Disconnect command")
             leadingIcon: "stop"
-            supportingText: Tr.tr("Leave empty to use the built-in default")
+            supportingText: root.providerType === "custom" ? Tr.tr("Command run to disconnect, e.g. wg-quick down myvpn") : Tr.tr("Leave empty to use the built-in default")
             inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
 
             onAccepted: root.submit()
@@ -223,7 +319,7 @@ PageBase {
                     horizontalPadding: Tokens.padding.extraLarge
                     verticalPadding: Tokens.padding.medium
                     text: root.editing ? Tr.trCtx("Save", "button") : Tr.trCtx("Add", "button")
-                    disabled: !nameField.text.trim()
+                    disabled: root.providerType === "custom" ? !nameField.text.trim() : (root.providerType === "wireguard" ? !interfaceField.text.trim() : false)
                     onClicked: root.submit()
                 }
             }

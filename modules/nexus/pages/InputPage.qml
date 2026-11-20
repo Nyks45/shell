@@ -115,7 +115,7 @@ PageBase {
 
         StepperRow {
             label: Tr.tr("Repeat delay")
-            subtext: Tr.tr("How long a key is held before it repeats (ms)")
+            subtext: Tr.tr("Wait time in milliseconds before a held key starts repeating")
             value: HyprSettings.value("input:repeat_delay", 600)
             from: 100
             to: 1000
@@ -125,12 +125,31 @@ PageBase {
 
         StepperRow {
             label: Tr.tr("Repeat rate")
-            subtext: Tr.tr("Characters per second while a key repeats")
+            subtext: Tr.tr("Characters repeated per second while holding a key")
             value: HyprSettings.value("input:repeat_rate", 25)
             from: 5
             to: 100
             stepSize: 5
             onMoved: v => HyprSettings.setOption("input:repeat_rate", v)
+        }
+
+        ConnectedRect {
+            Layout.fillWidth: true
+            implicitHeight: testRepeatField.implicitHeight + Tokens.padding.medium * 2
+
+            StyledTextField {
+                id: testRepeatField
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Tokens.padding.largeIncreased
+                anchors.rightMargin: Tokens.padding.largeIncreased
+                leadingIcon: "keyboard"
+                verticalPadding: Tokens.padding.small
+                floatingPlaceholder: false
+                placeholderText: Tr.tr("Hold down a key here to test repeat delay and speed")
+            }
         }
 
         ToggleRow {

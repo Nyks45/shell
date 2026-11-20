@@ -74,7 +74,14 @@ PageBase {
         InfoRow {
             icon: "inventory_2"
             label: Packages.installed ? Tr.tr("%1 packages installed").arg(Packages.installed.totalPackages) : Tr.tr("Reading…")
-            subtext: Packages.installed ? Tr.tr("%1 chosen by you, the rest needed by them").arg(root.all.filter(p => p.source !== "flatpak").length) : ""
+            subtext: {
+                if (!Packages.installed)
+                    return "";
+                const explicitCount = root.all.filter(p => p.source !== "flatpak" && p.explicit).length;
+                const aurCount = root.all.filter(p => p.source === "aur").length;
+                const flatpakCount = root.all.filter(p => p.source === "flatpak").length;
+                return Tr.tr("%1 installed explicitly · %2 from AUR · %3 Flatpak").arg(explicitCount).arg(aurCount).arg(flatpakCount);
+            }
         }
 
         Flow {
@@ -102,39 +109,43 @@ PageBase {
             }
         }
 
-        RowLayout {
+        StyledTextField {
+            Layout.fillWidth: true
+            Layout.bottomMargin: Tokens.spacing.small
+            placeholderText: Tr.tr("Find an installed app or package")
+            leadingIcon: "search"
+            onTextChanged: {
+                root.pendingSearch = text;
+                searchDelay.restart();
+            }
+        }
+
+        Timer {
+            id: searchDelay
+
+            interval: 200
+            onTriggered: {
+                root.limit = 30;
+                root.search = root.pendingSearch;
+            }
+        }
+
+        Flow {
             Layout.fillWidth: true
             Layout.bottomMargin: Tokens.spacing.small
             spacing: Tokens.spacing.small
 
-            StyledTextField {
-                Layout.fillWidth: true
-                placeholderText: Tr.tr("Find an installed app or package")
-                leadingIcon: "search"
-                onTextChanged: {
-                    root.pendingSearch = text;
-                    searchDelay.restart();
-                }
-            }
-
-            Timer {
-                id: searchDelay
-
-                interval: 200
-                onTriggered: {
-                    root.limit = 30;
-                    root.search = root.pendingSearch;
-                }
-            }
-
             Repeater {
-                model: [["name", "sort_by_alpha"], ["size", "hard_drive"], ["recent", "schedule"]]
+                model: [["name", Tr.tr("Sort: Name")], ["size", Tr.tr("Size")], ["recent", Tr.tr("Recent")]]
 
-                IconButton {
+                TextButton {
                     required property var modelData
 
-                    icon: modelData[1]
-                    type: root.sort === modelData[0] ? IconButton.Tonal : IconButton.Text
+                    text: modelData[1]
+                    isToggle: true
+                    followChecked: true
+                    checked: root.sort === modelData[0]
+                    type: TextButton.Tonal
                     onClicked: {
                         root.sort = modelData[0];
                         root.limit = 30;

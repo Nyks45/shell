@@ -211,20 +211,20 @@ PageBase {
                             Layout.fillWidth: true
                             text: {
                                 if (!provider.isSelected)
-                                    return Tr.tr("Tap to select");
+                                    return provider.modelData.interface || provider.modelData.name;
                                 if (VPN.connecting)
                                     return Tr.tr("Connecting...");
                                 if (VPN.disconnecting)
                                     return Tr.tr("Disconnecting...");
                                 switch (VPN.status.state) {
                                 case "connected":
-                                    return Tr.trCtx("Connected", "vpn state");
+                                    return [Tr.trCtx("Connected", "vpn state"), VPN.serverLocation, (VPN.bytesIn && VPN.bytesOut) ? `↓ ${VPN.bytesIn}  ↑ ${VPN.bytesOut}` : ""].filter(s => s).join(" • ");
                                 case "needs-auth":
                                     return VPN.status.reason ? Tr.trMarked(VPN.status.reason) : Tr.tr("Authentication required");
                                 case "error":
                                     return VPN.status.reason ? Tr.trMarked(VPN.status.reason) : Tr.tr("An error occurred");
                                 default:
-                                    return Tr.tr("Selected");
+                                    return Tr.trCtx("Selected • Ready to connect", "vpn status");
                                 }
                             }
                             color: {
@@ -289,6 +289,7 @@ PageBase {
                             }
 
                             ColumnLayout {
+                                visible: VPN.pingMs >= 0
                                 spacing: 0
 
                                 StyledText {
@@ -320,6 +321,24 @@ PageBase {
                                         horizontalAlignment: Text.AlignRight
                                     }
                                 }
+                            }
+                        }
+                    }
+
+                    TextButton {
+                        text: provider.isConnected ? Tr.trCtx("Disconnect", "button") : Tr.trCtx("Connect", "button")
+                        type: TextButton.Tonal
+                        disabled: VPN.connecting || VPN.disconnecting
+                        onClicked: {
+                            if (provider.isConnected) {
+                                VPN.disconnect();
+                            } else if (provider.isSelected) {
+                                VPN.connect();
+                            } else if (VPN.connected) {
+                                VPN.setActiveProvider(provider.index);
+                            } else {
+                                VPN.applySelectedProvider(provider.modelData.id);
+                                VPN.connect();
                             }
                         }
                     }

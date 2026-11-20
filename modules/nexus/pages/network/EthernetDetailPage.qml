@@ -22,6 +22,7 @@ PageBase {
 
     // Locally-edited IPv4 form state.
     property string ipMethod: "auto" // "auto" | "auto-dns" | "manual"
+    property bool autoconnect: true
     property bool ipLoaded: false
     property bool savingIp: false
 
@@ -40,6 +41,7 @@ PageBase {
             if (!cfg)
                 return;
             root.ipMethod = cfg.method;
+            root.autoconnect = cfg.autoconnect ?? true;
             methodSelect.active = cfg.method === "manual" ? manualItem : (cfg.method === "auto-dns" ? autoDnsItem : autoItem);
             addressField.text = cfg.address;
             gatewayField.text = cfg.gateway;
@@ -207,6 +209,24 @@ PageBase {
             value: root.details?.macAddress || "—"
         }
 
+        InfoRow {
+            icon: "swap_vert"
+            label: Tr.tr("Data used (since boot)")
+            visible: Nmcli.ethernetDataUsage.length > 0
+            value: Nmcli.ethernetDataUsage
+        }
+
+        ToggleRow {
+            text: Tr.tr("Connect automatically")
+            subtext: Tr.tr("Connect whenever the network cable is plugged in")
+            disabled: !root.connectionName
+            checked: root.autoconnect
+            onToggled: {
+                root.autoconnect = checked;
+                Nmcli.setAutoconnect(root.connectionName, checked, () => {});
+            }
+        }
+
         // ---- IPv4 ------------------------------------------------------------
         SectionHeader {
             text: Tr.tr("IPv4")
@@ -240,7 +260,7 @@ PageBase {
                 id: autoDnsItem
 
                 icon: "dns"
-                text: Tr.tr("Automatic, DNS only")
+                text: Tr.tr("Automatic IP, manual DNS")
             }
 
             MenuItem {

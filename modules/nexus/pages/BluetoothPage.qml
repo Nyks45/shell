@@ -18,8 +18,17 @@ PageBase {
 
     readonly property BluetoothAdapter adapter: Bluetooth.defaultAdapter
     readonly property bool btEnabled: adapter?.enabled ?? false
+    readonly property var upowerDevices: {
+        const btNames = new Set(Bluetooth.devices.values.filter(b => b.connected && b.batteryAvailable && b.name).map(b => b.name.trim().toLowerCase()));
+        return UPower.devices.values.filter(d => d.isPresent && !d.isLaptopBattery && d.type !== UPowerDeviceType.LinePower && d.type !== UPowerDeviceType.Ups && d.nativePath !== "" && !btNames.has((d.model ?? "").trim().toLowerCase()));
+    }
 
-    title: Tr.tr("Connected devices")
+    title: Tr.tr("Bluetooth & devices")
+
+    onVisibleChanged: if (!visible && adapter?.discoverable)
+        adapter.discoverable = false
+    Component.onDestruction: if (adapter?.discoverable)
+        adapter.discoverable = false
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -76,7 +85,8 @@ PageBase {
                     onClicked: {
                         if (!device.modelData || device.loading)
                             return;
-                        device.modelData.connected = !device.connected;
+                        root.nState.selectedBtDevice = device.modelData;
+                        root.nState.openSubPage(1); // Per device info page
                     }
                 }
 
@@ -132,39 +142,36 @@ PageBase {
                         }
                     }
 
-                    Item {
-                        Layout.fillHeight: true
-                        implicitWidth: height
+                    AnimLoader {
+                        Layout.alignment: Qt.AlignVCenter
+                        sourceComp: device.loading ? loadingComp : connectBtnComp
 
-                        AnimLoader {
-                            anchors.centerIn: parent
-                            sourceComp: device.loading ? loadingComp : btnComp
+                        Component {
+                            id: connectBtnComp
 
-                            Component {
-                                id: btnComp
-
-                                IconButton {
-                                    icon: "settings"
-                                    type: IconButton.Text
-                                    padding: Tokens.padding.small
-                                    inactiveOnColour: device.connected ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
-                                    label.fill: 0
-
-                                    onClicked: {
-                                        root.nState.selectedBtDevice = device.modelData;
-                                        root.nState.openSubPage(1); // Per device info page
-                                    }
-                                }
-                            }
-
-                            Component {
-                                id: loadingComp
-
-                                LoadingIndicator {
-                                    implicitSize: Math.round(Tokens.font.icon.medium.pointSize * 1.3)
+                            TextButton {
+                                text: device.connected ? Tr.trCtx("Disconnect", "button") : Tr.trCtx("Connect", "button")
+                                type: TextButton.Tonal
+                                onClicked: {
+                                    if (device.modelData)
+                                        device.modelData.connected = !device.connected;
                                 }
                             }
                         }
+
+                        Component {
+                            id: loadingComp
+
+                            LoadingIndicator {
+                                implicitSize: Math.round(Tokens.font.icon.medium.pointSize * 1.3)
+                            }
+                        }
+                    }
+
+                    MaterialIcon {
+                        text: "chevron_right"
+                        color: Colours.palette.m3onSurfaceVariant
+                        fontStyle: Tokens.font.icon.medium
                     }
                 }
             }
@@ -181,28 +188,15 @@ PageBase {
             groupStart: true
             // TRANSLATORS: adjective: other devices can find this computer
             text: Tr.trCtx("Discoverable", "bluetooth setting")
-            subtext: Tr.tr("Allow nearby devices to find this one")
+            subtext: Tr.tr("Allow nearby devices to find this computer while this page is open")
             disabled: !root.btEnabled
             checked: root.adapter?.discoverable ?? false
             onToggled: {
-                if (root.adapter)
+                if (root.adapter) {
+                    if (checked)
+                        root.adapter.pairable = true;
                     root.adapter.discoverable = checked;
-            }
-
-            Behavior on opacity {
-                Anim {}
-            }
-        }
-
-        ToggleRow {
-            // TRANSLATORS: adjective: other devices are allowed to pair with this computer
-            text: Tr.trCtx("Pairable", "bluetooth setting")
-            subtext: Tr.tr("Allow nearby devices to pair with this one")
-            disabled: !root.btEnabled
-            checked: root.adapter?.pairable ?? false
-            onToggled: {
-                if (root.adapter)
-                    root.adapter.pairable = checked;
+                }
             }
 
             Behavior on opacity {
@@ -220,7 +214,7 @@ PageBase {
         Repeater {
             id: batteryList
 
-            model: UPower.devices.values.filter(d => d.isPresent && !d.isLaptopBattery && d.type !== UPowerDeviceType.LinePower && d.type !== UPowerDeviceType.Ups && d.nativePath !== "")
+            model: root.upowerDevices
 
             InfoRow {
                 required property UPowerDevice modelData

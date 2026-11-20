@@ -204,7 +204,7 @@ PageBase {
 
                 InfoRow {
                     icon: "mode_fan"
-                    label: fan.info.id === "gpu" ? Tr.tr("Speed") : Tr.tr("Speed")
+                    label: Tr.tr("Speed")
                     value: fan.info.rpm ? `${fan.info.rpm} rpm · ${fan.info.percent ?? 0}%` : `${fan.info.percent ?? 0}%`
                     subtext: fan.kind === "auto" ? (fan.info.id === "gpu" ? Tr.tr("Automatic: the card's own curve") : Tr.tr("Automatic: the board's curve (BIOS)")) : fan.kind === "fixed" ? Tr.tr("Fixed at %1%").arg(fan.c.percent) : Tr.tr("Follows the %1's temperature").arg(fan.source === "gpu" ? Tr.tr("graphics card") : Tr.tr("processor"))
                 }
@@ -295,7 +295,7 @@ PageBase {
                     visible: fan.kind === "fixed"
                     enabled: !root.busy
                     label: Tr.tr("Speed")
-                    subtext: fan.floor ? Tr.tr("Percent (at least %1%: this fan never stops)").arg(fan.floor) : Tr.tr("Percent")
+                    subtext: fan.floor > 0 ? Tr.tr("Minimum %1% so this cooler never stalls").arg(fan.floor) : Tr.tr("0% stops the fan completely")
                     from: fan.floor
                     to: 100
                     stepSize: 5
@@ -333,7 +333,7 @@ PageBase {
             Layout.leftMargin: Tokens.padding.small
             Layout.topMargin: Tokens.spacing.medium
             visible: root.empty.length > 0
-            text: Tr.tr("Nothing connected: %1").arg(root.empty.join(", "))
+            text: Tr.tr("Idle (0 RPM) or not connected: %1").arg(root.empty.join(", "))
             wrapMode: Text.WordWrap
             color: Colours.palette.m3outline
             font: Tokens.font.label.small

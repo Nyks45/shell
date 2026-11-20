@@ -234,7 +234,7 @@ PageBase {
                     StyledText {
                         Layout.fillWidth: true
                         Layout.topMargin: Tokens.spacing.medium
-                        text: root.sel?.source === "flatpak" ? Tr.tr("The app is removed; its data in your home folder stays.") : (root.info?.requiredBy?.length ?? 0) > 0 ? Tr.tr("Needed by %1: those would be removed too, so this may be refused.").arg(root.info.requiredBy.join(", ")) : Tr.tr("Your files and settings in your home folder stay.")
+                        text: root.sel?.source === "flatpak" ? Tr.tr("The app is removed; its data in your home folder stays.") : (root.info?.requiredBy?.length ?? 0) > 0 ? Tr.tr("Required by %1. Those packages must be removed first before %2 can be uninstalled.").arg(root.info.requiredBy.join(", ")).arg(root.info?.name ?? root.sel?.title ?? "") : Tr.tr("Your files and settings in your home folder stay.")
                         wrapMode: Text.WordWrap
                         color: Colours.palette.m3onSurfaceVariant
                         font: Tokens.font.body.small

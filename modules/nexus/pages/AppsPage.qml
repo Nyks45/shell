@@ -22,6 +22,7 @@ PageBase {
     // The system defaults (xdg-settings / xdg-mime), as desktop entry ids
     property string browserId
     property string editorId
+    property bool allowRegexPatterns: false
     // Defaults by file type (xdg-mime): first type -> desktop entry id
     property var mimeDefaults: ({})
     readonly property var mimeGroups: ({
@@ -43,6 +44,27 @@ PageBase {
         return DesktopEntries.byId(id.replace(/\.desktop$/, ""))?.name ?? id.replace(/\.desktop$/, "");
     }
 
+    function friendlyCommandName(cmd: var): string {
+        if (!cmd || cmd.length === 0)
+            return Tr.tr("Not set");
+        const curStr = cmd.join(" ");
+        const curBin = String(cmd[0] ?? "").split("/").pop();
+        const all = [...DesktopEntries.applications.values];
+        const visibleApps = all.filter(a => !a.noDisplay);
+        const labelFor = a => (curBin && a.name.toLowerCase() === curBin.toLowerCase() && a.genericName) ? `${a.genericName} (${a.name})` : a.name;
+        for (const list of [visibleApps, all]) {
+            const exact = list.find(a => commandOf(a) === curStr || a.command.join(" ") === curStr);
+            if (exact?.name)
+                return labelFor(exact);
+            if (curBin) {
+                const byBin = list.find(a => String(a.command[0] ?? "").split("/").pop() === curBin);
+                if (byBin?.name)
+                    return labelFor(byBin);
+            }
+        }
+        return curStr;
+    }
+
     title: Tr.tr("Apps")
 
     ColumnLayout {
@@ -59,15 +81,17 @@ PageBase {
         DefaultRow {
             icon: "terminal"
             label: Tr.trCtx("Terminal", "default app category")
-            status: GlobalConfig.general.apps.terminal.join(" ")
+            category: "TerminalEmulator"
+            status: root.friendlyCommandName(GlobalConfig.general.apps.terminal)
             currentCommand: GlobalConfig.general.apps.terminal
             onSelected: app => GlobalConfig.general.apps.terminal = app.command
         }
 
         DefaultRow {
             icon: "volume_up"
-            label: Tr.trCtx("Audio", "default app category")
-            status: GlobalConfig.general.apps.audio.join(" ")
+            label: Tr.trCtx("Sound mixer", "default app category")
+            category: "Audio"
+            status: root.friendlyCommandName(GlobalConfig.general.apps.audio)
             currentCommand: GlobalConfig.general.apps.audio
             onSelected: app => GlobalConfig.general.apps.audio = app.command
         }
@@ -75,7 +99,8 @@ PageBase {
         DefaultRow {
             icon: "play_circle"
             label: Tr.trCtx("Media playback", "default app category")
-            status: GlobalConfig.general.apps.playback.join(" ")
+            category: "Player"
+            status: root.friendlyCommandName(GlobalConfig.general.apps.playback)
             currentCommand: GlobalConfig.general.apps.playback
             onSelected: app => GlobalConfig.general.apps.playback = app.command
         }
@@ -83,7 +108,8 @@ PageBase {
         DefaultRow {
             icon: "folder"
             label: Tr.trCtx("File manager", "default app category")
-            status: GlobalConfig.general.apps.explorer.join(" ")
+            category: "FileManager"
+            status: root.friendlyCommandName(GlobalConfig.general.apps.explorer)
             currentCommand: GlobalConfig.general.apps.explorer
             onSelected: app => GlobalConfig.general.apps.explorer = app.command
         }
@@ -202,7 +228,7 @@ PageBase {
             addLabel: Tr.tr("Pin an app")
             emptyText: Tr.tr("None: pin apps from All apps, or add one here")
             pickerHeader: Tr.tr("Pin an app in the launcher")
-            allowCustom: true
+            allowCustom: root.allowRegexPatterns
             validate: t => {
                 try {
                     new RegExp(t);
@@ -224,7 +250,7 @@ PageBase {
             addLabel: Tr.tr("Hide an app")
             emptyText: Tr.tr("No apps hidden")
             pickerHeader: Tr.tr("Hide an app from the launcher")
-            allowCustom: true
+            allowCustom: root.allowRegexPatterns
             validate: t => {
                 try {
                     new RegExp(t);
@@ -234,6 +260,14 @@ PageBase {
                 }
             }
             onEdited: v => GlobalConfig.launcher.hiddenApps = v
+        }
+
+        ToggleRow {
+            groupStart: true
+            text: Tr.tr("Advanced: allow custom regex patterns")
+            subtext: Tr.tr("Let you type regular expressions matching app IDs when pinning or hiding")
+            checked: root.allowRegexPatterns
+            onToggled: root.allowRegexPatterns = checked
         }
 
         // Non-visual helpers (the page takes one item: they live in its column)

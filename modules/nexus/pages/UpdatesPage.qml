@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import Quickshell.Io
 import Caelestia.Config
 import Caelestia.I18n
@@ -135,11 +136,31 @@ PageBase {
             subtext: Packages.restart.includes("kernel") ? Tr.tr("A new kernel is installed; the running one has no drivers to load any more.") : Tr.tr("The graphics driver was updated; until a restart the old one keeps running.")
         }
 
+        RowButton {
+            visible: Packages.restart.length > 0
+            icon: "power_settings_new"
+            text: Tr.tr("Restart now…")
+            subtext: Tr.tr("Asks to confirm before rebooting")
+            onClicked: confirmDialog.ask({
+                header: Tr.tr("Restart computer?"),
+                body: Tr.tr("Your computer will restart to finish applying updates. Make sure any open work is saved."),
+                confirmLabel: Tr.tr("Restart"),
+                onConfirm: () => Quickshell.execDetached(["systemctl", "reboot"])
+            })
+        }
+
         InfoRow {
             icon: Packages.checking ? "sync" : Packages.total > 0 ? "system_update" : Packages.hasErrors ? "cloud_off" : "check_circle"
             iconColour: !Packages.checking && Packages.total === 0 && Packages.hasErrors ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
             label: Packages.checking ? Tr.tr("Checking for updates…") : Packages.total === 1 ? Tr.tr("1 update available") : Packages.total > 1 ? Tr.tr("%1 updates available").arg(Packages.total) : Packages.hasErrors ? Tr.tr("Couldn't check for updates") : Tr.tr("Up to date")
-            subtext: !Packages.checking && Packages.total === 0 && Packages.hasErrors ? root.errorSummary() : Packages.checkedAt.getTime() > 0 ? Tr.tr("Last checked at %1").arg(Qt.formatTime(Packages.checkedAt, "HH:mm")) : ""
+            subtext: {
+                if (!Packages.checking && Packages.total === 0 && Packages.hasErrors)
+                    return root.errorSummary();
+                if (!(Packages.checkedAt.getTime() > 0))
+                    return "";
+                const today = Packages.checkedAt.toDateString() === new Date().toDateString();
+                return today ? Tr.tr("Last checked at %1").arg(Qt.formatTime(Packages.checkedAt, "HH:mm")) : Tr.tr("Last checked %1").arg(Qt.formatDateTime(Packages.checkedAt, "d MMM HH:mm"));
+            }
         }
 
         InfoRow {
@@ -270,6 +291,15 @@ PageBase {
                 icon: modelData.newer ? "build_circle" : "verified"
                 text: modelData.newer ? Tr.tr("%1 needs rebuilding").arg(modelData.name) : modelData.name
                 subtext: modelData.newer ? Tr.tr("%1 %2 is out; this one is built from %3. Updates leave it alone: fit its changes to the new version and rebuild it.").arg(modelData.base).arg(modelData.repo).arg(modelData.built) : Tr.tr("In place of %1, built from %2 (the repository has %3). Updates leave it alone.").arg(modelData.base).arg(modelData.built).arg(modelData.repo)
+                trailingIcon: "chevron_right"
+                onClicked: {
+                    root.nState.selectedPackage = {
+                        source: "aur",
+                        name: modelData.name,
+                        title: modelData.name
+                    };
+                    root.nState.openSubPage(1);
+                }
             }
         }
 
@@ -412,7 +442,7 @@ PageBase {
                 TextButton {
                     visible: root.pacnewOpen?.kind !== "replaced"
                     text: root.pacnewOpen?.kind === "pacsave" ? Tr.tr("Delete it") : Tr.tr("Keep mine")
-                    type: TextButton.Filled
+                    type: root.pacnewOpen?.kind === "pacsave" ? TextButton.Tonal : TextButton.Filled
                     onClicked: Admin.run("pacnew", [root.pacnewOpen?.path, "keep-old"], Tr.tr("Keep your %1").arg(root.pacnewOpen?.original), () => root.loadExtras())
                 }
 
@@ -521,6 +551,12 @@ PageBase {
                     } catch (e) {}
                 }
             }
+        }
+
+        ConfirmDialog {
+            id: confirmDialog
+
+            hostFlickable: root.flickable
         }
     }
 

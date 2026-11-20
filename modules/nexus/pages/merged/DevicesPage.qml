@@ -48,7 +48,7 @@ PageBase {
             key: "input"
             title: Tr.tr("Keyboard & mouse")
             icon: "keyboard"
-            summary: Tr.tr("Keyboard layouts, repeat, mouse and touchpad")
+            summary: Tr.tr("Keyboard layouts, key repeat, mouse and cursor")
 
             InputPage {
                 embedded: true

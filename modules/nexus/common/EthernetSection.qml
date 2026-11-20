@@ -69,7 +69,7 @@ ColumnLayout {
                     Layout.alignment: Qt.AlignRight
                     visible: Nmcli.activeEthernet && Nmcli.ethernetDataUsage.length > 0
                     // TRANSLATORS: %1 = data transferred, already formatted with a unit
-                    text: Tr.tr("Data usage: %1").arg(Nmcli.ethernetDataUsage)
+                    text: Tr.tr("Used since boot: %1").arg(Nmcli.ethernetDataUsage)
                     color: Colours.palette.m3outline
                     font: Tokens.font.label.small
                 }
@@ -140,7 +140,7 @@ ColumnLayout {
 
                     StyledText {
                         Layout.fillWidth: true
-                        text: ethRow.isConnected ? ethRow.modelData.iface : Tr.trCtx("Not connected • %1", "ethernet link state with interface name").arg(ethRow.modelData.iface)
+                        text: ethRow.isConnected ? (Nmcli.ethernetSpeed ? `${ethRow.modelData.iface} • ${Nmcli.ethernetSpeed}` : ethRow.modelData.iface) : Tr.trCtx("Not connected • %1", "ethernet link state with interface name").arg(ethRow.modelData.iface)
                         color: ethRow.isConnected ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
                         font: Tokens.font.label.small
                         elide: Text.ElideRight
@@ -155,19 +155,6 @@ ColumnLayout {
 
                     implicitWidth: ethRow.isConnected && root?.cappedWidth > Tokens.sizes.nexus.networkShowEthDetailWidth ? ethDetailRow.implicitWidth : 0
                     implicitHeight: ethDetailRow.implicitHeight
-
-                    onVisibleChanged: {
-                        if (visible) {
-                            ethIpAddr.value = ethRow.details?.ipAddress ?? "";
-                            ethDns.value = ethRow.details?.dns[0] ?? "";
-                        }
-                    }
-                    Component.onCompleted: {
-                        if (visible) {
-                            ethIpAddr.value = ethRow.details?.ipAddress ?? "";
-                            ethDns.value = ethRow.details?.dns[0] ?? "";
-                        }
-                    }
 
                     Behavior on opacity {
                         Anim {
@@ -185,12 +172,14 @@ ColumnLayout {
                             id: ethIpAddr
 
                             label: Tr.tr("Local IP Address")
+                            value: ethRow.details?.ipAddress ?? ""
                         }
 
                         EthDetail {
                             id: ethDns
 
                             label: Tr.tr("Primary DNS")
+                            value: ethRow.details?.dns?.[0] ?? ""
                         }
                     }
                 }
