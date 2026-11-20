@@ -4,12 +4,10 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
-import Quickshell.Widgets
 import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
-import qs.components.containers
 import qs.services
 import qs.utils
 import qs.modules.nexus.common
@@ -95,10 +93,18 @@ PageBase {
             text: Tr.tr("Add")
         }
 
-        AddRow {
+        RowButton {
             icon: "add"
-            label: Tr.tr("Add an app")
-            status: ""
+            text: Tr.tr("Add an app")
+            subtext: Tr.tr("Choose an installed app to start at login")
+            onClicked: appPicker.openPicker({
+                header: Tr.tr("Add a startup app"),
+                excludeIds: root.entries.map(e => e.file.split("/").pop().replace(/\.desktop$/, "")),
+                onPicked: item => {
+                    if (item.desktopEntry)
+                        root.add(item.desktopEntry);
+                }
+            })
         }
 
         SectionHeader {
@@ -151,76 +157,11 @@ PageBase {
 
             onExited: root.refresh()
         }
-    }
 
-    // Pick an installed app to start at login
-    component AddRow: PopupRow {
-        id: row
+        AppPickerDialog {
+            id: appPicker
 
-        readonly property int popupHeight: root.flickable.height - y + root.flickable.contentY - Tokens.padding.large - Tokens.padding.extraExtraLarge
-
-        keepPopupAsChild: {
-            if (root.nState.animatingContainer || root.opacity < 1)
-                return true;
-
-            let p = root.parent;
-            while (p && p.objectName !== "PageContainer")
-                p = p.parent;
-            return p?.opacity < 1;
-        }
-        popup.topMovement: Math.max(Tokens.sizes.nexus.minPopupHeight - popupHeight, Tokens.padding.large)
-
-        Loader {
-            anchors.centerIn: parent
-            active: row.popup.animDriver > 0
-
-            sourceComponent: VerticalFadeListView {
-                id: list
-
-                implicitWidth: Tokens.sizes.nexus.popupWidth
-                // As tall as its items (a short list doesn't get an empty tail), up to the usual height
-                implicitHeight: Math.min(contentHeight + topMargin + bottomMargin, CUtils.clamp(row.popupHeight, Tokens.sizes.nexus.minPopupHeight, Tokens.sizes.nexus.maxPopupHeight))
-
-                model: [...DesktopEntries.applications.values].filter(a => !a.noDisplay).sort((a, b) => a.name.localeCompare(b.name))
-
-                delegate: StateLayer {
-                    id: appItem
-
-                    required property DesktopEntry modelData
-
-                    anchors.fill: undefined
-                    anchors.left: list.contentItem.left
-                    anchors.right: list.contentItem.right
-                    implicitHeight: itemLayout.implicitHeight + itemLayout.anchors.margins * 2
-                    radius: Tokens.rounding.small
-
-                    onClicked: {
-                        row.popup.open = false;
-                        root.add(modelData);
-                    }
-
-                    RowLayout {
-                        id: itemLayout
-
-                        anchors.fill: parent
-                        anchors.margins: Tokens.padding.medium
-                        spacing: Tokens.spacing.medium
-
-                        IconImage {
-                            asynchronous: true
-                            implicitSize: Math.round(Tokens.font.icon.large.pointSize * 1.8)
-                            source: Quickshell.iconPath(appItem.modelData.icon, "image-missing")
-                        }
-
-                        StyledText {
-                            Layout.fillWidth: true
-                            text: appItem.modelData.name
-                            font: Tokens.font.body.small
-                            elide: Text.ElideRight
-                        }
-                    }
-                }
-            }
+            hostFlickable: root.flickable
         }
     }
 }

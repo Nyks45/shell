@@ -545,11 +545,14 @@ PageBase {
                 Component {
                     id: pathProp
 
-                    TextFieldRow {
+                    FolderPickerRow {
                         label: propLoader.modelData.label
-                        placeholderText: propLoader.modelData.type === "directory" ? Tr.tr("A folder, e.g. ~/Pictures") : Tr.tr("A file, e.g. ~/Pictures/picture.jpg")
+                        folderMode: propLoader.modelData.type === "directory"
                         value: String(root.propValue(propLoader.modelData) ?? "")
-                        onEditingFinished: v => root.setProp(propLoader.modelData, v.replace(/^~(?=\/|$)/, Quickshell.env("HOME")))
+                        placeholderText: propLoader.modelData.type === "directory" ? Tr.tr("No folder selected") : Tr.tr("No file selected")
+                        canReset: true
+                        onPicked: path => root.setProp(propLoader.modelData, path)
+                        onResetClicked: root.setProp(propLoader.modelData, "")
                     }
                 }
 
@@ -667,14 +670,54 @@ PageBase {
                                 }
                             }
 
-                            StyledTextField {
-                                Layout.preferredWidth: 90
-                                text: root.toHex(root.propValue(propLoader.modelData))
-                                font: Tokens.font.mono.small
-                                onAccepted: {
-                                    const v = root.fromHex(text);
-                                    if (v)
-                                        root.setProp(propLoader.modelData, v);
+                            StyledRect {
+                                id: colorPickBtn
+
+                                readonly property string curHex: root.toHex(root.propValue(propLoader.modelData))
+
+                                implicitWidth: colorPickRow.implicitWidth + Tokens.padding.medium * 2
+                                implicitHeight: 30
+                                radius: height / 2
+                                color: Colours.tPalette.m3surfaceContainerHigh
+                                border.width: 1
+                                border.color: Colours.palette.m3outlineVariant
+
+                                StateLayer {
+                                    anchors.fill: parent
+                                    radius: colorPickBtn.radius
+                                    onClicked: colourPicker.openPicker(colorPickBtn.curHex.slice(1), hex => {
+                                        const v = root.fromHex(hex);
+                                        if (v)
+                                            root.setProp(propLoader.modelData, v);
+                                    }, propLoader.modelData.label)
+                                }
+
+                                RowLayout {
+                                    id: colorPickRow
+
+                                    anchors.centerIn: parent
+                                    spacing: Tokens.spacing.small
+
+                                    Rectangle {
+                                        implicitWidth: 14
+                                        implicitHeight: 14
+                                        radius: 7
+                                        color: root.toHex(root.propValue(propLoader.modelData))
+                                        border.width: 1
+                                        border.color: Colours.palette.m3outlineVariant
+                                    }
+
+                                    StyledText {
+                                        text: root.toHex(root.propValue(propLoader.modelData))
+                                        font: Tokens.font.mono.small
+                                        color: Colours.palette.m3onSurface
+                                    }
+
+                                    MaterialIcon {
+                                        text: "colorize"
+                                        fontStyle: Tokens.font.icon.small
+                                        color: Colours.palette.m3onSurfaceVariant
+                                    }
                                 }
                             }
                         }
@@ -691,6 +734,12 @@ PageBase {
                     }
                 }
             }
+        }
+
+        ColourPickerDialog {
+            id: colourPicker
+
+            hostFlickable: root.flickable
         }
     }
 

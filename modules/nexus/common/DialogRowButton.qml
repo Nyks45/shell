@@ -21,6 +21,7 @@ Item {
     required property Component content
     required property string acceptLabel
     property bool acceptAllowed: true
+    property bool showAccept: true
     property bool showCancel: true
     property bool separateContent
     property int horizontalContentMargin
@@ -259,6 +260,7 @@ Item {
                         }
 
                         TextButton {
+                            visible: root.showAccept
                             type: TextButton.Text
                             isRound: true
                             horizontalPadding: Tokens.padding.largeIncreased

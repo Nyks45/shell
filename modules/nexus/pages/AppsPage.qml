@@ -189,10 +189,13 @@ PageBase {
             text: Tr.tr("Pinned in the launcher")
         }
 
-        StringListEditor {
+        AppListEditor {
+            hostFlickable: root.flickable
             values: GlobalConfig.launcher.favouriteApps
-            placeholderText: Tr.tr("App id or pattern, e.g. firefox or ^org\\.gnome\\.")
-            emptyText: Tr.tr("None: pin apps from All apps, or add a pattern")
+            addLabel: Tr.tr("Pin an app")
+            emptyText: Tr.tr("None: pin apps from All apps, or add one here")
+            pickerHeader: Tr.tr("Pin an app in the launcher")
+            allowCustom: true
             validate: t => {
                 try {
                     new RegExp(t);
@@ -208,10 +211,13 @@ PageBase {
             text: Tr.tr("Hidden from the launcher")
         }
 
-        StringListEditor {
+        AppListEditor {
+            hostFlickable: root.flickable
             values: GlobalConfig.launcher.hiddenApps
-            placeholderText: Tr.tr("App id or pattern")
-            emptyText: Tr.tr("None")
+            addLabel: Tr.tr("Hide an app")
+            emptyText: Tr.tr("No apps hidden")
+            pickerHeader: Tr.tr("Hide an app from the launcher")
+            allowCustom: true
             validate: t => {
                 try {
                     new RegExp(t);

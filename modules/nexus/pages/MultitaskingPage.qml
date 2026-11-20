@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Widgets
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
@@ -20,9 +21,6 @@ PageBase {
     readonly property bool hyprflowLoaded: HyprSettings.values["plugin:hyprflow:bar_enabled"] !== undefined
     readonly property var rules: HyprSettings.saved.windowRules ?? []
     property int openRule: -1
-
-    // Classes of the windows open now, for picking an app
-    readonly property list<string> openClasses: [...new Set(Hyprland.toplevels.values.map(t => t.lastIpcObject?.class ?? "").filter(c => c))].sort()
 
     // The scrolling layout (hyprscroller)
     readonly property bool scrollerLoaded: HyprSettings.values["plugin:hyprscrolling:column_width"] !== undefined
@@ -336,36 +334,26 @@ PageBase {
             RuleRow {}
         }
 
-        SelectRow {
-            label: Tr.tr("Add a rule for an open app")
-            subtext: root.openClasses.length === 0 ? Tr.tr("Open the app first") : ""
-            menuOnTop: true
-            menuItems: classItems.instances
-            active: null
-            fallbackText: Tr.tr("Pick")
-            fallbackIcon: "add"
-            onSelected: item => {
-                root.addRule(item.value);
-                // The menu sets the picked one after this: back to "Pick" after it
-                Qt.callLater(() => active = null);
-            }
-
-            Variants {
-                id: classItems
-
-                model: root.openClasses
-
-                MenuItem {
-                    required property string modelData
-
-                    text: modelData
-                    value: modelData
-                }
-            }
+        RowButton {
+            icon: "add"
+            text: Tr.tr("Add an app rule")
+            subtext: Tr.tr("Pick any installed or open app")
+            onClicked: appPicker.openPicker({
+                header: Tr.tr("Add an app rule"),
+                includeRunning: true,
+                allowCustom: true,
+                onPicked: item => root.addRule(item.wmClass || item.id)
+            })
         }
 
         ConfirmDialog {
             id: confirmDialog
+
+            hostFlickable: root.flickable
+        }
+
+        AppPickerDialog {
+            id: appPicker
 
             hostFlickable: root.flickable
         }
@@ -379,9 +367,10 @@ PageBase {
         readonly property bool open: root.openRule === index
         // ^(org\.gnome\.Nautilus)$ -> org.gnome.Nautilus
         readonly property string app: modelData.class.replace(/^\^\(/, "").replace(/\)\$$/, "").replace(/\\(.)/g, "$1")
+        readonly property DesktopEntry desktopEntry: DesktopEntries.heuristicLookup(app) ?? DesktopEntries.byId(app)
+        readonly property string displayName: desktopEntry ? desktopEntry.name : app
 
         Layout.fillWidth: true
-        first: index === 0
         implicitHeight: ruleLayout.implicitHeight + Tokens.padding.medium * 2
         clip: true
 
@@ -413,13 +402,33 @@ PageBase {
                 Layout.fillWidth: true
                 spacing: Tokens.spacing.medium
 
+                Item {
+                    implicitWidth: 28
+                    implicitHeight: 28
+
+                    IconImage {
+                        anchors.fill: parent
+                        asynchronous: true
+                        visible: !!(rule.desktopEntry?.icon)
+                        source: rule.desktopEntry?.icon ? Quickshell.iconPath(rule.desktopEntry.icon, "application-x-executable") : ""
+                    }
+
+                    MaterialIcon {
+                        anchors.centerIn: parent
+                        visible: !(rule.desktopEntry?.icon)
+                        text: "apps"
+                        color: Colours.palette.m3onSurfaceVariant
+                        fontStyle: Tokens.font.icon.medium
+                    }
+                }
+
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 0
 
                     StyledText {
                         Layout.fillWidth: true
-                        text: rule.app
+                        text: rule.displayName
                         font: Tokens.font.body.small
                         elide: Text.ElideRight
                     }
@@ -452,20 +461,20 @@ PageBase {
                 }
 
                 IconButton {
-                    icon: rule.open ? "expand_less" : "delete"
+                    icon: rule.open ? "expand_less" : "expand_more"
                     type: IconButton.Text
-                    onClicked: {
-                        if (rule.open) {
-                            root.openRule = -1;
-                        } else {
-                            confirmDialog.ask({
-                                header: Tr.tr("Delete rule for %1?").arg(rule.app),
-                                body: Tr.tr("Removes this app's window opening rules."),
-                                confirmLabel: Tr.trCtx("Delete", "button"),
-                                onConfirm: () => root.removeRule(rule.index)
-                            });
-                        }
-                    }
+                    onClicked: root.openRule = rule.open ? -1 : rule.index
+                }
+
+                IconButton {
+                    icon: "delete"
+                    type: IconButton.Text
+                    onClicked: confirmDialog.ask({
+                        header: Tr.tr("Delete rule for %1?").arg(rule.displayName),
+                        body: Tr.tr("Removes this app's window opening rules."),
+                        confirmLabel: Tr.trCtx("Delete", "button"),
+                        onConfirm: () => root.removeRule(rule.index)
+                    })
                 }
             }
 
@@ -589,9 +598,10 @@ PageBase {
             StyledText {
                 Layout.fillWidth: true
                 visible: rule.open
-                text: Tr.tr("Applies to windows opened from now on.")
+                text: Tr.tr("Window class: %1 · Applies to windows opened from now on.").arg(rule.app)
                 color: Colours.palette.m3outline
                 font: Tokens.font.label.small
+                wrapMode: Text.WordWrap
             }
         }
     }

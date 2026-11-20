@@ -1,8 +1,10 @@
+import QtQuick
 import QtQuick.Layouts
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
 import qs.services
+import qs.utils
 
 StyledRect {
     id: root
@@ -23,7 +25,7 @@ StyledRect {
         spacing: Tokens.spacing.small
 
         StyledText {
-            text: Tr.trCtx("Filter:", "file filter")
+            text: root.dialog.folderMode ? Tr.trCtx("Folder:", "folder picker") : Tr.trCtx("Filter:", "file filter")
         }
 
         StyledRect {
@@ -37,8 +39,12 @@ StyledRect {
             StyledText {
                 anchors.fill: parent
                 anchors.margins: Tokens.padding.medium
+                verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideMiddle
 
                 text: {
+                    if (root.dialog.folderMode)
+                        return Paths.shortenHome(root.dialog.selectedPath);
                     const filters = root.dialog.filters.map(f => `*.${f}`).join(Tr.trCtx(", ", "file filter separator"));
                     // TRANSLATORS: %1 = filter label, %2 = file patterns
                     return Tr.trCtx("%1 (%2)", "file filter label and patterns").arg(root.dialog.filterLabel).arg(filters);
@@ -50,12 +56,13 @@ StyledRect {
             color: Colours.tPalette.m3surfaceContainerHigh
             radius: Tokens.rounding.medium
 
-            implicitWidth: cancelText.implicitWidth + Tokens.padding.medium * 2
-            implicitHeight: cancelText.implicitHeight + Tokens.padding.medium * 2
+            implicitWidth: Math.max(selectText.implicitWidth, cancelText.implicitWidth) + Tokens.padding.medium * 2
+            implicitHeight: Math.max(selectText.implicitHeight, cancelText.implicitHeight) + Tokens.padding.medium * 2
 
             StateLayer {
                 disabled: !root.dialog.selectionValid
-                onClicked: root.dialog.accepted(root.folder.currentItem.modelData.path)
+                onClicked: if (root.dialog.selectionValid)
+                    root.dialog.accepted(root.dialog.selectedPath)
             }
 
             StyledText {
@@ -64,7 +71,7 @@ StyledRect {
                 anchors.centerIn: parent
                 anchors.margins: Tokens.padding.medium
 
-                text: Tr.trCtx("Select", "button")
+                text: root.dialog.folderMode ? Tr.trCtx("Select folder", "button") : Tr.trCtx("Select", "button")
                 color: root.dialog.selectionValid ? Colours.palette.m3onSurface : Colours.palette.m3outline
             }
         }

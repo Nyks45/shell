@@ -105,7 +105,7 @@ QtObject {
             "page": 0,
             "path": [],
             "trail": [],
-            "keywords": ""
+            "keywords": "wallpapers directory path"
         },
         {
             "label": "Visualiser on the desktop",
@@ -459,7 +459,7 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Live wallpaper settings",
+            "label": "Add a wallpaper folder",
             "ctx": "",
             "sub": "",
             "section": "",
@@ -485,7 +485,7 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Live wallpaper settings"
+                "Add a wallpaper folder"
             ],
             "keywords": "fps live wallpaper"
         },
@@ -501,7 +501,7 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Live wallpaper settings"
+                "Add a wallpaper folder"
             ],
             "keywords": ""
         },
@@ -517,7 +517,7 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Live wallpaper settings"
+                "Add a wallpaper folder"
             ],
             "keywords": ""
         },
@@ -533,7 +533,7 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Live wallpaper settings"
+                "Add a wallpaper folder"
             ],
             "keywords": ""
         },
@@ -549,7 +549,7 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Live wallpaper settings"
+                "Add a wallpaper folder"
             ],
             "keywords": ""
         },
@@ -565,7 +565,7 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Live wallpaper settings"
+                "Add a wallpaper folder"
             ],
             "keywords": ""
         },
@@ -581,7 +581,7 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Live wallpaper settings"
+                "Add a wallpaper folder"
             ],
             "keywords": ""
         },
@@ -597,7 +597,7 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Live wallpaper settings"
+                "Add a wallpaper folder"
             ],
             "keywords": ""
         },
@@ -613,7 +613,7 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Live wallpaper settings"
+                "Add a wallpaper folder"
             ],
             "keywords": ""
         },
@@ -629,7 +629,7 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Live wallpaper settings"
+                "Add a wallpaper folder"
             ],
             "keywords": ""
         },
@@ -645,7 +645,7 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Live wallpaper settings"
+                "Add a wallpaper folder"
             ],
             "keywords": ""
         },
@@ -661,14 +661,14 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Live wallpaper settings"
+                "Add a wallpaper folder"
             ],
             "keywords": ""
         },
         {
             "label": "Wallpaper Engine folder",
             "ctx": "",
-            "sub": "Set by you; empty to find it by itself",
+            "sub": "Custom folder (click Reset to auto-detect)",
             "section": "Folders",
             "page": 0,
             "path": [
@@ -677,7 +677,23 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Live wallpaper settings"
+                "Add a wallpaper folder"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Add a wallpaper folder",
+            "ctx": "",
+            "sub": "No extra folders added",
+            "section": "Folders",
+            "page": 0,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Add a wallpaper folder"
             ],
             "keywords": ""
         },
@@ -3411,7 +3427,7 @@ QtObject {
         {
             "label": "Add an app",
             "ctx": "",
-            "sub": "",
+            "sub": "Choose an installed app to start at login",
             "section": "Add",
             "tab": "startup",
             "page": 11,
@@ -3662,15 +3678,15 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Add a rule for an open app",
+            "label": "Add an app rule",
             "ctx": "",
-            "sub": "Open the app first",
+            "sub": "Pick any installed or open app",
             "section": "App rules",
             "tab": "multitasking",
             "page": 12,
             "path": [],
             "trail": [],
-            "keywords": ""
+            "keywords": "window rules class floating"
         },
         {
             "label": "Copy to the clipboard",
@@ -3695,7 +3711,7 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Folder",
+            "label": "Save folder",
             "ctx": "",
             "sub": "",
             "section": "After a screenshot",
@@ -3703,7 +3719,7 @@ QtObject {
             "page": 12,
             "path": [],
             "trail": [],
-            "keywords": ""
+            "keywords": "screenshot folder directory path"
         },
         {
             "label": "Notification",
@@ -3868,13 +3884,13 @@ QtObject {
         {
             "label": "Time zone",
             "ctx": "",
-            "sub": "",
+            "sub": "Loading…",
             "section": "Time",
             "tab": "datetime",
             "page": 14,
             "path": [],
             "trail": [],
-            "keywords": "timezone clock"
+            "keywords": "timezone clock city utc"
         },
         {
             "label": "Clock format",

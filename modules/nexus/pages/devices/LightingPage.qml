@@ -466,18 +466,59 @@ PageBase {
                 }
             }
 
-            // Any colour
-            StyledTextField {
-                implicitWidth: 110
-                verticalPadding: Tokens.padding.small
-                horizontalPadding: Tokens.padding.medium
-                placeholderText: "#rrggbb"
-                onAccepted: {
-                    const t = text.trim().replace(/^#/, "");
-                    if (/^[0-9a-fA-F]{6}$/.test(t))
-                        sw.picked(t.toLowerCase());
+            // Any colour via full picker
+            StyledRect {
+                id: customColBtn
+
+                implicitWidth: customColRow.implicitWidth + Tokens.padding.medium * 2
+                implicitHeight: sw.small ? 26 : 32
+                radius: height / 2
+                color: Colours.tPalette.m3surfaceContainerHigh
+                border.width: 1
+                border.color: Colours.palette.m3outlineVariant
+
+                StateLayer {
+                    anchors.fill: parent
+                    radius: customColBtn.radius
+                    onClicked: colourPicker.openPicker(sw.current || root.accent, c => sw.picked(c), Tr.tr("Choose lighting colour"))
+                }
+
+                RowLayout {
+                    id: customColRow
+
+                    anchors.centerIn: parent
+                    spacing: Tokens.spacing.extraSmall
+
+                    Rectangle {
+                        visible: /^[0-9a-fA-F]{6}$/.test(sw.current)
+                        implicitWidth: sw.small ? 12 : 14
+                        implicitHeight: implicitWidth
+                        radius: width / 2
+                        color: visible ? `#${sw.current}` : "transparent"
+                        border.width: 1
+                        border.color: Colours.palette.m3outlineVariant
+                    }
+
+                    MaterialIcon {
+                        text: "colorize"
+                        color: Colours.palette.m3onSurface
+                        fontStyle: Tokens.font.icon.small
+                    }
+
+                    StyledText {
+                        visible: !sw.small
+                        text: Tr.tr("Custom")
+                        font: Tokens.font.label.small
+                        color: Colours.palette.m3onSurface
+                    }
                 }
             }
+        }
+
+        ColourPickerDialog {
+            id: colourPicker
+
+            hostFlickable: root.flickable
         }
 
         Process {

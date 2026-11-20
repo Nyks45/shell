@@ -6,20 +6,41 @@ import Quickshell
 import Caelestia.I18n
 import qs.components
 import qs.services
+import qs.utils
 
 LazyLoader {
     id: loader
 
     property list<string> cwd: ["Home"]
+    property bool folderMode: false
+    property bool showHidden: false
     property string filterLabel: Tr.tr("All files")
     property list<string> filters: ["*"]
-    property string title: Tr.tr("Select a file")
+    property string title: folderMode ? Tr.tr("Select a folder") : Tr.tr("Select a file")
 
     signal accepted(path: string)
     signal rejected
 
     function open(): void {
         activeAsync = true;
+    }
+
+    function openAt(path: string): void {
+        let p = (path || "").trim().replace(/^~(?=\/|$)/, Paths.home);
+        if (p.length > 1)
+            p = p.replace(/\/+$/, "");
+        if (!p || p === Paths.home) {
+            cwd = ["Home"];
+        } else if (p.startsWith(Paths.home + "/")) {
+            cwd = ["Home", ...p.slice(Paths.home.length + 1).split("/").filter(Boolean)];
+        } else if (p === "/") {
+            cwd = ["/"];
+        } else if (p.startsWith("/")) {
+            cwd = ["/", ...p.slice(1).split("/").filter(Boolean)];
+        } else {
+            cwd = ["Home"];
+        }
+        open();
     }
 
     function close(): void {
@@ -33,10 +54,31 @@ LazyLoader {
         id: root
 
         property list<string> cwd: loader.cwd
+        property bool folderMode: loader.folderMode
+        property bool showHidden: loader.showHidden
         property string filterLabel: loader.filterLabel
         property list<string> filters: loader.filters
 
+        readonly property string currentPath: {
+            if (cwd.length === 0)
+                return Paths.home;
+            if (cwd[0] === "Home")
+                return cwd.length === 1 ? Paths.home : `${Paths.home}/${cwd.slice(1).join("/")}`;
+            if (cwd[0] === "/")
+                return "/" + cwd.slice(1).join("/");
+            return cwd.join("/");
+        }
+
+        readonly property string selectedPath: {
+            const file = folderContents.currentItem?.modelData;
+            if (folderMode)
+                return file?.isDir ? file.path : currentPath;
+            return file?.path ?? "";
+        }
+
         readonly property bool selectionValid: {
+            if (folderMode)
+                return selectedPath.length > 0;
             const file = folderContents.currentItem?.modelData;
             return (file && !file.isDir && (filters.includes("*") || filters.some(filter => filter.toLowerCase() === file.suffix.toLowerCase()))) ?? false;
         }

@@ -279,17 +279,19 @@ PageBase {
             }
         }
 
-        TextFieldRow {
+        FolderPickerRow {
             readonly property var entry: root.fs?.fstab[0] ?? null
 
             visible: !!entry && !root.p?.system
-            label: Tr.tr("Folder")
+            label: Tr.tr("Mount folder")
             subtext: Tr.tr("Where it appears")
             value: entry?.dir ?? ""
+            allowManual: true
             validate: /^\/[^\s#]*$/
-            onEditingFinished: v => {
-                if (entry && v !== entry.dir)
-                    Disks.run("fstab", [root.p.id, v, entry.opts], Tr.tr("Change where it mounts"));
+            dialogTitle: Tr.tr("Select mount folder")
+            onPicked: path => {
+                if (entry && path !== entry.dir)
+                    Disks.run("fstab", [root.p.id, path, entry.opts], Tr.tr("Change where it mounts"));
             }
         }
 

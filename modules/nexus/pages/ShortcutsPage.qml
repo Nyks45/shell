@@ -400,12 +400,31 @@ PageBase {
                     font: Tokens.font.body.small
                 }
 
-                StyledTextField {
-                    id: commandField
-
+                RowLayout {
                     Layout.fillWidth: true
-                    placeholderText: Tr.tr("Command to run, e.g. firefox --private-window")
-                    font: Tokens.font.mono.small
+                    spacing: Tokens.spacing.small
+
+                    StyledTextField {
+                        id: commandField
+
+                        Layout.fillWidth: true
+                        verticalPadding: Tokens.padding.small
+                        floatingPlaceholder: false
+                        placeholderText: Tr.tr("Command to run, e.g. firefox --private-window")
+                        font: Tokens.font.mono.small
+                    }
+
+                    TextButton {
+                        text: Tr.tr("Pick app")
+                        type: TextButton.Tonal
+                        onClicked: appPicker.openPicker({
+                            header: Tr.tr("Launch an app"),
+                            onPicked: item => {
+                                if (item.command)
+                                    commandField.text = item.command;
+                            }
+                        })
+                    }
                 }
 
                 KeysEditor {
@@ -472,6 +491,12 @@ PageBase {
                 }
                 pendingAction = null;
             }
+        }
+
+        AppPickerDialog {
+            id: appPicker
+
+            hostFlickable: root.flickable
         }
 
         // Non-visual helpers (the page takes one item: they live in its column)
@@ -562,6 +587,8 @@ PageBase {
         property var conflicts: []
         readonly property list<string> mods: ["SUPER", "CTRL", "ALT", "SHIFT"]
         property var held: ({})
+        property bool recording: false
+        property var liveMods: ({})
         readonly property string keys: {
             const k = keyField.text.trim().toUpperCase().replace(/\s+/g, "_");
             if (!k)
@@ -573,6 +600,63 @@ PageBase {
         signal cancelled
         signal turnedOff
         signal resetClicked
+
+        function qtKeyToHypr(key: int): string {
+            const modKeys = [Qt.Key_Shift, Qt.Key_Control, Qt.Key_Meta, Qt.Key_Alt, Qt.Key_AltGr, Qt.Key_Super_L, Qt.Key_Super_R, Qt.Key_Hyper_L, Qt.Key_Hyper_R];
+            if (modKeys.includes(key))
+                return "";
+            if (key >= Qt.Key_A && key <= Qt.Key_Z)
+                return String.fromCharCode(key);
+            if (key >= Qt.Key_0 && key <= Qt.Key_9)
+                return String.fromCharCode(key);
+            if (key >= Qt.Key_F1 && key <= Qt.Key_F24)
+                return `F${key - Qt.Key_F1 + 1}`;
+            const map = {
+                [Qt.Key_Return]: "RETURN",
+                [Qt.Key_Enter]: "RETURN",
+                [Qt.Key_Space]: "SPACE",
+                [Qt.Key_Tab]: "TAB",
+                [Qt.Key_Backtab]: "TAB",
+                [Qt.Key_Backspace]: "BACKSPACE",
+                [Qt.Key_Delete]: "DELETE",
+                [Qt.Key_Insert]: "INSERT",
+                [Qt.Key_Home]: "HOME",
+                [Qt.Key_End]: "END",
+                [Qt.Key_PageUp]: "PRIOR",
+                [Qt.Key_PageDown]: "NEXT",
+                [Qt.Key_Left]: "LEFT",
+                [Qt.Key_Right]: "RIGHT",
+                [Qt.Key_Up]: "UP",
+                [Qt.Key_Down]: "DOWN",
+                [Qt.Key_Print]: "PRINT",
+                [Qt.Key_Pause]: "PAUSE",
+                [Qt.Key_CapsLock]: "CAPS_LOCK",
+                [Qt.Key_Minus]: "MINUS",
+                [Qt.Key_Equal]: "EQUAL",
+                [Qt.Key_Plus]: "EQUAL",
+                [Qt.Key_BracketLeft]: "BRACKETLEFT",
+                [Qt.Key_BracketRight]: "BRACKETRIGHT",
+                [Qt.Key_Semicolon]: "SEMICOLON",
+                [Qt.Key_Apostrophe]: "APOSTROPHE",
+                [Qt.Key_Comma]: "COMMA",
+                [Qt.Key_Period]: "PERIOD",
+                [Qt.Key_Slash]: "SLASH",
+                [Qt.Key_Backslash]: "BACKSLASH",
+                [Qt.Key_QuoteLeft]: "GRAVE",
+                [Qt.Key_VolumeUp]: "XF86AUDIORAISEVOLUME",
+                [Qt.Key_VolumeDown]: "XF86AUDIOLOWERVOLUME",
+                [Qt.Key_VolumeMute]: "XF86AUDIOMUTE",
+                [Qt.Key_MicMute]: "XF86AUDIOMICMUTE",
+                [Qt.Key_MediaPlay]: "XF86AUDIOPLAY",
+                [Qt.Key_MediaTogglePlayPause]: "XF86AUDIOPLAY",
+                [Qt.Key_MediaNext]: "XF86AUDIONEXT",
+                [Qt.Key_MediaPrevious]: "XF86AUDIOPREV",
+                [Qt.Key_MediaStop]: "XF86AUDIOSTOP",
+                [Qt.Key_MonBrightnessUp]: "XF86MONBRIGHTNESSUP",
+                [Qt.Key_MonBrightnessDown]: "XF86MONBRIGHTNESSDOWN"
+            };
+            return map[key] ?? "";
+        }
 
         function load(text: string): void {
             const parts = text.split("+").map(p => p.trim().toUpperCase()).filter(p => p);
@@ -592,11 +676,17 @@ PageBase {
         function clear(): void {
             held = {};
             keyField.text = "";
+            recording = false;
+            liveMods = {};
         }
 
         onVisibleChanged: {
             if (visible && initial)
                 load(initial);
+            if (!visible) {
+                recording = false;
+                liveMods = {};
+            }
         }
         Component.onCompleted: {
             if (initial)
@@ -604,6 +694,91 @@ PageBase {
         }
 
         spacing: Tokens.spacing.small
+
+        Item {
+            id: recorder
+
+            width: 0
+            height: 0
+            focus: editor.recording
+            onActiveFocusChanged: if (!activeFocus && editor.recording) {
+                editor.recording = false;
+                editor.liveMods = {};
+            }
+            Keys.onPressed: event => {
+                if (!editor.recording)
+                    return;
+                event.accepted = true;
+                if (event.key === Qt.Key_Escape) {
+                    editor.recording = false;
+                    editor.liveMods = {};
+                    return;
+                }
+                const m = {
+                    SUPER: !!(event.modifiers & Qt.MetaModifier) || event.key === Qt.Key_Super_L || event.key === Qt.Key_Super_R || event.key === Qt.Key_Meta,
+                    CTRL: !!(event.modifiers & Qt.ControlModifier) || event.key === Qt.Key_Control,
+                    ALT: !!(event.modifiers & Qt.AltModifier) || event.key === Qt.Key_Alt,
+                    SHIFT: !!(event.modifiers & Qt.ShiftModifier) || event.key === Qt.Key_Shift
+                };
+                const k = editor.qtKeyToHypr(event.key);
+                if (!k) {
+                    editor.liveMods = m;
+                    return;
+                }
+                editor.held = {
+                    SUPER: !!(event.modifiers & Qt.MetaModifier),
+                    CTRL: !!(event.modifiers & Qt.ControlModifier),
+                    ALT: !!(event.modifiers & Qt.AltModifier),
+                    SHIFT: !!(event.modifiers & Qt.ShiftModifier)
+                };
+                keyField.text = k;
+                editor.liveMods = {};
+                editor.recording = false;
+            }
+            Keys.onReleased: event => {
+                if (!editor.recording)
+                    return;
+                event.accepted = true;
+                editor.liveMods = {
+                    SUPER: !!(event.modifiers & Qt.MetaModifier),
+                    CTRL: !!(event.modifiers & Qt.ControlModifier),
+                    ALT: !!(event.modifiers & Qt.AltModifier),
+                    SHIFT: !!(event.modifiers & Qt.ShiftModifier)
+                };
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Tokens.spacing.small
+
+            TextButton {
+                text: editor.recording ? Tr.tr("Press keys… (Esc to cancel)") : Tr.tr("Record keys")
+                type: editor.recording ? TextButton.Filled : TextButton.Tonal
+                onClicked: {
+                    editor.recording = !editor.recording;
+                    editor.liveMods = {};
+                    if (editor.recording)
+                        Qt.callLater(() => {
+                            if (editor.recording)
+                                recorder.forceActiveFocus();
+                        });
+                }
+            }
+
+            StyledText {
+                Layout.fillWidth: true
+                text: {
+                    if (!editor.recording)
+                        return Tr.tr("Or adjust modifiers and key below:");
+                    const active = editor.mods.filter(m => editor.liveMods[m]);
+                    return active.length > 0 ? [...active, "…"].join(" + ") : Tr.tr("Press your shortcut now");
+                }
+                color: editor.recording ? Colours.palette.m3primary : Colours.palette.m3outline
+                font: Tokens.font.label.small
+                elide: Text.ElideRight
+            }
+        }
 
         RowLayout {
             Layout.fillWidth: true
@@ -617,6 +792,7 @@ PageBase {
 
                     text: modelData.charAt(0) + modelData.slice(1).toLowerCase()
                     isToggle: true
+                    followChecked: true
                     checked: !!editor.held[modelData]
                     type: TextButton.Tonal
                     onClicked: {
@@ -636,6 +812,8 @@ PageBase {
                 id: keyField
 
                 Layout.fillWidth: true
+                verticalPadding: Tokens.padding.small
+                floatingPlaceholder: false
                 placeholderText: Tr.tr("Key, e.g. D, F5, Return, Print")
                 font: Tokens.font.mono.small
                 onAccepted: {

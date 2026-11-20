@@ -55,13 +55,13 @@ Item {
         sourceComponent: ColumnLayout {
             MaterialIcon {
                 Layout.alignment: Qt.AlignHCenter
-                text: "scan_delete"
+                text: root.dialog.folderMode ? "folder_open" : "scan_delete"
                 color: Colours.palette.m3outline
                 fontStyle: Tokens.font.icon.builders.extraLarge.scale(2).weight(Font.Medium).build()
             }
 
             StyledText {
-                text: Tr.tr("This folder is empty")
+                text: root.dialog.folderMode ? Tr.tr("No subfolders here") : Tr.tr("This folder is empty")
                 color: Colours.palette.m3outline
                 font: Tokens.font.body.builders.large.weight(Font.Medium).build()
             }
@@ -90,11 +90,17 @@ Item {
 
         Keys.onReturnPressed: {
             if (root.dialog.selectionValid)
-                root.dialog.accepted((currentItem as FileEntry).modelData.path);
+                root.dialog.accepted(root.dialog.selectedPath);
         }
         Keys.onEnterPressed: {
             if (root.dialog.selectionValid)
-                root.dialog.accepted((currentItem as FileEntry).modelData.path);
+                root.dialog.accepted(root.dialog.selectedPath);
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            z: -1
+            onClicked: view.currentIndex = -1
         }
 
         StyledScrollBar.vertical: StyledScrollBar {
@@ -102,15 +108,9 @@ Item {
         }
 
         model: FileSystemModel {
-            path: {
-                if (root.dialog.cwd[0] === "Home")
-                    return Paths.home + `/${root.dialog.cwd.slice(1).join("/")}`;
-                // Outside home (Computer, other drives): ["/", "mnt", "SATA"] = /mnt/SATA
-                if (root.dialog.cwd[0] === "/")
-                    return "/" + root.dialog.cwd.slice(1).join("/");
-                else
-                    return root.dialog.cwd.join("/");
-            }
+            path: root.dialog.currentPath
+            filter: root.dialog.folderMode ? FileSystemModel.Dirs : FileSystemModel.NoFilter
+            showHidden: root.dialog.showHidden
             onPathChanged: view.currentIndex = -1
         }
 

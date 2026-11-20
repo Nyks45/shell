@@ -14,8 +14,20 @@ ConnectedRect {
     property string icon: guessIcon(text)
     // For the search's highlight (it tells rows apart by their section)
     readonly property bool isSectionHeader: true
-    // A card's top: rows follow
-    readonly property bool card: !Rows.isLast(root)
+    // A card's top: rows follow (frozen when hidden so tab switches never flash from transparent)
+    readonly property bool rawCard: !Rows.isLast(root)
+    property bool card: false
+
+    function syncCard(): void {
+        if (root.visible)
+            root.card = root.rawCard;
+    }
+
+    onRawCardChanged: if (visible)
+        Qt.callLater(syncCard)
+    onVisibleChanged: if (visible)
+        Qt.callLater(syncCard)
+    Component.onCompleted: card = rawCard
 
     // The first thing on its page: no gap above
     readonly property bool atTop: {
@@ -42,12 +54,22 @@ ConnectedRect {
 
     first: true
     groupStart: true
-    color: card ? Colours.tPalette.m3surfaceContainer : "transparent"
+    color: "transparent"
 
     Layout.fillWidth: true
     Layout.topMargin: atTop ? 0 : Tokens.spacing.largeIncreased - ((Rows.host(root)?.parent as ColumnLayout)?.spacing ?? 0)
     Layout.bottomMargin: card ? 0 : Tokens.spacing.extraSmall
     implicitHeight: row.implicitHeight + (card ? Tokens.padding.large + Tokens.padding.small : 0)
+
+    StyledRect {
+        anchors.fill: parent
+        visible: root.card
+        color: Colours.tPalette.m3surfaceContainer
+        topLeftRadius: root.topLeftRadius
+        topRightRadius: root.topRightRadius
+        bottomLeftRadius: root.bottomLeftRadius
+        bottomRightRadius: root.bottomRightRadius
+    }
 
     RowLayout {
         id: row

@@ -49,92 +49,122 @@ StyledRect {
 
             radius: Tokens.rounding.medium
             color: Colours.tPalette.m3surfaceContainerHigh
+            clip: true
 
-            implicitHeight: pathComponents.implicitHeight + pathComponents.anchors.margins * 2
+            implicitHeight: pathComponents.implicitHeight + Tokens.padding.extraSmall
 
-            RowLayout {
-                id: pathComponents
+            Flickable {
+                id: crumbFlick
 
                 anchors.fill: parent
                 anchors.margins: Tokens.padding.extraSmall / 2
                 anchors.leftMargin: 0
+                boundsBehavior: Flickable.StopAtBounds
+                contentWidth: pathComponents.implicitWidth
+                contentHeight: height
+                interactive: contentWidth > width
+                onContentWidthChanged: if (contentWidth > width)
+                    contentX = contentWidth - width
+                onWidthChanged: if (contentWidth > width)
+                    contentX = contentWidth - width
 
-                spacing: Tokens.spacing.small
+                RowLayout {
+                    id: pathComponents
 
-                Repeater {
-                    model: root.dialog.cwd
+                    height: parent.height
+                    spacing: Tokens.spacing.small
 
-                    RowLayout {
-                        id: folder
+                    Repeater {
+                        model: root.dialog.cwd
 
-                        required property string modelData
-                        required property int index
+                        RowLayout {
+                            id: folder
 
-                        spacing: 0
+                            required property string modelData
+                            required property int index
 
-                        Loader {
-                            asynchronous: true
-                            Layout.rightMargin: Tokens.spacing.small
-                            active: folder.index > 0
-                            sourceComponent: StyledText {
-                                text: "/"
-                                color: Colours.palette.m3onSurfaceVariant
-                                font: Tokens.font.body.builders.small.weight(Font.Bold).build()
-                            }
-                        }
-
-                        Item {
-                            implicitWidth: homeIcon.implicitWidth + (homeIcon.active ? Tokens.padding.extraSmall : 0) + folderName.implicitWidth + Tokens.padding.medium * 2
-                            implicitHeight: folderName.implicitHeight + Tokens.padding.small
+                            Layout.alignment: Qt.AlignVCenter
+                            spacing: 0
 
                             Loader {
                                 asynchronous: true
-                                anchors.fill: parent
-                                active: folder.index < root.dialog.cwd.length - 1
-                                sourceComponent: StateLayer {
-                                    onClicked: {
-                                        root.dialog.cwd = root.dialog.cwd.slice(0, folder.index + 1);
+                                Layout.rightMargin: Tokens.spacing.small
+                                active: folder.index > 0
+                                sourceComponent: StyledText {
+                                    text: "/"
+                                    color: Colours.palette.m3onSurfaceVariant
+                                    font: Tokens.font.body.builders.small.weight(Font.Bold).build()
+                                }
+                            }
+
+                            Item {
+                                implicitWidth: homeIcon.implicitWidth + (homeIcon.active ? Tokens.padding.extraSmall : 0) + folderName.implicitWidth + Tokens.padding.medium * 2
+                                implicitHeight: folderName.implicitHeight + Tokens.padding.small
+
+                                Loader {
+                                    asynchronous: true
+                                    anchors.fill: parent
+                                    active: folder.index < root.dialog.cwd.length - 1
+                                    sourceComponent: StateLayer {
+                                        onClicked: {
+                                            root.dialog.cwd = root.dialog.cwd.slice(0, folder.index + 1);
+                                        }
+
+                                        radius: Tokens.rounding.medium
                                     }
-
-                                    radius: Tokens.rounding.medium
                                 }
-                            }
 
-                            Loader {
-                                id: homeIcon
+                                Loader {
+                                    id: homeIcon
 
-                                asynchronous: true
+                                    asynchronous: true
 
-                                anchors.left: parent.left
-                                anchors.verticalCenter: parent.verticalCenter
-                                anchors.leftMargin: Tokens.padding.medium
+                                    anchors.left: parent.left
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.leftMargin: Tokens.padding.medium
 
-                                active: folder.index === 0 && (folder.modelData === "Home" || folder.modelData === "/")
-                                sourceComponent: MaterialIcon {
-                                    text: folder.modelData === "/" ? "computer" : "home"
-                                    color: root.dialog.cwd.length === 1 ? Colours.palette.m3onSurface : Colours.palette.m3onSurfaceVariant
-                                    fill: 1
+                                    active: folder.index === 0 && (folder.modelData === "Home" || folder.modelData === "/")
+                                    sourceComponent: MaterialIcon {
+                                        text: folder.modelData === "/" ? "computer" : "home"
+                                        color: root.dialog.cwd.length === 1 ? Colours.palette.m3onSurface : Colours.palette.m3onSurfaceVariant
+                                        fill: 1
+                                    }
                                 }
-                            }
 
-                            StyledText {
-                                id: folderName
+                                StyledText {
+                                    id: folderName
 
-                                anchors.left: homeIcon.right
-                                anchors.verticalCenter: parent.verticalCenter
-                                anchors.leftMargin: homeIcon.active ? Tokens.padding.extraSmall : 0
+                                    anchors.left: homeIcon.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.leftMargin: homeIcon.active ? Tokens.padding.extraSmall : 0
 
-                                text: folder.modelData === "/" ? Tr.trCtx("Computer", "file dialog: the whole file system") : folder.modelData
-                                color: folder.index < root.dialog.cwd.length - 1 ? Colours.palette.m3onSurfaceVariant : Colours.palette.m3onSurface
-                                font: Tokens.font.body.builders.small.weight(Font.Bold).build()
+                                    text: folder.modelData === "/" ? Tr.trCtx("Computer", "file dialog: the whole file system") : folder.modelData
+                                    color: folder.index < root.dialog.cwd.length - 1 ? Colours.palette.m3onSurfaceVariant : Colours.palette.m3onSurface
+                                    font: Tokens.font.body.builders.small.weight(Font.Bold).build()
+                                }
                             }
                         }
                     }
                 }
+            }
+        }
 
-                Item {
-                    Layout.fillWidth: true
-                }
+        Item {
+            implicitWidth: implicitHeight
+            implicitHeight: hiddenIcon.implicitHeight + Tokens.padding.small
+
+            StateLayer {
+                radius: Tokens.rounding.medium
+                onClicked: root.dialog.showHidden = !root.dialog.showHidden
+            }
+
+            MaterialIcon {
+                id: hiddenIcon
+
+                anchors.centerIn: parent
+                text: root.dialog.showHidden ? "visibility" : "visibility_off"
+                color: root.dialog.showHidden ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
+                grade: 200
             }
         }
     }

@@ -75,11 +75,14 @@ PageBase {
             onToggled: Screenshots.set("save", checked)
         }
 
-        TextFieldRow {
+        FolderPickerRow {
             visible: Screenshots.save
-            label: Tr.tr("Folder")
+            label: Tr.tr("Save folder")
             value: Screenshots.folder
-            onEditingFinished: v => Screenshots.set("folder", v.trim() === Screenshots.defaultFolder ? "" : v.trim())
+            defaultValue: Screenshots.defaultFolder
+            canReset: true
+            onPicked: path => Screenshots.set("folder", path === Screenshots.defaultFolder ? "" : path)
+            onResetClicked: Screenshots.set("folder", "")
         }
 
         ToggleRow {

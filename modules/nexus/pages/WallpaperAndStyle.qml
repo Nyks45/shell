@@ -10,6 +10,7 @@ import qs.components
 import qs.components.controls
 import qs.components.widgets
 import qs.services
+import qs.utils
 import qs.modules.nexus.common
 
 PageBase {
@@ -432,14 +433,14 @@ PageBase {
             }
         }
 
-        TextFieldRow {
+        FolderPickerRow {
             label: Tr.tr("Wallpaper folder")
             subtext: Tr.tr("Where the wallpaper picker looks")
             value: GlobalConfig.paths.wallpaperDir
-            onEditingFinished: v => {
-                if (v.trim())
-                    GlobalConfig.paths.wallpaperDir = v.trim();
-            }
+            defaultValue: `${Paths.pictures}/Wallpapers`
+            canReset: true
+            onPicked: path => GlobalConfig.paths.wallpaperDir = path
+            onResetClicked: GlobalConfig.paths.wallpaperDir = `${Paths.pictures}/Wallpapers`
         }
 
         // Bars that move with the music, on the wallpaper

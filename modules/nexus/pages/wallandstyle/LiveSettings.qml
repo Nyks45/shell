@@ -3,10 +3,12 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Widgets
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
 import qs.components.controls
+import qs.components.filedialog
 import qs.services
 import qs.utils
 import qs.modules.nexus
@@ -104,12 +106,17 @@ PageBase {
             onToggled: LiveWallpaper.set("pauseOnFullscreen", checked)
         }
 
-        // Fullscreen apps that don't pause it (their app id, or a part of it)
-        StringListEditor {
+        // Fullscreen apps that don't pause it
+        AppListEditor {
             visible: LiveWallpaper.setting("pauseOnFullscreen", true)
+            hostFlickable: root.flickable
             values: LiveWallpaper.setting("pauseIgnore", [])
-            placeholderText: Tr.tr("Don't pause for this app (its app id, e.g. mpv)")
-            emptyText: Tr.tr("Every fullscreen app pauses it")
+            addLabel: Tr.tr("Add an app to ignore")
+            emptyText: Tr.tr("Every fullscreen app pauses live wallpapers")
+            pickerHeader: Tr.tr("Don't pause for app")
+            includeRunning: true
+            allowCustom: true
+            useWmClass: true
             onEdited: v => LiveWallpaper.set("pauseIgnore", v)
         }
 
@@ -262,24 +269,87 @@ PageBase {
 
             model: LiveWallpaper.appRules
 
-            RowButton {
+            ConnectedRect {
+                id: lwRuleRow
+
                 required property var modelData
                 required property int index
+                readonly property DesktopEntry desktopEntry: DesktopEntries.heuristicLookup(modelData.app) ?? DesktopEntries.byId(modelData.app)
+                readonly property string displayName: desktopEntry ? desktopEntry.name : modelData.app
 
-                icon: "rule"
-                text: modelData.app
-                subtext: `${root.whenText(modelData.when)} → ${root.actionText(modelData.action)}`
-                trailingIcon: "delete"
-                onClicked: confirmDialog.ask({
-                    header: Tr.tr("Delete rule for %1?").arg(modelData.app),
-                    body: Tr.tr("This app-specific live wallpaper rule will be removed."),
-                    confirmLabel: Tr.trCtx("Delete", "button"),
-                    onConfirm: () => LiveWallpaper.setAppRules(LiveWallpaper.appRules.filter((r, i) => i !== index))
-                })
+                Layout.fillWidth: true
+                implicitHeight: lwRuleLayout.implicitHeight + Tokens.padding.small * 2
+
+                RowLayout {
+                    id: lwRuleLayout
+
+                    anchors.fill: parent
+                    anchors.margins: Tokens.padding.small
+                    anchors.leftMargin: Tokens.padding.largeIncreased
+                    anchors.rightMargin: Tokens.padding.medium
+                    spacing: Tokens.spacing.medium
+
+                    Item {
+                        implicitWidth: 28
+                        implicitHeight: 28
+
+                        IconImage {
+                            anchors.fill: parent
+                            asynchronous: true
+                            visible: !!(lwRuleRow.desktopEntry?.icon)
+                            source: lwRuleRow.desktopEntry?.icon ? Quickshell.iconPath(lwRuleRow.desktopEntry.icon, "application-x-executable") : ""
+                        }
+
+                        MaterialIcon {
+                            anchors.centerIn: parent
+                            visible: !(lwRuleRow.desktopEntry?.icon)
+                            text: "rule"
+                            color: Colours.palette.m3onSurfaceVariant
+                            fontStyle: Tokens.font.icon.medium
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: lwRuleRow.displayName
+                            font: Tokens.font.body.small
+                            elide: Text.ElideRight
+                        }
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: `${root.whenText(lwRuleRow.modelData.when)} → ${root.actionText(lwRuleRow.modelData.action)}`
+                            color: Colours.palette.m3outline
+                            font: Tokens.font.label.small
+                            elide: Text.ElideRight
+                        }
+                    }
+
+                    IconButton {
+                        icon: "delete"
+                        type: IconButton.Text
+                        onClicked: confirmDialog.ask({
+                            header: Tr.tr("Delete rule for %1?").arg(lwRuleRow.displayName),
+                            body: Tr.tr("This app-specific live wallpaper rule will be removed."),
+                            confirmLabel: Tr.trCtx("Delete", "button"),
+                            onConfirm: () => LiveWallpaper.setAppRules(LiveWallpaper.appRules.filter((r, i) => i !== lwRuleRow.index))
+                        })
+                    }
+                }
             }
         }
 
         ConnectedRect {
+            id: newRuleCard
+
+            property string selectedApp: ""
+            property string selectedName: ""
+            property string selectedIcon: ""
+
             Layout.fillWidth: true
             implicitHeight: ruleCol.implicitHeight + Tokens.padding.medium * 2
 
@@ -289,6 +359,7 @@ PageBase {
                 anchors.fill: parent
                 anchors.margins: Tokens.padding.medium
                 anchors.leftMargin: Tokens.padding.largeIncreased
+                anchors.rightMargin: Tokens.padding.largeIncreased
                 spacing: Tokens.spacing.small
 
                 StyledText {
@@ -296,27 +367,77 @@ PageBase {
                     font: Tokens.font.body.small
                 }
 
-                StyledTextField {
-                    id: ruleApp
-
+                StyledRect {
                     Layout.fillWidth: true
-                    placeholderText: Tr.tr("App (its window class, e.g. steam_app or firefox)")
-                }
+                    implicitHeight: pickedAppRow.implicitHeight + Tokens.padding.small * 2
+                    radius: Tokens.rounding.medium
+                    color: Colours.tPalette.m3surfaceContainerHigh
 
-                // Running apps, to pick from
-                Flow {
-                    Layout.fillWidth: true
-                    spacing: Tokens.spacing.extraSmall
+                    StateLayer {
+                        anchors.fill: parent
+                        radius: parent.radius
+                        onClicked: appPicker.openPicker({
+                            header: Tr.tr("Choose an app"),
+                            includeRunning: true,
+                            allowCustom: true,
+                            onPicked: item => {
+                                newRuleCard.selectedApp = item.wmClass || item.id;
+                                newRuleCard.selectedName = item.name;
+                                newRuleCard.selectedIcon = item.icon;
+                            }
+                        })
+                    }
 
-                    Repeater {
-                        model: [...new Set(Hypr.toplevels.values.map(t => t.lastIpcObject?.class ?? "").filter(c => c))].sort()
+                    RowLayout {
+                        id: pickedAppRow
+
+                        anchors.fill: parent
+                        anchors.margins: Tokens.padding.small
+                        anchors.leftMargin: Tokens.padding.medium
+                        anchors.rightMargin: Tokens.padding.small
+                        spacing: Tokens.spacing.medium
+
+                        Item {
+                            implicitWidth: 24
+                            implicitHeight: 24
+
+                            IconImage {
+                                anchors.fill: parent
+                                asynchronous: true
+                                visible: newRuleCard.selectedIcon.length > 0
+                                source: newRuleCard.selectedIcon ? Quickshell.iconPath(newRuleCard.selectedIcon, "application-x-executable") : ""
+                            }
+
+                            MaterialIcon {
+                                anchors.centerIn: parent
+                                visible: newRuleCard.selectedIcon.length === 0
+                                text: "apps"
+                                color: Colours.palette.m3onSurfaceVariant
+                                fontStyle: Tokens.font.icon.small
+                            }
+                        }
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: newRuleCard.selectedApp ? (newRuleCard.selectedName || newRuleCard.selectedApp) : Tr.tr("No app selected")
+                            color: newRuleCard.selectedApp ? Colours.palette.m3onSurface : Colours.palette.m3outline
+                            font: Tokens.font.body.small
+                            elide: Text.ElideRight
+                        }
 
                         TextButton {
-                            required property string modelData
-
-                            text: modelData
-                            type: TextButton.Text
-                            onClicked: ruleApp.text = modelData
+                            text: Tr.tr("Pick app")
+                            type: TextButton.Tonal
+                            onClicked: appPicker.openPicker({
+                                header: Tr.tr("Choose an app"),
+                                includeRunning: true,
+                                allowCustom: true,
+                                onPicked: item => {
+                                    newRuleCard.selectedApp = item.wmClass || item.id;
+                                    newRuleCard.selectedName = item.name;
+                                    newRuleCard.selectedIcon = item.icon;
+                                }
+                            })
                         }
                     }
                 }
@@ -348,14 +469,16 @@ PageBase {
                     TextButton {
                         text: Tr.tr("Add")
                         type: TextButton.Filled
-                        disabled: !ruleApp.text.trim()
+                        disabled: !newRuleCard.selectedApp
                         onClicked: {
                             LiveWallpaper.setAppRules(LiveWallpaper.appRules.concat([{
-                                    app: ruleApp.text.trim(),
+                                    app: newRuleCard.selectedApp,
                                     when: ruleWhen.value,
                                     action: ruleAction.value
                                 }]));
-                            ruleApp.text = "";
+                            newRuleCard.selectedApp = "";
+                            newRuleCard.selectedName = "";
+                            newRuleCard.selectedIcon = "";
                         }
                     }
                 }
@@ -366,13 +489,18 @@ PageBase {
             text: Tr.tr("Folders")
         }
 
-        TextFieldRow {
+        FolderPickerRow {
             label: Tr.tr("Wallpaper Engine folder")
-            subtext: LiveWallpaper.setting("assetsDir", "") ? Tr.tr("Set by you; empty to find it by itself") : Tr.tr("Found by itself: %1").arg(Paths.shortenHome(LiveWallpaper.assetsDetected.replace(/\/assets$/, "")) || Tr.tr("not found"))
+            subtext: LiveWallpaper.setting("assetsDir", "") ? Tr.tr("Custom folder (click Reset to auto-detect)") : Tr.tr("Found automatically: %1").arg(Paths.shortenHome(LiveWallpaper.assetsDetected.replace(/\/assets$/, "")) || Tr.tr("not found"))
             value: LiveWallpaper.setting("assetsDir", "")
-            placeholderText: Tr.tr("Its assets folder, if it's somewhere unusual")
-            onEditingFinished: v => {
-                LiveWallpaper.set("assetsDir", v.trim());
+            placeholderText: ""
+            canReset: true
+            onPicked: path => {
+                LiveWallpaper.set("assetsDir", path);
+                LiveWallpaper.refresh();
+            }
+            onResetClicked: {
+                LiveWallpaper.set("assetsDir", "");
                 LiveWallpaper.refresh();
             }
         }
@@ -387,12 +515,73 @@ PageBase {
             wrapMode: Text.WordWrap
         }
 
-        StringListEditor {
-            values: LiveWallpaper.setting("extraFolders", [])
-            placeholderText: Tr.tr("A folder of wallpapers, e.g. ~/Wallpapers/Live")
-            onEdited: v => {
-                LiveWallpaper.setQuiet("extraFolders", v);
-                Qt.callLater(() => LiveWallpaper.refresh());
+        Repeater {
+            model: LiveWallpaper.setting("extraFolders", [])
+
+            ConnectedRect {
+                id: extraFolderRow
+
+                required property string modelData
+                required property int index
+
+                Layout.fillWidth: true
+                implicitHeight: extraRowLayout.implicitHeight + Tokens.padding.small * 2
+
+                RowLayout {
+                    id: extraRowLayout
+
+                    anchors.fill: parent
+                    anchors.margins: Tokens.padding.small
+                    anchors.leftMargin: Tokens.padding.largeIncreased
+                    anchors.rightMargin: Tokens.padding.medium
+                    spacing: Tokens.spacing.medium
+
+                    MaterialIcon {
+                        text: "folder"
+                        color: Colours.palette.m3onSurfaceVariant
+                        fontStyle: Tokens.font.icon.medium
+                        fill: 1
+                    }
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: Paths.shortenHome(extraFolderRow.modelData)
+                        font: Tokens.font.mono.small
+                        wrapMode: Text.Wrap
+                    }
+
+                    IconButton {
+                        icon: "close"
+                        type: IconButton.Text
+                        onClicked: {
+                            const next = [...LiveWallpaper.setting("extraFolders", [])];
+                            next.splice(extraFolderRow.index, 1);
+                            LiveWallpaper.setQuiet("extraFolders", next);
+                            Qt.callLater(() => LiveWallpaper.refresh());
+                        }
+                    }
+                }
+            }
+        }
+
+        RowButton {
+            icon: "create_new_folder"
+            text: Tr.tr("Add a wallpaper folder")
+            subtext: LiveWallpaper.setting("extraFolders", []).length === 0 ? Tr.tr("No extra folders added") : ""
+            onClicked: extraFolderDialog.openAt(Paths.home)
+        }
+
+        FileDialog {
+            id: extraFolderDialog
+
+            folderMode: true
+            title: Tr.tr("Add a wallpaper folder")
+            onAccepted: path => {
+                const cur = LiveWallpaper.setting("extraFolders", []);
+                if (!cur.includes(path)) {
+                    LiveWallpaper.setQuiet("extraFolders", [...cur, path]);
+                    Qt.callLater(() => LiveWallpaper.refresh());
+                }
             }
         }
 
@@ -420,6 +609,12 @@ PageBase {
 
         ConfirmDialog {
             id: confirmDialog
+
+            hostFlickable: root.flickable
+        }
+
+        AppPickerDialog {
+            id: appPicker
 
             hostFlickable: root.flickable
         }

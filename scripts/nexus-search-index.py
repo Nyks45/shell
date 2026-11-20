@@ -25,7 +25,7 @@ NEXUS = ROOT / "modules/nexus"
 OUT = NEXUS / "SearchIndex.qml"
 
 ROW_TYPES = {
-    "ToggleRow", "SliderRow", "StepperRow", "SelectRow", "TextFieldRow", "RowButton", "NavRow", "PopupRow",
+    "ToggleRow", "SliderRow", "StepperRow", "SelectRow", "TextFieldRow", "FolderPickerRow", "RowButton", "NavRow", "PopupRow",
     "DialogRowButton", "DialogSelectButton", "InfoRow", "SwitchRow", "ColourRow",
 }
 # Sub-pages that only make sense with something picked first
@@ -53,7 +53,10 @@ SYNONYMS = {
     "Power mode": "performance power saver profile",
     "Layout": "keyboard language",
     "Brightness": "backlight dim",
-    "Time zone": "timezone clock",
+    "Time zone": "timezone clock city utc",
+    "Save folder": "screenshot folder directory path",
+    "Wallpaper folder": "wallpapers directory path",
+    "Add an app rule": "window rules class floating",
     "Clock format": "12 24 hour am pm",
     "Do not disturb": "dnd silence mute notifications",
     "Frame rate": "fps live wallpaper",

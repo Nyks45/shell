@@ -8,7 +8,6 @@ import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
-import qs.components.containers
 import qs.components.controls
 import qs.services
 import qs.modules.nexus.common
@@ -21,7 +20,7 @@ PageBase {
     property string timezone
     property bool ntp
     property bool synced
-    property list<string> timezones
+    property var zoneItems: []
 
     function refresh(): void {
         showProc.running = false;
@@ -59,15 +58,22 @@ PageBase {
             subtext: Tr.tr("From the internet (NTP)")
             checked: root.ntp
             onToggled: {
-                root.ntp = checked;
-                setProc.exec(["timedatectl", "set-ntp", checked ? "true" : "false"]);
+                const want = checked;
+                checked = Qt.binding(() => root.ntp);
+                setProc.actionTitle = want ? Tr.tr("Automatic time turned on") : Tr.tr("Automatic time turned off");
+                setProc.failTitle = Tr.tr("Couldn't change automatic time");
+                setProc.actionDetail = "";
+                setProc.actionIcon = "schedule";
+                setProc.exec(["timedatectl", "set-ntp", want ? "true" : "false"]);
             }
         }
 
-        ZoneRow {
+        RowButton {
             icon: "public"
-            label: Tr.tr("Time zone")
-            status: root.timezone.replace(/_/g, " ")
+            text: Tr.tr("Time zone")
+            subtext: root.timezone ? root.timezone.replace(/_/g, " ") : Tr.tr("Loading…")
+            trailingIcon: "chevron_right"
+            onClicked: tzPicker.openPicker()
         }
 
         SelectRow {
@@ -92,6 +98,23 @@ PageBase {
             onSelected: item => GlobalConfig.services.clockFormat = item.value
         }
 
+        TimeZonePickerDialog {
+            id: tzPicker
+
+            hostFlickable: root.flickable
+            zones: root.zoneItems
+            currentZone: root.timezone
+            onPicked: tz => {
+                if (!tz || tz === root.timezone)
+                    return;
+                setProc.actionTitle = Tr.tr("Time zone updated");
+                setProc.failTitle = Tr.tr("Couldn't change time zone");
+                setProc.actionDetail = tz.replace(/_/g, " ");
+                setProc.actionIcon = "public";
+                setProc.exec(["timedatectl", "set-timezone", tz]);
+            }
+        }
+
         // Non-visual helpers (the page takes one item: they live in its column)
         Process {
             id: showProc
@@ -109,80 +132,58 @@ PageBase {
 
         Process {
             running: true
-            command: ["timedatectl", "list-timezones"]
+            command: ["python3", "-c", "import json, os, subprocess\nfrom datetime import datetime, timezone\nfrom zoneinfo import ZoneInfo\ncc_names = {}\niso_p = '/usr/share/iso-codes/json/iso_3166-1.json'\nif os.path.exists(iso_p):\n    for e in json.load(open(iso_p)).get('3166-1', []):\n        cc_names[e['alpha_2']] = e.get('common_name') or e.get('name') or ''\nz_countries = {}\nztab_p = '/usr/share/zoneinfo/zone1970.tab'\nif os.path.exists(ztab_p):\n    for line in open(ztab_p):\n        if not line or line.startswith('#'): continue\n        cols = line.rstrip('\\n').split('\\t')\n        if len(cols) >= 3:\n            z_countries[cols[2]] = ' '.join(cc_names[c] for c in cols[0].split(',') if cc_names.get(c))\nnow = datetime.now(timezone.utc)\nfor z in subprocess.check_output(['timedatectl', 'list-timezones'], text=True).splitlines():\n    if not z: continue\n    try: off = int(now.astimezone(ZoneInfo(z)).utcoffset().total_seconds() // 60)\n    except Exception: off = 0\n    print(f'{z}\\t{off}\\t{z_countries.get(z, \"\")}')"]
             stdout: StdioCollector {
-                onStreamFinished: root.timezones = text.split("\n").filter(s => s)
+                onStreamFinished: {
+                    const out = [];
+                    for (const line of text.split("\n")) {
+                        if (!line)
+                            continue;
+                        const cols = line.split("\t");
+                        const id = cols[0];
+                        const offsetMin = parseInt(cols[1] ?? "0", 10) || 0;
+                        const countries = (cols[2] ?? "").replace(/Türkiye/gi, "Türkiye Turkey");
+                        const parts = id.split("/");
+                        const city = parts[parts.length - 1].replace(/_/g, " ");
+                        const region = parts.slice(0, -1).join(" / ").replace(/_/g, " ");
+                        const sign = offsetMin >= 0 ? "+" : "-";
+                        const abs = Math.abs(offsetMin);
+                        const hh = Math.floor(abs / 60);
+                        const mm = abs % 60;
+                        const utcStr = offsetMin === 0 ? "utc utc+0" : mm ? `utc${sign}${hh}:${String(mm).padStart(2, "0")} ${sign}${hh}:${String(mm).padStart(2, "0")}` : `utc${sign}${hh} ${sign}${hh}`;
+                        const plainCountries = countries.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        out.push({
+                            id,
+                            city,
+                            region,
+                            offsetMin,
+                            search: `${city} ${region} ${id} ${countries} ${plainCountries} ${utcStr}`.toLowerCase()
+                        });
+                    }
+                    root.zoneItems = out;
+                }
             }
         }
 
-        // Changes (polkit asks for the password); read back what took
+        // Changes (polkit asks for the password); report success or failure cleanly
         Process {
             id: setProc
 
-            onExited: root.refresh()
-        }
-    }
+            property string actionTitle
+            property string failTitle
+            property string actionDetail
+            property string actionIcon: "schedule"
 
-    // A time zone from timedatectl's list
-    component ZoneRow: PopupRow {
-        id: row
-
-        readonly property int popupHeight: root.flickable.height - y + root.flickable.contentY - Tokens.padding.large - Tokens.padding.extraExtraLarge
-
-        keepPopupAsChild: {
-            if (root.nState.animatingContainer || root.opacity < 1)
-                return true;
-
-            let p = root.parent;
-            while (p && p.objectName !== "PageContainer")
-                p = p.parent;
-            return p?.opacity < 1;
-        }
-        popup.topMovement: Math.max(Tokens.sizes.nexus.minPopupHeight - popupHeight, Tokens.padding.large)
-
-        Loader {
-            anchors.centerIn: parent
-            active: row.popup.animDriver > 0
-
-            sourceComponent: VerticalFadeListView {
-                id: list
-
-                implicitWidth: Tokens.sizes.nexus.popupWidth
-                // As tall as its items (a short list doesn't get an empty tail), up to the usual height
-                implicitHeight: Math.min(contentHeight + topMargin + bottomMargin, CUtils.clamp(row.popupHeight, Tokens.sizes.nexus.minPopupHeight, Tokens.sizes.nexus.maxPopupHeight))
-
-                model: root.timezones
-                Component.onCompleted: positionViewAtIndex(Math.max(0, root.timezones.indexOf(root.timezone)), ListView.Center)
-
-                delegate: StateLayer {
-                    id: item
-
-                    required property string modelData
-
-                    anchors.fill: undefined
-                    anchors.left: list.contentItem.left
-                    anchors.right: list.contentItem.right
-                    implicitHeight: zoneText.implicitHeight + Tokens.padding.medium * 2
-                    radius: Tokens.rounding.small
-
-                    onClicked: {
-                        row.popup.open = false;
-                        root.timezone = modelData;
-                        setProc.exec(["timedatectl", "set-timezone", modelData]);
-                    }
-
-                    StyledText {
-                        id: zoneText
-
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.margins: Tokens.padding.medium
-                        text: item.modelData.replace(/_/g, " ")
-                        font: Tokens.font.body.small
-                        color: item.modelData === root.timezone ? Colours.palette.m3primary : Colours.palette.m3onSurface
-                        elide: Text.ElideRight
-                    }
+            stderr: StdioCollector {
+                id: setErr
+            }
+            onExited: (code, status) => {
+                root.refresh();
+                if (code === 0) {
+                    Toaster.toast(actionTitle || Tr.tr("Saved"), actionDetail, actionIcon);
+                } else {
+                    const errLine = setErr.text.trim().split("\n").find(l => l.trim().length > 0) ?? "";
+                    Toaster.toast(failTitle || Tr.tr("Change failed"), errLine || Tr.tr("The change was cancelled or refused."), "error");
                 }
             }
         }
