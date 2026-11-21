@@ -123,8 +123,6 @@ ColumnLayout {
                         radius: Tokens.rounding.small
                         clip: true
                         color: seg.modelData.kind === "free" ? "transparent" : Qt.alpha(seg.segColor, seg.isHovered ? 0.35 : 0.25)
-                        border.width: seg.isHovered || seg.isSelected || seg.modelData.kind === "free" ? 2 : 0
-                        border.color: seg.isSelected || seg.isHovered ? Colours.palette.m3onSurface : Colours.palette.m3outlineVariant
 
                         SegLabel {
                             width: Math.max(0, segRect.width - Tokens.padding.small * 2)
@@ -159,6 +157,14 @@ ColumnLayout {
                             color: Colours.palette.m3onTertiaryContainer
                             fontStyle: Tokens.font.icon.small
                         }
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: parent.radius
+                            color: "transparent"
+                            border.width: seg.isHovered || seg.isSelected || seg.modelData.kind === "free" ? 2 : 0
+                            border.color: seg.isSelected || seg.isHovered ? Colours.palette.m3onSurface : Colours.palette.m3outlineVariant
+                        }
                     }
 
                     MouseArea {
@@ -176,25 +182,6 @@ ColumnLayout {
         }
     }
 
-    StyledText {
-        Layout.fillWidth: true
-        visible: root.interactive && !!root.hoveredSeg
-        text: {
-            const s = root.hoveredSeg;
-            if (!s)
-                return "";
-            if (s.kind === "free")
-                return Tr.tr("Free space · %1 · click to create a partition").arg(Disks.human(s.size));
-            const p = s.part;
-            const fs = p.crypto?.inner ?? p.fs;
-            const freeText = fs?.size > 0 && fs?.used >= 0 ? Tr.tr("%1 free").arg(Disks.human(fs.size - fs.used)) : "";
-            return [Disks.partName(p, root.drive), Disks.fsName(p.fs?.type ?? ""), Disks.human(s.size), freeText].filter(Boolean).join(" · ");
-        }
-        color: Colours.palette.m3primary
-        font: Tokens.font.label.small
-        elide: Text.ElideRight
-    }
-
     Flow {
         Layout.fillWidth: true
         visible: root.showLegend && root.segments.length > 0
@@ -203,14 +190,16 @@ ColumnLayout {
         Repeater {
             model: root.segments
 
-            Item {
+            StyledRect {
                 id: leg
 
                 required property var modelData
                 readonly property bool isFree: modelData.kind === "free"
 
-                implicitWidth: legRow.implicitWidth + Tokens.padding.extraSmall * 2
+                implicitWidth: legRow.implicitWidth + Tokens.padding.small * 2
                 implicitHeight: legRow.implicitHeight + Tokens.padding.extraSmall
+                radius: Tokens.rounding.small
+                color: root.hoveredId === leg.modelData.id ? Colours.layer(Colours.palette.m3surfaceContainerHigh, 2) : "transparent"
 
                 RowLayout {
                     id: legRow
@@ -245,6 +234,27 @@ ColumnLayout {
                     onClicked: root.clicked(leg.modelData)
                 }
             }
+        }
+    }
+
+    // Permanent single-line readout below the legend so hovering never shifts layout.
+    StyledText {
+        Layout.fillWidth: true
+        visible: root.interactive
+        maximumLineCount: 1
+        elide: Text.ElideRight
+        font: Tokens.font.label.small
+        color: root.hoveredSeg ? Colours.palette.m3primary : Colours.palette.m3outline
+        text: {
+            const s = root.hoveredSeg;
+            if (!s)
+                return Tr.tr("Click any partition to manage it, or click free space below to create one.");
+            if (s.kind === "free")
+                return Tr.tr("Free space · %1 · click to create a partition").arg(Disks.human(s.size));
+            const p = s.part;
+            const fs = p.crypto?.inner ?? p.fs;
+            const freeText = fs?.size > 0 && fs?.used >= 0 ? Tr.tr("%1 free").arg(Disks.human(fs.size - fs.used)) : "";
+            return [Disks.partName(p, root.drive), Disks.fsName(p.fs?.type ?? ""), Disks.human(s.size), freeText].filter(Boolean).join(" · ");
         }
     }
 

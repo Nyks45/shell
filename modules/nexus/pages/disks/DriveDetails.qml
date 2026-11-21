@@ -43,7 +43,7 @@ ColumnLayout {
         id: map
 
         Layout.fillWidth: true
-        Layout.bottomMargin: Tokens.spacing.extraSmall
+        Layout.bottomMargin: Tokens.spacing.small
         barHeight: Tokens.padding.large * 3.2
         showLegend: true
         drive: root.drive
@@ -55,15 +55,6 @@ ColumnLayout {
             else
                 root.selected = seg.id;
         }
-    }
-
-    StyledText {
-        Layout.fillWidth: true
-        Layout.bottomMargin: Tokens.spacing.small
-        text: Tr.tr("Click any partition to manage it, or click free space below to create one.")
-        color: Colours.palette.m3outline
-        font: Tokens.font.label.small
-        wrapMode: Text.WordWrap
     }
 
     StyledText {
