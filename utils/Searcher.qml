@@ -13,9 +13,17 @@ Singleton {
     property list<string> keys: [key]
     property list<real> weights: [1]
 
-    readonly property var fzf: useFuzzy ? [] : new Fzf.Finder(list, Object.assign({
-        selector
-    }, extraOpts))
+    readonly property var fzf: {
+        if (useFuzzy)
+            return [];
+        // Touch keys so changing search fields rebuilds fzf's pre-extracted rune table
+        const _keys = keys;
+        void _keys;
+        return new Fzf.Finder(list, Object.assign({
+            selector,
+            casing: "case-insensitive"
+        }, extraOpts));
+    }
     readonly property list<var> fuzzyPrepped: useFuzzy ? list.map(e => {
         const obj = {
             _item: e
@@ -40,7 +48,7 @@ Singleton {
             return [...list];
 
         if (useFuzzy)
-            return Fuzzy.go(search, fuzzyPrepped, Object.assign({
+            return Fuzzy.go(search.replace(/[\u0130\u0131]/g, "i"), fuzzyPrepped, Object.assign({
                 all: true,
                 keys,
                 scoreFn: r => weights.reduce((a, w, i) => a + r[i].score * w, 0)

@@ -976,7 +976,7 @@ function parseTerms(fuzzy, caseMode, normalize, str) {
   let afterBar = false;
   for (const token of tokens) {
     let typ = 0, inv = false, text = token.replace(/\t/g, " ");
-    const lowerText = text.toLowerCase();
+    const lowerText = (normalize ? text.replace(/\u0130/g, "I") : text).toLowerCase();
     const caseSensitive = caseMode === "case-sensitive" || caseMode === "smart-case" && text !== lowerText;
     const normalizeTerm = normalize && lowerText === runesToStr(strToRunes(lowerText).map(normalizeRune));
     if (!caseSensitive) {
@@ -1051,7 +1051,7 @@ const buildPatternForBasicMatch = (query, casing, normalize) => {
       caseSensitive = true;
       break;
     case "case-insensitive":
-      query = query.toLowerCase();
+      query = (normalize ? query.replace(/\u0130/g, "I") : query).toLowerCase();
       caseSensitive = false;
       break;
   }
@@ -1249,7 +1249,7 @@ const defaultOpts = {
 };
 class Finder {
   constructor(list, ...optionsTuple) {
-    this.opts = Object.assign(defaultOpts, optionsTuple[0]);
+    this.opts = Object.assign({}, defaultOpts, optionsTuple[0]);
     this.items = list;
     this.runesList = list.map((item) => strToRunes(this.opts.selector(item).normalize()));
     this.algoFn = exactMatchNaive;

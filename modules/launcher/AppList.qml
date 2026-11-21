@@ -27,10 +27,11 @@ StyledListView {
     }
 
     function stateForText(text: string): string {
-        const prefix = GlobalConfig.launcher.actionPrefix;
-        if (text.startsWith(prefix)) {
+        const lower = text.toLowerCase();
+        const prefix = GlobalConfig.launcher.actionPrefix.toLowerCase();
+        if (lower.startsWith(prefix)) {
             for (const action of ["calc", "scheme", "variant"])
-                if (text.startsWith(`${prefix}${action} `))
+                if (lower.startsWith(`${prefix}${action} `))
                     return action;
 
             return "actions";

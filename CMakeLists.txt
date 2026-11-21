@@ -101,7 +101,7 @@ if("shell" IN_LIST ENABLE_MODULES)
     install(FILES "${CMAKE_BINARY_DIR}/assets/shaders/liquid.frag.qsb" DESTINATION "${INSTALL_QSCONFDIR}/assets/shaders")
     install(FILES ${NEBULA_QSB} DESTINATION "${INSTALL_QSCONFDIR}/nebula/shaders")
 
-    install(PROGRAMS assets/wrap_term_launch.sh assets/live-wallpaper assets/caelestia-session DESTINATION "${INSTALL_QSCONFDIR}/assets")
+    install(PROGRAMS assets/wrap_term_launch.sh assets/live-wallpaper assets/caelestia-session assets/caelestia-paint assets/paint-paste.sh DESTINATION "${INSTALL_QSCONFDIR}/assets")
 
     # The settings' root helper (named actions only) and its polkit action: the
     # shell's own password prompt, remembered for a few minutes

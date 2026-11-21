@@ -27,7 +27,7 @@ Item {
     readonly property string style: Config.launcher.style
     readonly property bool withWallpaper: style === "wallpaper"
     // The grid for apps; anything after the action prefix in the list
-    readonly property bool gridShown: style === "grid" && !search.text.startsWith(GlobalConfig.launcher.actionPrefix)
+    readonly property bool gridShown: style === "grid" && !search.text.toLowerCase().startsWith(GlobalConfig.launcher.actionPrefix.toLowerCase())
 
     readonly property int padding: Tokens.padding.large
     readonly property real bodyWidth: withWallpaper ? 500 : 6 * 104
@@ -199,8 +199,8 @@ Item {
                         Wallpapers.previewColourLock = true;
                     Wallpapers.setWallpaper(currentItem.modelData.path);
                     root.screenState.launcher = false;
-                } else if (text.startsWith(GlobalConfig.launcher.actionPrefix)) {
-                    if (text.startsWith(`${GlobalConfig.launcher.actionPrefix}calc `))
+                } else if (text.toLowerCase().startsWith(GlobalConfig.launcher.actionPrefix.toLowerCase())) {
+                    if (text.toLowerCase().startsWith(`${GlobalConfig.launcher.actionPrefix.toLowerCase()}calc `))
                         currentItem.onClicked();
                     else
                         currentItem.modelData.onClicked(list.currentList);
