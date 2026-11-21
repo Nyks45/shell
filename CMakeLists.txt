@@ -105,6 +105,7 @@ if("shell" IN_LIST ENABLE_MODULES)
 
     # The settings' root helper (named actions only) and its polkit action: the
     # shell's own password prompt, remembered for a few minutes
+    install(PROGRAMS assets/caelestia-paint DESTINATION "${INSTALL_LIBDIR}")
     install(PROGRAMS assets/caelestia-admin assets/caelestia-set-password assets/caelestia-bt-agent assets/caelestia-disks assets/caelestia-system assets/caelestia-packages assets/caelestia-gaming assets/caelestia-devices assets/caelestia-fans assets/caelestia-session assets/caelestia-spotify assets/caelestia-shell-style DESTINATION "${INSTALL_LIBDIR}")
     install(FILES assets/systemd-user/caelestia-openrgb.service assets/systemd-user/caelestia-devices.service assets/systemd-user/caelestia-gamelogs.path assets/systemd-user/caelestia-gamelogs.service assets/systemd-user/caelestia-clipboard.service DESTINATION "${CMAKE_INSTALL_LIBDIR}/systemd/user")
     install(FILES assets/systemd/caelestia-login.service assets/systemd/caelestia-plymouth-handoff.socket assets/systemd/caelestia-plymouth-handoff.service DESTINATION "${CMAKE_INSTALL_LIBDIR}/systemd/system")
@@ -120,5 +121,6 @@ if("shell" IN_LIST ENABLE_MODULES)
     file(WRITE "${CMAKE_BINARY_DIR}/qml/shell.qml" "${SHELL_QML}")
     install(FILES "${CMAKE_BINARY_DIR}/qml/shell.qml" DESTINATION "${INSTALL_QSCONFDIR}")
 
+    install(FILES paint.qml DESTINATION "${INSTALL_QSCONFDIR}")
     install(FILES LICENSE DESTINATION "${INSTALL_QSCONFDIR}")
 endif()

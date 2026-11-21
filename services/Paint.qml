@@ -3,21 +3,15 @@ pragma Singleton
 import QtQuick
 import Quickshell
 
-// Paint: the shell's drawing app (modules/paint/PaintWindow.qml). Opens on a screenshot (a
-// click on the screenshot notification), on an image, or on a blank page (the app launcher's
-// Paint, `caelestia shell paint open`; IPC in daemons/Shortcuts.qml). Each open is its own window.
+// Paint is its own app (paint.qml next to shell.qml, started by assets/caelestia-paint):
+// a screenshot's "Edit", the launcher and `caelestia shell paint open|file` hand it pictures.
 Singleton {
     id: root
 
-    // `path`: an image file, or "" for a blank page
+    readonly property string launcher: `${Quickshell.shellDir}/assets/caelestia-paint`
+
+    // `path`: an image file, or "" for a new picture
     function open(path: string): void {
-        const comp = Qt.createComponent(Qt.resolvedUrl("../modules/paint/PaintWindow.qml"));
-        if (comp.status === Component.Error) {
-            console.warn("Paint:", comp.errorString());
-            return;
-        }
-        comp.createObject(root, {
-            source: path ?? ""
-        });
+        Quickshell.execDetached(["env", `CAELESTIA_PAINT_QML=${Quickshell.shellDir}/paint.qml`, launcher, ...(path ? [path] : [])]);
     }
 }

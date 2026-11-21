@@ -1,0 +1,22 @@
+#!/bin/sh
+# Caelestia Paint launcher: hands the pictures to the running Paint, or starts it.
+#   caelestia-paint [FILE...]     caelestia-paint --clipboard
+conf=${CAELESTIA_PAINT_QML:-/etc/xdg/quickshell/caelestia/paint.qml}
+list=""
+for a in "$@"; do
+    case "$a" in
+        --clipboard) p="@clipboard" ;;
+        file://*) p=$(printf '%s' "${a#file://}" | sed 's/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g' | xargs -0 printf '%b') ;;
+        *) p=$(realpath -- "$a" 2>/dev/null || printf '%s' "$a") ;;
+    esac
+    list="$list$p
+"
+done
+if [ -z "$list" ]; then
+    timeout 3 qs -p "$conf" ipc call paint blank >/dev/null 2>&1 && exit 0
+else
+    printf '%s' "$list" | while IFS= read -r p; do
+        [ -n "$p" ] && { timeout 3 qs -p "$conf" ipc call paint open "$p" >/dev/null 2>&1 || exit 1; }
+    done && exit 0
+fi
+CAELESTIA_PAINT_OPEN="$list" setsid qs -p "$conf" -n >/dev/null 2>&1 < /dev/null &
