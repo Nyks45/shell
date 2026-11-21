@@ -26,14 +26,14 @@ class Refused(Exception):
     pass
 
 
-def run(*cmd, input=None, check=True):
+def run(*cmd, input=None, check=True, ok_codes=(0,)):
     print("$ " + " ".join(cmd), flush=True)
     if DRY:
         return ""
     proc = subprocess.run(cmd, input=input, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if proc.stdout:
         print(proc.stdout, end="" if proc.stdout.endswith("\n") else "\n", flush=True)
-    if check and proc.returncode != 0:
+    if check and proc.returncode not in ok_codes:
         raise SystemExit(proc.returncode)
     return proc.stdout
 
@@ -344,6 +344,56 @@ def act_snapper_timeline(args):
     if not CONFIG.match(args[0]) or args[1] not in ("yes", "no"):
         raise Refused("bad arguments")
     run("snapper", "-c", args[0], "set-config", f"TIMELINE_CREATE={args[1]}")
+
+
+def act_snapper_limits(args):
+    """snapper-limits CONFIG HOURLY DAILY WEEKLY: sets timeline keep counts (0..100)."""
+    need(args, 4, "snapper-limits CONFIG HOURLY DAILY WEEKLY")
+    if not CONFIG.match(args[0]):
+        raise Refused("bad config name")
+    vals = []
+    for raw in args[1:]:
+        if not raw.isdigit() or not (0 <= int(raw) <= 100):
+            raise Refused("keep limits must be integers in 0..100")
+        vals.append(str(int(raw)))
+    run(
+        "snapper", "-c", args[0], "set-config",
+        f"TIMELINE_LIMIT_HOURLY={vals[0]}",
+        f"TIMELINE_LIMIT_DAILY={vals[1]}",
+        f"TIMELINE_LIMIT_WEEKLY={vals[2]}",
+    )
+
+
+def act_clear_coredumps(args):
+    """clear-coredumps: removes stored crash dumps in /var/lib/systemd/coredump."""
+    need(args, 0, "clear-coredumps")
+    dump_dir = "/var/lib/systemd/coredump"
+    print(f"$ clean {dump_dir}", flush=True)
+    if DRY or not os.path.isdir(dump_dir):
+        return
+    removed = 0
+    for entry in os.scandir(dump_dir):
+        if entry.is_file(follow_symlinks=False):
+            os.unlink(entry.path)
+            removed += 1
+    print(f"removed {removed} crash dump file(s)", flush=True)
+
+
+def act_fwupd_update(args):
+    """fwupd-update [DEVICE_ID]: installs available firmware updates via fwupdmgr."""
+    if len(args) > 1:
+        raise Refused("usage: fwupd-update [DEVICE_ID]")
+    if args:
+        dev_id = args[0]
+        if not re.match(r"^[A-Za-z0-9_-]{1,128}$", dev_id):
+            raise Refused("bad device id")
+    else:
+        dev_id = None
+    run("fwupdmgr", "refresh", "--force", check=False)
+    cmd = ["fwupdmgr", "update", "-y", "--no-reboot-check"]
+    if dev_id:
+        cmd.append(dev_id)
+    run(*cmd, ok_codes=(0, 2))
 
 
 def act_firewall(args):
@@ -1335,6 +1385,9 @@ ACTIONS = {
     "snapper-setup": act_snapper_setup,
     "snapper-allow-me": act_snapper_allow_me,
     "snapper-timeline": act_snapper_timeline,
+    "snapper-limits": act_snapper_limits,
+    "clear-coredumps": act_clear_coredumps,
+    "fwupd-update": act_fwupd_update,
     "firewall": act_firewall,
     "btrfs-subvolumes": act_btrfs_subvolumes,
     "btrfs-subvolume-create": act_btrfs_subvolume_create,

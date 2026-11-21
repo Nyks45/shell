@@ -22,7 +22,7 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         PartTabs {
-            parts: [drivesPart, snapshotsPart]
+            parts: [drivesPart, cleanupPart, snapshotsPart]
         }
 
         TabPart {
@@ -32,9 +32,25 @@ PageBase {
 
             title: Tr.tr("Drives")
             icon: "hard_drive"
-            summary: Tr.tr("Drives and partitions, home folder, clean up")
+            summary: Tr.tr("System overview, drives, partitions, health")
 
             StoragePage {
+                embedded: true
+                nState: root.nState
+                hostFlickable: root.flickable
+            }
+        }
+
+        TabPart {
+            id: cleanupPart
+
+            key: "cleanup"
+
+            title: Tr.tr("Clean up")
+            icon: "cleaning_services"
+            summary: Tr.tr("Home folder usage and freeing disk space")
+
+            StorageCleanupPage {
                 embedded: true
                 nState: root.nState
                 hostFlickable: root.flickable

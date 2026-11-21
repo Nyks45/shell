@@ -17,6 +17,7 @@ users, read as JSON for the settings app (runs as the user).
     caelestia-system boot                    the boot menu (rEFInd) as it shows, for the preview
     caelestia-system kernels                 installed kernels and the ones to install
     caelestia-system firmware                UEFI boot entries, Secure Boot, firmware updates
+    caelestia-system fwupd [--refresh]       updatable devices and available firmware updates
 
 Changes go through AccountsService, which asks polkit (the shell's prompt);
 starting/stopping services is plain systemctl (polkit too); group
@@ -27,6 +28,7 @@ import concurrent.futures as cf
 import ctypes
 import glob
 import grp
+import html
 import json
 import os
 import pwd
@@ -533,10 +535,93 @@ def c_firmware(args):
     print(json.dumps(out))
 
 
+def _strip_html(text):
+    plain = re.sub(r"<[^>]+>", " ", html.unescape(text or ""))
+    return " ".join(plain.split())
+
+
+def c_fwupd(args):
+    if not os.path.exists("/usr/bin/fwupdmgr"):
+        print(json.dumps({"installed": False, "devices": [], "updates": [], "needsReboot": False, "error": ""}))
+        return
+    refresh = "--refresh" in args
+    error = ""
+    if refresh:
+        ref = subprocess.run(["fwupdmgr", "refresh", "--force"], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if ref.returncode not in (0, 2):
+            error = (ref.stderr or ref.stdout or "").strip().splitlines()[-1] if (ref.stderr or ref.stdout or "").strip() else "Failed to refresh firmware metadata"
+
+    devices = []
+    needs_reboot = False
+    dev_proc = subprocess.run(["fwupdmgr", "get-devices", "--json"], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if dev_proc.returncode == 0 and dev_proc.stdout.strip():
+        try:
+            for d in json.loads(dev_proc.stdout).get("Devices", []):
+                name = (d.get("Name") or "").strip()
+                flags = d.get("Flags") or []
+                if not name or "updatable" not in flags:
+                    continue
+                vendor = (d.get("Vendor") or "").strip()
+                if name.startswith("-") and vendor:
+                    name = f"{vendor}{name}"
+                state = d.get("UpdateState")
+                dev_reboot = state in (3, "needs-reboot", "needs-shutdown")
+                needs_reboot = needs_reboot or dev_reboot
+                devices.append({
+                    "id": d.get("DeviceId") or "",
+                    "name": name,
+                    "vendor": vendor,
+                    "version": d.get("Version") or "",
+                    "summary": d.get("Summary") or "",
+                    "needsReboot": dev_reboot,
+                    "isInternal": "internal" in flags,
+                })
+        except (ValueError, KeyError, TypeError) as e:
+            error = error or str(e)
+    elif dev_proc.stderr.strip() and not error:
+        error = dev_proc.stderr.strip().splitlines()[-1]
+
+    updates = []
+    upd_proc = subprocess.run(["fwupdmgr", "get-updates", "--json"], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if upd_proc.returncode in (0, 2) and upd_proc.stdout.strip():
+        try:
+            for d in json.loads(upd_proc.stdout).get("Devices", []):
+                rels = d.get("Releases") or []
+                if not rels:
+                    continue
+                rel = rels[0]
+                name = (d.get("Name") or "").strip()
+                vendor = (d.get("Vendor") or "").strip()
+                if name.startswith("-") and vendor:
+                    name = f"{vendor}{name}"
+                updates.append({
+                    "id": d.get("DeviceId") or "",
+                    "name": name,
+                    "vendor": vendor,
+                    "currentVersion": d.get("Version") or "",
+                    "newVersion": rel.get("Version") or "",
+                    "summary": d.get("Summary") or "",
+                    "description": _strip_html(rel.get("Description") or rel.get("Summary") or ""),
+                })
+        except (ValueError, KeyError, TypeError) as e:
+            error = error or str(e)
+    elif upd_proc.returncode not in (0, 2) and not error:
+        msg = (upd_proc.stderr or upd_proc.stdout or "").strip()
+        error = msg.splitlines()[-1] if msg else "Failed to check firmware updates"
+
+    print(json.dumps({
+        "installed": True,
+        "devices": devices,
+        "updates": updates,
+        "needsReboot": needs_reboot,
+        "error": error,
+    }))
+
+
 COMMANDS = {"units": c_units, "unit": c_unit, "timers": c_timers, "logs": c_logs, "boots": c_boots,
             "crashes": c_crashes, "crash": c_crash, "users": c_users, "user-add": c_user_add,
             "user-delete": c_user_delete, "user-type": c_user_type, "user-password": c_user_password,
-            "boot": c_boot, "kernels": c_kernels, "firmware": c_firmware}
+            "boot": c_boot, "kernels": c_kernels, "firmware": c_firmware, "fwupd": c_fwupd}
 
 
 def main(argv):

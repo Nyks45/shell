@@ -554,11 +554,22 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Clean up space",
+            "ctx": "",
+            "sub": "Inspect Home folder sizes and clear Trash, caches, unused packages, Flatpaks and crash dumps",
+            "section": "Overview",
+            "tab": "disks",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Empty the Trash",
             "ctx": "",
             "sub": "",
             "section": "Clean up",
-            "tab": "disks",
+            "tab": "cleanup",
             "page": 4,
             "path": [],
             "trail": [],
@@ -569,7 +580,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Clean up",
-            "tab": "disks",
+            "tab": "cleanup",
             "page": 4,
             "path": [],
             "trail": [],
@@ -580,7 +591,7 @@ QtObject {
             "ctx": "",
             "sub": "",
             "section": "Clean up",
-            "tab": "disks",
+            "tab": "cleanup",
             "page": 4,
             "path": [],
             "trail": [],
@@ -623,6 +634,50 @@ QtObject {
             "label": "Hourly snapshots",
             "ctx": "",
             "sub": "",
+            "section": "Automatic snapshots",
+            "tab": "backups",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Hourly snapshots to keep",
+            "ctx": "",
+            "sub": "",
+            "section": "Automatic snapshots",
+            "tab": "backups",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Daily snapshots to keep",
+            "ctx": "",
+            "sub": "",
+            "section": "Automatic snapshots",
+            "tab": "backups",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Weekly snapshots to keep",
+            "ctx": "",
+            "sub": "",
+            "section": "Automatic snapshots",
+            "tab": "backups",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Restore whole system",
+            "ctx": "",
+            "sub": "Pick a snapshot under CachyOS in the boot menu (F2 or Insert) to test it, then run `sudo snapper rollback` to make that snapshot the active system.",
             "section": "Automatic snapshots",
             "tab": "backups",
             "page": 4,
@@ -758,6 +813,59 @@ QtObject {
             "page": 5,
             "path": [],
             "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Firmware updates",
+            "ctx": "",
+            "sub": "Check and install motherboard, SSD and device firmware updates (fwupd)",
+            "section": "Firmware",
+            "opens": 1,
+            "page": 5,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Restart to finish firmware update",
+            "ctx": "",
+            "sub": "Staged firmware updates are applied on next reboot",
+            "section": "",
+            "page": 5,
+            "path": [
+                1
+            ],
+            "trail": [
+                "Firmware updates"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Check for updates",
+            "ctx": "",
+            "sub": "Refreshing LVFS firmware metadata…",
+            "section": "",
+            "page": 5,
+            "path": [
+                1
+            ],
+            "trail": [
+                "Firmware updates"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Install all firmware updates",
+            "ctx": "",
+            "sub": "Keep AC power connected and do not shut down during the update",
+            "section": "",
+            "page": 5,
+            "path": [
+                1
+            ],
+            "trail": [
+                "Firmware updates"
+            ],
             "keywords": ""
         },
         {
@@ -4771,6 +4879,16 @@ QtObject {
             "ctx": "",
             "sub": "When updates are waiting, and when a restart is needed after one",
             "section": "Automatic checks",
+            "page": 20,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Firmware updates",
+            "ctx": "",
+            "sub": "Motherboard, SSD and device firmware updates (Recovery & boot)",
+            "section": "Firmware",
             "page": 20,
             "path": [],
             "trail": [],

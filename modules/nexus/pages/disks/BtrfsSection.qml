@@ -25,6 +25,8 @@ ColumnLayout {
     property var usage: ({})
     property string scrub
     property bool scrubRunning
+    property bool balanceRunning: false
+    property string balanceStatus: ""
     // [{ id, path, mounted }] once asked for (listing them needs the password)
     property var subvolumes: null
     readonly property var shownSubvolumes: (subvolumes ?? []).filter(s => !s.path.startsWith(".snapshots/") && !s.path.includes(".refind-btrfs/"))
@@ -123,13 +125,42 @@ ColumnLayout {
     }
 
     RowButton {
-        readonly property string what: Tr.tr("Compact free space (balance)")
+        readonly property string what: root.balanceRunning ? Tr.tr("Stop compacting free space") : Tr.tr("Compact free space (balance)")
 
-        icon: "compress"
+        icon: root.balanceRunning ? "stop_circle" : "compress"
         text: what
-        subtext: Disks.busy(what) ? Tr.tr("Starting…") : Tr.tr("Merges half-empty chunks so the free space can be used again; runs in the background")
+        subtext: Disks.busy(what) ? Tr.tr("Working…") : root.balanceStatus || Tr.tr("Merges half-empty chunks so free space can be used again; runs in the background")
         disabled: Disks.busy(what)
-        onClicked: Admin.run("btrfs-balance", [root.mountPoint, "start"], what, () => root.refresh())
+        onClicked: Admin.run("btrfs-balance", [root.mountPoint, root.balanceRunning ? "cancel" : "start"], what, ok => {
+            if (ok) {
+                root.balanceRunning = !root.balanceRunning;
+                root.balanceStatus = root.balanceRunning ? Tr.tr("Running in the background") : Tr.tr("Stopped");
+            }
+            root.refresh();
+        })
+    }
+
+    RowButton {
+        readonly property string what: Tr.tr("Check Btrfs maintenance status")
+        readonly property bool busy: Disks.busy(what)
+
+        icon: "sync"
+        text: what
+        subtext: busy ? Tr.tr("Checking…") : Tr.tr("Reads active scrub and balance progress (asks for your password)")
+        disabled: busy
+        onClicked: Admin.run("btrfs-status", [root.mountPoint], what, (ok, out) => {
+            if (!ok)
+                return;
+            scrubProc.running = true;
+            const running = /Balance on .* is running/i.test(out);
+            root.balanceRunning = running;
+            if (running) {
+                const prog = out.split("\n").find(l => l.includes("chunks balanced"))?.trim() ?? "";
+                root.balanceStatus = prog ? Tr.tr("Running: %1").arg(prog) : Tr.tr("Running in the background");
+            } else {
+                root.balanceStatus = Tr.tr("No balance running");
+            }
+        })
     }
 
     RowButton {

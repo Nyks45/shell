@@ -65,9 +65,10 @@ QtObject {
             "disks/DiskHealthPage.qml",
             "SnapshotPage.qml"
         ],
-        // 5: Recovery & boot
+        // 5: Recovery & boot (0), Firmware updates (1)
         [
-            ["system/BootPage.qml", { isSubPage: false }]
+            ["system/BootPage.qml", { isSubPage: false }],
+            "system/FirmwareUpdatesPage.qml"
         ],
         // 6: About
         [

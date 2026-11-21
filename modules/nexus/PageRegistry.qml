@@ -203,6 +203,7 @@ QtObject {
             apprules: "windows",
             services: "panels",
             backups: "storage",
+            cleanup: "storage",
             disks: "storage",
             bluetooth: "devices",
             input: "devices",

@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
+import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
@@ -30,6 +31,31 @@ PageBase {
     property var snapshots: []
     property var settings: ({})
     property string newDescription
+    property string snapFilter: "all" // "all", "manual", "hourly"
+    property int limitHourly: 5
+    property int limitDaily: 7
+    property int limitWeekly: 4
+    property bool limitsDirty: false
+
+    readonly property var filteredSnapshots: {
+        if (snapFilter === "hourly")
+            return snapshots.filter(s => s.cleanup === "timeline");
+        if (snapFilter === "manual")
+            return snapshots.filter(s => s.cleanup !== "timeline");
+        return snapshots;
+    }
+
+    function snapDisplayTitle(snap: var): string {
+        const desc = (snap.description ?? "").trim();
+        if (desc) {
+            if (snap.type === "pre")
+                return Tr.tr("Before %1").arg(desc.replace(/^Before\s+/i, ""));
+            if (snap.type === "post")
+                return Tr.tr("After %1").arg(desc.replace(/^After\s+/i, ""));
+            return desc;
+        }
+        return snap.cleanup === "timeline" ? Tr.tr("Automatic") : Tr.tr("Snapshot #%1").arg(snap.number);
+    }
 
     function refresh(): void {
         listProc.running = false;
@@ -128,6 +154,10 @@ PageBase {
                 onStreamFinished: {
                     try {
                         root.settings = JSON.parse(text);
+                        root.limitHourly = parseInt(root.settings.TIMELINE_LIMIT_HOURLY ?? "5", 10) || 0;
+                        root.limitDaily = parseInt(root.settings.TIMELINE_LIMIT_DAILY ?? "7", 10) || 0;
+                        root.limitWeekly = parseInt(root.settings.TIMELINE_LIMIT_WEEKLY ?? "4", 10) || 0;
+                        root.limitsDirty = false;
                     } catch (e) {
                         root.settings = {};
                     }
@@ -138,7 +168,16 @@ PageBase {
         Process {
             id: snapperProc
 
-            onExited: root.refresh()
+            stderr: StdioCollector {
+                id: snapperErr
+            }
+            onExited: (code, status) => {
+                if (code !== 0) {
+                    const errLine = snapperErr.text.trim().split("\n").find(l => l.trim().length > 0) ?? "";
+                    Toaster.toast(Tr.tr("Snapshot action failed"), errLine || Tr.tr("snapper exited with code %1").arg(code), "error");
+                }
+                root.refresh();
+            }
         }
 
         Flow {
@@ -285,14 +324,36 @@ PageBase {
 
         SectionHeader {
             visible: root.allowed
-            text: Tr.tr("Snapshots (%1)").arg(root.snapshots.length)
+            text: Tr.tr("Snapshots (%1)").arg(root.filteredSnapshots.length)
+        }
+
+        Flow {
+            Layout.fillWidth: true
+            Layout.bottomMargin: Tokens.spacing.small
+            visible: root.allowed && root.snapshots.length > 0
+            spacing: Tokens.spacing.small
+
+            Repeater {
+                model: [["all", Tr.tr("All")], ["manual", Tr.tr("Manual & updates")], ["hourly", Tr.tr("Hourly")]]
+
+                TextButton {
+                    required property var modelData
+
+                    text: modelData[1]
+                    isToggle: true
+                    followChecked: true
+                    checked: root.snapFilter === modelData[0]
+                    type: TextButton.Tonal
+                    onClicked: root.snapFilter = modelData[0]
+                }
+            }
         }
 
         StyledText {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
-            visible: root.allowed && root.snapshots.length === 0
-            text: Tr.tr("No snapshots yet")
+            visible: root.allowed && root.filteredSnapshots.length === 0
+            text: root.snapshots.length === 0 ? Tr.tr("No snapshots yet") : Tr.tr("No snapshots match this filter.")
             color: Colours.palette.m3outline
             font: Tokens.font.body.small
         }
@@ -300,7 +361,7 @@ PageBase {
         Repeater {
             id: snapList
 
-            model: root.allowed ? root.snapshots : []
+            model: root.allowed ? root.filteredSnapshots : []
 
             ConnectedRect {
                 id: snap
@@ -316,6 +377,7 @@ PageBase {
                     onClicked: {
                         root.nState.selectedSnapperConfig = root.config;
                         root.nState.selectedSnapshot = snap.modelData.number;
+                        root.nState.selectedSnapshotLabel = root.snapDisplayTitle(snap.modelData);
                         root.nState.openSubPage(3); // Storage's snapshot page
                     }
                 }
@@ -341,7 +403,7 @@ PageBase {
 
                         StyledText {
                             Layout.fillWidth: true
-                            text: snap.modelData.description || (snap.modelData.cleanup === "timeline" ? Tr.tr("Automatic") : Tr.tr("Snapshot %1").arg(snap.modelData.number))
+                            text: root.snapDisplayTitle(snap.modelData)
                             font: Tokens.font.body.small
                             elide: Text.ElideRight
                         }
@@ -430,12 +492,73 @@ PageBase {
             onClicked: Admin.run("snapper-timeline", [root.config, root.settings.TIMELINE_CREATE === "yes" ? "no" : "yes"], what, () => root.refresh())
         }
 
+        StepperRow {
+            visible: root.allowed && root.settings.TIMELINE_CREATE === "yes"
+            label: Tr.tr("Hourly snapshots to keep")
+            from: 0
+            to: 50
+            value: root.limitHourly
+            onMoved: v => {
+                root.limitHourly = Math.round(v);
+                root.limitsDirty = true;
+            }
+        }
+
+        StepperRow {
+            visible: root.allowed && root.settings.TIMELINE_CREATE === "yes"
+            label: Tr.tr("Daily snapshots to keep")
+            from: 0
+            to: 50
+            value: root.limitDaily
+            onMoved: v => {
+                root.limitDaily = Math.round(v);
+                root.limitsDirty = true;
+            }
+        }
+
+        StepperRow {
+            visible: root.allowed && root.settings.TIMELINE_CREATE === "yes"
+            label: Tr.tr("Weekly snapshots to keep")
+            from: 0
+            to: 50
+            value: root.limitWeekly
+            onMoved: v => {
+                root.limitWeekly = Math.round(v);
+                root.limitsDirty = true;
+            }
+        }
+
+        RowButton {
+            readonly property string what: Tr.tr("Save snapshot keep limits")
+            readonly property bool busy: Admin.jobs.some(j => j.what === what)
+
+            visible: root.allowed && root.settings.TIMELINE_CREATE === "yes" && root.limitsDirty
+            icon: "save"
+            text: what
+            subtext: busy ? Tr.tr("Saving…") : Tr.tr("%1 hourly · %2 daily · %3 weekly").arg(root.limitHourly).arg(root.limitDaily).arg(root.limitWeekly)
+            disabled: busy
+            onClicked: Admin.run("snapper-limits", [root.config, String(root.limitHourly), String(root.limitDaily), String(root.limitWeekly)], what, ok => {
+                if (ok) {
+                    root.limitsDirty = false;
+                    root.refresh();
+                }
+            })
+        }
+
+        InfoRow {
+            groupStart: true
+            visible: root.allowed && root.config === "root"
+            icon: "restore"
+            label: Tr.tr("Restore whole system")
+            subtext: Tr.tr("Pick a snapshot under CachyOS in the boot menu (F2 or Insert) to test it, then run `sudo snapper rollback` to make that snapshot the active system.")
+        }
+
         StyledText {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
             Layout.topMargin: Tokens.spacing.medium
-            visible: root.allowed
-            text: root.config === "home" ? Tr.tr("Click any snapshot above to browse its files or restore older versions.") : Tr.tr("To go back to a snapshot, pick it under the system's entry in the boot menu.")
+            visible: root.allowed && root.config === "home"
+            text: Tr.tr("Click any snapshot above to browse its files or restore older versions.")
             color: Colours.palette.m3outline
             font: Tokens.font.label.small
             wrapMode: Text.WordWrap

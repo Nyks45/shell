@@ -33,7 +33,7 @@ PageBase {
     readonly property var shown: matching.slice(0, limit)
     property string restored
 
-    title: Tr.tr("Snapshot %1").arg(number)
+    title: nState.selectedSnapshotLabel || Tr.tr("Snapshot #%1").arg(number)
     isSubPage: true
 
     ColumnLayout {
@@ -232,8 +232,8 @@ PageBase {
                         text: restoreDialog.isAdd
                             ? Tr.tr("%1 did not exist in snapshot #%2. Rolling this change back will permanently delete it from your system.").arg(restoreDialog.pendingChange?.path ?? "").arg(root.number)
                             : restoreDialog.isDel
-                            ? Tr.tr("Bring back %1 as it was in snapshot #%2.").arg(restoreDialog.pendingChange?.path ?? "").arg(root.number)
-                            : Tr.tr("Replace %1 with its version from snapshot #%2. Any changes made to it since then will be lost.").arg(restoreDialog.pendingChange?.path ?? "").arg(root.number)
+                            ? Tr.tr("Brings back %1 from snapshot #%2. Note: if a deleted folder had files inside, restore needed files inside it individually.").arg(restoreDialog.pendingChange?.path ?? "").arg(root.number)
+                            : Tr.tr("Replaces %1 with its version from snapshot #%2. Any changes made to it since then will be lost.").arg(restoreDialog.pendingChange?.path ?? "").arg(root.number)
                         color: restoreDialog.isAdd ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
                         font: Tokens.font.body.small
                         wrapMode: Text.Wrap

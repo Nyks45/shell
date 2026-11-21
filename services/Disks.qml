@@ -3,6 +3,8 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Caelestia.Config
+import Caelestia.I18n
 import qs.utils
 
 // Drives, partitions and drive health (caelestia-disks, through udisks2),
@@ -72,13 +74,65 @@ Singleton {
     function human(bytes: real): string {
         if (!(bytes >= 0))
             return "";
-        const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+        const binary = Number(GlobalConfig.services.dataUnits) !== DataUnit.Decimal;
+        const units = binary ? ["B", "KiB", "MiB", "GiB", "TiB", "PiB"] : ["B", "KB", "MB", "GB", "TB", "PB"];
+        const k = binary ? 1024 : 1000;
         let i = 0;
-        while (bytes >= 1000 && i < units.length - 1) {
-            bytes /= 1000;
+        while (bytes >= k && i < units.length - 1) {
+            bytes /= k;
             i++;
         }
         return `${bytes >= 100 || i === 0 ? Math.round(bytes) : bytes.toFixed(1)} ${units[i]}`;
+    }
+
+    function unitDivisor(large: bool): real {
+        const dec = Number(GlobalConfig.services.dataUnits) === DataUnit.Decimal;
+        if (large)
+            return dec ? 1000 * 1000 * 1000 : 1073741824;
+        return dec ? 1000 * 1000 : 1048576;
+    }
+
+    function unitLabel(large: bool): string {
+        const dec = Number(GlobalConfig.services.dataUnits) === DataUnit.Decimal;
+        if (large)
+            return dec ? "GB" : "GiB";
+        return dec ? "MB" : "MiB";
+    }
+
+    function formatUnitBytes(bytes: real, large: bool): string {
+        const val = bytes / unitDivisor(large);
+        return large ? val.toFixed(2) : String(Math.round(val));
+    }
+
+    function fsColor(p: var): color {
+        if (!p)
+            return Colours.palette.m3outline;
+        if (p.crypto)
+            return Colours.palette.m3tertiaryContainer;
+        const t = p.fs?.type ?? "";
+        if (p.typeName === "EFI system" || t === "vfat")
+            return Colours.palette.m3tertiary;
+        if (t === "ntfs" || t === "exfat")
+            return Colours.palette.m3secondary;
+        if (t === "btrfs" || t === "ext4" || t === "xfs" || t === "f2fs")
+            return Colours.palette.m3primary;
+        if (t === "swap")
+            return Colours.palette.m3secondaryContainer;
+        return Colours.palette.m3outline;
+    }
+
+    function lockReason(p: var): string {
+        if (!p)
+            return "";
+        if (p.system)
+            return Tr.tr("Locked: used by the running system (%1)").arg(p.system);
+        if (p.crypto && !p.crypto.unlocked)
+            return Tr.tr("Locked: unlock with its passphrase to manage files");
+        const fs = p.crypto?.inner ?? p.fs;
+        const ms = [...(fs?.mounts ?? []), ...(fs?.sharedMounts ?? [])];
+        if (ms.length > 0)
+            return Tr.tr("Mounted at %1 · unmount first for formatting or resizing").arg(ms[0]);
+        return "";
     }
 
     // What a filesystem type is called on the page
@@ -127,10 +181,49 @@ Singleton {
         return qsTr("Drive");
     }
 
-    // A name for a partition: its label, else the partition's name, else the type
-    function partName(p: var): string {
+    // Friendly role-based name for a partition (e.g. Linux system (/), Windows (C:), EFI boot partition)
+    function partName(p: var, d = null): string {
+        if (!p)
+            return "";
         const fs = p.crypto?.inner ?? p.fs;
-        return fs?.label || p.name || p.typeName || fsName(p.fs?.type ?? "");
+        const mounts = [...(fs?.mounts ?? []), ...(fs?.sharedMounts ?? [])];
+        const label = (fs?.label ?? "").trim();
+        const gname = (p.name ?? "").trim();
+        const generic = !gname || /^(Basic data partition|Linux filesystem|EFI system partition|Microsoft reserved partition|BIOS boot partition|Linux swap)$/i.test(gname);
+        if (mounts.includes("/") || p.system === "/")
+            return Tr.tr("Linux system (/)");
+        if (mounts.includes("/home") || p.system === "/home")
+            return label ? `${label} (/home)` : !generic ? `${gname} (/home)` : Tr.tr("Home (/home)");
+        if (mounts.includes("/boot") || mounts.includes("/boot/efi") || p.system === "/boot")
+            return Tr.tr("EFI boot partition (/boot)");
+        if (p.typeName === "EFI system")
+            return label ? `${label} (EFI)` : Tr.tr("EFI boot partition");
+        if (p.typeName === "Microsoft reserved")
+            return Tr.tr("Microsoft reserved (hidden, leave it)");
+        if (p.typeName === "Windows recovery")
+            return Tr.tr("Windows recovery");
+        if (p.fs?.type === "swap")
+            return label || Tr.tr("Swap");
+        if (label)
+            return mounts.length > 0 ? `${label} (${mounts[0]})` : label;
+        if (mounts.length > 0) {
+            const mp = mounts[0];
+            const seg = mp.split("/").filter(Boolean).pop() ?? mp;
+            if (mp.startsWith("/mnt/") || mp.startsWith("/run/media/"))
+                return seg.length === 1 ? Tr.tr("Drive %1 (%2)").arg(seg.toUpperCase()).arg(mp) : `${seg} (${mp})`;
+            return mp;
+        }
+        const drv = d ?? driveOf(p.id);
+        if (p.fs?.type === "ntfs" && generic && drv && (drv.partitions ?? []).some(x => x.typeName === "Microsoft reserved" || x.typeName === "Windows recovery")) {
+            const firstNtfs = drv.partitions.find(x => x.fs?.type === "ntfs" && x.typeName !== "Windows recovery" && !((x.fs?.mounts ?? []).length));
+            if (firstNtfs && firstNtfs.id === p.id)
+                return Tr.tr("Windows (C:)");
+        }
+        if (!generic)
+            return gname;
+        if (p.fs?.type)
+            return Tr.tr("%1 partition").arg(fsName(p.fs.type));
+        return p.typeName || Tr.tr("Partition");
     }
 
     Process {

@@ -36,6 +36,7 @@ QtObject {
     property string selectedPartition
     // Backups: the snapshot being looked at
     property int selectedSnapshot
+    property string selectedSnapshotLabel
     property string selectedSnapperConfig
     // System services: the unit being looked at (and whether it's the user's)
     property string selectedUnit

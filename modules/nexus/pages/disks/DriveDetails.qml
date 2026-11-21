@@ -24,6 +24,11 @@ ColumnLayout {
     required property Item flickable
     // The drive's segments in disk order (PartitionMap's, for the list)
     readonly property var segments: map.segments
+    readonly property string systemRoles: {
+        const parts = [...(root.drive?.partitions ?? []), ...(root.drive?.whole ? [root.drive.whole] : [])];
+        const roles = [...new Set(parts.map(p => p.system).filter(Boolean))];
+        return roles.join(", ");
+    }
     property string selected
 
     function openPartition(id: string): void {
@@ -38,8 +43,9 @@ ColumnLayout {
         id: map
 
         Layout.fillWidth: true
-        Layout.bottomMargin: Tokens.spacing.small
-        implicitHeight: Tokens.padding.large * 3.2
+        Layout.bottomMargin: Tokens.spacing.extraSmall
+        barHeight: Tokens.padding.large * 3.2
+        showLegend: true
         drive: root.drive
         interactive: true
         selected: root.selected
@@ -54,8 +60,17 @@ ColumnLayout {
     StyledText {
         Layout.fillWidth: true
         Layout.bottomMargin: Tokens.spacing.small
-        visible: !!root.drive?.system
-        text: Tr.tr("This drive holds the running system (%1): its system partitions can't be erased or reshaped while it runs. Other partitions and its free space can.").arg(root.drive?.system ?? "")
+        text: Tr.tr("Click any partition to manage it, or click free space below to create one.")
+        color: Colours.palette.m3outline
+        font: Tokens.font.label.small
+        wrapMode: Text.WordWrap
+    }
+
+    StyledText {
+        Layout.fillWidth: true
+        Layout.bottomMargin: Tokens.spacing.small
+        visible: !!root.systemRoles
+        text: Tr.tr("This drive holds the running system (%1): system partitions are locked while running. Other partitions and free space can still be changed.").arg(root.systemRoles)
         color: Colours.palette.m3onSurfaceVariant
         font: Tokens.font.body.small
         wrapMode: Text.WordWrap
@@ -84,15 +99,81 @@ ColumnLayout {
             Component {
                 id: partRow
 
-                NavRow {
+                ConnectedRect {
+                    id: prow
+
                     readonly property var p: segRow.modelData.part
                     readonly property var fs: p.crypto?.inner ?? p.fs
                     readonly property var job: Disks.jobFor(p.id)
+                    readonly property real usedRatio: fs?.size > 0 && fs.used >= 0 ? Math.min(1, fs.used / fs.size) : -1
 
-                    icon: p.crypto ? (p.crypto.unlocked ? "lock_open" : "lock") : p.system ? "settings" : fs.mounts.length > 0 ? "folder_open" : "storage"
-                    text: Disks.partName(p)
-                    subtext: job ? Tr.tr("%1… %2%").arg(job.operation).arg(Math.round(job.progress * 100)) : [Disks.fsName(p.fs.type), Disks.human(p.size), fs.mounts[0] ?? "", fs.used >= 0 && fs.size > 0 ? Tr.tr("%1 free").arg(Disks.human(fs.size - fs.used)) : "", p.system ? Tr.tr("system") : ""].filter(x => x).join(" · ")
-                    onClicked: root.openPartition(p.id)
+                    Layout.fillWidth: true
+                    implicitHeight: prowCol.implicitHeight + Tokens.padding.medium * 2
+
+                    StateLayer {
+                        onClicked: root.openPartition(prow.p.id)
+                    }
+
+                    ColumnLayout {
+                        id: prowCol
+
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.leftMargin: Tokens.padding.largeIncreased
+                        anchors.rightMargin: Tokens.padding.largeIncreased
+                        spacing: Tokens.spacing.extraSmall
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Tokens.spacing.medium
+
+                            Rectangle {
+                                width: 10
+                                height: 10
+                                radius: 5
+                                color: Disks.fsColor(prow.p)
+                            }
+
+                            MaterialIcon {
+                                text: prow.p.crypto ? (prow.p.crypto.unlocked ? "lock_open" : "lock") : prow.p.system ? "shield" : (prow.fs.mounts.length > 0 || (prow.fs.sharedMounts?.length ?? 0) > 0) ? "folder_open" : "storage"
+                                color: Colours.palette.m3onSurfaceVariant
+                                fontStyle: Tokens.font.icon.medium
+                            }
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 0
+
+                                StyledText {
+                                    Layout.fillWidth: true
+                                    text: Disks.partName(prow.p, root.drive)
+                                    font: Tokens.font.body.small
+                                    elide: Text.ElideRight
+                                }
+
+                                StyledText {
+                                    Layout.fillWidth: true
+                                    text: prow.job ? Tr.tr("%1… %2%").arg(prow.job.operation).arg(Math.round(prow.job.progress * 100)) : [Disks.fsName(prow.p.fs.type), Disks.human(prow.p.size), prow.fs.mounts[0] ?? prow.fs.sharedMounts?.[0] ?? "", prow.usedRatio >= 0 ? Tr.tr("%1 free").arg(Disks.human(prow.fs.size - prow.fs.used)) : "", prow.p.system ? Tr.tr("system lock") : ""].filter(x => x).join(" · ")
+                                    color: Colours.palette.m3outline
+                                    font: Tokens.font.label.small
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
+
+                            MaterialIcon {
+                                text: "chevron_right"
+                                color: Colours.palette.m3onSurfaceVariant
+                                fontStyle: Tokens.font.icon.medium
+                            }
+                        }
+
+                        StyledProgressBar {
+                            Layout.fillWidth: true
+                            visible: prow.usedRatio >= 0
+                            value: prow.usedRatio >= 0 ? prow.usedRatio : 0
+                        }
+                    }
                 }
             }
 
@@ -105,11 +186,13 @@ ColumnLayout {
                     readonly property var gap: segRow.modelData
                     readonly property string what: Tr.tr("Create a partition")
                     readonly property real mib: 1048576
+                    readonly property real maxMiB: Math.max(1, Math.floor(gap.size / mib))
                     property real sizeMiB: Math.floor(gap.size / mib)
+                    property bool useLargeUnit: true
 
                     rootParent: root.flickable
                     openWidth: Math.min(root.flickable.width * 0.9, 520)
-                    openHeight: Math.min(root.flickable.height * 0.95, 620)
+                    openHeight: Math.min(root.flickable.height * 0.95, 650)
                     icon: "add"
                     label: Tr.tr("Free space · %1 · create a partition").arg(Disks.human(gap.size))
                     header: Tr.tr("New partition")
@@ -122,27 +205,76 @@ ColumnLayout {
 
                     onOpenChanged: if (open) {
                         spec.reset("ext4");
-                        sizeMiB = Math.floor(gap.size / mib);
+                        useLargeUnit = maxMiB >= 1024;
+                        sizeMiB = maxMiB;
                     }
 
                     content: Component {
                         ColumnLayout {
                             spacing: Tokens.spacing.small
 
+                            Connections {
+                                target: create
+                                function onOpenChanged(): void {
+                                    if (create.open)
+                                        createSizeInput.text = Disks.formatUnitBytes(create.sizeMiB * create.mib, create.useLargeUnit);
+                                }
+                            }
+
                             StyledText {
+                                Layout.fillWidth: true
                                 Layout.topMargin: Tokens.spacing.medium
                                 text: Tr.tr("Size: %1 of %2").arg(Disks.human(create.sizeMiB * create.mib)).arg(Disks.human(create.gap.size))
                                 font: Tokens.font.body.small
+                                wrapMode: Text.WordWrap
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Tokens.spacing.small
+
+                                StyledTextField {
+                                    id: createSizeInput
+
+                                    Layout.preferredWidth: 120
+                                    verticalPadding: Tokens.padding.small
+                                    floatingPlaceholder: false
+                                    text: Disks.formatUnitBytes(create.sizeMiB * create.mib, create.useLargeUnit)
+                                    validator: DoubleValidator {
+                                        bottom: 0.01
+                                        decimals: 2
+                                    }
+                                    onEditingFinished: {
+                                        const v = parseFloat(text);
+                                        if (isFinite(v) && v > 0)
+                                            create.sizeMiB = Math.max(1, Math.min(create.maxMiB, Math.round(v * Disks.unitDivisor(create.useLargeUnit) / create.mib)));
+                                        text = Disks.formatUnitBytes(create.sizeMiB * create.mib, create.useLargeUnit);
+                                    }
+                                }
+
+                                TextButton {
+                                    text: Disks.unitLabel(create.useLargeUnit)
+                                    type: TextButton.Tonal
+                                    onClicked: {
+                                        create.useLargeUnit = !create.useLargeUnit;
+                                        createSizeInput.text = Disks.formatUnitBytes(create.sizeMiB * create.mib, create.useLargeUnit);
+                                    }
+                                }
+
+                                Item {
+                                    Layout.fillWidth: true
+                                }
                             }
 
                             // StyledSlider works in 0..1
                             StyledSlider {
-                                readonly property real maxMiB: Math.max(1, Math.floor(create.gap.size / create.mib))
-
                                 Layout.fillWidth: true
                                 implicitHeight: Tokens.padding.large * 2
-                                value: maxMiB > 1 ? (create.sizeMiB - 1) / (maxMiB - 1) : 1
-                                onInteraction: v => create.sizeMiB = Math.max(1, Math.round(1 + v * (maxMiB - 1)))
+                                value: create.maxMiB > 1 ? (create.sizeMiB - 1) / (create.maxMiB - 1) : 1
+                                onInteraction: v => {
+                                    create.sizeMiB = Math.max(1, Math.round(1 + v * (create.maxMiB - 1)));
+                                    createSizeInput.text = Disks.formatUnitBytes(create.sizeMiB * create.mib, create.useLargeUnit);
+                                }
                             }
 
                             FormatOptions {

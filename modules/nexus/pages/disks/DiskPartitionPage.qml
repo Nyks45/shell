@@ -39,7 +39,32 @@ PageBase {
         const gap = drive.free.find(f => f.offset >= end && f.offset < end + 1048576);
         return gap ? gap.offset + gap.size - end : 0;
     }
-    readonly property string pname: p ? Disks.partName(p) : ""
+    readonly property string pname: p ? Disks.partName(p, drive) : ""
+    readonly property string lockText: Disks.lockReason(p)
+    property bool showAdvanced: false
+
+    function toggleMountOpt(opt: string, on: bool): void {
+        const entry = root.fs?.fstab?.[0];
+        if (!entry)
+            return;
+        let parts = (entry.opts || "").split(",").map(s => s.trim()).filter(Boolean);
+        parts = parts.filter(s => s !== opt);
+        if (on) {
+            if (opt === "ro")
+                parts = parts.filter(s => s !== "rw");
+            parts.push(opt);
+        }
+        if (parts.length === 0)
+            parts = ["defaults"];
+        Disks.run("fstab", [root.p.id, entry.dir, parts.join(",")], Tr.tr("Change mount options"));
+    }
+
+    function hasMountOpt(opt: string): bool {
+        const entry = root.fs?.fstab?.[0];
+        if (!entry || !entry.opts)
+            return false;
+        return entry.opts.split(",").map(s => s.trim()).includes(opt);
+    }
     // Where it can start (moving it, same size): from the free space right
     // before it to the end of the free space right after it, 1 MiB steps
     readonly property real moveFrom: {
@@ -87,7 +112,7 @@ PageBase {
 
                 StyledText {
                     Layout.fillWidth: true
-                    text: root.p ? [Disks.fsName(root.p.fs.type), root.p.crypto ? (root.locked ? Tr.tr("locked") : Disks.fsName(root.fs?.type ?? "")) : "", Disks.human(root.p.size), root.p.device].filter(x => x).join(" · ") : ""
+                    text: root.p ? [Disks.fsName(root.p.fs.type), root.p.crypto ? (root.locked ? Tr.tr("locked") : Disks.fsName(root.fs?.type ?? "")) : "", Disks.human(root.p.size)].filter(x => x).join(" · ") : ""
                     font: Tokens.font.body.medium
                     wrapMode: Text.WordWrap
                 }
@@ -108,10 +133,10 @@ PageBase {
 
                 StyledText {
                     Layout.fillWidth: true
-                    text: [root.mounted ? Tr.tr("Open at %1").arg(root.mountList.join(", ")) : Tr.tr("Not mounted"), root.p?.typeName ? Tr.tr("type: %1").arg(root.p.typeName) : "", root.fs?.uuid ? `UUID ${root.fs.uuid}` : ""].filter(x => x).join(" · ")
+                    text: [root.mounted ? Tr.tr("Mounted at %1").arg(root.mountList.join(", ")) : Tr.tr("Not mounted"), root.p?.typeName || ""].filter(x => x).join(" · ")
                     color: Colours.palette.m3onSurfaceVariant
                     font: Tokens.font.body.small
-                    wrapMode: Text.WrapAnywhere
+                    wrapMode: Text.WordWrap
                 }
 
                 StyledText {
@@ -133,9 +158,9 @@ PageBase {
 
                 StyledText {
                     Layout.fillWidth: true
-                    visible: !!root.p?.system
-                    text: Tr.tr("The running system uses this (%1): it can't be formatted, deleted or resized from here.").arg(root.p?.system ?? "")
-                    color: Colours.palette.m3onSurfaceVariant
+                    visible: !!root.lockText
+                    text: root.lockText
+                    color: root.p?.system ? Colours.palette.m3onSurfaceVariant : Colours.palette.m3primary
                     font: Tokens.font.body.small
                     wrapMode: Text.WordWrap
                 }
@@ -225,33 +250,15 @@ PageBase {
             onClicked: Disks.run("lock", [root.p.id], Tr.tr("Lock the encrypted partition"))
         }
 
-        // ---- Names ---------------------------------------------------------
-        SectionHeader {
-            visible: !!root.p && (root.hasFs || root.isPartition)
-            text: Tr.tr("Names")
-        }
-
         TextFieldRow {
             visible: root.hasFs && !root.locked
             label: Tr.tr("Label")
             subtext: Tr.tr("What file managers call it")
             value: root.fs?.label ?? ""
-            placeholderText: Tr.tr("No label")
+            placeholderText: Tr.tr("Empty")
             onEditingFinished: v => {
                 if (v !== (root.fs?.label ?? ""))
                     Disks.run("label", [root.fsTarget, v], Tr.tr("Rename the filesystem"));
-            }
-        }
-
-        TextFieldRow {
-            visible: root.isPartition && root.gpt
-            label: Tr.tr("Partition name")
-            subtext: Tr.tr("Stored in the partition table")
-            value: root.p?.name ?? ""
-            placeholderText: Tr.tr("No name")
-            onEditingFinished: v => {
-                if (v !== (root.p?.name ?? ""))
-                    Disks.run("name", [root.p.id, v], Tr.tr("Rename the partition"));
             }
         }
 
@@ -295,131 +302,34 @@ PageBase {
             }
         }
 
-        TextFieldRow {
+        ToggleRow {
             readonly property var entry: root.fs?.fstab[0] ?? null
 
             visible: !!entry && !root.p?.system
-            label: Tr.tr("Options")
-            subtext: Tr.tr("nofail: start even when it's missing; noauto: only when opened; ro: read-only")
-            value: entry?.opts ?? ""
-            validate: /^[^\s#]+$/
-            onEditingFinished: v => {
-                if (entry && v !== entry.opts)
-                    Disks.run("fstab", [root.p.id, entry.dir, v], Tr.tr("Change the mount options"));
-            }
+            text: Tr.tr("Start cleanly if drive is unplugged")
+            subtext: Tr.tr("Adds nofail so boot doesn't stall when this drive is missing")
+            checked: root.hasMountOpt("nofail")
+            onToggled: root.toggleMountOpt("nofail", checked)
         }
 
-        // ---- Maintenance ---------------------------------------------------
-        SectionHeader {
-            visible: !!root.p && !root.p.system
-            text: Tr.tr("Maintenance")
+        ToggleRow {
+            readonly property var entry: root.fs?.fstab[0] ?? null
+
+            visible: !!entry && !root.p?.system
+            text: Tr.tr("Mount only when opened")
+            subtext: Tr.tr("Adds noauto so the drive stays asleep until clicked in Files")
+            checked: root.hasMountOpt("noauto")
+            onToggled: root.toggleMountOpt("noauto", checked)
         }
 
-        RowButton {
-            readonly property string what: Tr.tr("Check the filesystem")
-            property string result
+        ToggleRow {
+            readonly property var entry: root.fs?.fstab[0] ?? null
 
-            visible: root.hasFs && !root.locked && !root.p?.system && root.fs?.type !== "swap"
-            icon: "fact_check"
-            text: what
-            subtext: Disks.busy(what) ? Tr.tr("Checking…") : result || (root.mounted ? Tr.tr("Unmount it first") : Tr.tr("Looks for errors; changes nothing"))
-            disabled: root.mounted || Disks.busy(what)
-            onClicked: Disks.run("check", [root.fsTarget], what, (ok, out) => result = ok ? Tr.tr("No errors found") : out.includes("errors") ? Tr.tr("Errors found: repair it") : "")
-        }
-
-        RowButton {
-            readonly property string what: Tr.tr("Repair the filesystem")
-
-            visible: root.hasFs && !root.locked && !root.p?.system && root.fs?.type !== "swap"
-            icon: "build"
-            text: what
-            subtext: Disks.busy(what) ? Tr.tr("Repairing…") : root.mounted ? Tr.tr("Unmount it first") : Tr.tr("Fixes errors it finds")
-            disabled: root.mounted || Disks.busy(what)
-            onClicked: Disks.run("repair", [root.fsTarget], what)
-        }
-
-        RowButton {
-            visible: root.linuxFs && !root.locked && !root.p?.system && root.mounted
-            icon: "person"
-            text: Tr.tr("Make it mine")
-            subtext: Tr.tr("Its top folder becomes yours, so you can save files there")
-            onClicked: Disks.run("take-ownership", [root.fsTarget], Tr.tr("Make the filesystem yours"))
-        }
-
-        DialogRowButton {
-            id: passBtn
-
-            readonly property string what: Tr.tr("Change the passphrase")
-            property string oldPass
-            property string newPass
-            property string repeat
-
-            visible: !!root.p?.crypto && !root.p?.system
-            rootParent: root.flickable
-            openHeight: Math.min(root.flickable.height * 0.95, 420)
-            icon: "key"
-            label: what
-            header: what
-            acceptLabel: Tr.trCtx("Change", "button")
-            acceptAllowed: oldPass.length > 0 && newPass.length > 0 && newPass === repeat
-            onOpenChanged: {
-                oldPass = "";
-                newPass = "";
-                repeat = "";
-            }
-            content: Component {
-                ColumnLayout {
-                    spacing: Tokens.spacing.medium
-
-                    StyledTextField {
-                        Layout.fillWidth: true
-                        Layout.topMargin: Tokens.spacing.medium
-                        echoMode: TextInput.Password
-                        placeholderText: Tr.tr("Current passphrase")
-                        leadingIcon: "key"
-                        Component.onCompleted: forceActiveFocus()
-                        onTextChanged: passBtn.oldPass = text
-                    }
-
-                    StyledTextField {
-                        Layout.fillWidth: true
-                        echoMode: TextInput.Password
-                        placeholderText: Tr.tr("New passphrase")
-                        leadingIcon: "key"
-                        onTextChanged: passBtn.newPass = text
-                    }
-
-                    StyledTextField {
-                        Layout.fillWidth: true
-                        echoMode: TextInput.Password
-                        placeholderText: Tr.tr("New passphrase again")
-                        leadingIcon: "key"
-                        supportingText: text.length > 0 && text !== passBtn.newPass ? Tr.tr("The two don't match yet") : ""
-                        onTextChanged: passBtn.repeat = text
-                    }
-
-                    Item {
-                        Layout.fillHeight: true
-                    }
-                }
-            }
-            onAccepted: {
-                Disks.run("change-passphrase", [root.p.id], what, null, `${oldPass}\n${newPass}`);
-                oldPass = "";
-                newPass = "";
-                repeat = "";
-            }
-        }
-
-        // ---- Btrfs: space, scrub, balance, subvolumes (the system's too) ----
-        Loader {
-            Layout.fillWidth: true
-            active: root.fs?.type === "btrfs" && root.mountList.length > 0
-            visible: active
-            sourceComponent: BtrfsSection {
-                mountPoint: root.mountList[0]
-                flickable: root.flickable
-            }
+            visible: !!entry && !root.p?.system
+            text: Tr.tr("Read-only")
+            subtext: Tr.tr("Adds ro so apps can read files without modifying them")
+            checked: root.hasMountOpt("ro")
+            onToggled: root.toggleMountOpt("ro", checked)
         }
 
         // ---- Change it ------------------------------------------------------
@@ -438,20 +348,31 @@ PageBase {
             // Not below what's stored on it (plus a little room), when known
             readonly property real minMiB: Math.max(16, Math.ceil(((root.fs?.used ?? 0) * 1.05) / mib))
             property real sizeMiB
+            property bool useLargeUnit: true
 
             visible: root.isPartition && !root.p?.system && !root.p?.crypto && root.fs?.type !== "swap"
             rootParent: root.flickable
-            openHeight: Math.min(root.flickable.height * 0.9, 340)
+            openHeight: Math.min(root.flickable.height * 0.9, 380)
             icon: "open_in_full"
             label: what
             header: Tr.tr("Resize %1").arg(root.pname)
             acceptLabel: Tr.trCtx("Resize", "button")
             acceptAllowed: Math.round(sizeMiB) !== Math.floor(root.p.size / mib) && !Disks.busy(what)
-            onOpenChanged: if (open)
-                sizeMiB = Math.floor(root.p.size / mib)
+            onOpenChanged: if (open) {
+                useLargeUnit = maxMiB >= 1024;
+                sizeMiB = Math.floor(root.p.size / mib);
+            }
             content: Component {
                 ColumnLayout {
                     spacing: Tokens.spacing.small
+
+                    Connections {
+                        target: resize
+                        function onOpenChanged(): void {
+                            if (resize.open)
+                                resizeInput.text = Disks.formatUnitBytes(resize.sizeMiB * resize.mib, resize.useLargeUnit);
+                        }
+                    }
 
                     StyledText {
                         Layout.fillWidth: true
@@ -459,6 +380,44 @@ PageBase {
                         text: Tr.tr("New size: %1 (now %2; up to %3)").arg(Disks.human(resize.sizeMiB * resize.mib)).arg(Disks.human(root.p.size)).arg(Disks.human(resize.maxMiB * resize.mib))
                         font: Tokens.font.body.small
                         wrapMode: Text.WordWrap
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Tokens.spacing.small
+
+                        StyledTextField {
+                            id: resizeInput
+
+                            Layout.preferredWidth: 120
+                            verticalPadding: Tokens.padding.small
+                            floatingPlaceholder: false
+                            text: Disks.formatUnitBytes(resize.sizeMiB * resize.mib, resize.useLargeUnit)
+                            validator: DoubleValidator {
+                                bottom: 0.01
+                                decimals: 2
+                            }
+                            onEditingFinished: {
+                                const lo = Math.min(resize.minMiB, resize.maxMiB);
+                                const v = parseFloat(text);
+                                if (isFinite(v) && v > 0)
+                                    resize.sizeMiB = Math.max(lo, Math.min(resize.maxMiB, Math.round(v * Disks.unitDivisor(resize.useLargeUnit) / resize.mib)));
+                                text = Disks.formatUnitBytes(resize.sizeMiB * resize.mib, resize.useLargeUnit);
+                            }
+                        }
+
+                        TextButton {
+                            text: Disks.unitLabel(resize.useLargeUnit)
+                            type: TextButton.Tonal
+                            onClicked: {
+                                resize.useLargeUnit = !resize.useLargeUnit;
+                                resizeInput.text = Disks.formatUnitBytes(resize.sizeMiB * resize.mib, resize.useLargeUnit);
+                            }
+                        }
+
+                        Item {
+                            Layout.fillWidth: true
+                        }
                     }
 
                     // StyledSlider works in 0..1, between the smallest and largest size
@@ -469,12 +428,15 @@ PageBase {
                         Layout.fillWidth: true
                         implicitHeight: Tokens.padding.large * 2
                         value: (resize.sizeMiB - lo) / span
-                        onInteraction: v => resize.sizeMiB = Math.round(lo + v * span)
+                        onInteraction: v => {
+                            resize.sizeMiB = Math.round(lo + v * span);
+                            resizeInput.text = Disks.formatUnitBytes(resize.sizeMiB * resize.mib, resize.useLargeUnit);
+                        }
                     }
 
                     StyledText {
                         Layout.fillWidth: true
-                        text: root.growRoom > 0 ? Tr.tr("It can grow into the free space right after it. Back up important files first: a power cut while resizing can lose data.") : Tr.tr("No free space right after it: it can only shrink. Back up important files first.")
+                        text: root.growRoom > 0 ? Tr.tr("It can grow into the free space right after it. Back up important files first: a power cut while resizing can lose data.") : Tr.tr("No free space right after this partition — it can only shrink (use Move first if free space is in front of it). Back up important files first.")
                         color: Colours.palette.m3onSurfaceVariant
                         font: Tokens.font.body.small
                         wrapMode: Text.WordWrap
@@ -495,20 +457,31 @@ PageBase {
             readonly property string what: Tr.tr("Move the partition")
             readonly property real mib: 1048576
             property real start
+            property bool useLargeUnit: true
 
             visible: root.isPartition && !root.p?.system && (root.moveFrom < root.p.offset || root.moveTo > root.p.offset)
             rootParent: root.flickable
-            openHeight: Math.min(root.flickable.height * 0.9, 360)
+            openHeight: Math.min(root.flickable.height * 0.9, 410)
             icon: "swap_horiz"
             label: what
             header: Tr.tr("Move %1").arg(root.pname)
             acceptLabel: Tr.trCtx("Move", "button")
             acceptAllowed: !root.mounted && Math.round(start / mib) !== Math.round(root.p.offset / mib) && !Disks.busy(what)
-            onOpenChanged: if (open)
-                start = root.p.offset
+            onOpenChanged: if (open) {
+                useLargeUnit = root.moveTo >= 1073741824;
+                start = root.p.offset;
+            }
             content: Component {
                 ColumnLayout {
                     spacing: Tokens.spacing.small
+
+                    Connections {
+                        target: move
+                        function onOpenChanged(): void {
+                            if (move.open)
+                                moveInput.text = Disks.formatUnitBytes(move.start, move.useLargeUnit);
+                        }
+                    }
 
                     StyledText {
                         Layout.fillWidth: true
@@ -518,6 +491,47 @@ PageBase {
                         wrapMode: Text.WordWrap
                     }
 
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Tokens.spacing.small
+
+                        StyledTextField {
+                            id: moveInput
+
+                            Layout.preferredWidth: 120
+                            verticalPadding: Tokens.padding.small
+                            floatingPlaceholder: false
+                            enabled: !root.mounted
+                            text: Disks.formatUnitBytes(move.start, move.useLargeUnit)
+                            validator: DoubleValidator {
+                                bottom: 0
+                                decimals: 2
+                            }
+                            onEditingFinished: {
+                                const v = parseFloat(text);
+                                if (isFinite(v) && v >= 0) {
+                                    const clamped = Math.max(root.moveFrom, Math.min(root.moveTo, Math.round(v * Disks.unitDivisor(move.useLargeUnit) / move.mib) * move.mib));
+                                    move.start = clamped;
+                                }
+                                text = Disks.formatUnitBytes(move.start, move.useLargeUnit);
+                            }
+                        }
+
+                        TextButton {
+                            enabled: !root.mounted
+                            text: Disks.unitLabel(move.useLargeUnit)
+                            type: TextButton.Tonal
+                            onClicked: {
+                                move.useLargeUnit = !move.useLargeUnit;
+                                moveInput.text = Disks.formatUnitBytes(move.start, move.useLargeUnit);
+                            }
+                        }
+
+                        Item {
+                            Layout.fillWidth: true
+                        }
+                    }
+
                     // StyledSlider works in 0..1, over where it can start
                     StyledSlider {
                         readonly property real span: Math.max(move.mib, root.moveTo - root.moveFrom)
@@ -525,7 +539,10 @@ PageBase {
                         Layout.fillWidth: true
                         implicitHeight: Tokens.padding.large * 2
                         value: (move.start - root.moveFrom) / span
-                        onInteraction: v => move.start = root.moveFrom + Math.round(v * span / move.mib) * move.mib
+                        onInteraction: v => {
+                            move.start = root.moveFrom + Math.round(v * span / move.mib) * move.mib;
+                            moveInput.text = Disks.formatUnitBytes(move.start, move.useLargeUnit);
+                        }
                     }
 
                     StyledText {
@@ -633,14 +650,166 @@ PageBase {
             })
         }
 
-        // ---- Advanced --------------------------------------------------------
-        SectionHeader {
-            visible: root.isPartition && !root.p?.system
-            text: Tr.tr("Advanced")
+        // ---- Advanced & maintenance -----------------------------------------
+        RowButton {
+            visible: !!root.p
+            groupStart: true
+            icon: "tune"
+            text: Tr.tr("Advanced & maintenance")
+            subtext: root.fs?.type === "btrfs" ? Tr.tr("Device path, UUID, Btrfs tools, partition flags and filesystem repair") : Tr.tr("Device path, UUID, partition flags, check and repair")
+            trailingIcon: root.showAdvanced ? "expand_less" : "expand_more"
+            onClicked: root.showAdvanced = !root.showAdvanced
+        }
+
+        InfoRow {
+            visible: root.showAdvanced && !!root.p?.device
+            icon: "tag"
+            label: Tr.tr("Device path")
+            value: root.p?.device ?? ""
+        }
+
+        InfoRow {
+            visible: root.showAdvanced && !!(root.fs?.uuid)
+            icon: "fingerprint"
+            label: "UUID"
+            value: root.fs?.uuid ?? ""
+        }
+
+        TextFieldRow {
+            visible: root.showAdvanced && root.isPartition && root.gpt
+            label: Tr.tr("Partition name")
+            subtext: Tr.tr("Stored in the GPT partition table")
+            value: root.p?.name ?? ""
+            placeholderText: Tr.tr("Empty")
+            onEditingFinished: v => {
+                if (v !== (root.p?.name ?? ""))
+                    Disks.run("name", [root.p.id, v], Tr.tr("Rename the partition"));
+            }
+        }
+
+        TextFieldRow {
+            readonly property var entry: root.fs?.fstab[0] ?? null
+
+            visible: root.showAdvanced && !!entry && !root.p?.system
+            label: Tr.tr("Raw mount options")
+            subtext: Tr.tr("Comma-separated options written to /etc/fstab")
+            value: entry?.opts ?? ""
+            validate: /^[^\s#]+$/
+            onEditingFinished: v => {
+                if (entry && v !== entry.opts)
+                    Disks.run("fstab", [root.p.id, entry.dir, v], Tr.tr("Change mount options"));
+            }
+        }
+
+        RowButton {
+            readonly property string what: Tr.tr("Check the filesystem")
+            property string result
+
+            visible: root.showAdvanced && root.hasFs && !root.locked && !root.p?.system && root.fs?.type !== "swap"
+            icon: "fact_check"
+            text: what
+            subtext: Disks.busy(what) ? Tr.tr("Checking…") : result || (root.mounted ? Tr.tr("Unmount it first") : Tr.tr("Looks for errors; changes nothing"))
+            disabled: root.mounted || Disks.busy(what)
+            onClicked: Disks.run("check", [root.fsTarget], what, (ok, out) => result = ok ? Tr.tr("No errors found") : out.includes("errors") ? Tr.tr("Errors found: repair it") : "")
+        }
+
+        RowButton {
+            readonly property string what: Tr.tr("Repair the filesystem")
+
+            visible: root.showAdvanced && root.hasFs && !root.locked && !root.p?.system && root.fs?.type !== "swap"
+            icon: "build"
+            text: what
+            subtext: Disks.busy(what) ? Tr.tr("Repairing…") : root.mounted ? Tr.tr("Unmount it first") : Tr.tr("Fixes errors it finds")
+            disabled: root.mounted || Disks.busy(what)
+            onClicked: Disks.run("repair", [root.fsTarget], what)
+        }
+
+        RowButton {
+            visible: root.showAdvanced && root.linuxFs && !root.locked && !root.p?.system && root.mounted
+            icon: "person"
+            text: Tr.tr("Give my user write access")
+            subtext: Tr.tr("Changes ownership of the partition's top folder so your account can write files")
+            onClicked: Disks.run("take-ownership", [root.fsTarget], Tr.tr("Give my user write access"))
+        }
+
+        DialogRowButton {
+            id: passBtn
+
+            readonly property string what: Tr.tr("Change the passphrase")
+            property string oldPass
+            property string newPass
+            property string repeat
+
+            visible: root.showAdvanced && !!root.p?.crypto && !root.p?.system
+            rootParent: root.flickable
+            openHeight: Math.min(root.flickable.height * 0.95, 420)
+            icon: "key"
+            label: what
+            header: what
+            acceptLabel: Tr.trCtx("Change", "button")
+            acceptAllowed: oldPass.length > 0 && newPass.length > 0 && newPass === repeat
+            onOpenChanged: {
+                oldPass = "";
+                newPass = "";
+                repeat = "";
+            }
+            content: Component {
+                ColumnLayout {
+                    spacing: Tokens.spacing.medium
+
+                    StyledTextField {
+                        Layout.fillWidth: true
+                        Layout.topMargin: Tokens.spacing.medium
+                        echoMode: TextInput.Password
+                        placeholderText: Tr.tr("Current passphrase")
+                        leadingIcon: "key"
+                        Component.onCompleted: forceActiveFocus()
+                        onTextChanged: passBtn.oldPass = text
+                    }
+
+                    StyledTextField {
+                        Layout.fillWidth: true
+                        echoMode: TextInput.Password
+                        placeholderText: Tr.tr("New passphrase")
+                        leadingIcon: "key"
+                        onTextChanged: passBtn.newPass = text
+                    }
+
+                    StyledTextField {
+                        Layout.fillWidth: true
+                        echoMode: TextInput.Password
+                        placeholderText: Tr.tr("New passphrase again")
+                        leadingIcon: "key"
+                        supportingText: text.length > 0 && text !== passBtn.newPass ? Tr.tr("The two don't match yet") : ""
+                        onTextChanged: passBtn.repeat = text
+                    }
+
+                    Item {
+                        Layout.fillHeight: true
+                    }
+                }
+            }
+            onAccepted: {
+                Disks.run("change-passphrase", [root.p.id], what, null, `${oldPass}\n${newPass}`);
+                oldPass = "";
+                newPass = "";
+                repeat = "";
+            }
+        }
+
+        // Btrfs: space, scrub, balance, subvolumes (the system's too)
+        Loader {
+            Layout.fillWidth: true
+            active: root.showAdvanced && root.fs?.type === "btrfs" && root.mountList.length > 0
+            visible: active
+            sourceComponent: BtrfsSection {
+                mountPoint: root.mountList[0]
+                flickable: root.flickable
+            }
         }
 
         SelectRow {
-            visible: root.isPartition && !root.p?.system && root.gpt
+            visible: root.showAdvanced && root.isPartition && !root.p?.system && root.gpt
             label: Tr.tr("Partition type")
             subtext: Tr.tr("Tells systems what it's for")
             menuItems: typeItems.instances
@@ -663,7 +832,7 @@ PageBase {
         }
 
         ToggleRow {
-            visible: root.isPartition && !root.p?.system && root.gpt
+            visible: root.showAdvanced && root.isPartition && !root.p?.system && root.gpt
             text: Tr.tr("Hidden from other systems")
             subtext: Tr.tr("Windows doesn't show it")
             checked: root.p?.flagBits?.includes(62) ?? false
@@ -671,7 +840,7 @@ PageBase {
         }
 
         ToggleRow {
-            visible: root.isPartition && !root.p?.system && root.gpt
+            visible: root.showAdvanced && root.isPartition && !root.p?.system && root.gpt
             text: Tr.tr("Don't mount automatically")
             subtext: Tr.tr("Systems leave it alone unless asked")
             checked: root.p?.flagBits?.includes(63) ?? false
@@ -679,7 +848,7 @@ PageBase {
         }
 
         ToggleRow {
-            visible: root.isPartition && !root.p?.system
+            visible: root.showAdvanced && root.isPartition && !root.p?.system
             text: root.gpt ? Tr.tr("Legacy BIOS bootable") : Tr.tr("Bootable")
             subtext: Tr.tr("Only old (non-UEFI) start-up uses this")
             checked: root.p?.flagBits?.includes(root.gpt ? 2 : 7) ?? false

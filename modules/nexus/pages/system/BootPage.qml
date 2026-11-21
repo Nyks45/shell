@@ -907,6 +907,15 @@ PageBase {
             }, () => root.load())
         }
 
+        NavRow {
+            Layout.fillWidth: true
+            visible: !!root.fw?.fwupd
+            icon: "memory"
+            text: Tr.tr("Firmware updates")
+            subtext: Tr.tr("Check and install motherboard, SSD and device firmware updates (fwupd)")
+            onClicked: root.nState.openSubPage(1)
+        }
+
         RowButton {
             Layout.fillWidth: true
             visible: !!root.fw

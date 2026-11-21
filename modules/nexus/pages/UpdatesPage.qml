@@ -10,6 +10,7 @@ import qs.components
 import qs.components.controls
 import qs.components.containers
 import qs.services
+import qs.modules.nexus
 import qs.modules.nexus.common
 import qs.modules.nexus.pages.apps
 
@@ -511,6 +512,20 @@ PageBase {
             subtext: Tr.tr("When updates are waiting, and when a restart is needed after one")
             checked: GlobalConfig.services.updateNotify
             onToggled: GlobalConfig.services.updateNotify = checked
+        }
+
+        SectionHeader {
+            text: Tr.tr("Firmware")
+        }
+
+        NavRow {
+            icon: "memory"
+            text: Tr.tr("Firmware updates")
+            subtext: Tr.tr("Motherboard, SSD and device firmware updates (Recovery & boot)")
+            onClicked: root.nState.goTo({
+                page: PageRegistry.find("recovery"),
+                path: [1]
+            })
         }
 
         Process {

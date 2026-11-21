@@ -30,7 +30,7 @@ ColumnLayout {
     function healthText(h: var): string {
         if (!h)
             return "";
-        const s = h.status === "failing" ? Tr.tr("Failing") : h.status === "warning" ? Tr.tr("Check it") : Tr.tr("Healthy");
+        const s = h.status === "failing" ? Tr.tr("Failing") : h.status === "warning" ? Tr.tr("Warning") : Tr.tr("Healthy");
         return h.temperature !== null && h.temperature !== undefined ? `${s} · ${h.temperature} °C` : s;
     }
 
@@ -110,7 +110,7 @@ ColumnLayout {
 
                             StyledText {
                                 Layout.fillWidth: true
-                                text: [Disks.driveKind(card.modelData), Disks.human(card.modelData.size), card.modelData.device, card.modelData.system ? Tr.tr("system drive") : ""].filter(x => x).join(" · ")
+                                text: [Disks.driveKind(card.modelData), Disks.human(card.modelData.size), card.modelData.system ? Tr.tr("System drive") : "", card.modelData.device].filter(x => x).join(" · ")
                                 color: Colours.palette.m3onSurfaceVariant
                                 font: Tokens.font.body.small
                                 elide: Text.ElideRight

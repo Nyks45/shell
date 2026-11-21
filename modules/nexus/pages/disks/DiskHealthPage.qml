@@ -19,6 +19,24 @@ PageBase {
     readonly property var h: drive?.health ?? null
     // caelestia-disks attributes: NVMe numbers or the ATA attribute table
     property var details: null
+    property bool showAttributes: false
+
+    function selftestLabel(raw: string): string {
+        const s = (raw ?? "").trim().toLowerCase();
+        const labels = {
+            success: Tr.tr("Passed"),
+            aborted: Tr.tr("Stopped early"),
+            interrupted: Tr.tr("Interrupted"),
+            fatal: Tr.tr("Failed (fatal)"),
+            error_unknown: Tr.tr("Failed"),
+            error_electrical: Tr.tr("Failed (electrical)"),
+            error_servo: Tr.tr("Failed (servo)"),
+            error_read: Tr.tr("Failed (read error)"),
+            error_handling: Tr.tr("Failed (handling)"),
+            inprogress: Tr.tr("Running")
+        };
+        return labels[s] ?? (raw || "");
+    }
 
     function load(): void {
         if (drive) {
@@ -197,7 +215,7 @@ PageBase {
             visible: !!root.h
             icon: running ? "stop_circle" : "speed"
             text: running ? Tr.tr("Stop the self-test") : Tr.tr("Run a short self-test")
-            subtext: running ? Tr.tr("Running: %1% left").arg(root.h.selftestRemaining) : root.h?.selftest ? Tr.tr("Last result: %1. Takes about two minutes; the drive stays usable.").arg(root.h.selftest) : Tr.tr("Takes about two minutes; the drive stays usable")
+            subtext: running ? Tr.tr("Running: %1% left").arg(root.h.selftestRemaining) : root.h?.selftest ? Tr.tr("Last result: %1 · Takes about two minutes; the drive stays usable").arg(root.selftestLabel(root.h.selftest)) : Tr.tr("Takes about two minutes; the drive stays usable")
             onClicked: Disks.run("selftest", [root.drive.id, running ? "abort" : "short"], Tr.tr("Run a drive self-test"))
         }
 
@@ -222,10 +240,19 @@ PageBase {
             text: Tr.tr("All attributes")
         }
 
+        RowButton {
+            visible: root.details?.kind === "ata"
+            icon: "tune"
+            text: Tr.tr("Advanced SMART attributes (%1)").arg((root.details?.attributes ?? []).length)
+            subtext: Tr.tr("Expand to inspect raw vendor IDs, thresholds and failure counters")
+            trailingIcon: root.showAttributes ? "expand_less" : "expand_more"
+            onClicked: root.showAttributes = !root.showAttributes
+        }
+
         Repeater {
             id: attrList
 
-            model: root.details?.kind === "ata" ? root.details.attributes : []
+            model: root.details?.kind === "ata" && root.showAttributes ? root.details.attributes : []
 
             InfoRow {
                 required property var modelData
