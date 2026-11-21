@@ -4,12 +4,18 @@ import Quickshell
 import Caelestia.Config
 import Caelestia.Models
 import qs.utils
+import qs.modules.nexus
 
 Searcher {
     id: root
 
     function launch(entry: DesktopEntry): void {
         appDb.incrementFrequency(entry.id);
+
+        if (entry.id === "caelestia-settings" || entry.id === "caelestia-settings.desktop") {
+            WindowFactory.create();
+            return;
+        }
 
         if (entry.runInTerminal)
             Quickshell.execDetached({

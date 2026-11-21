@@ -15,7 +15,7 @@ Singleton {
     // The profile picture (CAELESTIA_FACE overrides it, e.g. in a test session)
     readonly property string face: Quickshell.env("CAELESTIA_FACE") || `${home}/.face`
     // What images show: reloadFace() blanks it for a moment so they read the new file
-    property string faceSource: face
+    property string faceSource: CUtils.fileExists(face) ? face : ""
 
     readonly property string data: `${Quickshell.env("XDG_DATA_HOME") || `${home}/.local/share`}/caelestia`
     readonly property string state: `${Quickshell.env("XDG_STATE_HOME") || `${home}/.local/state`}/caelestia`
@@ -43,6 +43,6 @@ Singleton {
 
     function reloadFace(): void {
         faceSource = "";
-        Qt.callLater(() => faceSource = face);
+        Qt.callLater(() => faceSource = CUtils.fileExists(face) ? face : "");
     }
 }

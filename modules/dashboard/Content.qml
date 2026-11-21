@@ -273,42 +273,70 @@ Item {
                 id: settingsComponent
 
                 ClipRect {
+                    id: settingsClip
+
                     readonly property var scr: (QsWindow.window as QsWindow)?.screen ?? null
+                    readonly property int targetH: Math.round((scr?.height ?? 1080) * Tokens.sizes.nexus.heightMult)
+                    readonly property int targetW: Math.round(targetH * Tokens.sizes.nexus.ratio)
+                    property var initEntry: null
+
+                    function takeRequestedEntry(): var {
+                        const id = root.screenState.dashboardSettingsPage;
+                        if (!id)
+                            return null;
+                        root.screenState.dashboardSettingsPage = "";
+                        const t = PageRegistry.target(id);
+                        return {
+                            page: Math.max(0, t.page),
+                            path: [],
+                            tab: t.tab
+                        };
+                    }
 
                     radius: Tokens.rounding.extraLarge
                     // Never wider or taller than the screen (a portrait screen, a small one)
-                    implicitWidth: Math.min(nexusInner.implicitWidth, (scr?.width ?? 1920) - Tokens.padding.extraLarge * 4)
-                    implicitHeight: Math.min(nexusInner.implicitHeight, (scr?.height ?? 1080) - Tokens.padding.extraLarge * 4)
+                    implicitWidth: Math.min(targetW, (scr?.width ?? 1920) - Tokens.padding.extraLarge * 4)
+                    implicitHeight: Math.min(targetH, (scr?.height ?? 1080) - Tokens.padding.extraLarge * 4)
 
-                    Nexus {
-                        id: nexusInner
+                    Component.onCompleted: {
+                        initEntry = takeRequestedEntry();
+                        nexusLoader.active = true;
+                    }
 
-                        // Opened at a page (the quick settings' "open in settings"): go there
-                        function showRequested(): void {
-                            const id = root.screenState.dashboardSettingsPage;
-                            if (!id)
-                                return;
-                            const t = PageRegistry.target(id);
-                            nState.goTo({
-                                page: Math.max(0, t.page),
-                                path: [],
-                                tab: t.tab
-                            });
-                            root.screenState.dashboardSettingsPage = "";
-                        }
+                    Loader {
+                        id: nexusLoader
 
                         anchors.fill: parent
-                        nState.screen: (QsWindow.window as QsWindow)?.screen ?? null
-                        onClose: root.screenState.dashboard = false
-                        Component.onCompleted: showRequested()
-
-                        Connections {
-                            function onDashboardSettingsPageChanged(): void {
-                                nexusInner.showRequested();
-                            }
-
-                            target: root.screenState
+                        active: false
+                        asynchronous: true
+                        onLoaded: {
+                            const nex = item as Nexus;
+                            const pending = settingsClip.takeRequestedEntry();
+                            if (nex && pending)
+                                nex.nState.goTo(pending);
                         }
+
+                        sourceComponent: Nexus {
+                            anchors.fill: parent
+                            initialEntry: settingsClip.initEntry
+                            nState.screen: settingsClip.scr
+                            onClose: root.screenState.dashboard = false
+                        }
+                    }
+
+                    Connections {
+                        function onDashboardSettingsPageChanged(): void {
+                            const entry = settingsClip.takeRequestedEntry();
+                            if (!entry)
+                                return;
+                            const nex = nexusLoader.item as Nexus;
+                            if (nex)
+                                nex.nState.goTo(entry);
+                            else
+                                settingsClip.initEntry = entry;
+                        }
+
+                        target: root.screenState
                     }
 
                     Shortcut {

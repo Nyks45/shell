@@ -12,11 +12,33 @@ Item {
     property int animOff
     property bool animateNextAttach
     property Item currentItem
+    property bool initialized: false
 
     // Each load's number: pages are created asynchronously, and switching
     // quickly started several; one that finished after a newer one was asked
     // for attached too, and the pages piled up over each other
     property int loadToken
+
+    function start(): void {
+        fadeOutAnim.stop();
+        fadeInAnim.stop();
+        animateNextAttach = false;
+        lastPageIdx = nState.currentPageIdx;
+        initialized = true;
+        loadPage(nState.currentPageIdx);
+    }
+
+    function clear(): void {
+        initialized = false;
+        loadToken++;
+        fadeOutAnim.stop();
+        fadeInAnim.stop();
+        animateNextAttach = false;
+        if (currentItem) {
+            currentItem.destroy();
+            currentItem = null;
+        }
+    }
 
     function loadPage(idx: int): void {
         const token = ++loadToken;
@@ -27,21 +49,18 @@ Item {
 
         const pageSpecs = PageCompRegistry.specs[idx];
         const comp = pageSpecs ? PageCompRegistry.stackPageComp : PageCompRegistry.placeholderComp;
-        const incubator = comp.incubateObject(container, pageSpecs ? {
+        const item = comp.createObject(container, pageSpecs ? {
             nState,
             pageSpecs
         } : {
             nState
         });
+        item.anchors.fill = container;
+        currentItem = item;
 
-        const attach = () => {
-            // A newer page was asked for meanwhile: this one is stale
-            if (token !== root.loadToken) {
-                incubator.object.destroy();
+        const reveal = () => {
+            if (token !== root.loadToken)
                 return;
-            }
-            incubator.object.anchors.fill = container;
-            currentItem = incubator.object;
             if (root.animateNextAttach) {
                 root.animateNextAttach = false;
                 fadeInAnim.restart();
@@ -52,13 +71,17 @@ Item {
             }
         };
 
-        if (incubator.status === Component.Ready)
-            attach();
-        else
-            incubator.onStatusChanged = status => {
-                if (status === Component.Ready)
-                    attach();
+        if (!pageSpecs || item.initialReady || !root.animateNextAttach) {
+            reveal();
+        } else {
+            const onReady = () => {
+                if (item && item.initialReady) {
+                    item.initialReadyChanged.disconnect(onReady);
+                    reveal();
+                }
             };
+            item.initialReadyChanged.connect(onReady);
+        }
     }
 
     Item {
@@ -67,10 +90,6 @@ Item {
         objectName: "PageContainer"
         anchors.fill: parent
         layer.enabled: opacity < 1
-        Component.onCompleted: {
-            root.lastPageIdx = root.nState.currentPageIdx;
-            root.loadPage(root.nState.currentPageIdx);
-        }
     }
 
     Connections {
@@ -80,13 +99,10 @@ Item {
             root.animateNextAttach = false;
             root.animOff = root.Tokens.padding.extraLarge * (root.nState.currentPageIdx > root.lastPageIdx ? 1 : -1);
             root.lastPageIdx = root.nState.currentPageIdx;
-            const firstSpec = PageCompRegistry.specs[root.nState.currentPageIdx]?.[0];
-            const relPath = Array.isArray(firstSpec) ? firstSpec[0] : firstSpec;
-            if (relPath)
-                PageCompRegistry.subComp(relPath);
             fadeOutAnim.start();
         }
 
+        enabled: root.initialized
         target: root.nState
     }
 

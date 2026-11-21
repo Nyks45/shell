@@ -79,8 +79,8 @@ MouseArea {
     opacity: expanded ? 1 : 0
     // Gone once faded out: closed, the menu is only scaled down (to 10%), and a
     // long one still covered the rows under its button and took their clicks
-    visible: opacity > 0
-    layer.enabled: opacity < 1
+    visible: expanded || opacity > 0
+    layer.enabled: opacity > 0 && opacity < 1
 
     Behavior on opacity {
         Anim {
@@ -91,8 +91,8 @@ MouseArea {
     TransformWatcher {
         id: watcher
 
-        a: root.parent
-        b: root.attachTo
+        a: root.visible ? root.parent : null
+        b: root.visible ? root.attachTo : null
     }
 
     Elevation {
@@ -251,7 +251,7 @@ MouseArea {
                     Repeater {
                         id: repeater
 
-                        model: root.items
+                        model: root.visible ? Array.from(root.items) : []
 
                         StyledRect {
                             id: item

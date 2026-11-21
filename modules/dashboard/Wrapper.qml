@@ -169,9 +169,12 @@ Item {
 
     // Closed: the next opening picks its page again
     onMorphChanged: {
-        if (morph < 0.002 && !shouldBeActive && screenState.dashboardSolo) {
-            screenState.dashboardSolo = false;
-            screenState.dashboardSticky = false;
+        if (morph < 0.002 && !shouldBeActive) {
+            if (screenState.dashboardSolo) {
+                screenState.dashboardSolo = false;
+                screenState.dashboardSticky = false;
+            }
+            screenState.dashboardSettingsPage = "";
         }
     }
 
@@ -404,7 +407,7 @@ Item {
         opacity: Math.min(1, Math.max(0, (root.morph - 0.4) / 0.45))
         visible: root.morph > 0.002
 
-        active: root.shouldBeActive || root.morph > 0.002 || root.peeking
+        active: root.shouldBeActive || root.morph > 0.002
         onActiveChanged: ensureSource()
         onLoaded: item.animateSize = Qt.binding(() => root.morph > 0.98 && root.shouldBeActive)
         Component.onCompleted: ensureSource()

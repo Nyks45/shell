@@ -19,7 +19,7 @@ DialogRowButton {
     required property string confirmText
     property string typed
 
-    openHeight: Math.min(rootParent.height * 0.95, 400)
+    openHeight: Math.min((rootParent?.height ?? 0) * 0.95, 400)
     acceptAllowed: typed === confirmText
 
     onOpenChanged: typed = ""

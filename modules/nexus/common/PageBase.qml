@@ -16,6 +16,7 @@ ColumnLayout {
     required property string title
     required property NexusState nState
     property bool isSubPage
+    property int stackDepth: -1
     // Shown inside another page (a merged page): no title or scroll area of
     // its own; dialogs open over the host's scroll area (hostFlickable)
     property bool embedded
@@ -64,7 +65,8 @@ ColumnLayout {
 
     function showHighlight(): void {
         const h = nState.highlight;
-        if (embedded || !h || (root.StackView.index >= 0 ? root.StackView.index : 0) !== h.depth)
+        const depth = root.stackDepth >= 0 ? root.stackDepth : (root.StackView.index >= 0 ? root.StackView.index : (root.parent?.nexusStackDepth ?? 0));
+        if (embedded || !h || depth !== h.depth)
             return;
         // Labels used twice: try within the section, then anywhere
         const row = findRow(root.contentChild, h.text, h.section, {

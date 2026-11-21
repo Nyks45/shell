@@ -26,8 +26,8 @@ Item {
     property bool separateContent
     property int horizontalContentMargin
 
-    property real openWidth: Math.min(rootParent.width * 0.8, Tokens.sizes.nexus.maxDialogWidth)
-    property real openHeight: Math.min(rootParent.height * 0.8, Tokens.sizes.nexus.maxDialogHeight)
+    property real openWidth: Math.min((rootParent?.width ?? 0) * 0.8, Tokens.sizes.nexus.maxDialogWidth)
+    property real openHeight: Math.min((rootParent?.height ?? 0) * 0.8, Tokens.sizes.nexus.maxDialogHeight)
     property bool open
     // Its place in a group of rows (rounded corners like ConnectedRect's):
     // where it sits among the visible rows of its column (Rows) unless set

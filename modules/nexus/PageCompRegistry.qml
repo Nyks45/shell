@@ -7,6 +7,7 @@ import Caelestia.I18n
 import qs.components
 import qs.services
 import qs.modules.nexus.common
+// Keep these imports: Quickshell's VFS scanner registers dynamic sub-page modules from the static import graph
 import qs.modules.nexus.pages
 import qs.modules.nexus.pages.apps
 import qs.modules.nexus.pages.audio
@@ -26,6 +27,10 @@ QtObject {
     id: root
 
     property var _subComps: ({})
+
+    function pageUrl(relPath: string): url {
+        return Qt.resolvedUrl(`pages/${relPath}`);
+    }
 
     function subComp(relPath: string): Component {
         if (_subComps[relPath])

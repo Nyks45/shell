@@ -12,6 +12,7 @@ Singleton {
     id: root
 
     property var activeWindow: null
+    property var cachedWindow: null
 
     function focusExisting(): void {
         if (!activeWindow)
@@ -28,13 +29,21 @@ Singleton {
     }
 
     function create(parent: Item, props: var): void {
-        if (activeWindow) {
+        if (activeWindow && activeWindow.visible) {
             if (props?.startEntry)
                 activeWindow.nexusItem.nState.goTo(props.startEntry);
             focusExisting();
             return;
         }
-        activeWindow = nexusComp.createObject(parent ?? dummy, props ?? {});
+        if (cachedWindow) {
+            cachedWindow.visible = false;
+            activeWindow = cachedWindow;
+            cachedWindow.nexusItem.activate(props?.startEntry ?? null);
+            cachedWindow.visible = true;
+            return;
+        }
+        cachedWindow = nexusComp.createObject(parent ?? dummy, props ?? {});
+        activeWindow = cachedWindow;
     }
 
     // Opened at a page (PageRegistry id) and sub-page path, e.g. ("wallpaper", [4])
@@ -68,14 +77,21 @@ Singleton {
             color: Colours.tPalette.m3surface
             surfaceFormat.opaque: false
 
+            onClosed: visible = false
+
             onVisibleChanged: {
-                if (!visible)
-                    destroy();
+                if (!visible) {
+                    if (root.activeWindow === win)
+                        root.activeWindow = null;
+                    nexus.deactivate();
+                }
             }
 
             Component.onDestruction: {
                 if (root.activeWindow === win)
                     root.activeWindow = null;
+                if (root.cachedWindow === win)
+                    root.cachedWindow = null;
             }
 
             implicitWidth: nexus.implicitWidth
@@ -84,8 +100,8 @@ Singleton {
             minimumSize.width: contentItem.Tokens.sizes.nexus.minWidth
             minimumSize.height: contentItem.Tokens.sizes.nexus.minHeight
 
-            contentItem.Config.screen: screen.name
-            contentItem.Tokens.screen: screen.name
+            contentItem.Config.screen: screen?.name ?? ""
+            contentItem.Tokens.screen: screen?.name ?? ""
 
             title: Tr.tr("Settings")
 
@@ -93,11 +109,10 @@ Singleton {
                 id: nexus
 
                 anchors.fill: parent
+                initialEntry: win.startEntry
                 nState.screen: win.screen
                 nState.isWindow: true
-                onClose: win.destroy()
-                Component.onCompleted: if (win.startEntry)
-                    nState.startAt(win.startEntry)
+                onClose: win.visible = false
             }
 
             Behavior on color {

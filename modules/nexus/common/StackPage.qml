@@ -11,27 +11,73 @@ StackView {
     default property list<Component> pages
     property var pageSpecs: []
     readonly property int animMovement: Tokens.padding.extraExtraLarge * 2
+    property bool _booting: true
+    property bool initialReady: false
 
-    function openSubPage(idx: int, immediate: bool): void {
+    Component {
+        id: pageSlot
+
+        Loader {
+            id: slot
+
+            required property url pageUrl
+            required property var pageProps
+            required property int slotDepth
+            required property bool loadNow
+            required property bool isInitialTop
+
+            readonly property int nexusStackDepth: slotDepth
+            property bool _started: false
+            readonly property bool shouldLoad: loadNow || (!root._booting && (StackView.status === StackView.Activating || StackView.status === StackView.Active || StackView.visible))
+
+            function ensureLoad(): void {
+                if (_started || !shouldLoad)
+                    return;
+                _started = true;
+                setSource(pageUrl, Object.assign({
+                    nState: root.nState
+                }, pageProps ?? {}));
+                if (isInitialTop && (status === Loader.Ready || status === Loader.Error))
+                    root.initialReady = true;
+            }
+
+            asynchronous: true
+            onShouldLoadChanged: ensureLoad()
+            Component.onCompleted: ensureLoad()
+            onStatusChanged: {
+                if (status === Loader.Error)
+                    console.warn(logCat, "Failed to load sub-page", pageUrl);
+                if (isInitialTop && (status === Loader.Ready || status === Loader.Error))
+                    root.initialReady = true;
+            }
+        }
+    }
+
+    function openSubPage(idx: int, immediate: bool, loadNow = true, isInitialTop = false): void {
         const page = pages[idx];
         if (page) {
             push(page, {
                 nState
             }, immediate ? StackView.Immediate : StackView.PushTransition);
+            if (isInitialTop)
+                root.initialReady = true;
             return;
         }
         const spec = pageSpecs[idx];
         if (spec) {
             const relPath = Array.isArray(spec) ? spec[0] : spec;
             const extraProps = Array.isArray(spec) ? spec[1] : null;
-            const comp = PageCompRegistry.subComp(relPath);
-            if (comp) {
-                push(comp, Object.assign({
-                    nState
-                }, extraProps ?? {}), immediate ? StackView.Immediate : StackView.PushTransition);
-                return;
-            }
+            push(pageSlot, {
+                pageUrl: PageCompRegistry.pageUrl(relPath),
+                pageProps: extraProps,
+                slotDepth: root.depth,
+                loadNow: loadNow,
+                isInitialTop: isInitialTop
+            }, immediate ? StackView.Immediate : StackView.PushTransition);
+            return;
         }
+        if (isInitialTop)
+            root.initialReady = true;
         console.warn(logCat, "Attempted to open invalid sub-page index", idx);
         nState.closeSubPage();
     }
@@ -39,9 +85,11 @@ StackView {
     clip: busy
 
     Component.onCompleted: {
-        openSubPage(0, true);
-        for (const page of nState.subPageIdxStack)
-            openSubPage(page, true);
+        const stack = Array.from(nState.subPageIdxStack);
+        openSubPage(0, true, stack.length === 0, stack.length === 0);
+        for (let i = 0; i < stack.length; i++)
+            openSubPage(stack[i], true, i === stack.length - 1, i === stack.length - 1);
+        _booting = false;
     }
 
     pushEnter: Transition {

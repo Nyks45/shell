@@ -94,6 +94,51 @@ QtObject {
         _navigatingHistory = false;
     }
 
+    function reset(entry: var): void {
+        _navigatingHistory = true;
+        _inGoTo = true;
+        backHandler = null;
+        searchOpen = false;
+        searchText = "";
+
+        if (entry) {
+            const path = (entry.path ?? []).slice();
+            if (entry.tab) {
+                PageRegistry.pendingTab = entry.tab;
+                PageRegistry.pendingTabAt = Date.now();
+            } else {
+                PageRegistry.pendingTab = "";
+                PageRegistry.pendingTabAt = 0;
+            }
+            highlight = entry.text ? {
+                text: entry.text,
+                section: entry.sectionText ?? "",
+                depth: path.length
+            } : null;
+            history = [{
+                page: entry.page,
+                path
+            }];
+            historyIdx = 0;
+            currentPageIdx = entry.page;
+            subPageIdxStack = path;
+        } else {
+            PageRegistry.pendingTab = "";
+            PageRegistry.pendingTabAt = 0;
+            highlight = null;
+            history = [{
+                page: 0,
+                path: []
+            }];
+            historyIdx = 0;
+            currentPageIdx = 0;
+            subPageIdxStack = [];
+        }
+
+        _inGoTo = false;
+        _navigatingHistory = false;
+    }
+
     function startAt(entry: var): void {
         history = [{
             page: entry.page,

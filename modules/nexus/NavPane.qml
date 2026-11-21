@@ -14,6 +14,10 @@ ColumnLayout {
 
     required property NexusState nState
 
+    function clearSearch(): void {
+        searchField.text = "";
+    }
+
     spacing: Tokens.spacing.medium
 
     // The window's title, plus back / forward history controls
@@ -140,7 +144,7 @@ ColumnLayout {
         }
 
         // Enter opens the first result, Escape clears the search
-        onAccepted: results.openFirst()
+        onAccepted: (resultsLoader.item as SearchResults)?.openFirst()
         Keys.onEscapePressed: text = ""
 
         Binding {
@@ -165,12 +169,16 @@ ColumnLayout {
         nState: root.nState
     }
 
-    SearchResults {
-        id: results
+    Loader {
+        id: resultsLoader
 
         Layout.fillWidth: true
         Layout.fillHeight: true
-        visible: root.nState.searchOpen
-        nState: root.nState
+        active: root.nState.searchOpen
+        visible: active
+
+        sourceComponent: SearchResults {
+            nState: root.nState
+        }
     }
 }

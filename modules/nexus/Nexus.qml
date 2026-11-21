@@ -13,6 +13,8 @@ import qs.modules.polkit
 Item {
     id: root
 
+    property var initialEntry: null
+    property bool _active: false
     readonly property NexusState nState: NexusState {
         id: nState
 
@@ -26,21 +28,36 @@ Item {
 
     // The live wallpapers' Workshop: fetched as the settings open, cleared as
     // they close. A settings window shows the password prompt itself.
-    Component.onCompleted: {
-        LiveWallpaper.settingsOpened();
-        if (nState.isWindow) {
-            Polkit.addHost(root);
-            BluetoothAgent.addHost(root);
+    function activate(entry: var): void {
+        navPane.clearSearch();
+        nState.reset(entry ?? null);
+        if (!_active) {
+            _active = true;
+            LiveWallpaper.settingsOpened();
+            if (nState.isWindow) {
+                Polkit.addHost(root);
+                BluetoothAgent.addHost(root);
+            }
         }
-    }
-    Component.onDestruction: {
-        LiveWallpaper.settingsClosed();
-        Polkit.removeHost(root);
-        BluetoothAgent.removeHost(root);
+        pages.start();
     }
 
+    function deactivate(): void {
+        pages.clear();
+        navPane.clearSearch();
+        if (_active) {
+            _active = false;
+            LiveWallpaper.settingsClosed();
+            Polkit.removeHost(root);
+            BluetoothAgent.removeHost(root);
+        }
+    }
+
+    Component.onCompleted: activate(initialEntry)
+    Component.onDestruction: deactivate()
+
     implicitWidth: Math.round(implicitHeight * Tokens.sizes.nexus.ratio)
-    implicitHeight: Math.round(nState.screen.height * Tokens.sizes.nexus.heightMult)
+    implicitHeight: Math.round((nState.screen?.height ?? 1080) * Tokens.sizes.nexus.heightMult)
 
     Behavior on blobColour {
         CAnim {}
@@ -153,6 +170,8 @@ Item {
     }
 
     Pages {
+        id: pages
+
         anchors.left: navPane.right
         anchors.right: parent.right
         anchors.top: parent.top

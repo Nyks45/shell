@@ -343,175 +343,222 @@ PageBase {
             }
         }
 
-        SelectRow {
-            visible: root.showFilters
-            label: Tr.tr("Sort by")
-            menuItems: [
-                MenuItem {
-                    text: Tr.tr("Recently used")
-                    value: "recent"
-                },
-                MenuItem {
-                    text: Tr.tr("Name")
-                    value: "name"
-                },
-                MenuItem {
-                    text: Tr.tr("Favourite")
-                    value: "favourite"
-                },
-                MenuItem {
-                    text: Tr.tr("File size")
-                    value: "size"
-                },
-                MenuItem {
-                    text: Tr.tr("Subscription date")
-                    value: "newest"
-                },
-                MenuItem {
-                    text: Tr.tr("Last updated")
-                    value: "updated"
+        Loader {
+            Layout.fillWidth: true
+            active: root.showFilters
+            visible: active
+
+            sourceComponent: ColumnLayout {
+                width: parent ? parent.width : 0
+                spacing: Tokens.spacing.extraSmall / 2
+
+                SelectRow {
+                    label: Tr.tr("Sort by")
+                    menuItems: [
+                        MenuItem {
+                            text: Tr.tr("Recently used")
+                            value: "recent"
+                        },
+                        MenuItem {
+                            text: Tr.tr("Name")
+                            value: "name"
+                        },
+                        MenuItem {
+                            text: Tr.tr("Favourite")
+                            value: "favourite"
+                        },
+                        MenuItem {
+                            text: Tr.tr("File size")
+                            value: "size"
+                        },
+                        MenuItem {
+                            text: Tr.tr("Subscription date")
+                            value: "newest"
+                        },
+                        MenuItem {
+                            text: Tr.tr("Last updated")
+                            value: "updated"
+                        }
+                    ]
+                    active: menuItems.find(i => i.value === root.sortBy) ?? null
+                    onSelected: item => LiveWallpaper.setQuiet("sortBy", item.value)
                 }
-            ]
-            active: menuItems.find(i => i.value === root.sortBy) ?? null
-            onSelected: item => LiveWallpaper.setQuiet("sortBy", item.value)
-        }
 
-        SelectRow {
-            visible: root.showFilters
-            label: Tr.tr("Tag")
-            menuItems: [anyTag, ...tagItems.instances]
-            active: root.tagFilter ? tagItems.instances.find(i => i.value === root.tagFilter) ?? null : anyTag
-            onSelected: item => root.tagFilter = item.value
+                SelectRow {
+                    label: Tr.tr("Tag")
+                    menuItems: [anyTag, ...tagItems.instances]
+                    active: root.tagFilter ? tagItems.instances.find(i => i.value === root.tagFilter) ?? null : anyTag
+                    onSelected: item => root.tagFilter = item.value
 
-            MenuItem {
-                id: anyTag
+                    MenuItem {
+                        id: anyTag
 
-                text: Tr.tr("Any")
-                value: ""
+                        text: Tr.tr("Any")
+                        value: ""
+                    }
+
+                    Variants {
+                        id: tagItems
+
+                        model: root.allTags
+
+                        MenuItem {
+                            required property string modelData
+
+                            text: modelData
+                            value: modelData
+                        }
+                    }
+                }
+
+                SelectRow {
+                    label: Tr.tr("Source")
+                    menuItems: [
+                        MenuItem {
+                            text: Tr.tr("Any")
+                            value: ""
+                        },
+                        MenuItem {
+                            text: Tr.tr("Workshop")
+                            value: "workshop"
+                        },
+                        MenuItem {
+                            text: Tr.tr("Official")
+                            value: "built-in"
+                        },
+                        MenuItem {
+                            text: Tr.tr("My wallpapers")
+                            value: "mine"
+                        },
+                        MenuItem {
+                            text: Tr.tr("Presets")
+                            value: "preset"
+                        }
+                    ]
+                    active: menuItems.find(i => i.value === root.sourceFilter) ?? null
+                    onSelected: item => root.sourceFilter = item.value
+                }
+
+                SelectRow {
+                    visible: root.showMature
+                    label: Tr.tr("Age rating")
+                    menuItems: [
+                        MenuItem {
+                            text: Tr.tr("Any")
+                            value: ""
+                        },
+                        MenuItem {
+                            text: Tr.tr("Everyone")
+                            value: "g"
+                        },
+                        MenuItem {
+                            text: Tr.tr("Questionable")
+                            value: "pg13"
+                        },
+                        MenuItem {
+                            text: Tr.tr("Mature")
+                            value: "r"
+                        }
+                    ]
+                    active: menuItems.find(i => i.value === root.ageFilter) ?? null
+                    onSelected: item => root.ageFilter = item.value
+                }
+
+                SelectRow {
+                    label: Tr.tr("Works with Linux")
+                    subtext: Tr.tr("Card dots: green = works, yellow = small glitches, orange = partial, red = broken")
+                    menuItems: [
+                        MenuItem {
+                            text: Tr.tr("Show all")
+                            value: ""
+                        },
+                        MenuItem {
+                            text: Tr.tr("Only ones that work")
+                            value: "working"
+                        },
+                        MenuItem {
+                            text: Tr.tr("Hide broken ones")
+                            value: "hidebroken"
+                        },
+                        MenuItem {
+                            text: Tr.tr("Not tested yet")
+                            value: "untested"
+                        }
+                    ]
+                    active: menuItems.find(i => i.value === root.compatFilter) ?? null
+                    onSelected: item => LiveWallpaper.setQuiet("compatFilter", item.value)
+                }
+
+                ToggleRow {
+                    text: Tr.tr("Show mature wallpapers")
+                    subtext: Tr.tr("Ones rated Questionable or Mature on the Workshop")
+                    checked: root.showMature
+                    onToggled: LiveWallpaper.setQuiet("showMature", checked)
+                }
+
+                RowButton {
+                    groupStart: true
+                    icon: LiveWallpaper.testing ? "hourglass_top" : "fact_check"
+                    text: LiveWallpaper.testing ? Tr.tr("Testing %1 of %2… (click to stop)").arg(LiveWallpaper.testDone).arg(LiveWallpaper.testTotal) : Tr.tr("Test which wallpapers work")
+                    subtext: LiveWallpaper.testing ? "" : Tr.tr("Runs each untested one for a few seconds, hidden")
+                    onClicked: LiveWallpaper.testing ? LiveWallpaper.stopTests() : LiveWallpaper.testAll(false)
+                }
             }
-
-            Variants {
-                id: tagItems
-
-                model: root.allTags
-
-                MenuItem {
-                    required property string modelData
-
-                    text: modelData
-                    value: modelData
-                }
-            }
         }
 
-        SelectRow {
-            visible: root.showFilters
-            label: Tr.tr("Source")
-            menuItems: [
-                MenuItem {
-                    text: Tr.tr("Any")
-                    value: ""
-                },
-                MenuItem {
-                    text: Tr.tr("Workshop")
-                    value: "workshop"
-                },
-                MenuItem {
-                    text: Tr.tr("Official")
-                    value: "built-in"
-                },
-                MenuItem {
-                    text: Tr.tr("My wallpapers")
-                    value: "mine"
-                },
-                MenuItem {
-                    text: Tr.tr("Presets")
-                    value: "preset"
-                }
-            ]
-            active: menuItems.find(i => i.value === root.sourceFilter) ?? null
-            onSelected: item => root.sourceFilter = item.value
-        }
+        Item {
+            id: gridHost
 
-        SelectRow {
-            visible: root.showFilters && root.showMature
-            label: Tr.tr("Age rating")
-            menuItems: [
-                MenuItem {
-                    text: Tr.tr("Any")
-                    value: ""
-                },
-                MenuItem {
-                    text: Tr.tr("Everyone")
-                    value: "g"
-                },
-                MenuItem {
-                    text: Tr.tr("Questionable")
-                    value: "pg13"
-                },
-                MenuItem {
-                    text: Tr.tr("Mature")
-                    value: "r"
-                }
-            ]
-            active: menuItems.find(i => i.value === root.ageFilter) ?? null
-            onSelected: item => root.ageFilter = item.value
-        }
+            readonly property real spacing: Tokens.spacing.small
+            readonly property real availW: width > 0 ? width : Math.max(360, root.cappedWidth)
+            readonly property int cols: Math.max(2, Math.floor((availW + spacing) / (180 + spacing)))
+            readonly property real cellW: Math.max(120, (availW - spacing * (cols - 1)) / cols)
+            readonly property real previewH: Math.round((cellW - Tokens.padding.small * 2) * 9 / 16)
+            readonly property real titleRowH: Math.max(Math.ceil(cardTitleMetrics.height), Math.ceil(cardIconMetrics.height)) + 4
+            readonly property real cellH: previewH + Tokens.spacing.extraSmall + titleRowH + Tokens.padding.small * 2
+            readonly property real rowStride: Math.max(100, cellH + spacing)
+            readonly property int totalRows: Math.ceil(root.shown.length / cols)
 
-        SelectRow {
-            visible: root.showFilters
-            label: Tr.tr("Works with Linux")
-            subtext: Tr.tr("Card dots: green = works, yellow = small glitches, orange = partial, red = broken")
-            menuItems: [
-                MenuItem {
-                    text: Tr.tr("Show all")
-                    value: ""
-                },
-                MenuItem {
-                    text: Tr.tr("Only ones that work")
-                    value: "working"
-                },
-                MenuItem {
-                    text: Tr.tr("Hide broken ones")
-                    value: "hidebroken"
-                },
-                MenuItem {
-                    text: Tr.tr("Not tested yet")
-                    value: "untested"
-                }
-            ]
-            active: menuItems.find(i => i.value === root.compatFilter) ?? null
-            onSelected: item => LiveWallpaper.setQuiet("compatFilter", item.value)
-        }
+            readonly property real viewTop: Math.max(0, (root.flickable?.contentY ?? 0) - y)
+            readonly property real viewH: Math.max(400, root.flickable?.height ?? 720)
+            readonly property int firstRow: Math.max(0, Math.floor(viewTop / rowStride) - 1)
+            readonly property int visibleRows: Math.ceil(viewH / rowStride) + 3
+            readonly property int poolSize: Math.min(root.shown.length, Math.min(48, cols * visibleRows))
+            readonly property int baseIndex: firstRow * cols
 
-        ToggleRow {
-            visible: root.showFilters
-            text: Tr.tr("Show mature wallpapers")
-            subtext: Tr.tr("Ones rated Questionable or Mature on the Workshop")
-            checked: root.showMature
-            onToggled: LiveWallpaper.setQuiet("showMature", checked)
-        }
-
-        RowButton {
-            visible: root.showFilters
-            groupStart: true
-            icon: LiveWallpaper.testing ? "hourglass_top" : "fact_check"
-            text: LiveWallpaper.testing ? Tr.tr("Testing %1 of %2… (click to stop)").arg(LiveWallpaper.testDone).arg(LiveWallpaper.testTotal) : Tr.tr("Test which wallpapers work")
-            subtext: LiveWallpaper.testing ? "" : Tr.tr("Runs each untested one for a few seconds, hidden")
-            onClicked: LiveWallpaper.testing ? LiveWallpaper.stopTests() : LiveWallpaper.testAll(false)
-        }
-
-        GridLayout {
             Layout.fillWidth: true
             Layout.topMargin: Tokens.spacing.medium
-            columns: Math.max(2, Math.floor((width + columnSpacing) / (180 + columnSpacing)))
-            columnSpacing: Tokens.spacing.small
-            rowSpacing: Tokens.spacing.small
+            implicitHeight: totalRows > 0 ? totalRows * rowStride - spacing : 0
+
+            FontMetrics {
+                id: cardTitleMetrics
+
+                font: Tokens.font.label.medium
+            }
+
+            FontMetrics {
+                id: cardIconMetrics
+
+                font: Tokens.font.icon.small
+            }
 
             Repeater {
-                model: root.shown
+                model: gridHost.poolSize
 
-                Card {}
+                Card {
+                    required property int index
+                    readonly property int itemIndex: gridHost.poolSize > 0
+                        ? gridHost.baseIndex + ((index - (gridHost.baseIndex % gridHost.poolSize) + gridHost.poolSize) % gridHost.poolSize)
+                        : -1
+
+                    modelData: itemIndex >= 0 && itemIndex < root.shown.length ? root.shown[itemIndex] : null
+                    previewHeight: gridHost.previewH
+                    visible: !!modelData
+                    x: (itemIndex % gridHost.cols) * (gridHost.cellW + gridHost.spacing)
+                    y: Math.floor(itemIndex / gridHost.cols) * gridHost.rowStride
+                    width: gridHost.cellW
+                    height: gridHost.cellH
+                }
             }
         }
 
@@ -544,22 +591,27 @@ PageBase {
         // AnimatedImage decodes every frame up front, ~100 of them took seconds
         Image {
             anchors.fill: parent
-            visible: frameImg.status !== Image.Ready
+            visible: (frameLoader.item as Image)?.status !== Image.Ready
             source: prev.still || prev.source ? `file://${prev.still || prev.source}` : ""
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             sourceSize.width: 360
         }
 
-        Image {
-            id: frameImg
+        Loader {
+            id: frameLoader
 
             anchors.fill: parent
-            source: prev.frame ? `file://${prev.frame}` : ""
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-            cache: false
-            sourceSize.width: 640
+            active: prev.frame.length > 0
+
+            sourceComponent: Image {
+                anchors.fill: parent
+                source: `file://${prev.frame}`
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                cache: false
+                sourceSize.width: 640
+            }
         }
 
         Loader {
@@ -587,13 +639,12 @@ PageBase {
     component Card: StyledRect {
         id: card
 
-        required property var modelData
-        readonly property bool current: Object.values(LiveWallpaper.screens).includes(modelData.path)
-        readonly property string grade: LiveWallpaper.compat(modelData.path)?.grade ?? ""
+        property var modelData: null
+        property real previewHeight: Math.round((width - Tokens.padding.small * 2) * 9 / 16)
+        readonly property bool current: !!modelData && Object.values(LiveWallpaper.screens).includes(modelData.path)
+        readonly property string grade: modelData ? (LiveWallpaper.compat(modelData.path)?.grade ?? "") : ""
         readonly property bool broken: grade === "broken"
 
-        Layout.fillWidth: true
-        implicitHeight: cardCol.implicitHeight + Tokens.padding.small * 2
         radius: Tokens.rounding.large
         color: current ? Colours.palette.m3secondaryContainer : Colours.tPalette.m3surfaceContainer
         border.width: current ? 2 : 0
@@ -604,7 +655,8 @@ PageBase {
 
             anchors.fill: parent
             radius: parent.radius
-            onClicked: root.openInfo(card.modelData)
+            onClicked: if (card.modelData)
+                root.openInfo(card.modelData)
         }
 
         ColumnLayout {
@@ -616,14 +668,14 @@ PageBase {
 
             Preview {
                 Layout.fillWidth: true
-                Layout.preferredHeight: width * 9 / 16
-                source: card.modelData.preview
-                still: card.modelData.still ?? ""
+                Layout.preferredHeight: card.previewHeight
+                source: card.modelData?.preview ?? ""
+                still: card.modelData?.still ?? ""
                 playing: cardState.containsMouse
 
                 // Favourite: always shown when set, else on hover
                 StyledRect {
-                    readonly property bool fav: LiveWallpaper.isFavourite(card.modelData.path)
+                    readonly property bool fav: !!card.modelData && LiveWallpaper.isFavourite(card.modelData.path)
 
                     anchors.top: parent.top
                     anchors.left: parent.left
@@ -648,7 +700,8 @@ PageBase {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: LiveWallpaper.toggleFavourite(card.modelData.path)
+                        onClicked: if (card.modelData)
+                            LiveWallpaper.toggleFavourite(card.modelData.path)
                     }
                 }
             }
@@ -658,14 +711,14 @@ PageBase {
                 spacing: Tokens.spacing.extraSmall
 
                 MaterialIcon {
-                    text: card.modelData.type === "video" ? "movie" : card.modelData.type === "web" ? "language" : "landscape"
+                    text: card.modelData?.type === "video" ? "movie" : card.modelData?.type === "web" ? "language" : "landscape"
                     color: Colours.palette.m3onSurfaceVariant
                     fontStyle: Tokens.font.icon.small
                 }
 
                 StyledText {
                     Layout.fillWidth: true
-                    text: card.modelData.title
+                    text: card.modelData?.title ?? ""
                     font: Tokens.font.label.medium
                     elide: Text.ElideRight
                 }
