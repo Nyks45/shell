@@ -4,10 +4,53 @@ import QtQuick
 import QtQuick.Layouts
 import Caelestia.Config
 import Caelestia.I18n
+import qs.components
+import qs.components.controls
+import qs.services
 import qs.modules.nexus.common
 
 PageBase {
     id: root
+
+    readonly property var toggleMeta: ({
+            wifi: Tr.tr("Wi-Fi / Ethernet tile"),
+            bluetooth: Tr.tr("Bluetooth tile"),
+            desktop: Tr.tr("Desktop mode"),
+            mic: Tr.tr("Microphone mute"),
+            dnd: Tr.tr("Do not disturb"),
+            gameMode: Tr.tr("Game mode"),
+            vpn: Tr.tr("VPN"),
+            wallpaperPlaying: Tr.tr("Live wallpaper playback"),
+            keepAwake: Tr.tr("Keep awake"),
+            recorder: Tr.tr("Screen recorder")
+        })
+    readonly property var visibleToggles: GlobalConfig.utilities.quickToggles.values.filter(e => toggleMeta[e.id] !== undefined)
+
+    function ensureKnownToggles(): void {
+        const have = new Set(GlobalConfig.utilities.quickToggles.values.map(e => e.id));
+        for (const id of Object.keys(toggleMeta)) {
+            if (!have.has(id))
+                GlobalConfig.utilities.quickToggles.insert({
+                    id,
+                    enabled: true
+                });
+        }
+    }
+
+    function moveToggle(id: string, delta: int): void {
+        const subset = visibleToggles;
+        const pos = subset.findIndex(e => e.id === id);
+        const targetPos = pos + delta;
+        if (pos < 0 || targetPos < 0 || targetPos >= subset.length)
+            return;
+        const all = GlobalConfig.utilities.quickToggles.values;
+        const fromIdx = all.indexOf(subset[pos]);
+        const toIdx = all.indexOf(subset[targetPos]);
+        if (fromIdx >= 0 && toIdx >= 0 && fromIdx !== toIdx)
+            GlobalConfig.utilities.quickToggles.move(fromIdx, toIdx);
+    }
+
+    Component.onCompleted: ensureKnownToggles()
 
     title: Tr.tr("Dashboard")
     isSubPage: true
@@ -111,6 +154,68 @@ PageBase {
             text: Tr.tr("Network speed")
             checked: Config.dashboard.performance.showNetwork
             onToggled: GlobalConfig.dashboard.performance.showNetwork = checked
+        }
+
+        // Quick settings toggles shown in the pill/quick island
+        SectionHeader {
+            text: Tr.tr("Quick settings")
+        }
+
+        Repeater {
+            model: root.visibleToggles
+
+            ConnectedRect {
+                id: qtRow
+
+                required property var modelData
+                required property int index
+
+                Layout.fillWidth: true
+                implicitHeight: qtRowLayout.implicitHeight + Tokens.padding.medium * 2
+
+                RowLayout {
+                    id: qtRowLayout
+
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: Tokens.padding.largeIncreased
+                    anchors.rightMargin: Tokens.padding.largeIncreased
+                    spacing: Tokens.spacing.small
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: root.toggleMeta[qtRow.modelData.id] ?? qtRow.modelData.id
+                        font: Tokens.font.body.small
+                        elide: Text.ElideRight
+                    }
+
+                    IconButton {
+                        visible: qtRow.modelData.id !== "wifi" && qtRow.modelData.id !== "bluetooth"
+                        icon: "arrow_upward"
+                        type: IconButton.Text
+                        disabled: {
+                            const prev = root.visibleToggles[qtRow.index - 1];
+                            return !prev || prev.id === "wifi" || prev.id === "bluetooth";
+                        }
+                        onClicked: root.moveToggle(qtRow.modelData.id, -1)
+                    }
+
+                    IconButton {
+                        visible: qtRow.modelData.id !== "wifi" && qtRow.modelData.id !== "bluetooth"
+                        icon: "arrow_downward"
+                        type: IconButton.Text
+                        disabled: qtRow.index >= root.visibleToggles.length - 1
+                        onClicked: root.moveToggle(qtRow.modelData.id, 1)
+                    }
+
+                    StyledSwitch {
+                        cLayer: 2
+                        checked: qtRow.modelData.enabled
+                        onToggled: qtRow.modelData.enabled = checked
+                    }
+                }
+            }
         }
 
         SectionHeader {

@@ -68,12 +68,14 @@ class UtilitiesConfig : public settings::ObjectNode {
         DEFAULT_ARG({
             LIST_ENTRY(wifi, true),
             LIST_ENTRY(bluetooth, true),
+            LIST_ENTRY(desktop, true),
             LIST_ENTRY(mic, true),
-            LIST_ENTRY(settings, true),
-            LIST_ENTRY(gameMode, true),
-            LIST_ENTRY(wallpaperPlaying, true),
             LIST_ENTRY(dnd, true),
-            LIST_ENTRY(vpn, false),
+            LIST_ENTRY(gameMode, true),
+            LIST_ENTRY(vpn, true),
+            LIST_ENTRY(wallpaperPlaying, true),
+            LIST_ENTRY(keepAwake, true),
+            LIST_ENTRY(recorder, true),
         }))
 };
 

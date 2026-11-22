@@ -2,11 +2,15 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
+import Quickshell.Io
+import Caelestia
 import Caelestia.Components
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
 import qs.components.controls
+import qs.components.filedialog
 import qs.services
 import qs.modules.nexus.common
 
@@ -19,12 +23,17 @@ PageBase {
     readonly property var existing: editing ? (VPN.providers[editIndex] ?? null) : null
     readonly property var builtInPresets: ({
             wireguard: "WireGuard",
+            nm: "NetworkManager VPN",
             warp: "Cloudflare WARP",
             tailscale: "Tailscale",
             netbird: "NetBird"
         })
     property string providerType: "wireguard"
     property bool overrideCommands: false
+    property var nmProfiles: []
+    property bool importingConfig: false
+    property bool missingOpenvpnPlugin: false
+    property string lastImportFile: ""
 
     function splitCmd(arr: var): string {
         return arr?.join(" ") ?? "";
@@ -44,17 +53,21 @@ PageBase {
         providerType = typeId;
         const itemMap = {
             wireguard: wireguardItem,
+            nm: nmItem,
             warp: warpItem,
             tailscale: tailscaleItem,
             netbird: netbirdItem,
             custom: customItem
         };
         typeSelect.active = itemMap[typeId] ?? customItem;
+        missingOpenvpnPlugin = false;
         if (typeId !== "custom") {
             nameField.text = typeId;
             nameField.isError = false;
             if (resetDisplay || !displayField.text.trim() || displayField.text.trim() === prevDefault)
                 displayField.text = builtInPresets[typeId] ?? typeId;
+            if (typeId === "nm")
+                refreshNmProfiles();
         } else {
             if (builtInPresets[nameField.text.trim()])
                 nameField.text = "";
@@ -64,6 +77,23 @@ PageBase {
         }
     }
 
+    function refreshNmProfiles(): void {
+        nmListProc.running = false;
+        nmListProc.running = true;
+    }
+
+    function importNmConfig(path: string): void {
+        if (!path)
+            return;
+        lastImportFile = path;
+        missingOpenvpnPlugin = false;
+        importingConfig = true;
+        const type = path.toLowerCase().endsWith(".ovpn") ? "openvpn" : "wireguard";
+        nmImportProc.command = ["nmcli", "connection", "import", "type", type, "file", path];
+        nmImportProc.running = false;
+        nmImportProc.running = true;
+    }
+
     function submit(): void {
         const name = root.providerType === "custom" ? nameField.text.trim() : root.providerType;
         if (name.length === 0) {
@@ -71,7 +101,7 @@ PageBase {
             nameField.forceActiveFocus();
             return;
         }
-        if (root.providerType === "wireguard" && interfaceField.text.trim().length === 0) {
+        if ((root.providerType === "wireguard" || root.providerType === "nm") && interfaceField.text.trim().length === 0) {
             interfaceField.isError = true;
             interfaceField.forceActiveFocus();
             return;
@@ -143,7 +173,7 @@ PageBase {
             label: Tr.tr("VPN type")
             subtext: root.providerType === "custom" ? Tr.tr("Run your own connect and disconnect commands") : Tr.tr("Uses the built-in integration for %1").arg(root.builtInPresets[root.providerType] ?? root.providerType)
             segmentedAllowed: false
-            menuItems: [wireguardItem, warpItem, tailscaleItem, netbirdItem, customItem]
+            menuItems: [wireguardItem, nmItem, warpItem, tailscaleItem, netbirdItem, customItem]
             onSelected: item => root.selectType(String(item.value), true)
 
             MenuItem {
@@ -152,6 +182,14 @@ PageBase {
                 icon: "vpn_key"
                 text: "WireGuard"
                 value: "wireguard"
+            }
+
+            MenuItem {
+                id: nmItem
+
+                icon: "vpn_lock"
+                text: Tr.tr("NetworkManager VPN (OpenVPN / WireGuard)")
+                value: "nm"
             }
 
             MenuItem {
@@ -214,15 +252,78 @@ PageBase {
             onAccepted: interfaceField.visible ? interfaceField.forceActiveFocus() : (connectField.visible ? connectField.forceActiveFocus() : root.submit())
         }
 
+        RowButton {
+            visible: root.providerType === "nm"
+            icon: "upload_file"
+            text: Tr.tr("Import config file (.conf / .ovpn)…")
+            subtext: root.importingConfig ? Tr.tr("Importing into NetworkManager…") : Tr.tr("Imports an OpenVPN (.ovpn) or WireGuard (.conf) profile without touching wg-quick")
+            disabled: root.importingConfig
+            onClicked: configFileDialog.open()
+        }
+
+        RequirementRow {
+            visible: root.providerType === "nm" && root.missingOpenvpnPlugin
+            icon: "extension"
+            text: Tr.tr("NetworkManager OpenVPN plugin required")
+            subtext: Tr.tr("Install networkmanager-openvpn to import and connect .ovpn profiles")
+            actionText: Tr.tr("Install")
+            onAction: Packages.install({
+                source: "repo",
+                name: "networkmanager-openvpn"
+            }, () => {
+                root.missingOpenvpnPlugin = false;
+                if (root.lastImportFile)
+                    root.importNmConfig(root.lastImportFile);
+            })
+        }
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            visible: root.providerType === "nm" && root.nmProfiles.length > 0
+            spacing: Tokens.spacing.small
+
+            StyledText {
+                Layout.fillWidth: true
+                text: Tr.tr("Existing NetworkManager VPN profiles")
+                color: Colours.palette.m3onSurfaceVariant
+                font: Tokens.font.label.medium
+            }
+
+            Flow {
+                Layout.fillWidth: true
+                spacing: Tokens.spacing.small
+
+                Repeater {
+                    model: root.nmProfiles
+
+                    TextButton {
+                        required property var modelData
+
+                        text: `${modelData.name} (${modelData.type})`
+                        isToggle: true
+                        followChecked: true
+                        checked: interfaceField.text.trim() === modelData.name
+                        type: TextButton.Tonal
+                        onClicked: {
+                            interfaceField.text = modelData.name;
+                            interfaceField.isError = false;
+                            if (!displayField.text.trim() || displayField.text.trim() === root.builtInPresets.nm)
+                                displayField.text = modelData.name;
+                        }
+                    }
+                }
+            }
+        }
+
         StyledTextField {
             id: interfaceField
 
             Layout.fillWidth: true
-            visible: root.providerType === "wireguard" || root.providerType === "custom" || root.overrideCommands
-            placeholderText: root.providerType === "wireguard" ? Tr.tr("WireGuard interface / profile (e.g. wg0)") : Tr.trCtx("Interface", "network interface")
+            visible: root.providerType === "wireguard" || root.providerType === "nm" || root.providerType === "custom" || root.overrideCommands
+            placeholderText: root.providerType === "nm" ? Tr.tr("NetworkManager VPN profile name") : root.providerType === "wireguard" ? Tr.tr("WireGuard interface / profile (e.g. wg0)") : Tr.trCtx("Interface", "network interface")
             leadingIcon: "lan"
-            supportingText: root.providerType === "wireguard" ? Tr.tr("Config or interface name in /etc/wireguard (required for WireGuard)") : Tr.tr("Network interface used to detect connection status")
-            errorText: Tr.tr("WireGuard interface / profile name is required")
+            supportingText: root.providerType === "nm" ? Tr.tr("NetworkManager connection name (or import a file above)") : root.providerType === "wireguard" ? Tr.tr("Config or interface name in /etc/wireguard (required for WireGuard)") : Tr.tr("Network interface used to detect connection status")
+            errorText: root.providerType === "nm" ? Tr.tr("NetworkManager VPN profile name is required") : Tr.tr("WireGuard interface / profile name is required")
             inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
 
             onAccepted: connectField.visible ? connectField.forceActiveFocus() : root.submit()
@@ -319,8 +420,84 @@ PageBase {
                     horizontalPadding: Tokens.padding.extraLarge
                     verticalPadding: Tokens.padding.medium
                     text: root.editing ? Tr.trCtx("Save", "button") : Tr.trCtx("Add", "button")
-                    disabled: root.providerType === "custom" ? !nameField.text.trim() : (root.providerType === "wireguard" ? !interfaceField.text.trim() : false)
+                    disabled: root.providerType === "custom" ? !nameField.text.trim() : ((root.providerType === "wireguard" || root.providerType === "nm") ? !interfaceField.text.trim() : false)
                     onClicked: root.submit()
+                }
+            }
+        }
+
+        FileDialog {
+            id: configFileDialog
+
+            title: Tr.tr("Import VPN configuration")
+            filterLabel: Tr.tr("VPN configurations")
+            filters: ["conf", "ovpn"]
+            onAccepted: path => root.importNmConfig(path)
+        }
+
+        Process {
+            id: nmListProc
+
+            command: ["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show"]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    const list = [];
+                    for (const raw of text.split("\n")) {
+                        if (!raw)
+                            continue;
+                        const parts = [];
+                        let cur = "";
+                        for (let i = 0; i < raw.length; i++) {
+                            if (raw[i] === "\\" && i + 1 < raw.length && (raw[i + 1] === ":" || raw[i + 1] === "\\")) {
+                                cur += raw[++i];
+                            } else if (raw[i] === ":") {
+                                parts.push(cur);
+                                cur = "";
+                            } else {
+                                cur += raw[i];
+                            }
+                        }
+                        parts.push(cur);
+                        if (parts[1] === "vpn" || parts[1] === "wireguard")
+                            list.push({
+                                name: parts[0],
+                                type: parts[1]
+                            });
+                    }
+                    root.nmProfiles = list;
+                }
+            }
+        }
+
+        Process {
+            id: nmImportProc
+
+            property string outText: ""
+            property string errText: ""
+
+            stdout: StdioCollector {
+                onStreamFinished: nmImportProc.outText = text
+            }
+            stderr: StdioCollector {
+                onStreamFinished: nmImportProc.errText = text
+            }
+            onExited: code => {
+                root.importingConfig = false;
+                if (code === 0) {
+                    const m = nmImportProc.outText.match(/'([^']+)'/);
+                    const fallbackName = root.lastImportFile.split("/").pop().replace(/\.(ovpn|conf)$/i, "");
+                    const connName = m ? m[1] : fallbackName;
+                    interfaceField.text = connName;
+                    interfaceField.isError = false;
+                    if (!displayField.text.trim() || displayField.text.trim() === root.builtInPresets.nm)
+                        displayField.text = connName;
+                    root.refreshNmProfiles();
+                    Toaster.toast(Tr.tr("VPN profile imported"), connName, "vpn_lock");
+                } else {
+                    const msg = nmImportProc.errText.trim() || nmImportProc.outText.trim();
+                    if (/openvpn/i.test(root.lastImportFile) && /plugin|vpn service|not installed|support/i.test(msg))
+                        root.missingOpenvpnPlugin = true;
+                    Toaster.toast(Tr.tr("Couldn't import VPN config"), msg || Tr.tr("Check that the config file is valid"), "error");
                 }
             }
         }

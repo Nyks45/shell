@@ -19,6 +19,8 @@ Singleton {
     property list<PwNode> sources: []
     property list<PwNode> streams: []
     property list<PwNode> recordingStreams: []
+    // [{ name, label, activeProfile, profiles: [{ name, description }] }]
+    property var cards: []
 
     readonly property PwNode sink: Pipewire.defaultAudioSink
     readonly property PwNode source: Pipewire.defaultAudioSource
@@ -128,6 +130,19 @@ Singleton {
             Quickshell.execDetached(["pactl", "move-source-output", String(serial), targetSource.name]);
     }
 
+    function refreshCards(): void {
+        if (!cardsProc.running)
+            cardsProc.running = true;
+    }
+
+    function setCardProfile(cardName: string, profileName: string): void {
+        if (!cardName || !profileName)
+            return;
+        setProfileProc.command = ["pactl", "set-card-profile", cardName, profileName];
+        setProfileProc.running = false;
+        setProfileProc.running = true;
+    }
+
     function refreshNodes(): void {
         const newSinks = [];
         const newSources = [];
@@ -184,6 +199,7 @@ Singleton {
     // lazily-loaded singleton is created, so onValuesChanged would never fire.
     Component.onCompleted: {
         refreshNodes();
+        refreshCards();
         previousSinkName = sink?.description || sink?.name || Tr.trCtx("Unknown device", "unknown audio device");
         previousSourceName = source?.description || source?.name || Tr.trCtx("Unknown device", "unknown audio device");
     }
@@ -191,9 +207,62 @@ Singleton {
     Connections {
         function onValuesChanged(): void {
             root.refreshNodes();
+            cardsRefreshTimer.restart();
         }
 
         target: Pipewire.nodes
+    }
+
+    Timer {
+        id: cardsRefreshTimer
+
+        interval: 300
+        onTriggered: root.refreshCards()
+    }
+
+    Process {
+        id: cardsProc
+
+        command: ["pactl", "-f", "json", "list", "cards"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const raw = JSON.parse(text);
+                    const out = [];
+                    for (const c of Array.isArray(raw) ? raw : []) {
+                        const props = c.properties ?? {};
+                        const label = String(props["device.description"] || props["alsa.card_name"] || c.name || "").replace(/\s*High Definition Audio Controller\b/g, "").replace(/\s{2,}/g, " ").trim();
+                        const profiles = [];
+                        for (const [pname, pinfo] of Object.entries(c.profiles ?? {})) {
+                            if (pinfo && pinfo.available !== false && pinfo.available !== "no")
+                                profiles.push({
+                                    name: pname,
+                                    description: String(pinfo.description || pname)
+                                });
+                        }
+                        if (profiles.length > 1)
+                            out.push({
+                                name: String(c.name ?? ""),
+                                label: label || String(c.name ?? ""),
+                                activeProfile: String(c.active_profile ?? ""),
+                                profiles
+                            });
+                    }
+                    root.cards = out;
+                } catch (e) {}
+            }
+        }
+    }
+
+    Process {
+        id: setProfileProc
+
+        onExited: code => {
+            if (code === 0) {
+                root.refreshCards();
+                cardsRefreshTimer.restart();
+            }
+        }
     }
 
     // Always track the current defaults so volume/mute bind even if the lists

@@ -48,9 +48,9 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "All day",
+            "label": "Schedule",
             "ctx": "",
-            "sub": "Instead of only in the evening and at night",
+            "sub": "",
             "section": "Brightness & colour",
             "page": 0,
             "path": [],
@@ -276,12 +276,62 @@ QtObject {
         {
             "label": "Do not disturb",
             "ctx": "",
-            "sub": "Silences popup notifications; they still wait in the notification list",
+            "sub": "Active right now from your quiet-hours schedule",
             "section": "Do not disturb",
             "page": 2,
             "path": [],
             "trail": [],
             "keywords": "dnd silence mute notifications"
+        },
+        {
+            "label": "Turn on automatically on a schedule",
+            "ctx": "",
+            "sub": "",
+            "section": "Do not disturb",
+            "page": 2,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Starts at",
+            "ctx": "",
+            "sub": "",
+            "section": "Do not disturb",
+            "page": 2,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Ends at",
+            "ctx": "",
+            "sub": "",
+            "section": "Do not disturb",
+            "page": 2,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Turn on automatically in Game mode",
+            "ctx": "",
+            "sub": "Silences non-urgent popups while Game mode is active",
+            "section": "Do not disturb",
+            "page": 2,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Allow critical notifications",
+            "ctx": "",
+            "sub": "Urgent alerts such as low battery or system errors still pop up during Do not disturb",
+            "section": "Do not disturb",
+            "page": 2,
+            "path": [],
+            "trail": [],
+            "keywords": ""
         },
         {
             "label": "Over fullscreen apps",
@@ -686,6 +736,50 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Backup destination",
+            "ctx": "",
+            "sub": "Warning: this folder is on the same partition as /home — a drive failure could affect both",
+            "section": "Home folder backup",
+            "tab": "backups",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Exclude caches & Steam games",
+            "ctx": "",
+            "sub": "Skips ~/.cache, Steam game downloads, Trash and node_modules",
+            "section": "Home folder backup",
+            "tab": "backups",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Cancel backup",
+            "ctx": "",
+            "sub": "Copying files with rsync…",
+            "section": "Home folder backup",
+            "tab": "backups",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Automatic daily backup",
+            "ctx": "",
+            "sub": "Runs daily via systemd user timer (caelestia-home-backup.timer)",
+            "section": "Home folder backup",
+            "tab": "backups",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Keep this preview current",
             "ctx": "",
             "sub": "Once: lets the settings read the boot menu (it's only readable by the system), keeps that copy current, and adds new kernels to the menu",
@@ -1044,7 +1138,29 @@ QtObject {
             "keywords": "keyboard language"
         },
         {
+            "label": "Layout variant",
+            "ctx": "",
+            "sub": "",
+            "section": "Keyboard",
+            "tab": "input",
+            "page": 7,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Second layout",
+            "ctx": "",
+            "sub": "",
+            "section": "Keyboard",
+            "tab": "input",
+            "page": 7,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Second layout variant",
             "ctx": "",
             "sub": "",
             "section": "Keyboard",
@@ -3038,6 +3154,17 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Quick settings & notifications",
+            "ctx": "",
+            "sub": "Choose and reorder toggles in the Quick settings island",
+            "section": "Panels",
+            "opens": 1,
+            "page": 12,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Launcher",
             "ctx": "",
             "sub": "Enabled",
@@ -3750,6 +3877,61 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Alt + Tab style",
+            "ctx": "",
+            "sub": "Overview switcher shows thumbnails of all windows; Quick cycle steps directly",
+            "section": "Window switcher & overview",
+            "tab": "multitasking",
+            "page": 13,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Windows in Quick cycle",
+            "ctx": "",
+            "sub": "Which windows Alt + Tab cycles through on the current workspace",
+            "section": "Window switcher & overview",
+            "tab": "multitasking",
+            "page": 13,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Overview size",
+            "ctx": "",
+            "sub": "",
+            "section": "Window switcher & overview",
+            "tab": "multitasking",
+            "page": 13,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Window titles in the overview",
+            "ctx": "",
+            "sub": "",
+            "section": "Window switcher & overview",
+            "tab": "multitasking",
+            "page": 13,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Animate overview transitions",
+            "ctx": "",
+            "sub": "Smooth zoom into and out of the overview (off: instant)",
+            "section": "Window switcher & overview",
+            "tab": "multitasking",
+            "page": 13,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "New column width",
             "ctx": "",
             "sub": "",
@@ -3874,28 +4056,6 @@ QtObject {
             "label": "Wrap around at the ends",
             "ctx": "",
             "sub": "Moving focus past the last column goes to the first",
-            "section": "Scrolling layout",
-            "tab": "multitasking",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Overview size",
-            "ctx": "",
-            "sub": "",
-            "section": "Scrolling layout",
-            "tab": "multitasking",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Window titles in the overview",
-            "ctx": "",
-            "sub": "",
             "section": "Scrolling layout",
             "tab": "multitasking",
             "page": 13,
@@ -4559,6 +4719,28 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "System language (apps)",
+            "ctx": "",
+            "sub": "Generating and saving locale…",
+            "section": "Language",
+            "tab": "language",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Regional format",
+            "ctx": "",
+            "sub": "",
+            "section": "Language",
+            "tab": "language",
+            "page": 17,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Regional format",
             "ctx": "",
             "sub": "",
@@ -4685,6 +4867,16 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Magnifier keyboard shortcuts",
+            "ctx": "",
+            "sub": "Super + Alt + = / - (or Super + Numpad + / -) to zoom, Super + Esc to reset",
+            "section": "Vision",
+            "page": 18,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Animations",
             "ctx": "",
             "sub": "Off: windows, panels and apps change at once, without movement",
@@ -4757,7 +4949,17 @@ QtObject {
         {
             "label": "Secure Boot",
             "ctx": "",
-            "sub": "Enabled · Manage keys and boot entries in Recovery & boot",
+            "sub": "Enabled · Keys enrolled (sbctl) · Manage in Recovery & boot",
+            "section": "Security",
+            "page": 19,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Disk encryption & TPM",
+            "ctx": "",
+            "sub": "",
             "section": "Security",
             "page": 19,
             "path": [],
@@ -4767,8 +4969,38 @@ QtObject {
         {
             "label": "System updates",
             "ctx": "",
-            "sub": "Keep system packages and security patches up to date",
+            "sub": "Up to date · Keep packages and security patches current",
             "section": "Security",
+            "page": 19,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Microphone in use",
+            "ctx": "",
+            "sub": "No apps are currently recording audio",
+            "section": "Camera, microphone & screen sharing",
+            "page": 19,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Camera & screen capture",
+            "ctx": "",
+            "sub": "No active PipeWire camera or screen-capture streams",
+            "section": "Camera, microphone & screen sharing",
+            "page": 19,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Flatpak portal permissions",
+            "ctx": "",
+            "sub": "Granted camera, microphone, screenshot or background permissions appear here when Flatpak apps store them",
+            "section": "Camera, microphone & screen sharing",
             "page": 19,
             "path": [],
             "trail": [],

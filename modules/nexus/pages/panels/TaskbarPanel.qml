@@ -1,8 +1,10 @@
 pragma ComponentBehavior: Bound
 
+import QtQuick
 import QtQuick.Layouts
 import Caelestia.Config
 import Caelestia.I18n
+import qs.components
 import qs.components.controls
 import qs.services
 import qs.modules.nexus.common
@@ -11,6 +13,40 @@ PageBase {
     id: root
 
     readonly property bool isPill: ShellStyle.current === "compact"
+    readonly property var pillEntries: GlobalConfig.bar.entries.values.filter(e => e.id === "logo" || e.id === "taskbar" || e.id === "tray")
+
+    function entryTitle(id: string): string {
+        if (id === "logo")
+            return Tr.tr("Launcher button");
+        if (id === "taskbar")
+            return Tr.tr("Open apps");
+        if (id === "tray")
+            return Tr.tr("System tray");
+        return id;
+    }
+
+    function entrySubtext(id: string): string {
+        if (id === "logo")
+            return Tr.tr("OS icon at the start of the pill to open the launcher");
+        if (id === "taskbar")
+            return Tr.tr("Running and pinned app icons");
+        if (id === "tray")
+            return Tr.tr("Background app status icons when any are running");
+        return "";
+    }
+
+    function movePillEntry(id: string, delta: int): void {
+        const subset = pillEntries;
+        const pos = subset.findIndex(e => e.id === id);
+        const targetPos = pos + delta;
+        if (pos < 0 || targetPos < 0 || targetPos >= subset.length)
+            return;
+        const all = GlobalConfig.bar.entries.values;
+        const fromIdx = all.indexOf(subset[pos]);
+        const toIdx = all.indexOf(subset[targetPos]);
+        if (fromIdx >= 0 && toIdx >= 0 && fromIdx !== toIdx)
+            GlobalConfig.bar.entries.move(fromIdx, toIdx);
+    }
 
     title: Tr.tr("Taskbar")
     isSubPage: true
@@ -85,6 +121,76 @@ PageBase {
             to: 200
             stepSize: 5
             onMoved: v => GlobalConfig.bar.dragThreshold = v
+        }
+
+        // Items & order
+        SectionHeader {
+            text: Tr.tr("Items & order")
+        }
+
+        Repeater {
+            model: root.pillEntries
+
+            ConnectedRect {
+                id: entryRow
+
+                required property var modelData
+                required property int index
+
+                Layout.fillWidth: true
+                implicitHeight: entryRowLayout.implicitHeight + Tokens.padding.medium * 2
+
+                RowLayout {
+                    id: entryRowLayout
+
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: Tokens.padding.largeIncreased
+                    anchors.rightMargin: Tokens.padding.largeIncreased
+                    spacing: Tokens.spacing.small
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: root.entryTitle(entryRow.modelData.id)
+                            font: Tokens.font.body.small
+                            elide: Text.ElideRight
+                        }
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: root.entrySubtext(entryRow.modelData.id)
+                            color: Colours.palette.m3outline
+                            font: Tokens.font.label.small
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    IconButton {
+                        icon: "arrow_upward"
+                        type: IconButton.Text
+                        disabled: entryRow.index === 0
+                        onClicked: root.movePillEntry(entryRow.modelData.id, -1)
+                    }
+
+                    IconButton {
+                        icon: "arrow_downward"
+                        type: IconButton.Text
+                        disabled: entryRow.index >= root.pillEntries.length - 1
+                        onClicked: root.movePillEntry(entryRow.modelData.id, 1)
+                    }
+
+                    StyledSwitch {
+                        cLayer: 2
+                        checked: entryRow.modelData.enabled
+                        onToggled: entryRow.modelData.enabled = checked
+                    }
+                }
+            }
         }
 
         // Components

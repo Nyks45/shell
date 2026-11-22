@@ -11,6 +11,7 @@ import qs.components.controls
 import qs.components.filedialog
 import qs.services
 import qs.utils
+import qs.modules.nexus
 import qs.modules.nexus.common
 
 // The boot menu (rEFInd): a preview of it as it shows, and everything about
@@ -36,7 +37,9 @@ PageBase {
     readonly property string applyWhat: Tr.tr("Change the boot menu")
     readonly property bool applying: Admin.jobs.some(j => j.what === applyWhat)
     property bool showAdvancedOptions: false
+    property bool showBootSnapshots: false
     property string optionsError: ""
+    readonly property var linuxBootEntry: (boot?.entries ?? []).find(e => e.name === boot?.linuxEntry) ?? (boot?.entries ?? []).find(e => (e.submenus ?? []).length > 0) ?? null
 
     readonly property var toolIcons: ({
             shutdown: "func_shutdown",
@@ -67,6 +70,7 @@ PageBase {
         return {
             timeout: b.timeout,
             defaultSelection: b.defaultSelection,
+            defaultKernel: b.defaultKernel || "",
             flavour: b.flavour || "mocha",
             bgMode: "keep",
             bgFile: "",
@@ -81,6 +85,7 @@ PageBase {
                         iconFile: e.iconFile,
                         hidden: !!e.hidden,
                         snapshots: e.submenus.length,
+                        submenus: e.submenus ?? [],
                         kernels: e.kernels
                     })),
             options: opts
@@ -190,6 +195,8 @@ PageBase {
             p.order = order;
         if (JSON.stringify(draft.options) !== JSON.stringify(start.options))
             p.options = draft.options;
+        if (draft.defaultKernel && draft.defaultKernel !== start.defaultKernel)
+            p.defaultKernel = draft.defaultKernel;
         return p;
     }
 
@@ -538,6 +545,38 @@ PageBase {
             }
         }
 
+        RowButton {
+            visible: !!root.draft && (root.linuxBootEntry?.submenus?.length ?? 0) > 0
+            icon: "history"
+            text: Tr.tr("Bootable snapshots in menu (%1)").arg(root.linuxBootEntry?.submenus?.length ?? 0)
+            subtext: Tr.tr("Snapper submenus added under %1 by refind-btrfs").arg(root.linuxBootEntry?.name || "Linux")
+            trailingIcon: root.showBootSnapshots ? "expand_less" : "expand_more"
+            onClicked: root.showBootSnapshots = !root.showBootSnapshots
+        }
+
+        Repeater {
+            model: root.showBootSnapshots ? (root.linuxBootEntry?.submenus ?? []) : []
+
+            InfoRow {
+                required property string modelData
+
+                icon: "subdirectory_arrow_right"
+                label: modelData
+            }
+        }
+
+        NavRow {
+            visible: !!root.draft && root.showBootSnapshots
+            icon: "settings_backup_restore"
+            text: Tr.tr("Manage snapshots")
+            subtext: Tr.tr("Create, delete or roll back Btrfs snapshots in Storage › Snapshots")
+            onClicked: root.nState.goTo({
+                page: PageRegistry.find("storage"),
+                tab: "snapshots",
+                path: []
+            })
+        }
+
         // What the menu shows
         SectionHeader {
             visible: !!root.draft
@@ -696,6 +735,38 @@ PageBase {
                     checked: (root.draft.defaultSelection || "+") === modelData[0]
                     type: TextButton.Tonal
                     onClicked: root.change(d => d.defaultSelection = modelData[0])
+                }
+            }
+        }
+
+        StyledText {
+            Layout.fillWidth: true
+            Layout.leftMargin: Tokens.padding.small
+            Layout.topMargin: Tokens.spacing.medium
+            Layout.bottomMargin: Tokens.spacing.small
+            visible: !!root.draft && (root.boot?.installedKernels?.length ?? 0) > 1
+            text: Tr.tr("Default Linux kernel")
+            color: Colours.palette.m3onSurfaceVariant
+            font: Tokens.font.label.medium
+        }
+
+        Flow {
+            Layout.fillWidth: true
+            visible: !!root.draft && (root.boot?.installedKernels?.length ?? 0) > 1
+            spacing: Tokens.spacing.small
+
+            Repeater {
+                model: root.draft ? (root.boot?.installedKernels ?? []) : []
+
+                TextButton {
+                    required property string modelData
+
+                    text: modelData
+                    isToggle: true
+                    followChecked: true
+                    checked: root.draft?.defaultKernel === modelData
+                    type: TextButton.Tonal
+                    onClicked: root.change(d => d.defaultKernel = modelData)
                 }
             }
         }

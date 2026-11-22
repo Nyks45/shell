@@ -81,11 +81,11 @@ stop() {
     if pid="$(own_pid)"; then
         event "stop: renderer $pid"
         kill "$pid" 2>/dev/null || true
-        for _ in $(seq 20); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+        for _ in $(seq 100); do kill -0 "$pid" 2>/dev/null || break; sleep 0.02; done
     elif [[ -z "${LIVE_WALLPAPER_OWN_ONLY:-}" ]] && pgrep -x linux-wallpaper > /dev/null; then
         event "stop: every renderer, no pid file ($(pgrep -x linux-wallpaper | tr '\n' ' '))"
         pkill -x linux-wallpaper 2>/dev/null || true
-        for _ in $(seq 20); do pgrep -x linux-wallpaper > /dev/null || break; sleep 0.1; done
+        for _ in $(seq 100); do pgrep -x linux-wallpaper > /dev/null || break; sleep 0.02; done
     fi
     rm -f "$PIDFILE" "$STATE/ready.bmp"
 }

@@ -41,6 +41,8 @@ PageBase {
 
     // The game's newest Proton log (caelestia-gaming game-log): { path, size, modified, errors, tail }
     property var log: null
+    property string extraEnvError: ""
+    property string wrappersError: ""
 
     // One launch's log (its path), else the newest
     function readLog(path): void {
@@ -525,34 +527,94 @@ PageBase {
             }
         }
 
-        // What else its launcher has for it (kept as it is)
+        // Per-game launch arguments, extra env vars & custom wrappers
         SectionHeader {
-            visible: !!root.game && ((root.game.otherEnv ?? []).length > 0 || (root.game.wrappers ?? []).length > 0 || !!root.game.args)
-            text: Tr.tr("Also set in %1").arg(Games.launcherNames[root.game?.launcher] ?? "")
+            visible: !!root.game
+            text: Tr.tr("Launch options & arguments")
         }
 
-        InfoRow {
-            visible: !!root.game && (root.game.otherEnv ?? []).length > 0
-            icon: "tune"
-            label: Tr.tr("Other options")
-            value: ""
-            subtext: (root.game?.otherEnv ?? []).join(" ")
-        }
-
-        InfoRow {
-            visible: !!root.game && (root.game.wrappers ?? []).length > 0
-            icon: "terminal"
-            label: Tr.tr("Runs through")
-            value: ""
-            subtext: (root.game?.wrappers ?? []).join(" ")
-        }
-
-        InfoRow {
-            visible: !!root.game?.args
-            icon: "input"
+        TextFieldRow {
+            visible: !!root.game
+            enabled: root.canChange
             label: Tr.tr("Game arguments")
-            value: ""
-            subtext: root.game?.args ?? ""
+            subtext: Tr.tr("Arguments passed directly to the game executable")
+            placeholderText: Tr.tr("e.g. -vulkan -skipintro")
+            value: root.shown?.args ?? ""
+            onEditingFinished: v => {
+                const next = v.trim();
+                if (root.game && next !== (root.shown?.args ?? ""))
+                    root.change({
+                        args: next
+                    });
+            }
+        }
+
+        TextFieldRow {
+            id: extraEnvRow
+
+            visible: !!root.game
+            enabled: root.canChange
+            label: Tr.tr("Extra environment variables")
+            subtext: Tr.tr("Space-separated KEY=VALUE pairs besides the toggles above")
+            placeholderText: Tr.tr("e.g. DXVK_FRAME_RATE=144 MANGOHUD_CONFIG=full")
+            errorText: root.extraEnvError
+            value: (root.shown?.otherEnv ?? []).join(" ")
+            onValueEdited: {
+                root.extraEnvError = "";
+                extraEnvRow.field.isError = false;
+            }
+            onEditingFinished: v => {
+                if (!root.game)
+                    return;
+                const raw = v.trim();
+                const parts = raw ? raw.split(/\s+/) : [];
+                const bad = parts.find(p => !/^[A-Za-z_][A-Za-z0-9_]{0,80}=.+$/.test(p));
+                if (bad) {
+                    root.extraEnvError = Tr.tr("Expected KEY=VALUE, got: %1").arg(bad);
+                    extraEnvRow.field.isError = true;
+                    return;
+                }
+                root.extraEnvError = "";
+                extraEnvRow.field.isError = false;
+                if (JSON.stringify(parts) !== JSON.stringify(root.shown?.otherEnv ?? []))
+                    root.change({
+                        otherEnv: parts
+                    });
+            }
+        }
+
+        TextFieldRow {
+            id: wrappersRow
+
+            visible: !!root.game && root.game.launcher !== "lutris"
+            enabled: root.canChange
+            label: Tr.tr("Custom wrapper command")
+            subtext: Tr.tr("Wrapper commands run before the game, e.g. gamescope or prime-run")
+            placeholderText: Tr.tr("e.g. prime-run")
+            errorText: root.wrappersError
+            value: (root.shown?.wrappers ?? []).join(" ")
+            onValueEdited: {
+                root.wrappersError = "";
+                wrappersRow.field.isError = false;
+            }
+            onEditingFinished: v => {
+                if (!root.game)
+                    return;
+                const raw = v.trim();
+                const parts = raw ? raw.split(/\s+/) : [];
+                const bad = parts.find(p => p === "mangohud" || p === "game-performance");
+                if (bad) {
+                    root.wrappersError = Tr.tr("Use the Overlay / Performance mode toggles above for %1").arg(bad);
+                    wrappersRow.field.isError = true;
+                    return;
+                }
+                root.wrappersError = "";
+                wrappersRow.field.isError = false;
+                if (JSON.stringify(parts) !== JSON.stringify(root.shown?.wrappers ?? []))
+                    root.change({
+                        wrappers: parts
+                    });
+            }
         }
 
         RowButton {

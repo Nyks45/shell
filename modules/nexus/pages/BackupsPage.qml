@@ -10,6 +10,7 @@ import Caelestia.I18n
 import qs.components
 import qs.components.controls
 import qs.services
+import qs.utils
 import qs.modules.nexus.common
 
 // System snapshots (snapper, btrfs): the list, making one, deleting, and
@@ -36,6 +37,18 @@ PageBase {
     property int limitDaily: 7
     property int limitWeekly: 4
     property bool limitsDirty: false
+    property bool bootedSnapshot: false
+    property var homeBackup: ({
+            dest: "",
+            excludeCaches: true,
+            daily: false,
+            lastRun: 0,
+            lastStatus: ""
+        })
+    property bool homeBackupSameDev: false
+    property bool homeBackingUp: false
+    property string homeBackupProgress: ""
+    property bool homeDailyActive: false
 
     readonly property var filteredSnapshots: {
         if (snapFilter === "hourly")
@@ -69,6 +82,78 @@ PageBase {
     function snapper(args: list<string>): void {
         snapperProc.command = ["snapper", "-c", config, ...args];
         snapperProc.running = true;
+    }
+
+    function saveHomeBackup(changes: var): void {
+        const next = Object.assign({}, homeBackup, changes);
+        homeBackup = next;
+        homeBackupFile.setText(JSON.stringify(next, null, 4) + "\n");
+        if ("dest" in changes)
+            homeBackupDevProc.running = true;
+    }
+
+    function _rsyncArgs(): list<string> {
+        const homeDir = Quickshell.env("HOME") || "";
+        const target = `${homeBackup.dest.replace(/\/$/, "")}/home-backup/`;
+        const args = ["-aHAX", "--delete", "--info=progress2", "--no-inc-recursive"];
+        if (homeBackup.excludeCaches !== false) {
+            for (const ex of [".cache", ".local/share/Steam/steamapps", ".local/share/Trash", "node_modules"])
+                args.push("--exclude", ex);
+        }
+        args.push(`${homeDir}/`, target);
+        return args;
+    }
+
+    function runHomeBackupNow(): void {
+        if (!homeBackup.dest || homeBackingUp)
+            return;
+        homeBackupProgress = Tr.tr("Starting backup…");
+        homeBackingUp = true;
+        rsyncProc.command = ["sh", "-c", "mkdir -p \"$1\" && shift && exec rsync \"$@\"", "sh", `${homeBackup.dest.replace(/\/$/, "")}/home-backup`, ..._rsyncArgs()];
+        rsyncProc.running = true;
+    }
+
+    function cancelHomeBackup(): void {
+        if (homeBackingUp)
+            rsyncProc.running = false;
+    }
+
+    function applyHomeDailyTimer(enabled: bool): void {
+        if (enabled && !homeBackup.dest)
+            return;
+        const cfg = JSON.stringify({
+            dest: homeBackup.dest,
+            excludeCaches: homeBackup.excludeCaches !== false,
+            enabled
+        });
+        timerSetupProc.command = ["python3", "-I", "-c", `
+import json, os, shlex, subprocess
+d = json.loads(os.environ["CAELESTIA_HB"])
+cfg_dir = os.path.expanduser("~/.config/systemd/user")
+os.makedirs(cfg_dir, exist_ok=True)
+svc_p = os.path.join(cfg_dir, "caelestia-home-backup.service")
+tmr_p = os.path.join(cfg_dir, "caelestia-home-backup.timer")
+if d["enabled"] and d["dest"]:
+    target = d["dest"].rstrip("/") + "/home-backup/"
+    home = os.path.expanduser("~").rstrip("/") + "/"
+    args = ["/usr/bin/rsync", "-aHAX", "--delete"]
+    if d.get("excludeCaches", True):
+        for ex in (".cache", ".local/share/Steam/steamapps", ".local/share/Trash", "node_modules"):
+            args.extend(["--exclude", ex])
+    args.extend([home, target])
+    cmd = "mkdir -p " + shlex.quote(target) + " && exec " + " ".join(shlex.quote(a) for a in args)
+    open(svc_p, "w").write("[Unit]\\nDescription=Caelestia Home Folder Backup\\n\\n[Service]\\nType=oneshot\\nExecStart=/usr/bin/sh -c " + json.dumps(cmd) + "\\n")
+    open(tmr_p, "w").write("[Unit]\\nDescription=Daily Home Folder Backup\\n\\n[Timer]\\nOnCalendar=daily\\nPersistent=true\\n\\n[Install]\\nWantedBy=timers.target\\n")
+    subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
+    subprocess.run(["systemctl", "--user", "enable", "--now", "caelestia-home-backup.timer"], check=True)
+else:
+    subprocess.run(["systemctl", "--user", "disable", "--now", "caelestia-home-backup.timer"], check=False)
+`, ...[]];
+        timerSetupProc.environment = ({
+                CAELESTIA_HB: cfg
+            });
+        timerSetupProc.running = false;
+        timerSetupProc.running = true;
     }
 
     function configLabel(c: var): string {
@@ -178,6 +263,154 @@ PageBase {
                 }
                 root.refresh();
             }
+        }
+
+        Process {
+            running: true
+            command: [`${Paths.libdir}/caelestia-system`, "security-status"]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    try {
+                        root.bootedSnapshot = !!JSON.parse(text).bootedSnapshot;
+                    } catch (e) {}
+                }
+            }
+        }
+
+        Process {
+            running: true
+            command: ["systemctl", "--user", "is-enabled", "caelestia-home-backup.timer"]
+            onExited: code => root.homeDailyActive = code === 0
+        }
+
+        Process {
+            id: homeBackupDevProc
+
+            command: ["sh", "-c", "test -n \"$1\" && test -d \"$1\" && test \"$(findmnt -n -o SOURCE -T /home 2>/dev/null)\" = \"$(findmnt -n -o SOURCE -T \"$1\" 2>/dev/null)\" && echo same || echo ok", "sh", root.homeBackup.dest ?? ""]
+            stdout: StdioCollector {
+                onStreamFinished: root.homeBackupSameDev = text.trim() === "same"
+            }
+        }
+
+        Process {
+            id: rsyncProc
+
+            stdout: SplitParser {
+                onRead: line => {
+                    const clean = line.trim();
+                    if (clean)
+                        root.homeBackupProgress = clean;
+                }
+            }
+            onExited: code => {
+                root.homeBackingUp = false;
+                if (code === 0) {
+                    root.saveHomeBackup({
+                        lastRun: Math.floor(Date.now() / 1000),
+                        lastStatus: "ok"
+                    });
+                    Toaster.toast(Tr.tr("Home folder backed up"), Paths.shortenHome(root.homeBackup.dest), "backup");
+                } else {
+                    root.saveHomeBackup({
+                        lastStatus: "error"
+                    });
+                    Toaster.toast(Tr.tr("Home folder backup stopped"), Tr.tr("rsync exited with code %1").arg(code), "error");
+                }
+                root.homeBackupProgress = "";
+            }
+        }
+
+        Process {
+            id: timerSetupProc
+
+            onExited: code => {
+                root.homeDailyActive = code === 0 && (root.homeBackup.daily ?? false);
+                if (code === 0)
+                    Toaster.toast(root.homeDailyActive ? Tr.tr("Daily home backup enabled") : Tr.tr("Daily home backup turned off"), "", "schedule");
+            }
+        }
+
+        FileView {
+            id: homeBackupFile
+
+            path: `${Paths.config}/home-backup.json`
+            printErrors: false
+            onLoaded: {
+                try {
+                    root.homeBackup = Object.assign({
+                        dest: "",
+                        excludeCaches: true,
+                        daily: false,
+                        lastRun: 0,
+                        lastStatus: ""
+                    }, JSON.parse(text()));
+                    if (root.homeBackup.dest)
+                        homeBackupDevProc.running = true;
+                } catch (e) {}
+            }
+        }
+
+        ConnectedRect {
+            Layout.fillWidth: true
+            Layout.bottomMargin: Tokens.spacing.medium
+            visible: root.bootedSnapshot
+            color: Colours.palette.m3secondaryContainer
+            implicitHeight: bootedSnapRow.implicitHeight + Tokens.padding.large * 2
+
+            RowLayout {
+                id: bootedSnapRow
+
+                anchors.fill: parent
+                anchors.margins: Tokens.padding.large
+                spacing: Tokens.spacing.medium
+
+                MaterialIcon {
+                    text: "restore_page"
+                    color: Colours.palette.m3onSecondaryContainer
+                    fontStyle: Tokens.font.icon.medium
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: Tr.tr("Booted from a snapshot")
+                        color: Colours.palette.m3onSecondaryContainer
+                        font: Tokens.font.body.small
+                    }
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: Tr.tr("If everything works well here, you can make this snapshot the active system.")
+                        color: Colours.palette.m3onSecondaryContainer
+                        font: Tokens.font.label.small
+                        wrapMode: Text.WordWrap
+                    }
+                }
+
+                TextButton {
+                    text: Tr.tr("Roll back to this snapshot…")
+                    type: TextButton.Filled
+                    onClicked: rollbackBannerDialog.ask({
+                        header: Tr.tr("Roll back to this booted snapshot?"),
+                        body: Tr.tr("Sets this read-write snapshot as the default system root in Btrfs and updates the boot menu. Restart to switch to it cleanly."),
+                        confirmLabel: Tr.tr("Roll back"),
+                        icon: "restore",
+                        onConfirm: () => Admin.run("snapper-rollback", [], Tr.tr("Roll back system snapshot"), ok => {
+                            if (ok)
+                                Toaster.toast(Tr.tr("Rollback scheduled"), Tr.tr("Restart to boot into the rolled-back system"), "restore");
+                        })
+                    })
+                }
+            }
+        }
+
+        ConfirmDialog {
+            id: rollbackBannerDialog
+
+            hostFlickable: root.flickable
         }
 
         Flow {
@@ -562,6 +795,57 @@ PageBase {
             color: Colours.palette.m3outline
             font: Tokens.font.label.small
             wrapMode: Text.WordWrap
+        }
+
+        // Home folder rsync backup to another drive or folder
+        SectionHeader {
+            text: Tr.tr("Home folder backup")
+        }
+
+        FolderPickerRow {
+            icon: "drive_file_move"
+            label: Tr.tr("Backup destination")
+            placeholderText: Tr.tr("Choose a folder on another drive or backup disk")
+            value: root.homeBackup.dest ?? ""
+            subtext: root.homeBackupSameDev ? Tr.tr("Warning: this folder is on the same partition as /home — a drive failure could affect both") : root.homeBackup.lastRun > 0 ? Tr.tr("Last backup: %1").arg(Qt.formatDateTime(new Date(root.homeBackup.lastRun * 1000), "d MMM yyyy, HH:mm")) : ""
+            canReset: !!(root.homeBackup.dest)
+            onPicked: path => root.saveHomeBackup({
+                    dest: path
+                })
+            onResetClicked: root.saveHomeBackup({
+                dest: "",
+                daily: false
+            })
+        }
+
+        ToggleRow {
+            text: Tr.tr("Exclude caches & Steam games")
+            subtext: Tr.tr("Skips ~/.cache, Steam game downloads, Trash and node_modules")
+            checked: root.homeBackup.excludeCaches !== false
+            onToggled: root.saveHomeBackup({
+                excludeCaches: checked
+            })
+        }
+
+        RowButton {
+            icon: root.homeBackingUp ? "stop_circle" : "backup"
+            text: root.homeBackingUp ? Tr.tr("Cancel backup") : Tr.tr("Back up /home now")
+            subtext: root.homeBackingUp ? (root.homeBackupProgress || Tr.tr("Copying files with rsync…")) : root.homeBackup.dest ? Tr.tr("Syncs /home into %1/home-backup").arg(Paths.shortenHome(root.homeBackup.dest)) : Tr.tr("Pick a backup destination above first")
+            disabled: !root.homeBackingUp && !root.homeBackup.dest
+            onClicked: root.homeBackingUp ? root.cancelHomeBackup() : root.runHomeBackupNow()
+        }
+
+        ToggleRow {
+            text: Tr.tr("Automatic daily backup")
+            subtext: root.homeDailyActive ? Tr.tr("Runs daily via systemd user timer (caelestia-home-backup.timer)") : Tr.tr("Creates a daily user timer syncing /home to the chosen folder")
+            disabled: !root.homeBackup.dest && !root.homeDailyActive
+            checked: root.homeDailyActive
+            onToggled: {
+                root.saveHomeBackup({
+                    daily: checked
+                });
+                root.applyHomeDailyTimer(checked);
+            }
         }
     }
 }

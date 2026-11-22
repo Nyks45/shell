@@ -31,7 +31,7 @@ Singleton {
     property var _pendingUndoFromDisk: null
 
     // Bumped when the generated Lua changes in a way old files need rewriting for
-    readonly property int generator: 2
+    readonly property int generator: 3
     readonly property string jsonPath: `${Paths.config}/hypr-settings.json`
     readonly property string luaPath: `${Paths.config}/hypr-settings.lua`
     readonly property string displayUndoPath: `${Paths.state}/display-undo.json`
@@ -47,13 +47,13 @@ Singleton {
         // Windows
         "general:gaps_in", "general:gaps_out", "general:border_size", "decoration:rounding", "decoration:dim_inactive", "decoration:dim_strength", "decoration:blur:enabled", "decoration:blur:size", "decoration:blur:passes", "decoration:shadow:enabled", "decoration:shadow:range", "animations:enabled",
         // Keyboard & mouse
-        "input:kb_layout", "input:kb_options", "input:repeat_rate", "input:repeat_delay", "input:numlock_by_default", "input:sensitivity", "input:accel_profile", "input:natural_scroll", "input:scroll_factor", "input:left_handed", "input:touchpad:natural_scroll", "input:touchpad:disable_while_typing", "input:touchpad:tap-to-click", "cursor:inactive_timeout",
+        "input:kb_layout", "input:kb_variant", "input:kb_options", "input:repeat_rate", "input:repeat_delay", "input:numlock_by_default", "input:sensitivity", "input:accel_profile", "input:natural_scroll", "input:scroll_factor", "input:left_handed", "input:touchpad:natural_scroll", "input:touchpad:disable_while_typing", "input:touchpad:tap-to-click", "cursor:inactive_timeout",
         // Desktop mode
         "plugin:hyprflow:bar_enabled", "plugin:hyprflow:bar_autohide", "plugin:hyprflow:bar_height", "plugin:hyprflow:bar_text_align", "plugin:hyprflow:bar_buttons_align", "plugin:hyprflow:bar_button_icons_on_hover", "plugin:hyprflow:bar_icon", "plugin:hyprflow:bar_double_click", "plugin:hyprflow:bar_middle_click", "plugin:hyprflow:hot_corners", "plugin:hyprflow:bar_font", "plugin:hyprflow:bar_text_size", "plugin:hyprflow:keep_alive", "plugin:hyprflow:snap_enabled", "plugin:hyprflow:snap_assist", "plugin:hyprflow:snap_layouts", "plugin:hyprflow:snap_groups", "plugin:hyprflow:minimize_animation", "plugin:hyprflow:bar_buttons", "plugin:hyprflow:bar_menu", "plugin:hyprflow:bar_color_from_window", "plugin:hyprflow:bar_blur", "plugin:hyprflow:bar_csd", "plugin:hyprflow:bar_autohide_position", "plugin:hyprflow:bar_autohide_delay_ms", "plugin:hyprflow:bar_button_size", "plugin:hyprflow:bar_icon_size", "plugin:hyprflow:bar_text_weight",
         // Workspaces & focus
         "input:follow_mouse", "input:float_switch_override_focus", "binds:workspace_back_and_forth", "binds:allow_workspace_cycles", "misc:focus_on_activate", "cursor:no_warps", "misc:new_window_takes_over_fullscreen", "misc:initial_workspace_tracking",
         // Scrolling layout (hyprscroller)
-        "plugin:hyprscrolling:column_width", "plugin:hyprscrolling:new_window_placement", "plugin:hyprscrolling:stack_after_columns", "plugin:hyprscrolling:focus_fit_method", "plugin:hyprscrolling:center_active_column", "plugin:hyprscrolling:follow_hover", "plugin:hyprscrolling:hover_delay_ms", "plugin:hyprscrolling:peek_width", "plugin:hyprscrolling:stretch_to_fill", "plugin:hyprscrolling:fullscreen_on_one_column", "plugin:hyprscrolling:column_scroll", "plugin:hyprscrolling:focus_wrap", "plugin:hyprscrolling:explicit_column_widths", "plugin:hyprscrolling:column_widths", "plugin:hyprscrolling:overview_zoom", "plugin:hyprscrolling:overview_titles", "plugin:hyprscrolling:fullscreen_screen_sized",
+        "plugin:hyprscrolling:column_width", "plugin:hyprscrolling:new_window_placement", "plugin:hyprscrolling:stack_after_columns", "plugin:hyprscrolling:focus_fit_method", "plugin:hyprscrolling:center_active_column", "plugin:hyprscrolling:follow_hover", "plugin:hyprscrolling:hover_delay_ms", "plugin:hyprscrolling:peek_width", "plugin:hyprscrolling:stretch_to_fill", "plugin:hyprscrolling:fullscreen_on_one_column", "plugin:hyprscrolling:column_scroll", "plugin:hyprscrolling:focus_wrap", "plugin:hyprscrolling:explicit_column_widths", "plugin:hyprscrolling:column_widths", "plugin:hyprscrolling:overview_zoom", "plugin:hyprscrolling:overview_titles", "plugin:hyprscrolling:overview_animate", "plugin:hyprscrolling:fullscreen_screen_sized",
         // Gaming, accessibility
         "general:allow_tearing", "misc:vrr", "cursor:zoom_factor", "misc:animate_manual_resizes", "decoration:screen_shader",
         // Privacy
@@ -254,6 +254,20 @@ Singleton {
         });
     }
 
+    // Alt+Tab window switcher style ("overview" | "cycle") and quick-cycle scope ("all" | "tiled" | "floating")
+    function setAltTab(settings: var): void {
+        update({
+            altTab: Object.assign({}, saved.altTab ?? {}, settings)
+        });
+    }
+
+    // Global Magnifier zoom shortcuts (default on)
+    function setMagnifierShortcuts(on: bool): void {
+        update({
+            magnifierShortcuts: on
+        });
+    }
+
 
     function update(changes: var): void {
         saved = Object.assign({}, saved, changes);
@@ -340,6 +354,28 @@ Singleton {
             return rule;
         });
         const night = s.nightLight ?? {};
+        const altTab = s.altTab ?? {};
+        const altTabScope = altTab.scope ?? "all";
+        const nextOpts = altTabScope === "tiled" ? "{ tiled = true }" : altTabScope === "floating" ? "{ floating = true }" : "{}";
+        const prevOpts = altTabScope === "tiled" ? "{ next = false, tiled = true }" : altTabScope === "floating" ? "{ next = false, floating = true }" : "{ next = false }";
+        const altTabLua = (altTab.style ?? "overview") !== "cycle" ? "" : `if unbind then pcall(unbind, "ALT + TAB"); pcall(unbind, "SHIFT + ALT + TAB") end\n    bind("ALT + TAB", hl.dsp.window.cycle_next(${nextOpts}), { repeating = true, description = "Cycle windows" })\n    bind("SHIFT + ALT + TAB", hl.dsp.window.cycle_next(${prevOpts}), { repeating = true, description = "Cycle windows backward" })`;
+        const magnifierLua = s.magnifierShortcuts === false ? "" : `do
+        local function stepZoom(delta)
+            local cur = tonumber(hl.get_config("cursor:zoom_factor")) or 1
+            local nxt = math.max(1, math.min(4, math.floor((cur + delta) * 10 + 0.5) / 10))
+            hl.config({ cursor = { zoom_factor = nxt } })
+        end
+        if unbind then
+            for _, k in ipairs({ "SUPER + ALT + Equal", "SUPER + KP_Add", "SUPER + ALT + Minus", "SUPER + KP_Subtract", "SUPER + Escape" }) do
+                pcall(unbind, k)
+            end
+        end
+        bind("SUPER + ALT + Equal", function() stepZoom(0.5) end, { repeating = true, description = "Magnifier zoom in" })
+        bind("SUPER + KP_Add", function() stepZoom(0.5) end, { repeating = true, description = "Magnifier zoom in" })
+        bind("SUPER + ALT + Minus", function() stepZoom(-0.5) end, { repeating = true, description = "Magnifier zoom out" })
+        bind("SUPER + KP_Subtract", function() stepZoom(-0.5) end, { repeating = true, description = "Magnifier zoom out" })
+        bind("SUPER + Escape", function() hl.config({ cursor = { zoom_factor = 1 } }) end, { description = "Reset magnifier zoom" })
+    end`;
 
         const rules = (s.windowRules ?? []).filter(r => r.class).map(r => {
             const rule = {
@@ -479,6 +515,11 @@ function S.apply()
         bind("XF86PowerOff", hl.dsp.exec_cmd("caelestia shell drawers toggle session"))
     end
 
+    -- Alt + Tab window switcher (override hyprflow's overview switcher when set to Quick cycle)
+    ${altTabLua}
+
+    -- Magnifier zoom keyboard shortcuts (Accessibility > Vision)
+    ${magnifierLua}
 
     -- Night light (hyprsunset, scheduled in ~/.config/hypr/hyprsunset.conf)
     if ${night.enabled ? "true" : "false"} then

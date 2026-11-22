@@ -61,6 +61,10 @@ Singleton {
     // Details of the Workshop item opened (description, views), or null
     property var workshopItem: null
     property bool workshopItemLoading
+    property var workshopUpdates: []
+    property bool checkingWorkshopUpdates
+    property string workshopUpdatesError
+    property var updateQueue: []
     property bool pendingRandom
 
     readonly property string configPath: `${Paths.config}/live-wallpaper.json`
@@ -96,11 +100,15 @@ Singleton {
         save(Object.assign({}, config, changes));
     }
 
-    // A playback setting: the renderer restarts with it
+    // A playback setting: the renderer restarts with it (except volume, updated live on the PipeWire stream when active)
     function set(key: string, value: var): void {
         patch({
             [key]: value
         });
+        if (key === "volume" && running && !setting("silent", true)) {
+            if (setRendererVolume(Math.max(0, Math.min(1, Number(value) / 100))))
+                return;
+        }
         if (current)
             restartTimer.restart();
     }
@@ -251,7 +259,7 @@ Singleton {
             runScript("stop");
     }
 
-    // The renderer's sound (its PipeWire stream), on or off
+    // The renderer's sound (its PipeWire stream), muted or scaled live
     function muteRenderer(mute: bool): void {
         for (const st of Audio.streams) {
             const props = st.properties ?? {};
@@ -259,6 +267,19 @@ Singleton {
             if (who.includes("wallpaperengine") && st.audio)
                 st.audio.muted = mute;
         }
+    }
+
+    function setRendererVolume(vol: real): bool {
+        let updated = false;
+        for (const st of Audio.streams) {
+            const props = st.properties ?? {};
+            const who = `${props["application.process.binary"] ?? ""} ${props["application.name"] ?? ""}`.toLowerCase();
+            if (who.includes("wallpaperengine") && st.audio) {
+                st.audio.volume = vol;
+                updated = true;
+            }
+        }
+        return updated;
     }
 
     // Favourites (Wallpaper Engine's heart), by folder
@@ -707,8 +728,31 @@ Singleton {
     }
 
     function cancelDownload(): void {
+        updateQueue = [];
         downloadProc.running = false;
         download = null;
+    }
+
+    function checkWorkshopUpdates(): void {
+        if (workshopUpdatesProc.running)
+            return;
+        checkingWorkshopUpdates = true;
+        workshopUpdatesError = "";
+        workshopUpdatesProc.running = true;
+    }
+
+    function updateWallpaper(id: string): void {
+        if (!id)
+            return;
+        getWallpaper(id);
+    }
+
+    function updateAllWallpapers(): void {
+        const ids = workshopUpdates.map(u => String(u.id)).filter(id => id);
+        if (!ids.length)
+            return;
+        updateQueue = ids.slice(1);
+        getWallpaper(ids[0]);
     }
 
     // Unsubscribe: off the Steam account and out of the library
@@ -740,7 +784,7 @@ Singleton {
     Timer {
         id: restartTimer
 
-        interval: 500
+        interval: 150
         onTriggered: {
             if (startProc.running)
                 startProc.again = true;
@@ -1080,11 +1124,40 @@ Singleton {
                         return;
                     root.download = Object.assign({}, root.download, st);
                     if (st.state === "done") {
-                        root.steamPending = root.steamPending.filter(x => x !== root.download.id);
+                        const doneId = root.download.id;
+                        root.steamPending = root.steamPending.filter(x => x !== doneId);
+                        root.workshopUpdates = root.workshopUpdates.filter(u => String(u.id) !== String(doneId));
                         root.refresh();
+                        if (root.updateQueue.length > 0) {
+                            const nextId = root.updateQueue[0];
+                            root.updateQueue = root.updateQueue.slice(1);
+                            Qt.callLater(() => root.getWallpaper(nextId));
+                        }
                     }
                 } catch (e) {}
             }
+        }
+    }
+
+    Process {
+        id: workshopUpdatesProc
+
+        command: ["python3", "-I", root.scanner, "workshop-updates"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.checkingWorkshopUpdates = false;
+                try {
+                    const res = JSON.parse(text);
+                    root.workshopUpdates = res.updates ?? [];
+                    root.workshopUpdatesError = res.error ?? "";
+                } catch (e) {
+                    root.workshopUpdatesError = Tr.tr("Could not check for Workshop updates");
+                }
+            }
+        }
+        onExited: code => {
+            if (code !== 0)
+                root.checkingWorkshopUpdates = false;
         }
     }
 

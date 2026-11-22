@@ -274,6 +274,45 @@ PageBase {
 
         // ---- Your Workshop wallpapers ----------------------------------
 
+        StyledRect {
+            Layout.fillWidth: true
+            visible: !root.selected && root.tab === "mine"
+            implicitHeight: mineBarRow.implicitHeight + Tokens.padding.medium * 2
+            radius: Tokens.rounding.large
+            color: Colours.tPalette.m3surfaceContainer
+
+            RowLayout {
+                id: mineBarRow
+
+                anchors.fill: parent
+                anchors.margins: Tokens.padding.medium
+                spacing: Tokens.spacing.small
+
+                StyledText {
+                    Layout.fillWidth: true
+                    text: LiveWallpaper.checkingWorkshopUpdates ? Tr.tr("Checking subscribed wallpapers for updates…") : LiveWallpaper.workshopUpdatesError ? Tr.tr("Couldn't check for updates: %1").arg(LiveWallpaper.workshopUpdatesError) : LiveWallpaper.workshopUpdates.length > 0 ? Tr.tr("Updates available (%1)").arg(LiveWallpaper.workshopUpdates.length) : Tr.tr("Subscribed wallpapers (%1)").arg(root.mineList.length)
+                    color: LiveWallpaper.workshopUpdatesError ? Colours.palette.m3error : LiveWallpaper.workshopUpdates.length > 0 ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
+                    font: Tokens.font.body.small
+                    wrapMode: Text.WordWrap
+                }
+
+                TextButton {
+                    text: Tr.tr("Check for updates")
+                    type: TextButton.Tonal
+                    disabled: LiveWallpaper.checkingWorkshopUpdates || root.mineList.length === 0
+                    onClicked: LiveWallpaper.checkWorkshopUpdates()
+                }
+
+                TextButton {
+                    visible: LiveWallpaper.workshopUpdates.length > 0
+                    text: LiveWallpaper.updateQueue.length > 0 || (LiveWallpaper.download && ["starting", "qr", "progress"].includes(LiveWallpaper.download.state)) ? Tr.tr("Updating…") : Tr.tr("Update all")
+                    type: TextButton.Filled
+                    disabled: LiveWallpaper.updateQueue.length > 0 || (LiveWallpaper.download && ["starting", "qr", "progress"].includes(LiveWallpaper.download.state))
+                    onClicked: LiveWallpaper.updateAllWallpapers()
+                }
+            }
+        }
+
         GridLayout {
             Layout.fillWidth: true
             visible: !root.selected && root.tab === "mine"
@@ -333,6 +372,13 @@ PageBase {
                                     asynchronous: true
                                     playing: true
                                 }
+                            }
+
+                            Badge {
+                                anchors.top: parent.top
+                                anchors.right: parent.right
+                                visible: LiveWallpaper.workshopUpdates.some(u => String(u.id) === String(mineCard.modelData.id))
+                                text: Tr.tr("Update available")
                             }
                         }
 
@@ -829,6 +875,15 @@ PageBase {
                                 LiveWallpaper.getWallpaper(details.it.id);
                             }
                         }
+                    }
+
+                    TextButton {
+                        Layout.fillWidth: true
+                        visible: !!details.mine && LiveWallpaper.workshopUpdates.some(u => String(u.id) === String(details.it.id))
+                        text: details.downloading ? Tr.tr("Updating…") : Tr.tr("Update")
+                        type: TextButton.Tonal
+                        disabled: details.downloading
+                        onClicked: LiveWallpaper.updateWallpaper(details.it.id)
                     }
 
                     TextButton {

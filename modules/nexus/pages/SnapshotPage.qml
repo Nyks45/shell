@@ -124,6 +124,32 @@ PageBase {
             }
         }
 
+        RowButton {
+            readonly property string what: Tr.tr("Roll back system snapshot")
+
+            visible: root.config === "root" && root.number > 0
+            icon: "restore"
+            text: Tr.tr("Roll back system to this snapshot…")
+            subtext: Tr.tr("Sets snapshot #%1 as the active system root for the next restart").arg(root.number)
+            disabled: Admin.jobs.some(j => j.what === what)
+            onClicked: rollbackConfirm.ask({
+                header: Tr.tr("Roll back to snapshot #%1?").arg(root.number),
+                body: Tr.tr("Creates a writable snapshot from #%1 as the next boot root and updates rEFInd. Files changed in / since that snapshot will revert after you restart (/home is separate).").arg(root.number),
+                confirmLabel: Tr.tr("Roll back"),
+                icon: "restore",
+                onConfirm: () => Admin.run("snapper-rollback", [String(root.number)], what, ok => {
+                    if (ok)
+                        Toaster.toast(Tr.tr("Rollback scheduled"), Tr.tr("Restart to boot into snapshot #%1").arg(root.number), "restore");
+                })
+            })
+        }
+
+        ConfirmDialog {
+            id: rollbackConfirm
+
+            hostFlickable: root.flickable
+        }
+
         SectionHeader {
             text: root.loading ? Tr.tr("What changed since then…") : Tr.tr("What changed since then (%1)").arg(root.changes.length)
         }

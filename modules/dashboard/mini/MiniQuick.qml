@@ -32,6 +32,29 @@ Item {
         screenState.dashboardRequest = "settings";
     }
     readonly property var notifs: Notifs.notClosed
+    readonly property list<string> knownRoundIds: ["desktop", "mic", "dnd", "gameMode", "vpn", "wallpaperPlaying", "keepAwake", "recorder"]
+    readonly property list<string> enabledRoundIds: {
+        const entries = Config.utilities.quickToggles.values;
+        const out = [];
+        const seen = {};
+        for (const e of entries) {
+            if (!knownRoundIds.includes(e.id))
+                continue;
+            seen[e.id] = true;
+            if (e.enabled)
+                out.push(e.id);
+        }
+        for (const id of knownRoundIds) {
+            if (!seen[id])
+                out.push(id);
+        }
+        return out;
+    }
+
+    function toggleEnabled(id: string): bool {
+        const entry = Config.utilities.quickToggles.values.find(e => e.id === id);
+        return entry ? entry.enabled : true;
+    }
 
     implicitWidth: Tokens.sizes.dashboard.islandWidth
     implicitHeight: Tokens.sizes.dashboard.islandHeight
@@ -136,6 +159,7 @@ Item {
 
                         RowLayout {
                             Layout.fillWidth: true
+                            visible: netTile.visible || btTile.visible
                             spacing: Tokens.spacing.small
 
                             WideTile {
@@ -143,6 +167,7 @@ Item {
 
                                 readonly property bool wired: !!Nmcli.activeEthernet && !Nmcli.active
 
+                                visible: root.toggleEnabled("wifi")
                                 icon: wired ? "lan" : Nmcli.wifiEnabled ? "wifi" : "wifi_off"
                                 text: wired ? Tr.tr("Ethernet") : Tr.tr("Wi-Fi")
                                 sub: wired ? (Nmcli.activeEthernet.connection || Tr.tr("Connected")) : Nmcli.active?.ssid || (Nmcli.wifiEnabled ? Tr.tr("Not connected") : Tr.tr("Off"))
@@ -160,6 +185,7 @@ Item {
 
                                 readonly property var connected: Bluetooth.devices.values.filter(d => d.connected)
 
+                                visible: root.toggleEnabled("bluetooth")
                                 icon: (Bluetooth.defaultAdapter?.enabled ?? false) ? "bluetooth" : "bluetooth_disabled"
                                 text: Tr.tr("Bluetooth")
                                 sub: !(Bluetooth.defaultAdapter?.enabled ?? false) ? Tr.tr("Off") : connected.length === 1 ? (connected[0].name || connected[0].deviceName) : connected.length > 1 ? Tr.tr("%1 devices").arg(connected.length) : Tr.tr("On")
@@ -180,72 +206,117 @@ Item {
 
                         RowLayout {
                             Layout.fillWidth: true
+                            visible: root.enabledRoundIds.length > 0
                             spacing: 0
 
-                            // Desktop mode (hyprflow): its icon shows which layout is on
-                            RoundToggle {
-                                icon: Hypr.desktopMode ? "desktop_windows" : "view_week"
-                                text: Tr.tr("Desktop")
-                                on: Hypr.desktopMode
-                                onToggled: Hypr.toggleDesktopMode()
-                            }
+                            Repeater {
+                                model: root.enabledRoundIds
 
-                            RoundToggle {
-                                icon: Audio.sourceMuted ? "mic_off" : "mic"
-                                text: Tr.tr("Mic")
-                                on: !Audio.sourceMuted
-                                onToggled: {
-                                    const audio = Audio.source?.audio;
-                                    if (audio)
-                                        audio.muted = !audio.muted;
-                                }
-                            }
+                                RoundToggle {
+                                    required property string modelData
 
-                            RoundToggle {
-                                icon: "notifications_off"
-                                text: Tr.tr("Silent")
-                                on: PersistentState.doNotDisturb
-                                onToggled: PersistentState.doNotDisturb = !PersistentState.doNotDisturb
-                            }
-
-                            RoundToggle {
-                                icon: "sports_esports"
-                                text: Tr.tr("Game")
-                                on: RuntimeState.gameMode
-                                onToggled: RuntimeState.gameMode = !RuntimeState.gameMode
-                            }
-
-                            RoundToggle {
-                                icon: "vpn_key"
-                                text: Tr.tr("VPN")
-                                on: VPN.connected
-                                onToggled: VPN.toggle()
-                            }
-
-                            RoundToggle {
-                                icon: "smart_display"
-                                text: Tr.tr("Live")
-                                on: PersistentState.wallpaperPlaying
-                                onToggled: PersistentState.wallpaperPlaying = !PersistentState.wallpaperPlaying
-                            }
-
-                            RoundToggle {
-                                icon: "coffee"
-                                text: Tr.tr("Awake")
-                                on: RuntimeState.inhibitIdle
-                                onToggled: RuntimeState.inhibitIdle = !RuntimeState.inhibitIdle
-                            }
-
-                            // The screen recorder: a click records the screen (with sound), a right
-                            // click a region; while recording, a click stops it
-                            RoundToggle {
-                                icon: Recorder.running ? "stop_circle" : "screen_record"
-                                text: Recorder.running ? Tr.tr("Stop") : Tr.tr("Record")
-                                on: Recorder.running
-                                onToggled: Recorder.running ? Recorder.stop() : Recorder.start(["-s"])
-                                onAltToggled: {
-                                    if (!Recorder.running)
-                                        Recorder.start(["-sr"]);
+                                    icon: {
+                                        switch (modelData) {
+                                        case "desktop":
+                                            return Hypr.desktopMode ? "desktop_windows" : "view_week";
+                                        case "mic":
+                                            return Audio.sourceMuted ? "mic_off" : "mic";
+                                        case "dnd":
+                                            return "notifications_off";
+                                        case "gameMode":
+                                            return "sports_esports";
+                                        case "vpn":
+                                            return "vpn_key";
+                                        case "wallpaperPlaying":
+                                            return "smart_display";
+                                        case "keepAwake":
+                                            return "coffee";
+                                        case "recorder":
+                                            return Recorder.running ? "stop_circle" : "screen_record";
+                                        default:
+                                            return "toggle_on";
+                                        }
+                                    }
+                                    text: {
+                                        switch (modelData) {
+                                        case "desktop":
+                                            return Tr.tr("Desktop");
+                                        case "mic":
+                                            return Tr.tr("Mic");
+                                        case "dnd":
+                                            return Tr.tr("Silent");
+                                        case "gameMode":
+                                            return Tr.tr("Game");
+                                        case "vpn":
+                                            return Tr.tr("VPN");
+                                        case "wallpaperPlaying":
+                                            return Tr.tr("Live");
+                                        case "keepAwake":
+                                            return Tr.tr("Awake");
+                                        case "recorder":
+                                            return Recorder.running ? Tr.tr("Stop") : Tr.tr("Record");
+                                        default:
+                                            return modelData;
+                                        }
+                                    }
+                                    on: {
+                                        switch (modelData) {
+                                        case "desktop":
+                                            return Hypr.desktopMode;
+                                        case "mic":
+                                            return !Audio.sourceMuted;
+                                        case "dnd":
+                                            return PersistentState.doNotDisturb;
+                                        case "gameMode":
+                                            return RuntimeState.gameMode;
+                                        case "vpn":
+                                            return VPN.connected;
+                                        case "wallpaperPlaying":
+                                            return PersistentState.wallpaperPlaying;
+                                        case "keepAwake":
+                                            return RuntimeState.inhibitIdle;
+                                        case "recorder":
+                                            return Recorder.running;
+                                        default:
+                                            return false;
+                                        }
+                                    }
+                                    onToggled: {
+                                        switch (modelData) {
+                                        case "desktop":
+                                            Hypr.toggleDesktopMode();
+                                            break;
+                                        case "mic":
+                                            {
+                                                const audio = Audio.source?.audio;
+                                                if (audio)
+                                                    audio.muted = !audio.muted;
+                                                break;
+                                            }
+                                        case "dnd":
+                                            PersistentState.doNotDisturb = !PersistentState.doNotDisturb;
+                                            break;
+                                        case "gameMode":
+                                            RuntimeState.gameMode = !RuntimeState.gameMode;
+                                            break;
+                                        case "vpn":
+                                            VPN.toggle();
+                                            break;
+                                        case "wallpaperPlaying":
+                                            PersistentState.wallpaperPlaying = !PersistentState.wallpaperPlaying;
+                                            break;
+                                        case "keepAwake":
+                                            RuntimeState.inhibitIdle = !RuntimeState.inhibitIdle;
+                                            break;
+                                        case "recorder":
+                                            Recorder.running ? Recorder.stop() : Recorder.start(["-s"]);
+                                            break;
+                                        }
+                                    }
+                                    onAltToggled: {
+                                        if (modelData === "recorder" && !Recorder.running)
+                                            Recorder.start(["-sr"]);
+                                    }
                                 }
                             }
                         }

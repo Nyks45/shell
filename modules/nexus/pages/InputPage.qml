@@ -21,7 +21,10 @@ PageBase {
 
     // [{ code, name }] from XKB's layout list
     property var allLayouts: []
+    // layoutCode -> [{ code, name }] from XKB's variant list
+    property var variantsByLayout: ({})
     readonly property list<string> layouts: String(HyprSettings.value("input:kb_layout", "us")).split(",").map(s => s.trim()).filter(s => s)
+    readonly property var variantList: String(HyprSettings.value("input:kb_variant", "")).split(",").map(s => s.trim())
     readonly property list<string> kbOptions: String(HyprSettings.value("input:kb_options", "")).split(",").map(s => s.trim()).filter(s => s)
     readonly property string switchOption: kbOptions.find(o => o.startsWith("grp:")) ?? ""
 
@@ -34,11 +37,28 @@ PageBase {
         return allLayouts.find(l => l.code === code)?.name ?? code;
     }
 
+    function variantsFor(layoutCode: string): var {
+        return variantsByLayout[layoutCode] ?? [];
+    }
+
     function setLayouts(list: var): void {
+        const prevLayouts = layouts;
+        const nextVars = list.map(code => {
+            const oldIdx = prevLayouts.indexOf(code);
+            return oldIdx >= 0 ? (variantList[oldIdx] ?? "") : "";
+        });
         HyprSettings.setOption("input:kb_layout", list.join(","));
+        HyprSettings.setOption("input:kb_variant", nextVars.some(v => v) ? nextVars.join(",") : "");
         // Two layouts and no way to switch yet: Alt+Shift, like Windows
         if (list.length > 1 && !switchOption)
             setSwitch("grp:alt_shift_toggle");
+    }
+
+    function setVariant(slot: int, code: string): void {
+        const next = [];
+        for (let i = 0; i < layouts.length; i++)
+            next.push(i === slot ? code : (variantList[i] ?? ""));
+        HyprSettings.setOption("input:kb_variant", next.some(v => v) ? next.join(",") : "");
     }
 
     function setSwitch(option: string): void {
@@ -78,6 +98,35 @@ PageBase {
             onPicked: code => root.setLayouts([code, ...root.layouts.slice(1).filter(c => c !== code)])
         }
 
+        SelectRow {
+            visible: root.variantsFor(root.layouts[0] ?? "us").length > 0
+            label: Tr.tr("Layout variant")
+            segmentedAllowed: false
+            menuItems: [defaultVar0, ...varItems0.instances]
+            active: menuItems.find(i => i.value === (root.variantList[0] ?? "")) ?? defaultVar0
+            onSelected: item => root.setVariant(0, String(item.value))
+
+            MenuItem {
+                id: defaultVar0
+
+                text: Tr.tr("Default")
+                value: ""
+            }
+
+            Variants {
+                id: varItems0
+
+                model: root.variantsFor(root.layouts[0] ?? "us")
+
+                MenuItem {
+                    required property var modelData
+
+                    text: modelData.name
+                    value: modelData.code
+                }
+            }
+        }
+
         LayoutRow {
             icon: "translate"
             label: Tr.tr("Second layout")
@@ -85,6 +134,35 @@ PageBase {
             allowNone: true
             currentCode: root.layouts.length > 1 ? root.layouts[1] : ""
             onPicked: code => root.setLayouts(code ? [root.layouts[0] ?? "us", code] : [root.layouts[0] ?? "us"])
+        }
+
+        SelectRow {
+            visible: root.layouts.length > 1 && root.variantsFor(root.layouts[1] ?? "").length > 0
+            label: Tr.tr("Second layout variant")
+            segmentedAllowed: false
+            menuItems: [defaultVar1, ...varItems1.instances]
+            active: menuItems.find(i => i.value === (root.variantList[1] ?? "")) ?? defaultVar1
+            onSelected: item => root.setVariant(1, String(item.value))
+
+            MenuItem {
+                id: defaultVar1
+
+                text: Tr.tr("Default")
+                value: ""
+            }
+
+            Variants {
+                id: varItems1
+
+                model: root.variantsFor(root.layouts[1] ?? "")
+
+                MenuItem {
+                    required property var modelData
+
+                    text: modelData.name
+                    value: modelData.code
+                }
+            }
         }
 
         SelectRow {
@@ -300,12 +378,29 @@ PageBase {
             path: "/usr/share/X11/xkb/rules/base.lst"
             printErrors: false
             onLoaded: {
-                const section = text().split(/^! layout\s*$/m)[1]?.split(/^!/m)[0] ?? "";
+                const raw = text();
+                const section = raw.split(/^! layout\s*$/m)[1]?.split(/^!/m)[0] ?? "";
                 // (not "custom": a placeholder for a user-made layout)
-            root.allLayouts = section.split("\n").map(l => l.match(/^\s+(\S+)\s+(.+)$/)).filter(m => m && m[1] !== "custom").map(m => ({
+                root.allLayouts = section.split("\n").map(l => l.match(/^\s+(\S+)\s+(.+)$/)).filter(m => m && m[1] !== "custom").map(m => ({
                             code: m[1],
                             name: m[2].trim()
                         })).sort((a, b) => a.name.localeCompare(b.name));
+                const varSection = raw.split(/^! variant\s*$/m)[1]?.split(/^!/m)[0] ?? "";
+                const map = {};
+                for (const line of varSection.split("\n")) {
+                    const m = line.match(/^\s+(\S+)\s+(\S+):\s+(.+)$/);
+                    if (!m)
+                        continue;
+                    if (!map[m[2]])
+                        map[m[2]] = [];
+                    map[m[2]].push({
+                        code: m[1],
+                        name: m[3].trim()
+                    });
+                }
+                for (const k of Object.keys(map))
+                    map[k].sort((a, b) => a.name.localeCompare(b.name));
+                root.variantsByLayout = map;
             }
         }
 

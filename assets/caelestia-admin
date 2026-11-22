@@ -517,6 +517,62 @@ def act_btrfs_status(args):
 
 # --- Snapshots ------------------------------------------------------------------
 
+def act_snapper_rollback(args):
+    """snapper-rollback [NUMBER]: roll back the active root snapshot (and update rEFInd boot entries)."""
+    if len(args) > 1:
+        raise Refused("usage: snapper-rollback [NUMBER]")
+    cmd = ["snapper", "--ambit", "classic", "rollback"]
+    if args:
+        if not args[0].isdigit() or int(args[0]) <= 0:
+            raise Refused("bad snapshot number")
+        cmd.append(args[0])
+    run(*cmd)
+    if os.path.exists("/usr/bin/refind-btrfs"):
+        run("refind-btrfs", check=False)
+
+
+LOCALE_RE = re.compile(r"^[a-z]{2,3}_[A-Z]{2}\.UTF-8$")
+LC_KEYS = ("LC_NUMERIC", "LC_TIME", "LC_MONETARY", "LC_PAPER", "LC_NAME",
+           "LC_ADDRESS", "LC_TELEPHONE", "LC_MEASUREMENT", "LC_IDENTIFICATION")
+
+
+def act_set_locale(args):
+    """set-locale LANG REGIONAL: set system language and regional format (generating locales if needed)."""
+    need(args, 2, "set-locale LANG REGIONAL")
+    lang, reg = args
+    if not LOCALE_RE.match(lang) or not LOCALE_RE.match(reg):
+        raise Refused("bad locale name")
+    enabled = set()
+    proc = subprocess.run(["locale", "-a"], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    for line in proc.stdout.splitlines():
+        loc = line.strip()
+        if loc.lower().endswith(".utf8"):
+            loc = loc[:-5] + ".UTF-8"
+        elif loc.lower().endswith(".utf-8"):
+            loc = loc[:-6] + ".UTF-8"
+        enabled.add(loc)
+    needed = {lang, reg} - enabled
+    if needed:
+        gen_path = "/etc/locale.gen"
+        if not os.path.isfile(gen_path):
+            raise Refused("/etc/locale.gen not found")
+        lines = open(gen_path, encoding="utf-8", errors="replace").read().split("\n")
+        found = set()
+        for i, line in enumerate(lines):
+            m = re.match(r"^#?\s*([a-z]{2,3}_[A-Z]{2}\.UTF-8)(\s+UTF-8.*)?$", line)
+            if m and m.group(1) in needed:
+                lines[i] = m.group(1) + (m.group(2) if m.group(2) else " UTF-8")
+                found.add(m.group(1))
+        for loc in sorted(needed - found):
+            lines.append(f"{loc} UTF-8")
+        if DRY:
+            print(f"$ enable locales in {gen_path}: {' '.join(sorted(needed))}", flush=True)
+        else:
+            write_file(gen_path, "\n".join(lines).rstrip("\n") + "\n")
+        run("locale-gen")
+    run("localectl", "set-locale", f"LANG={lang}", *(f"{k}={reg}" for k in LC_KEYS))
+
+
 def act_snapper_restore(args):
     """snapper-restore CONFIG NUMBER PATH: one file or folder back as it was in snapshot NUMBER"""
     need(args, 3, "snapper-restore CONFIG NUMBER PATH")
@@ -609,11 +665,18 @@ KERN_END = "    # END caelestia-kernels"
 
 
 def refind_lines():
-    return open(REFIND_CONF).read().split("\n")
+    path = REFIND_CONF
+    if DRY and not os.access(path, os.R_OK):
+        exported = os.path.join(BOOT_EXPORT, "EFI/refind/refind.conf")
+        if os.access(exported, os.R_OK):
+            path = exported
+    return open(path).read().split("\n")
 
 
-def refind_write(lines):
-    """refind.conf, checked (braces balance) and atomic, the previous one kept."""
+def refind_write(lines, backup=True):
+    """refind.conf, checked (braces balance) and atomic, the previous one kept
+    (backup=False for automatic updates, so the backup stays the one from
+    before the person's last own change)."""
     text = "\n".join(lines)
     depth = 0
     for line in lines:
@@ -623,8 +686,9 @@ def refind_write(lines):
             raise Refused("refusing to write an unbalanced refind.conf")
     if depth:
         raise Refused("refusing to write an unbalanced refind.conf")
-    if not DRY:
-        run("cp", "-a", REFIND_CONF, REFIND_CONF + ".caelestia-prev")
+    if backup and not DRY:
+        # Plain cp: the backup's date is when it was taken (shown in Settings)
+        run("cp", REFIND_CONF, REFIND_CONF + ".caelestia-prev")
     write_file(REFIND_CONF, text)
     if not DRY:
         boot_export()
@@ -814,6 +878,27 @@ def act_boot_background(args):
 OPTION = re.compile(r"^[A-Za-z0-9_.,=:/@+-]+$")
 
 
+def block_end(lines, start):
+    """Index of the closing brace of the block opening at line START, or None."""
+    depth = 0
+    for j in range(start, len(lines)):
+        bare = "" if lines[j].strip().startswith("#") else lines[j].strip()
+        depth += bare.endswith("{") - (bare == "}")
+        if depth == 0:
+            return j
+    return None
+
+
+def entry_own_lines(lines, start, end):
+    """Indexes of an entry's own setting lines (not comments, not inside its submenus)."""
+    depth = 0
+    for k in range(start, end + 1):
+        bare = "" if lines[k].strip().startswith("#") else lines[k].strip()
+        if depth == 1 and bare and not bare.endswith("{") and bare != "}":
+            yield k
+        depth += bare.endswith("{") - (bare == "}")
+
+
 def find_linux_entry(lines):
     """(name, start, end) of the active Linux menuentry (prefers CachyOS with a kernel,
     then any active entry loading vmlinuz, then any active entry with root= options)."""
@@ -825,11 +910,11 @@ def find_linux_entry(lines):
             i += 1
             continue
         name = m.group(1).strip()
-        blk = entry_block(lines, name)
-        if not blk:
+        # By position, not name: two entries may share a name
+        a, b = i, block_end(lines, i)
+        if b is None:
             i += 1
             continue
-        a, b = blk
         disabled = False
         hidden_by_settings = False
         has_vmlinuz = False
@@ -882,11 +967,9 @@ def act_boot_options(args):
     if found is None:
         raise Refused("no active Linux entry in refind.conf")
     name, entry, end = found
-    for i in range(entry + 1, end):
+    for i in entry_own_lines(lines, entry, end):
         bare = lines[i].strip()
-        if bare.startswith(("submenuentry", "#")):
-            break
-        if bare.startswith("options"):
+        if re.match(r"^options\s", bare):
             validate_linux_options(args, bare)
             lines[i] = '    options  "' + " ".join(args) + '"'
             refind_write(lines)
@@ -894,11 +977,8 @@ def act_boot_options(args):
     raise Refused(f"no options line in the {name} entry")
 
 
-def act_boot_kernels(args):
-    """boot-kernels: every installed kernel besides the main one as a submenu
-    of the main Linux entry (rEFInd only shows the entries written in it)."""
-    lines = refind_lines()
-    # drop the old block
+def _rebuild_kernels_block(lines):
+    """Rebuild `# BEGIN caelestia-kernels` submenu on `lines` in place; return [main, ...]."""
     out, skip = [], False
     for l in lines:
         if l.strip() == KERN_BEGIN.strip():
@@ -909,25 +989,26 @@ def act_boot_kernels(args):
             continue
         if not skip:
             out.append(l)
-    lines = out
+    lines[:] = out
     found = find_linux_entry(lines)
     if found is None:
         raise Refused("no active Linux entry in refind.conf")
     name, entry, end = found
     main = None
     at = None
-    for i in range(entry + 1, end):
+    for i in entry_own_lines(lines, entry, end):
         bare = lines[i].strip()
         m = re.match(r"^loader\s+/?vmlinuz-(\S+)", bare)
         if m:
             main = m.group(1)
-        if bare.startswith("options"):
+        if re.match(r"^options\s", bare):
             at = i + 1
-        if bare.startswith(("submenuentry", "#")):
-            break
     if at is None:
         raise Refused(f"no options line in the {name} entry")
-    kernels = sorted(f[len("vmlinuz-"):] for f in os.listdir("/boot") if f.startswith("vmlinuz-"))
+    try:
+        kernels = sorted(f[len("vmlinuz-"):] for f in os.listdir("/boot") if f.startswith("vmlinuz-"))
+    except OSError:
+        kernels = []
     block = []
     for k in kernels:
         if k == main or not os.path.exists(f"/boot/initramfs-{k}.img"):
@@ -935,8 +1016,16 @@ def act_boot_kernels(args):
         block += [f'    submenuentry "Kernel {k}" {{', f"        loader /vmlinuz-{k}", f"        initrd /initramfs-{k}.img", "    }"]
     if block:
         lines[at:at] = [KERN_BEGIN, *block, KERN_END]
-    print("Kernels in the boot menu: " + ", ".join([main or "?"] + [k for k in kernels if k != main]), flush=True)
-    refind_write(lines)
+    return [main or "?"] + [k for k in kernels if k != main]
+
+
+def act_boot_kernels(args):
+    """boot-kernels: every installed kernel besides the main one as a submenu
+    of the main Linux entry (rEFInd only shows the entries written in it)."""
+    lines = refind_lines()
+    listed = _rebuild_kernels_block(lines)
+    print("Kernels in the boot menu: " + ", ".join(listed), flush=True)
+    refind_write(lines, backup=False)
 
 
 def act_boot_restore(args):
@@ -1089,6 +1178,8 @@ def act_boot_apply(args):
         if new and new != name:
             if not re.fullmatch(r"[A-Za-z0-9 ._()+-]{1,40}", new):
                 raise Refused("a name: letters, numbers, spaces, . _ ( ) + -")
+            if entry_block(lines, new) or new in renames.values():
+                raise Refused(f"another boot menu entry is already called {new!r}")
             i, _ = entry_block(lines, name)
             lines[i] = re.sub(r'menuentry\s+"?[^"{]+?"?\s*\{', f'menuentry "{new}" {{', lines[i])
             renames[name] = new
@@ -1129,20 +1220,42 @@ def act_boot_apply(args):
     if d.get("options"):
         opts = d["options"]
         found = find_linux_entry(lines)
-        if found:
-            _, i, j = found
-            for k in range(i + 1, j):
-                bare = lines[k].strip()
-                if bare.startswith(("submenuentry", "#")):
-                    break
-                if bare.startswith("options"):
-                    validate_linux_options(opts, bare)
-                    lines[k] = '    options  "' + " ".join(opts) + '"'
-                    break
-            else:
-                validate_linux_options(opts, "")
+        if not found:
+            raise Refused("no active Linux entry in refind.conf")
+        name, i, j = found
+        for k in entry_own_lines(lines, i, j):
+            bare = lines[k].strip()
+            if re.match(r"^options\s", bare):
+                validate_linux_options(opts, bare)
+                lines[k] = '    options  "' + " ".join(opts) + '"'
+                break
         else:
-            validate_linux_options(opts, "")
+            # Said, not skipped: a change that isn't written must not look applied
+            raise Refused(f"no options line in the {name} entry")
+    if d.get("defaultKernel"):
+        dk = str(d["defaultKernel"])
+        if not KERNEL.match(dk):
+            raise Refused("not a kernel package name")
+        if not DRY and (not os.path.exists(f"/boot/vmlinuz-{dk}") or not os.path.exists(f"/boot/initramfs-{dk}.img")):
+            raise Refused(f"kernel {dk} is not in /boot")
+        found = find_linux_entry(lines)
+        if not found:
+            raise Refused("no active Linux entry in refind.conf")
+        _, i, j = found
+        set_loader = set_initrd = False
+        for k in entry_own_lines(lines, i, j):
+            bare = lines[k].strip()
+            if re.match(r"^loader(?:\s|$)", bare):
+                lines[k] = f"    loader   /vmlinuz-{dk}"
+                set_loader = True
+            elif re.match(r"^initrd(?:\s|$)", bare):
+                lines[k] = f"    initrd   /initramfs-{dk}.img"
+                set_initrd = True
+        if not set_initrd:
+            lines.insert(i + 1, f"    initrd   /initramfs-{dk}.img")
+        if not set_loader:
+            lines.insert(i + 1, f"    loader   /vmlinuz-{dk}")
+        _rebuild_kernels_block(lines)
     refind_write(lines)
 
 
@@ -1404,6 +1517,8 @@ ACTIONS = {
     "btrfs-balance": act_btrfs_balance,
     "btrfs-status": act_btrfs_status,
     "snapper-restore": act_snapper_restore,
+    "snapper-rollback": act_snapper_rollback,
+    "set-locale": act_set_locale,
     "move-partition": act_move_partition,
     "group-member": act_group_member,
 }

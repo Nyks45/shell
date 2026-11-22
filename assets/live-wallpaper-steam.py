@@ -346,10 +346,16 @@ def download(item: str) -> None:
         out(state="error", error="Steam needs you to sign in again: download it once more to get a new code", signin=True)
         return
     shutil.rmtree(os.path.join(tmp, ".DepotDownloader"), ignore_errors=True)
-    if os.WEXITSTATUS(status) != 0 or not os.path.isfile(os.path.join(tmp, "project.json")):
+    pj = os.path.join(tmp, "project.json")
+    if os.WEXITSTATUS(status) != 0 or not os.path.isfile(pj):
         shutil.rmtree(tmp, ignore_errors=True)
         out(state="error", error="The download failed (does this account own Wallpaper Engine?)")
         return
+    # Record download time on project.json so Workshop update checks compare against it.
+    try:
+        os.utime(pj, None)
+    except OSError:
+        pass
     shutil.rmtree(target, ignore_errors=True)
     os.makedirs(os.path.dirname(target), exist_ok=True)
     os.replace(tmp, target)

@@ -16,6 +16,7 @@ user properties (general.properties) and when it was added.
                                                a page of the Steam Workshop as JSON: items (rating,
                                                votes, author, tags...), page, pages, total, tagGroups
     live-wallpaper-scan.py workshop-item ID...  details of Workshop items (description, stats)
+    live-wallpaper-scan.py workshop-updates    installed Workshop items with newer uploads on Steam
     live-wallpaper-scan.py playlists FILE      write the playlists in FILE (the settings app's
                                                live-wallpaper.json) into Wallpaper Engine's config.json
 """
@@ -530,6 +531,64 @@ def workshop_item(ids: list[str]) -> None:
         print(fresh, flush=True)
 
 
+def workshop_updates() -> None:
+    """Check installed library Workshop items against Steam's latest update timestamps."""
+    wdir = LIBRARY / "workshop"
+    local_items = {}
+    if wdir.is_dir():
+        for d in sorted(wdir.iterdir()):
+            if not d.is_dir() or not d.name.isdigit():
+                continue
+            pj = d / "project.json"
+            if not pj.is_file():
+                continue
+            try:
+                project = json.loads(pj.read_text(encoding="utf-8", errors="replace"))
+                local_updated = int(pj.stat().st_mtime)
+            except (OSError, ValueError):
+                continue
+            local_items[d.name] = {
+                "title": str(project.get("title") or d.name),
+                "localUpdated": local_updated,
+            }
+    if not local_items:
+        print(json.dumps({"updates": [], "checked": 0, "error": ""}), flush=True)
+        return
+    ids = list(local_items.keys())
+    updates = []
+    try:
+        for off in range(0, len(ids), 100):
+            chunk = ids[off:off + 100]
+            body = {"itemcount": str(len(chunk))}
+            for i, x in enumerate(chunk):
+                body[f"publishedfileids[{i}]"] = x
+            req = urllib.request.Request(
+                "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/",
+                data=urllib.parse.urlencode(body).encode(),
+                headers=UA,
+            )
+            res = json.loads(_get(req)).get("response", {})
+            for d in res.get("publishedfiledetails", []):
+                if d.get("result") != 1:
+                    continue
+                item_id = str(d.get("publishedfileid", ""))
+                local = local_items.get(item_id)
+                if not local:
+                    continue
+                remote_updated = int(d.get("time_updated") or 0)
+                if remote_updated > local["localUpdated"] + 60:
+                    updates.append({
+                        "id": item_id,
+                        "title": str(d.get("title") or local["title"]),
+                        "remoteUpdated": remote_updated,
+                        "localUpdated": local["localUpdated"],
+                    })
+    except Exception as e:
+        print(json.dumps({"updates": [], "checked": len(local_items), "error": str(e)}), flush=True)
+        return
+    print(json.dumps({"updates": updates, "checked": len(local_items), "error": ""}), flush=True)
+
+
 # Wallpaper Engine's config.json, where the renderer looks for playlists: in
 # the Steam install itself (not a custom assets folder). LIVE_WALLPAPER_WE_CONFIG
 # points it elsewhere (the sandbox, tests).
@@ -584,6 +643,9 @@ def main() -> int:
         return 0
     if cmd == "workshop-item":
         workshop_item(sys.argv[2:])
+        return 0
+    if cmd == "workshop-updates":
+        workshop_updates()
         return 0
     if cmd == "playlists":
         write_playlists(sys.argv[2])
