@@ -58,6 +58,8 @@ ColumnLayout {
 
             required property var modelData
             required property int index
+            readonly property var preview: Disks.previewDrive(modelData)
+            readonly property int pendingCount: Disks.pendingForDrive(modelData.id).length
             readonly property var h: modelData.health
             readonly property bool open: !!root.unfolded[modelData.id]
 
@@ -117,6 +119,24 @@ ColumnLayout {
                             }
                         }
 
+                        // Pending changes badge
+                        StyledRect {
+                            visible: card.pendingCount > 0
+                            implicitWidth: pendLabel.implicitWidth + Tokens.padding.medium * 2
+                            implicitHeight: pendLabel.implicitHeight + Tokens.padding.small * 2
+                            radius: Tokens.rounding.full
+                            color: Colours.palette.m3primaryContainer
+
+                            StyledText {
+                                id: pendLabel
+
+                                anchors.centerIn: parent
+                                text: card.pendingCount === 1 ? Tr.tr("1 pending") : Tr.tr("%1 pending").arg(card.pendingCount)
+                                color: Colours.palette.m3onPrimaryContainer
+                                font: Tokens.font.label.medium
+                            }
+                        }
+
                         // Health: green / amber / red
                         StyledRect {
                             visible: !!card.h
@@ -156,7 +176,7 @@ ColumnLayout {
                 PartitionMap {
                     Layout.fillWidth: true
                     visible: !card.open
-                    drive: card.modelData
+                    drive: card.preview
                 }
 
                 Loader {

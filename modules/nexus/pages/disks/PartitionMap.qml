@@ -63,19 +63,7 @@ ColumnLayout {
     function textColourFor(seg: var): color {
         if (seg.kind === "free")
             return Colours.palette.m3onSurfaceVariant;
-        const p = seg.part;
-        if (p?.crypto)
-            return Colours.palette.m3onTertiaryContainer;
-        const t = p?.fs?.type ?? "";
-        if (p?.typeName === "EFI system" || t === "vfat")
-            return Colours.palette.m3onTertiary;
-        if (t === "ntfs" || t === "exfat")
-            return Colours.palette.m3onSecondary;
-        if (t === "btrfs" || t === "ext4" || t === "xfs" || t === "f2fs")
-            return Colours.palette.m3onPrimary;
-        if (t === "swap")
-            return Colours.palette.m3onSecondaryContainer;
-        return Colours.palette.m3onSurface;
+        return Disks.onFsColor(seg.part);
     }
 
     spacing: Tokens.spacing.small
@@ -254,7 +242,8 @@ ColumnLayout {
             const p = s.part;
             const fs = p.crypto?.inner ?? p.fs;
             const freeText = fs?.size > 0 && fs?.used >= 0 ? Tr.tr("%1 free").arg(Disks.human(fs.size - fs.used)) : "";
-            return [Disks.partName(p, root.drive), Disks.fsName(p.fs?.type ?? ""), Disks.human(s.size), freeText].filter(Boolean).join(" · ");
+            const pendText = p.pendingOp ? Tr.tr("pending") : "";
+            return [Disks.partName(p, root.drive), Disks.fsName(p.fs?.type ?? ""), Disks.human(s.size), freeText, pendText].filter(Boolean).join(" · ");
         }
     }
 

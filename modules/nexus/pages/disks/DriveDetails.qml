@@ -6,6 +6,7 @@ import Quickshell
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
+import qs.components.containers
 import qs.components.controls
 import qs.services
 import qs.modules.nexus
@@ -22,10 +23,12 @@ ColumnLayout {
     required property NexusState nState
     // The page's scroll area: dialogs open over it
     required property Item flickable
+    readonly property var viewDrive: Disks.previewDrive(root.drive)
+    readonly property var drivePending: root.drive ? Disks.pendingForDrive(root.drive.id) : []
     // The drive's segments in disk order (PartitionMap's, for the list)
     readonly property var segments: map.segments
     readonly property string systemRoles: {
-        const parts = [...(root.drive?.partitions ?? []), ...(root.drive?.whole ? [root.drive.whole] : [])];
+        const parts = [...(root.viewDrive?.partitions ?? []), ...(root.viewDrive?.whole ? [root.viewDrive.whole] : [])];
         const roles = [...new Set(parts.map(p => p.system).filter(Boolean))];
         return roles.join(", ");
     }
@@ -46,14 +49,99 @@ ColumnLayout {
         Layout.bottomMargin: Tokens.spacing.small
         barHeight: Tokens.padding.large * 3.2
         showLegend: true
-        drive: root.drive
+        drive: root.viewDrive
         interactive: true
         selected: root.selected
         onClicked: seg => {
-            if (seg.kind === "part")
-                root.openPartition(seg.id);
-            else
+            if (seg.kind === "part") {
+                if (seg.part?.pendingOp === "create")
+                    root.selected = seg.id;
+                else
+                    root.openPartition(seg.id);
+            } else {
                 root.selected = seg.id;
+            }
+        }
+    }
+
+    ConnectedRect {
+        visible: root.drivePending.length > 0
+        Layout.fillWidth: true
+        Layout.bottomMargin: Tokens.spacing.small
+        implicitHeight: pendCol.implicitHeight + Tokens.padding.large * 2
+
+        ColumnLayout {
+            id: pendCol
+
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: Tokens.padding.largeIncreased
+            anchors.rightMargin: Tokens.padding.largeIncreased
+            spacing: Tokens.spacing.small
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Tokens.spacing.small
+
+                MaterialIcon {
+                    text: "pending_actions"
+                    color: Colours.palette.m3primary
+                    fontStyle: Tokens.font.icon.medium
+                }
+
+                StyledText {
+                    Layout.fillWidth: true
+                    text: Disks.applyingPending ? (Disks.applyProgressText || Tr.tr("Applying changes…")) : (root.drivePending.length === 1 ? Tr.tr("1 pending change") : Tr.tr("%1 pending changes").arg(root.drivePending.length))
+                    color: Colours.palette.m3onSurface
+                    font: Tokens.font.body.small
+                    wrapMode: Text.WordWrap
+                }
+
+                TextButton {
+                    text: Tr.tr("Undo")
+                    type: TextButton.Tonal
+                    disabled: Disks.applyingPending
+                    onClicked: Disks.undoPending(root.drive.id)
+                }
+
+                TextButton {
+                    visible: root.drivePending.length > 1
+                    text: Tr.tr("Discard all")
+                    type: TextButton.Text
+                    disabled: Disks.applyingPending
+                    onClicked: Disks.clearPending(root.drive.id)
+                }
+
+                TextButton {
+                    text: Tr.tr("Apply changes…")
+                    type: TextButton.Filled
+                    disabled: Disks.applyingPending || Disks.busy("")
+                    onClicked: applyConfirm.ask({
+                        header: Tr.tr("Apply pending changes?"),
+                        body: root.drivePending.map((op, i) => `${i + 1}. ${op.summary}`).join("\n"),
+                        warning: Tr.tr("Partition changes modify the disk layout on %1. Back up important files first and do not turn off the PC while applying.").arg(root.drive?.device ?? ""),
+                        confirmLabel: Tr.trCtx("Apply", "button"),
+                        icon: "warning",
+                        onConfirm: () => Disks.applyPending(root.drive.id, null)
+                    })
+                }
+            }
+
+            Repeater {
+                model: root.drivePending
+
+                StyledText {
+                    required property var modelData
+                    required property int index
+
+                    Layout.fillWidth: true
+                    text: `${index + 1}. ${modelData.summary}`
+                    color: Colours.palette.m3onSurfaceVariant
+                    font: Tokens.font.label.small
+                    wrapMode: Text.WordWrap
+                }
+            }
         }
     }
 
@@ -69,14 +157,14 @@ ColumnLayout {
 
     // ---- Partitions and free space -----------------------------------
     SectionHeader {
-        visible: !!root.drive
-        text: root.drive?.whole ? Tr.tr("Contents") : Tr.tr("Partitions")
+        visible: !!root.viewDrive
+        text: root.viewDrive?.whole ? Tr.tr("Contents") : Tr.tr("Partitions")
     }
 
     Repeater {
         id: segList
 
-        model: root.drive ? root.segments : []
+        model: root.viewDrive ? root.segments : []
 
         Loader {
             id: segRow
@@ -97,12 +185,18 @@ ColumnLayout {
                     readonly property var fs: p.crypto?.inner ?? p.fs
                     readonly property var job: Disks.jobFor(p.id)
                     readonly property real usedRatio: fs?.size > 0 && fs.used >= 0 ? Math.min(1, fs.used / fs.size) : -1
+                    readonly property bool isPending: !!p.pendingOp || Disks.pendingForPartition(p.id).length > 0
 
                     Layout.fillWidth: true
                     implicitHeight: prowCol.implicitHeight + Tokens.padding.medium * 2
 
                     StateLayer {
-                        onClicked: root.openPartition(prow.p.id)
+                        onClicked: {
+                            if (prow.p.pendingOp === "create")
+                                root.selected = prow.p.id;
+                            else
+                                root.openPartition(prow.p.id);
+                        }
                     }
 
                     ColumnLayout {
@@ -138,23 +232,23 @@ ColumnLayout {
 
                                 StyledText {
                                     Layout.fillWidth: true
-                                    text: Disks.partName(prow.p, root.drive)
+                                    text: Disks.partName(prow.p, root.viewDrive)
                                     font: Tokens.font.body.small
                                     elide: Text.ElideRight
                                 }
 
                                 StyledText {
                                     Layout.fillWidth: true
-                                    text: prow.job ? Tr.tr("%1… %2%").arg(prow.job.operation).arg(Math.round(prow.job.progress * 100)) : [Disks.fsName(prow.p.fs.type), Disks.human(prow.p.size), prow.fs.mounts[0] ?? prow.fs.sharedMounts?.[0] ?? "", prow.usedRatio >= 0 ? Tr.tr("%1 free").arg(Disks.human(prow.fs.size - prow.fs.used)) : "", prow.p.system ? Tr.tr("system lock") : ""].filter(x => x).join(" · ")
-                                    color: Colours.palette.m3outline
+                                    text: prow.job ? Tr.tr("%1… %2%").arg(prow.job.operation).arg(Math.round(prow.job.progress * 100)) : [Disks.fsName(prow.p.fs.type), Disks.human(prow.p.size), prow.fs.mounts[0] ?? prow.fs.sharedMounts?.[0] ?? "", prow.usedRatio >= 0 ? Tr.tr("%1 free").arg(Disks.human(prow.fs.size - prow.fs.used)) : "", prow.p.system ? Tr.tr("system lock") : "", prow.isPending ? Tr.tr("pending") : ""].filter(x => x).join(" · ")
+                                    color: prow.isPending ? Colours.palette.m3primary : Colours.palette.m3outline
                                     font: Tokens.font.label.small
                                     wrapMode: Text.WordWrap
                                 }
                             }
 
                             MaterialIcon {
-                                text: "chevron_right"
-                                color: Colours.palette.m3onSurfaceVariant
+                                text: prow.p.pendingOp === "create" ? "schedule" : "chevron_right"
+                                color: prow.isPending ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
                                 fontStyle: Tokens.font.icon.medium
                             }
                         }
@@ -177,18 +271,18 @@ ColumnLayout {
                     readonly property var gap: segRow.modelData
                     readonly property string what: Tr.tr("Create a partition")
                     readonly property real mib: 1048576
-                    readonly property real maxMiB: Math.max(1, Math.floor(gap.size / mib))
-                    property real sizeMiB: Math.floor(gap.size / mib)
-                    property bool useLargeUnit: true
+                    readonly property int maxMiB: Math.max(1, Math.floor(gap.size / mib))
+                    property int beforeMiB: 0
+                    property int sizeMiB: Math.floor(gap.size / mib)
 
                     rootParent: root.flickable
-                    openWidth: Math.min(root.flickable.width * 0.9, 520)
-                    openHeight: Math.min(root.flickable.height * 0.95, 650)
+                    openWidth: Math.min(root.flickable.width * 0.92, 540)
+                    openHeight: Math.min(root.flickable.height * 0.95, 700)
                     icon: "add"
                     label: Tr.tr("Free space · %1 · create a partition").arg(Disks.human(gap.size))
                     header: Tr.tr("New partition")
-                    acceptLabel: Tr.trCtx("Create", "button")
-                    acceptAllowed: spec.valid && sizeMiB >= 1 && !Disks.busy(what)
+                    acceptLabel: Tr.trCtx("Add to pending", "button")
+                    acceptAllowed: spec.valid && sizeMiB >= 1 && !Disks.applyingPending && !Disks.busy(what)
 
                     FormatSpec {
                         id: spec
@@ -196,95 +290,80 @@ ColumnLayout {
 
                     onOpenChanged: if (open) {
                         spec.reset("ext4");
-                        useLargeUnit = maxMiB >= 1024;
+                        beforeMiB = 0;
                         sizeMiB = maxMiB;
                     }
 
                     content: Component {
-                        ColumnLayout {
-                            spacing: Tokens.spacing.small
+                        StyledFlickable {
+                            clip: true
+                            contentHeight: createCol.implicitHeight
+                            contentWidth: width
 
-                            Connections {
-                                target: create
-                                function onOpenChanged(): void {
-                                    if (create.open)
-                                        createSizeInput.text = Disks.formatUnitBytes(create.sizeMiB * create.mib, create.useLargeUnit);
-                                }
-                            }
+                            ColumnLayout {
+                                id: createCol
 
-                            StyledText {
-                                Layout.fillWidth: true
-                                Layout.topMargin: Tokens.spacing.medium
-                                text: Tr.tr("Size: %1 of %2").arg(Disks.human(create.sizeMiB * create.mib)).arg(Disks.human(create.gap.size))
-                                font: Tokens.font.body.small
-                                wrapMode: Text.WordWrap
-                            }
-
-                            RowLayout {
-                                Layout.fillWidth: true
+                                width: parent.width
                                 spacing: Tokens.spacing.small
 
-                                StyledTextField {
-                                    id: createSizeInput
-
-                                    Layout.preferredWidth: 120
-                                    verticalPadding: Tokens.padding.small
-                                    floatingPlaceholder: false
-                                    text: Disks.formatUnitBytes(create.sizeMiB * create.mib, create.useLargeUnit)
-                                    validator: DoubleValidator {
-                                        bottom: 0.01
-                                        decimals: 2
-                                    }
-                                    onEditingFinished: {
-                                        const v = parseFloat(text);
-                                        if (isFinite(v) && v > 0)
-                                            create.sizeMiB = Math.max(1, Math.min(create.maxMiB, Math.round(v * Disks.unitDivisor(create.useLargeUnit) / create.mib)));
-                                        text = Disks.formatUnitBytes(create.sizeMiB * create.mib, create.useLargeUnit);
-                                    }
-                                }
-
-                                TextButton {
-                                    text: Disks.unitLabel(create.useLargeUnit)
-                                    type: TextButton.Tonal
-                                    onClicked: {
-                                        create.useLargeUnit = !create.useLargeUnit;
-                                        createSizeInput.text = Disks.formatUnitBytes(create.sizeMiB * create.mib, create.useLargeUnit);
-                                    }
-                                }
-
-                                Item {
+                                PartitionSpanEditor {
                                     Layout.fillWidth: true
+                                    Layout.topMargin: Tokens.spacing.medium
+                                    isCreate: true
+                                    totalSpanMiB: create.maxMiB
+                                    minSizeMiB: 1
+                                    beforeMiB: create.beforeMiB
+                                    sizeMiB: create.sizeMiB
+                                    useLargeUnit: create.maxMiB >= 1024
+                                    partColor: Disks.fsColor({
+                                        crypto: spec.encrypting ? {} : null,
+                                        fs: {
+                                            type: spec.fstype
+                                        },
+                                        typeName: ""
+                                    })
+                                    onPartColor: Disks.onFsColor({
+                                        crypto: spec.encrypting ? {} : null,
+                                        fs: {
+                                            type: spec.fstype
+                                        },
+                                        typeName: ""
+                                    })
+                                    partLabel: spec.label || Disks.fsName(spec.encrypting ? "crypto_LUKS" : spec.fstype)
+                                    onEdited: (b, s) => {
+                                        create.beforeMiB = b;
+                                        create.sizeMiB = s;
+                                    }
                                 }
-                            }
 
-                            // StyledSlider works in 0..1
-                            StyledSlider {
-                                Layout.fillWidth: true
-                                implicitHeight: Tokens.padding.large * 2
-                                value: create.maxMiB > 1 ? (create.sizeMiB - 1) / (create.maxMiB - 1) : 1
-                                onInteraction: v => {
-                                    create.sizeMiB = Math.max(1, Math.round(1 + v * (create.maxMiB - 1)));
-                                    createSizeInput.text = Disks.formatUnitBytes(create.sizeMiB * create.mib, create.useLargeUnit);
+                                FormatOptions {
+                                    Layout.fillWidth: true
+                                    spec: spec
                                 }
-                            }
-
-                            FormatOptions {
-                                Layout.fillWidth: true
-                                spec: spec
-                            }
-
-                            Item {
-                                Layout.fillHeight: true
                             }
                         }
                     }
 
                     onAccepted: {
-                        const size = Math.min(gap.size, sizeMiB * mib);
-                        Disks.run("create", [root.drive.block, String(gap.offset), String(size), spec.fstype, spec.label || "", "", ...spec.flags], what, ok => {
-                            if (ok)
-                                root.selected = "";
-                        }, spec.encrypting ? spec.passphrase : "");
+                        const off = gap.offset + beforeMiB * mib;
+                        const size = Math.min(gap.size - beforeMiB * mib, sizeMiB * mib);
+                        const fsLabel = Disks.fsName(spec.encrypting ? "crypto_LUKS" : spec.fstype);
+                        Disks.queueChange({
+                            type: "create",
+                            driveId: root.drive.id,
+                            driveBlock: root.drive.block,
+                            driveDevice: root.drive.device,
+                            offset: off,
+                            size,
+                            fstype: spec.fstype,
+                            label: spec.label || "",
+                            name: "",
+                            flags: spec.flags.slice(),
+                            encrypt: spec.encrypting,
+                            passphrase: spec.encrypting ? spec.passphrase : "",
+                            summary: Tr.tr("Create %1 partition (%2)").arg(fsLabel).arg(Disks.human(size))
+                        });
+                        root.selected = "";
                         spec.passphrase = "";
                         spec.repeat = "";
                     }
@@ -339,7 +418,10 @@ ColumnLayout {
         message: Tr.tr("Everything on %1 (%2) is deleted: all partitions and their files. GPT suits every modern PC; MBR only very old ones.").arg(root.drive?.device ?? "").arg(Disks.human(root.drive?.size ?? 0))
         confirmText: root.drive?.device.replace("/dev/", "") ?? ""
         acceptLabel: Tr.trCtx("Erase", "button")
-        onAccepted: Disks.run("table", [root.drive.block, "gpt"], what)
+        onAccepted: {
+            Disks.clearPending(root.drive.id);
+            Disks.run("table", [root.drive.block, "gpt"], what);
+        }
     }
 
     RowButton {
@@ -355,6 +437,15 @@ ColumnLayout {
         icon: "close"
         text: Tr.tr("Detach this disk image")
         subtext: root.drive?.backingFile ?? ""
-        onClicked: Disks.run("loop-delete", [root.drive.block], Tr.tr("Detach the disk image"))
+        onClicked: {
+            Disks.clearPending(root.drive.id);
+            Disks.run("loop-delete", [root.drive.block], Tr.tr("Detach the disk image"));
+        }
+    }
+
+    ConfirmDialog {
+        id: applyConfirm
+
+        hostFlickable: root.flickable
     }
 }

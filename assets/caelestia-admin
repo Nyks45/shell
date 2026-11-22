@@ -560,8 +560,16 @@ def act_move_partition(args):
     first = int(start) // sector
     if int(start) % (1024 * 1024):
         raise Refused("the start must be 1 MiB aligned")
-    run("sfdisk", "--move-data", "--no-reread", "-N", num, disk, input=f"{first},\n")
+    size_sectors = ""
+    try:
+        blocks_512 = int(open(f"/sys/class/block/{os.path.basename(part)}/size").read())
+        size_sectors = str((blocks_512 * 512) // sector)
+    except OSError:
+        pass
+    spec = f"{first},{size_sectors}\n" if size_sectors else f"{first},\n"
+    run("sfdisk", "--move-data", "--no-reread", "-N", num, disk, input=spec)
     run("partprobe", disk, check=False)
+    run("udevadm", "settle", check=False)
 
 
 # --- Groups ------------------------------------------------------------------

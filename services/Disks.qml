@@ -21,6 +21,11 @@ Singleton {
     property var jobs: []
     property bool loaded
     property int users
+    // Pending partition operations queued before Apply:
+    // [{ id, type: "reshape"|"create"|"format"|"delete", driveId, driveBlock, driveDevice, partId, ... }]
+    property var pendingChanges: []
+    property bool applyingPending: false
+    property string applyProgressText: ""
 
     // Cached storage sizes from StoragePage (avoid multi-second `du` on every visit)
     property var cachedFolders: ({})
@@ -64,6 +69,268 @@ Singleton {
 
     function busy(what: string): bool {
         return Admin.jobs.some(j => j.what === what);
+    }
+
+    function pendingForDrive(driveId: string): var {
+        return driveId ? pendingChanges.filter(op => op.driveId === driveId) : pendingChanges;
+    }
+
+    function pendingForPartition(partId: string): var {
+        return partId ? pendingChanges.filter(op => op.partId === partId) : [];
+    }
+
+    function queueChange(op: var): void {
+        if (applyingPending || !op)
+            return;
+        const next = pendingChanges.slice();
+        const prev = next.length > 0 ? next[next.length - 1] : null;
+        if (op.type === "reshape" && prev && prev.type === "reshape" && prev.partId === op.partId && prev.driveId === op.driveId) {
+            if (op.offset === prev.oldOffset && op.size === prev.oldSize) {
+                next.pop();
+            } else {
+                next[next.length - 1] = Object.assign({}, op, {
+                    oldOffset: prev.oldOffset,
+                    oldSize: prev.oldSize
+                });
+            }
+            pendingChanges = next;
+            return;
+        }
+        const entry = Object.assign({
+            id: `pending:${Date.now()}:${Math.random().toString(36).slice(2, 6)}`
+        }, op);
+        if (entry.type === "create" && !entry.partId)
+            entry.partId = entry.id;
+        next.push(entry);
+        pendingChanges = next;
+    }
+
+    function undoPending(driveId = ""): void {
+        if (applyingPending || pendingChanges.length === 0)
+            return;
+        if (!driveId) {
+            pendingChanges = pendingChanges.slice(0, -1);
+            return;
+        }
+        for (let i = pendingChanges.length - 1; i >= 0; --i) {
+            if (pendingChanges[i].driveId === driveId) {
+                const next = pendingChanges.slice();
+                next.splice(i, 1);
+                pendingChanges = next;
+                return;
+            }
+        }
+    }
+
+    function clearPending(driveId = ""): void {
+        if (applyingPending)
+            return;
+        pendingChanges = driveId ? pendingChanges.filter(op => op.driveId !== driveId) : [];
+    }
+
+    function computeFreeSpace(size: real, parts: var, table: string): var {
+        const mib = 1048576;
+        const out = [];
+        const endLimit = size - (table === "gpt" ? mib : 0);
+        let cursor = mib;
+        for (const p of parts) {
+            if (p.isContained)
+                continue;
+            if (p.offset - cursor >= mib)
+                out.push({
+                    offset: cursor,
+                    size: p.offset - cursor
+                });
+            cursor = Math.max(cursor, p.offset + p.size);
+            cursor = Math.floor((cursor + mib - 1) / mib) * mib;
+        }
+        if (endLimit - cursor >= mib)
+            out.push({
+                offset: cursor,
+                size: Math.floor((endLimit - cursor) / mib) * mib
+            });
+        return out;
+    }
+
+    function previewDrive(d: var): var {
+        if (!d)
+            return null;
+        const ops = pendingForDrive(d.id);
+        if (ops.length === 0)
+            return d;
+        const clone = JSON.parse(JSON.stringify(d));
+        let parts = clone.partitions ?? [];
+        for (const op of ops) {
+            if (op.type === "delete") {
+                parts = parts.filter(p => p.id !== op.partId);
+            } else if (op.type === "reshape") {
+                parts = parts.map(p => {
+                    if (p.id !== op.partId)
+                        return p;
+                    p.offset = op.offset;
+                    p.size = op.size;
+                    p.pendingOp = "reshape";
+                    if (p.fs) {
+                        p.fs.size = op.size;
+                        if ((p.fs.used ?? -1) > op.size)
+                            p.fs.used = op.size;
+                    }
+                    return p;
+                });
+            } else if (op.type === "format") {
+                const applyFmt = target => {
+                    target.pendingOp = "format";
+                    target.crypto = op.encrypt ? {
+                        unlocked: false,
+                        cleartext: "",
+                        inner: null
+                    } : null;
+                    target.fs = {
+                        type: op.encrypt ? "crypto_LUKS" : op.fstype,
+                        usage: "filesystem",
+                        label: op.label || "",
+                        uuid: "",
+                        mounts: [],
+                        sharedMounts: [],
+                        isFilesystem: op.fstype !== "swap",
+                        size: target.size,
+                        used: -1,
+                        fstab: []
+                    };
+                    target.system = "";
+                };
+                if (clone.whole && clone.whole.id === op.partId)
+                    applyFmt(clone.whole);
+                else
+                    parts = parts.map(p => {
+                        if (p.id === op.partId)
+                            applyFmt(p);
+                        return p;
+                    });
+            } else if (op.type === "create") {
+                parts.push({
+                    id: op.partId,
+                    device: Tr.tr("New partition"),
+                    offset: op.offset,
+                    size: op.size,
+                    name: op.name || "",
+                    type: "",
+                    typeName: "",
+                    flagBits: [],
+                    pendingOp: "create",
+                    crypto: op.encrypt ? {
+                        unlocked: false,
+                        cleartext: "",
+                        inner: null
+                    } : null,
+                    fs: {
+                        type: op.encrypt ? "crypto_LUKS" : op.fstype,
+                        usage: "filesystem",
+                        label: op.label || "",
+                        uuid: "",
+                        mounts: [],
+                        sharedMounts: [],
+                        isFilesystem: op.fstype !== "swap",
+                        size: op.size,
+                        used: -1,
+                        fstab: []
+                    },
+                    system: ""
+                });
+            }
+        }
+        parts.sort((a, b) => a.offset - b.offset);
+        clone.partitions = parts;
+        clone.free = clone.table ? computeFreeSpace(clone.size, parts, clone.table) : [];
+        return clone;
+    }
+
+    function previewBlock(id: string): var {
+        for (const d of drives) {
+            const pd = previewDrive(d);
+            const p = pd?.partitions?.find(x => x.id === id);
+            if (p)
+                return p;
+            if (pd?.whole?.id === id)
+                return pd.whole;
+        }
+        return null;
+    }
+
+    function executeOp(op: var, next: var): void {
+        if (op.type === "delete") {
+            run("delete", [op.partId], op.summary, ok => next(ok), "");
+            return;
+        }
+        if (op.type === "format") {
+            run("format", [op.partId, op.fstype, op.label || "", ...(op.flags ?? [])], op.summary, ok => next(ok), op.passphrase || "");
+            return;
+        }
+        if (op.type === "create") {
+            run("create", [op.driveBlock, String(op.offset), String(op.size), op.fstype, op.label || "", op.name || "", ...(op.flags ?? [])], op.summary, ok => next(ok), op.passphrase || "");
+            return;
+        }
+        if (op.type === "reshape") {
+            if (op.size < op.oldSize && op.offset !== op.oldOffset) {
+                run("resize", [op.partId, String(op.size)], op.summary, ok => {
+                    if (!ok) {
+                        next(false);
+                        return;
+                    }
+                    Admin.run("move-partition", [op.driveDevice, String(op.partNumber), String(op.offset)], op.summary, ok2 => next(ok2));
+                }, "");
+            } else if (op.size > op.oldSize && op.offset !== op.oldOffset) {
+                Admin.run("move-partition", [op.driveDevice, String(op.partNumber), String(op.offset)], op.summary, ok => {
+                    if (!ok) {
+                        next(false);
+                        return;
+                    }
+                    run("resize", [op.partId, String(op.size)], op.summary, ok2 => next(ok2), "");
+                });
+            } else if (op.offset !== op.oldOffset) {
+                Admin.run("move-partition", [op.driveDevice, String(op.partNumber), String(op.offset)], op.summary, ok => next(ok));
+            } else {
+                run("resize", [op.partId, String(op.size)], op.summary, ok => next(ok), "");
+            }
+            return;
+        }
+        next(true);
+    }
+
+    function applyPending(driveId: string, done: var): void {
+        if (applyingPending)
+            return;
+        const queue = pendingForDrive(driveId).slice();
+        if (queue.length === 0) {
+            if (typeof done === "function")
+                done(true);
+            return;
+        }
+        applyingPending = true;
+        let idx = 0;
+        const step = () => {
+            if (idx >= queue.length) {
+                applyingPending = false;
+                applyProgressText = "";
+                if (typeof done === "function")
+                    done(true);
+                return;
+            }
+            const op = queue[idx++];
+            applyProgressText = op.summary;
+            executeOp(op, ok => {
+                if (!ok) {
+                    applyingPending = false;
+                    applyProgressText = "";
+                    if (typeof done === "function")
+                        done(false);
+                    return;
+                }
+                pendingChanges = pendingChanges.filter(x => x !== op && x.id !== op.id);
+                step();
+            });
+        };
+        step();
     }
 
     // A running udisks job on this block (formatting, resizing...)
@@ -119,6 +386,23 @@ Singleton {
         if (t === "swap")
             return Colours.palette.m3secondaryContainer;
         return Colours.palette.m3outline;
+    }
+
+    function onFsColor(p: var): color {
+        if (!p)
+            return Colours.palette.m3onSurface;
+        if (p.crypto)
+            return Colours.palette.m3onTertiaryContainer;
+        const t = p.fs?.type ?? "";
+        if (p.typeName === "EFI system" || t === "vfat")
+            return Colours.palette.m3onTertiary;
+        if (t === "ntfs" || t === "exfat")
+            return Colours.palette.m3onSecondary;
+        if (t === "btrfs" || t === "ext4" || t === "xfs" || t === "f2fs")
+            return Colours.palette.m3onPrimary;
+        if (t === "swap")
+            return Colours.palette.m3onSecondaryContainer;
+        return Colours.palette.m3onSurface;
     }
 
     function lockReason(p: var): string {

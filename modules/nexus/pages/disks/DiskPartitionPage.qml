@@ -6,6 +6,7 @@ import Quickshell
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
+import qs.components.containers
 import qs.components.controls
 import qs.services
 import qs.modules.nexus.common
@@ -16,8 +17,10 @@ import qs.modules.nexus.common
 PageBase {
     id: root
 
-    readonly property var p: Disks.block(nState.selectedPartition)
-    readonly property var drive: Disks.driveOf(nState.selectedPartition)
+    readonly property var realPart: Disks.block(nState.selectedPartition)
+    readonly property var p: Disks.previewBlock(nState.selectedPartition)
+    readonly property var drive: Disks.previewDrive(Disks.driveOf(nState.selectedPartition))
+    readonly property var drivePending: drive ? Disks.pendingForDrive(drive.id) : []
     readonly property bool isPartition: !!p && p.number !== undefined
     readonly property bool gpt: drive?.table === "gpt"
     // An unlocked encrypted partition: its filesystem is the cleartext device's
@@ -31,14 +34,26 @@ PageBase {
     readonly property bool hasFs: !!fs?.isFilesystem
     readonly property bool linuxFs: ["ext4", "ext3", "ext2", "btrfs", "xfs", "f2fs"].includes(fs?.type ?? "")
     readonly property var job: p ? (Disks.jobFor(p.id) ?? Disks.jobFor(fsTarget)) : null
-    // Free space right after it (what it can grow into)
-    readonly property real growRoom: {
+    readonly property var freeBeforeGap: {
         if (!isPartition || !drive)
-            return 0;
-        const end = p.offset + p.size;
-        const gap = drive.free.find(f => f.offset >= end && f.offset < end + 1048576);
-        return gap ? gap.offset + gap.size - end : 0;
+            return null;
+        return drive.free.find(f => f.offset + f.size <= p.offset && f.offset + f.size > p.offset - 1048576) ?? null;
     }
+    readonly property var freeAfterGap: {
+        if (!isPartition || !drive)
+            return null;
+        const end = p.offset + p.size;
+        return drive.free.find(f => f.offset >= end && f.offset < end + 1048576) ?? null;
+    }
+    readonly property real freeBeforeSize: freeBeforeGap ? freeBeforeGap.size : 0
+    // Free space right after it (what it can grow into)
+    readonly property real growRoom: freeAfterGap ? freeAfterGap.offset + freeAfterGap.size - (p.offset + p.size) : 0
+    readonly property real spanStart: freeBeforeGap ? freeBeforeGap.offset : (p?.offset ?? 0)
+    readonly property int spanTotalMiB: p ? Math.max(1, Math.floor((freeBeforeSize + p.size + growRoom) / 1048576)) : 1
+    readonly property int curBeforeMiB: p ? Math.max(0, Math.floor((p.offset - spanStart) / 1048576)) : 0
+    readonly property int curSizeMiB: p ? Math.max(1, Math.floor(p.size / 1048576)) : 1
+    readonly property int origBeforeMiB: (realPart && p) ? Math.max(0, Math.min(spanTotalMiB - 1, Math.floor((realPart.offset - spanStart) / 1048576))) : curBeforeMiB
+    readonly property int origSizeMiB: realPart ? Math.max(1, Math.min(spanTotalMiB, Math.floor(realPart.size / 1048576))) : curSizeMiB
     readonly property string pname: p ? Disks.partName(p, drive) : ""
     readonly property string lockText: Disks.lockReason(p)
     property bool showAdvanced: false
@@ -172,6 +187,63 @@ PageBase {
                     color: Colours.palette.m3error
                     font: Tokens.font.body.small
                     wrapMode: Text.WordWrap
+                }
+            }
+        }
+
+        ConnectedRect {
+            visible: !!root.p && root.drivePending.length > 0
+            Layout.fillWidth: true
+            implicitHeight: partPendCol.implicitHeight + Tokens.padding.large * 2
+
+            ColumnLayout {
+                id: partPendCol
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Tokens.padding.largeIncreased
+                anchors.rightMargin: Tokens.padding.largeIncreased
+                spacing: Tokens.spacing.small
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Tokens.spacing.small
+
+                    MaterialIcon {
+                        text: "pending_actions"
+                        color: Colours.palette.m3primary
+                        fontStyle: Tokens.font.icon.medium
+                    }
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: Disks.applyingPending ? (Disks.applyProgressText || Tr.tr("Applying changes…")) : (root.drivePending.length === 1 ? Tr.tr("1 pending change on %1").arg(root.drive?.device ?? "") : Tr.tr("%1 pending changes on %2").arg(root.drivePending.length).arg(root.drive?.device ?? ""))
+                        color: Colours.palette.m3onSurface
+                        font: Tokens.font.body.small
+                        wrapMode: Text.WordWrap
+                    }
+
+                    TextButton {
+                        text: Tr.tr("Undo")
+                        type: TextButton.Tonal
+                        disabled: Disks.applyingPending
+                        onClicked: Disks.undoPending(root.drive.id)
+                    }
+
+                    TextButton {
+                        text: Tr.tr("Apply…")
+                        type: TextButton.Filled
+                        disabled: Disks.applyingPending || Disks.busy("")
+                        onClicked: applyConfirm.ask({
+                            header: Tr.tr("Apply pending changes?"),
+                            body: root.drivePending.map((op, i) => `${i + 1}. ${op.summary}`).join("\n"),
+                            warning: Tr.tr("Partition changes modify the disk layout on %1. Back up important files first and do not turn off the PC while applying.").arg(root.drive?.device ?? ""),
+                            confirmLabel: Tr.trCtx("Apply", "button"),
+                            icon: "warning",
+                            onConfirm: () => Disks.applyPending(root.drive.id, null)
+                        })
+                    }
                 }
             }
         }
@@ -338,227 +410,108 @@ PageBase {
             text: Tr.tr("Change it")
         }
 
-        // Resize: within its own size and the free space right after it
+        // Resize or move within adjacent free space
         DialogRowButton {
-            id: resize
+            id: reshape
 
-            readonly property string what: Tr.tr("Resize the partition")
+            readonly property string what: Tr.tr("Resize or move the partition")
             readonly property real mib: 1048576
-            readonly property real maxMiB: root.isPartition ? Math.floor((root.p.size + root.growRoom) / mib) : 0
-            // Not below what's stored on it (plus a little room), when known
-            readonly property real minMiB: Math.max(16, Math.ceil(((root.fs?.used ?? 0) * 1.05) / mib))
-            property real sizeMiB
-            property bool useLargeUnit: true
+            readonly property bool canResize: !root.p?.crypto && root.fs?.type !== "swap"
+            readonly property int minMiB: canResize ? Math.min(root.spanTotalMiB, Math.max(16, Math.ceil(((root.fs?.used ?? 0) * 1.05) / mib))) : root.curSizeMiB
+            property int beforeMiB: 0
+            property int sizeMiB: 1
 
-            visible: root.isPartition && !root.p?.system && !root.p?.crypto && root.fs?.type !== "swap"
+            visible: root.isPartition && !root.p?.system && (canResize || root.spanTotalMiB > root.curSizeMiB)
             rootParent: root.flickable
-            openHeight: Math.min(root.flickable.height * 0.9, 380)
+            openWidth: Math.min(root.flickable.width * 0.92, 540)
+            openHeight: Math.min(root.flickable.height * 0.94, 460)
             icon: "open_in_full"
-            label: what
-            header: Tr.tr("Resize %1").arg(root.pname)
-            acceptLabel: Tr.trCtx("Resize", "button")
-            acceptAllowed: Math.round(sizeMiB) !== Math.floor(root.p.size / mib) && !Disks.busy(what)
+            label: Tr.tr("Resize or move")
+            subtext: !canResize && root.spanTotalMiB <= root.curSizeMiB ? "" : (root.growRoom > 0 || root.freeBeforeSize > 0 ? Tr.tr("Drag or type sizes to adjust space before, size, or space after") : Tr.tr("Shrink to free space"))
+            header: Tr.tr("Resize or move %1").arg(root.pname)
+            acceptLabel: Tr.trCtx("Add to pending", "button")
+            acceptAllowed: (beforeMiB !== root.curBeforeMiB || sizeMiB !== root.curSizeMiB) && !(root.mounted && beforeMiB !== root.curBeforeMiB) && !Disks.applyingPending && !Disks.busy(what)
             onOpenChanged: if (open) {
-                useLargeUnit = maxMiB >= 1024;
-                sizeMiB = Math.floor(root.p.size / mib);
+                beforeMiB = root.curBeforeMiB;
+                sizeMiB = root.curSizeMiB;
             }
             content: Component {
-                ColumnLayout {
-                    spacing: Tokens.spacing.small
+                StyledFlickable {
+                    clip: true
+                    contentHeight: reshapeCol.implicitHeight
+                    contentWidth: width
 
-                    Connections {
-                        target: resize
-                        function onOpenChanged(): void {
-                            if (resize.open)
-                                resizeInput.text = Disks.formatUnitBytes(resize.sizeMiB * resize.mib, resize.useLargeUnit);
-                        }
-                    }
+                    ColumnLayout {
+                        id: reshapeCol
 
-                    StyledText {
-                        Layout.fillWidth: true
-                        Layout.topMargin: Tokens.spacing.medium
-                        text: Tr.tr("New size: %1 (now %2; up to %3)").arg(Disks.human(resize.sizeMiB * resize.mib)).arg(Disks.human(root.p.size)).arg(Disks.human(resize.maxMiB * resize.mib))
-                        font: Tokens.font.body.small
-                        wrapMode: Text.WordWrap
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
+                        width: parent.width
                         spacing: Tokens.spacing.small
 
-                        StyledTextField {
-                            id: resizeInput
-
-                            Layout.preferredWidth: 120
-                            verticalPadding: Tokens.padding.small
-                            floatingPlaceholder: false
-                            text: Disks.formatUnitBytes(resize.sizeMiB * resize.mib, resize.useLargeUnit)
-                            validator: DoubleValidator {
-                                bottom: 0.01
-                                decimals: 2
-                            }
-                            onEditingFinished: {
-                                const lo = Math.min(resize.minMiB, resize.maxMiB);
-                                const v = parseFloat(text);
-                                if (isFinite(v) && v > 0)
-                                    resize.sizeMiB = Math.max(lo, Math.min(resize.maxMiB, Math.round(v * Disks.unitDivisor(resize.useLargeUnit) / resize.mib)));
-                                text = Disks.formatUnitBytes(resize.sizeMiB * resize.mib, resize.useLargeUnit);
-                            }
-                        }
-
-                        TextButton {
-                            text: Disks.unitLabel(resize.useLargeUnit)
-                            type: TextButton.Tonal
-                            onClicked: {
-                                resize.useLargeUnit = !resize.useLargeUnit;
-                                resizeInput.text = Disks.formatUnitBytes(resize.sizeMiB * resize.mib, resize.useLargeUnit);
-                            }
-                        }
-
-                        Item {
+                        PartitionSpanEditor {
                             Layout.fillWidth: true
+                            Layout.topMargin: Tokens.spacing.medium
+                            isCreate: false
+                            totalSpanMiB: root.spanTotalMiB
+                            minSizeMiB: reshape.minMiB
+                            origBeforeMiB: root.origBeforeMiB
+                            origSizeMiB: root.origSizeMiB
+                            usedMiB: (root.fs?.used ?? -1) >= 0 ? Math.round(root.fs.used / reshape.mib) : 0
+                            beforeMiB: reshape.beforeMiB
+                            sizeMiB: reshape.sizeMiB
+                            fixedSize: !reshape.canResize
+                            useLargeUnit: root.spanTotalMiB >= 1024
+                            partColor: Disks.fsColor(root.p)
+                            onPartColor: Disks.onFsColor(root.p)
+                            partLabel: root.pname
+                            onEdited: (b, s) => {
+                                reshape.beforeMiB = b;
+                                reshape.sizeMiB = s;
+                            }
                         }
-                    }
 
-                    // StyledSlider works in 0..1, between the smallest and largest size
-                    StyledSlider {
-                        readonly property real lo: Math.min(resize.minMiB, resize.maxMiB)
-                        readonly property real span: Math.max(1, resize.maxMiB - lo)
-
-                        Layout.fillWidth: true
-                        implicitHeight: Tokens.padding.large * 2
-                        value: (resize.sizeMiB - lo) / span
-                        onInteraction: v => {
-                            resize.sizeMiB = Math.round(lo + v * span);
-                            resizeInput.text = Disks.formatUnitBytes(resize.sizeMiB * resize.mib, resize.useLargeUnit);
+                        StyledText {
+                            Layout.fillWidth: true
+                            visible: root.mounted && reshape.beforeMiB !== root.curBeforeMiB
+                            text: Tr.tr("Unmount this partition first before moving its start offset.")
+                            color: Colours.palette.m3error
+                            font: Tokens.font.body.small
+                            wrapMode: Text.WordWrap
                         }
-                    }
 
-                    StyledText {
-                        Layout.fillWidth: true
-                        text: root.growRoom > 0 ? Tr.tr("It can grow into the free space right after it. Back up important files first: a power cut while resizing can lose data.") : Tr.tr("No free space right after this partition — it can only shrink (use Move first if free space is in front of it). Back up important files first.")
-                        color: Colours.palette.m3onSurfaceVariant
-                        font: Tokens.font.body.small
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Item {
-                        Layout.fillHeight: true
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: root.freeBeforeSize <= 0 && root.growRoom <= 0 ? Tr.tr("No free space beside this partition — it can only shrink. Back up important files first.") : Tr.tr("Back up important files first: moving copies partition data and a power cut can lose data.")
+                            color: Colours.palette.m3onSurfaceVariant
+                            font: Tokens.font.body.small
+                            wrapMode: Text.WordWrap
+                        }
                     }
                 }
             }
-            onAccepted: Disks.run("resize", [root.p.id, String(Math.min(root.p.size + root.growRoom, sizeMiB * mib))], what)
-        }
-
-        // Move: same size, into the free space before or after it
-        DialogRowButton {
-            id: move
-
-            readonly property string what: Tr.tr("Move the partition")
-            readonly property real mib: 1048576
-            property real start
-            property bool useLargeUnit: true
-
-            visible: root.isPartition && !root.p?.system && (root.moveFrom < root.p.offset || root.moveTo > root.p.offset)
-            rootParent: root.flickable
-            openHeight: Math.min(root.flickable.height * 0.9, 410)
-            icon: "swap_horiz"
-            label: what
-            header: Tr.tr("Move %1").arg(root.pname)
-            acceptLabel: Tr.trCtx("Move", "button")
-            acceptAllowed: !root.mounted && Math.round(start / mib) !== Math.round(root.p.offset / mib) && !Disks.busy(what)
-            onOpenChanged: if (open) {
-                useLargeUnit = root.moveTo >= 1073741824;
-                start = root.p.offset;
+            onAccepted: {
+                const newOffset = root.spanStart + beforeMiB * mib;
+                const availAfterOffset = (root.freeBeforeSize + root.p.size + root.growRoom) - beforeMiB * mib;
+                const newSize = beforeMiB === root.curBeforeMiB && sizeMiB === Math.floor(root.p.size / mib) ? root.p.size : Math.min(availAfterOffset, sizeMiB * mib);
+                const actions = [];
+                if (newOffset !== root.p.offset)
+                    actions.push(Tr.tr("move %1").arg(root.pname));
+                if (newSize !== root.p.size)
+                    actions.push(Tr.tr("resize %1 to %2").arg(root.pname).arg(Disks.human(newSize)));
+                const summaryText = actions.length > 0 ? actions.join(Tr.tr(" & ")) : Tr.tr("Resize or move %1").arg(root.pname);
+                Disks.queueChange({
+                    type: "reshape",
+                    driveId: root.drive.id,
+                    driveBlock: root.drive.block,
+                    driveDevice: root.drive.device,
+                    partId: root.p.id,
+                    partNumber: root.p.number,
+                    oldOffset: root.p.offset,
+                    oldSize: root.p.size,
+                    offset: newOffset,
+                    size: newSize,
+                    summary: summaryText.charAt(0).toUpperCase() + summaryText.slice(1)
+                });
             }
-            content: Component {
-                ColumnLayout {
-                    spacing: Tokens.spacing.small
-
-                    Connections {
-                        target: move
-                        function onOpenChanged(): void {
-                            if (move.open)
-                                moveInput.text = Disks.formatUnitBytes(move.start, move.useLargeUnit);
-                        }
-                    }
-
-                    StyledText {
-                        Layout.fillWidth: true
-                        Layout.topMargin: Tokens.spacing.medium
-                        text: root.mounted ? Tr.tr("Unmount it first.") : Tr.tr("Starts at %1 (now %2); its size stays %3").arg(Disks.human(move.start)).arg(Disks.human(root.p.offset)).arg(Disks.human(root.p.size))
-                        font: Tokens.font.body.small
-                        wrapMode: Text.WordWrap
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: Tokens.spacing.small
-
-                        StyledTextField {
-                            id: moveInput
-
-                            Layout.preferredWidth: 120
-                            verticalPadding: Tokens.padding.small
-                            floatingPlaceholder: false
-                            enabled: !root.mounted
-                            text: Disks.formatUnitBytes(move.start, move.useLargeUnit)
-                            validator: DoubleValidator {
-                                bottom: 0
-                                decimals: 2
-                            }
-                            onEditingFinished: {
-                                const v = parseFloat(text);
-                                if (isFinite(v) && v >= 0) {
-                                    const clamped = Math.max(root.moveFrom, Math.min(root.moveTo, Math.round(v * Disks.unitDivisor(move.useLargeUnit) / move.mib) * move.mib));
-                                    move.start = clamped;
-                                }
-                                text = Disks.formatUnitBytes(move.start, move.useLargeUnit);
-                            }
-                        }
-
-                        TextButton {
-                            enabled: !root.mounted
-                            text: Disks.unitLabel(move.useLargeUnit)
-                            type: TextButton.Tonal
-                            onClicked: {
-                                move.useLargeUnit = !move.useLargeUnit;
-                                moveInput.text = Disks.formatUnitBytes(move.start, move.useLargeUnit);
-                            }
-                        }
-
-                        Item {
-                            Layout.fillWidth: true
-                        }
-                    }
-
-                    // StyledSlider works in 0..1, over where it can start
-                    StyledSlider {
-                        readonly property real span: Math.max(move.mib, root.moveTo - root.moveFrom)
-
-                        Layout.fillWidth: true
-                        implicitHeight: Tokens.padding.large * 2
-                        value: (move.start - root.moveFrom) / span
-                        onInteraction: v => {
-                            move.start = root.moveFrom + Math.round(v * span / move.mib) * move.mib;
-                            moveInput.text = Disks.formatUnitBytes(move.start, move.useLargeUnit);
-                        }
-                    }
-
-                    StyledText {
-                        Layout.fillWidth: true
-                        text: Tr.tr("All its data is copied to the new place: this takes a while, and a power cut during it can lose the partition. Back it up first. Systems that start from it may need their boot entry updated.")
-                        color: Colours.palette.m3onSurfaceVariant
-                        font: Tokens.font.body.small
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Item {
-                        Layout.fillHeight: true
-                    }
-                }
-            }
-            onAccepted: Admin.run("move-partition", [root.drive.device, String(root.p.number), String(Math.round(start / mib) * mib)], what)
         }
 
         // Format: what it becomes, then a typed confirmation
@@ -576,8 +529,8 @@ PageBase {
             icon: "cleaning_services"
             label: Tr.tr("Format (erases it)")
             header: Tr.tr("Format %1").arg(root.pname)
-            acceptLabel: Tr.trCtx("Format", "button")
-            acceptAllowed: fmtSpec.valid && typed === confirmText && !root.mounted && !Disks.busy(what)
+            acceptLabel: Tr.trCtx("Add to pending", "button")
+            acceptAllowed: fmtSpec.valid && typed === confirmText && !root.mounted && !Disks.applyingPending && !Disks.busy(what)
 
             FormatSpec {
                 id: fmtSpec
@@ -589,45 +542,63 @@ PageBase {
                 typed = "";
             }
             content: Component {
-                ColumnLayout {
-                    spacing: Tokens.spacing.small
+                StyledFlickable {
+                    clip: true
+                    contentHeight: formatCol.implicitHeight
+                    contentWidth: width
 
-                    StyledText {
-                        Layout.fillWidth: true
-                        Layout.topMargin: Tokens.spacing.medium
-                        text: root.mounted ? Tr.tr("Unmount it first.") : Tr.tr("Everything on %1 (%2) is deleted.").arg(root.p?.device ?? "").arg(Disks.human(root.p?.size ?? 0))
-                        color: Colours.palette.m3error
-                        font: Tokens.font.body.small
-                        wrapMode: Text.WordWrap
-                    }
+                    ColumnLayout {
+                        id: formatCol
 
-                    FormatOptions {
-                        Layout.fillWidth: true
-                        spec: fmtSpec
-                        showErase: true
-                    }
+                        width: parent.width
+                        spacing: Tokens.spacing.small
 
-                    StyledText {
-                        Layout.fillWidth: true
-                        Layout.topMargin: Tokens.spacing.small
-                        text: Tr.tr("Type <b>%1</b> to go ahead:").arg(format.confirmText)
-                        textFormat: Text.StyledText
-                        font: Tokens.font.body.small
-                    }
+                        StyledText {
+                            Layout.fillWidth: true
+                            Layout.topMargin: Tokens.spacing.medium
+                            text: root.mounted ? Tr.tr("Unmount it first.") : Tr.tr("Everything on %1 (%2) is deleted.").arg(root.p?.device ?? "").arg(Disks.human(root.p?.size ?? 0))
+                            color: Colours.palette.m3error
+                            font: Tokens.font.body.small
+                            wrapMode: Text.WordWrap
+                        }
 
-                    StyledTextField {
-                        Layout.fillWidth: true
-                        placeholderText: format.confirmText
-                        onTextChanged: format.typed = text
-                    }
+                        FormatOptions {
+                            Layout.fillWidth: true
+                            spec: fmtSpec
+                            showErase: true
+                        }
 
-                    Item {
-                        Layout.fillHeight: true
+                        StyledText {
+                            Layout.fillWidth: true
+                            Layout.topMargin: Tokens.spacing.small
+                            text: Tr.tr("Type <b>%1</b> to go ahead:").arg(format.confirmText)
+                            textFormat: Text.StyledText
+                            font: Tokens.font.body.small
+                        }
+
+                        StyledTextField {
+                            Layout.fillWidth: true
+                            placeholderText: format.confirmText
+                            onTextChanged: format.typed = text
+                        }
                     }
                 }
             }
             onAccepted: {
-                Disks.run("format", [root.p.id, fmtSpec.fstype, fmtSpec.label || "", ...fmtSpec.flags], what, null, fmtSpec.encrypting ? fmtSpec.passphrase : "");
+                const fsLabel = Disks.fsName(fmtSpec.encrypting ? "crypto_LUKS" : fmtSpec.fstype);
+                Disks.queueChange({
+                    type: "format",
+                    driveId: root.drive.id,
+                    driveBlock: root.drive.block,
+                    driveDevice: root.drive.device,
+                    partId: root.p.id,
+                    fstype: fmtSpec.fstype,
+                    label: fmtSpec.label || "",
+                    flags: fmtSpec.flags.slice(),
+                    encrypt: fmtSpec.encrypting,
+                    passphrase: fmtSpec.encrypting ? fmtSpec.passphrase : "",
+                    summary: Tr.tr("Format %1 as %2").arg(root.pname).arg(fsLabel)
+                });
                 fmtSpec.passphrase = "";
                 fmtSpec.repeat = "";
             }
@@ -643,11 +614,18 @@ PageBase {
             header: Tr.tr("Delete %1?").arg(root.pname)
             message: root.mounted ? Tr.tr("Unmount it first.") : Tr.tr("The partition and all its files are deleted (%1). Its space becomes free space.").arg(Disks.human(root.p?.size ?? 0))
             confirmText: root.p?.device.replace("/dev/", "") ?? ""
-            acceptLabel: Tr.trCtx("Delete", "button")
-            onAccepted: Disks.run("delete", [root.p.id], what, ok => {
-                if (ok)
-                    root.nState.closeSubPage();
-            })
+            acceptLabel: Tr.trCtx("Add to pending", "button")
+            onAccepted: {
+                Disks.queueChange({
+                    type: "delete",
+                    driveId: root.drive.id,
+                    driveBlock: root.drive.block,
+                    driveDevice: root.drive.device,
+                    partId: root.p.id,
+                    summary: Tr.tr("Delete %1 (%2)").arg(root.pname).arg(Disks.human(root.p?.size ?? 0))
+                });
+                root.nState.closeSubPage();
+            }
         }
 
         // ---- Advanced & maintenance -----------------------------------------
@@ -853,6 +831,12 @@ PageBase {
             subtext: Tr.tr("Only old (non-UEFI) start-up uses this")
             checked: root.p?.flagBits?.includes(root.gpt ? 2 : 7) ?? false
             onToggled: Disks.run("flags", [root.p.id, root.gpt ? "2" : "7", checked ? "on" : "off"], Tr.tr("Change the partition flags"))
+        }
+
+        ConfirmDialog {
+            id: applyConfirm
+
+            hostFlickable: root.flickable
         }
     }
 }
