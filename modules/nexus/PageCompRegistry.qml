@@ -19,6 +19,7 @@ import qs.modules.nexus.pages.merged
 import qs.modules.nexus.pages.network
 import qs.modules.nexus.pages.panels
 import qs.modules.nexus.pages.services
+import qs.modules.nexus.pages.style
 import qs.modules.nexus.pages.system
 import qs.modules.nexus.pages.wallandstyle
 import qs.modules.nexus.pages.panels.taskbar
@@ -27,10 +28,6 @@ QtObject {
     id: root
 
     property var _subComps: ({})
-
-    function pageUrl(relPath: string): url {
-        return Qt.resolvedUrl(`pages/${relPath}`);
-    }
 
     function subComp(relPath: string): Component {
         if (_subComps[relPath])

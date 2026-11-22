@@ -278,7 +278,6 @@ Item {
                     readonly property var scr: (QsWindow.window as QsWindow)?.screen ?? null
                     readonly property int targetH: Math.round((scr?.height ?? 1080) * Tokens.sizes.nexus.heightMult)
                     readonly property int targetW: Math.round(targetH * Tokens.sizes.nexus.ratio)
-                    property var initEntry: null
 
                     function takeRequestedEntry(): var {
                         const id = root.screenState.dashboardSettingsPage;
@@ -298,42 +297,20 @@ Item {
                     implicitWidth: Math.min(targetW, (scr?.width ?? 1920) - Tokens.padding.extraLarge * 4)
                     implicitHeight: Math.min(targetH, (scr?.height ?? 1080) - Tokens.padding.extraLarge * 4)
 
-                    Component.onCompleted: {
-                        initEntry = takeRequestedEntry();
-                        nexusLoader.active = true;
-                    }
-
-                    Loader {
-                        id: nexusLoader
+                    Nexus {
+                        id: nexusInner
 
                         anchors.fill: parent
-                        active: false
-                        asynchronous: true
-                        onLoaded: {
-                            const nex = item as Nexus;
-                            const pending = settingsClip.takeRequestedEntry();
-                            if (nex && pending)
-                                nex.nState.goTo(pending);
-                        }
-
-                        sourceComponent: Nexus {
-                            anchors.fill: parent
-                            initialEntry: settingsClip.initEntry
-                            nState.screen: settingsClip.scr
-                            onClose: root.screenState.dashboard = false
-                        }
+                        initialEntry: settingsClip.takeRequestedEntry()
+                        nState.screen: settingsClip.scr
+                        onClose: root.screenState.dashboard = false
                     }
 
                     Connections {
                         function onDashboardSettingsPageChanged(): void {
                             const entry = settingsClip.takeRequestedEntry();
-                            if (!entry)
-                                return;
-                            const nex = nexusLoader.item as Nexus;
-                            if (nex)
-                                nex.nState.goTo(entry);
-                            else
-                                settingsClip.initEntry = entry;
+                            if (entry)
+                                nexusInner.nState.goTo(entry);
                         }
 
                         target: root.screenState

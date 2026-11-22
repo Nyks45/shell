@@ -55,32 +55,21 @@ Item {
         } : {
             nState
         });
-        item.anchors.fill = container;
+        if (token !== root.loadToken) {
+            if (item)
+                item.destroy();
+            return;
+        }
+        if (item)
+            item.anchors.fill = container;
         currentItem = item;
-
-        const reveal = () => {
-            if (token !== root.loadToken)
-                return;
-            if (root.animateNextAttach) {
-                root.animateNextAttach = false;
-                fadeInAnim.restart();
-            } else {
-                container.opacity = 1;
-                container.anchors.topMargin = 0;
-                container.anchors.bottomMargin = 0;
-            }
-        };
-
-        if (!pageSpecs || item.initialReady || !root.animateNextAttach) {
-            reveal();
+        if (root.animateNextAttach) {
+            root.animateNextAttach = false;
+            fadeInAnim.restart();
         } else {
-            const onReady = () => {
-                if (item && item.initialReady) {
-                    item.initialReadyChanged.disconnect(onReady);
-                    reveal();
-                }
-            };
-            item.initialReadyChanged.connect(onReady);
+            container.opacity = 1;
+            container.anchors.topMargin = 0;
+            container.anchors.bottomMargin = 0;
         }
     }
 
@@ -99,6 +88,10 @@ Item {
             root.animateNextAttach = false;
             root.animOff = root.Tokens.padding.extraLarge * (root.nState.currentPageIdx > root.lastPageIdx ? 1 : -1);
             root.lastPageIdx = root.nState.currentPageIdx;
+            const firstSpec = PageCompRegistry.specs[root.nState.currentPageIdx]?.[0];
+            const relPath = firstSpec ? (typeof firstSpec === "string" ? firstSpec : firstSpec[0]) : "";
+            if (relPath)
+                PageCompRegistry.subComp(relPath);
             fadeOutAnim.start();
         }
 
