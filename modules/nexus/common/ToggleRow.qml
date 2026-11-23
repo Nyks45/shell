@@ -12,6 +12,7 @@ StyledSwitch {
     property alias first: bg.first
     property alias last: bg.last
     property bool groupStart
+    readonly property int _rowsId: Rows.nextId()
     readonly property bool isGroupRow: true
     readonly property alias bg: bg
 
@@ -31,8 +32,8 @@ StyledSwitch {
     indicator.anchors.rightMargin: root.horizontalPadding
 
     onPressed: stateLayer.press(stateLayer.mouseX, stateLayer.mouseY)
-    Component.onCompleted: Rows.bump()
-    Component.onDestruction: Rows.bump()
+    Component.onCompleted: Rows.bump(root)
+    Component.onDestruction: Rows.onRowDestroyed(root)
 
     background: ConnectedRect {
         id: bg

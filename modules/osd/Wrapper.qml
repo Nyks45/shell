@@ -15,7 +15,8 @@ Item {
     property bool hovered
     readonly property Brightness.Monitor monitor: Brightness.getMonitorForScreen(root.screen)
     readonly property bool shouldBeActive: screenState.osd && Config.osd.enabled
-    property real offsetScale: shouldBeActive ? 0 : 1
+    readonly property real open: Math.min(1, Math.max(0, openSpring.value))
+    readonly property real offsetScale: 1 - open
 
     property real volume
     property bool muted
@@ -39,7 +40,6 @@ Item {
     // An island floating a gap from the right edge, grown out of a small capsule there (like the
     // top island out of its pill)
     readonly property real floatGap: Tokens.spacing.medium
-    readonly property real open: 1 - offsetScale
     // (over the last bit the capsule itself shrinks away: nothing left on the edge)
     readonly property real tail: Math.min(1, open / 0.2)
     readonly property real fullWidth: content.implicitWidth
@@ -54,20 +54,24 @@ Item {
     }
 
     onOffsetScaleChanged: {
-        if (offsetScale >= 0.999 && !shouldBeActive && screenState.osdExpanded)
+        if (offsetScale >= 0.998 && !shouldBeActive && screenState.osdExpanded)
             screenState.osdExpanded = false;
     }
 
-    visible: offsetScale < 1
+    visible: open > 0.002 || shouldBeActive
     anchors.rightMargin: floatGap
-    implicitWidth: fullWidth * (0.6 + 0.4 * open) * tail
-    implicitHeight: fullHeight * (0.35 + 0.65 * open) * tail
+    implicitWidth: Math.round(fullWidth * (0.6 + 0.4 * open) * tail)
+    implicitHeight: Math.round(fullHeight * (0.35 + 0.65 * open) * tail)
     clip: true
     // (its contents fade in once it has grown enough to hold them)
     opacity: Math.min(1, Math.max(0, (open - 0.6) / 0.35))
 
-    Behavior on offsetScale {
-        Anim {}
+    SpringValue {
+        id: openSpring
+
+        stiffness: 260
+        damping: 33
+        target: root.shouldBeActive ? 1 : 0
     }
 
     Connections {

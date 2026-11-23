@@ -155,8 +155,8 @@ PageBase {
         return parts.join(" · ");
     }
 
-    function sunTime(raw: var, fallback: string): string {
-        return HyprSettings.sunTime(raw, fallback);
+    function sunTime(raw: var, fallback: string, utcMs = NaN): string {
+        return HyprSettings.sunTime(raw, fallback, utcMs);
     }
 
     function setNight(changes: var): void {
@@ -324,7 +324,7 @@ PageBase {
         SelectRow {
             visible: root.sunsetInstalled
             label: Tr.tr("Schedule")
-            subtext: root.nightSchedule === "sun" ? Tr.tr("Sunset (%1) to sunrise (%2)").arg(root.sunTime(Weather.cc?.sunset, "20:00")).arg(root.sunTime(Weather.cc?.sunrise, "07:00")) : root.nightSchedule === "always" ? Tr.tr("Active all day") : Tr.tr("Turn on and off at chosen hours")
+            subtext: root.nightSchedule === "sun" ? Tr.tr("Sunset (%1) to sunrise (%2)").arg(root.sunTime(Weather.cc?.sunset, "20:00", Weather.cc?.sunsetUtcMs)).arg(root.sunTime(Weather.cc?.sunrise, "07:00", Weather.cc?.sunriseUtcMs)) : root.nightSchedule === "always" ? Tr.tr("Active all day") : Tr.tr("Turn on and off at chosen hours")
             menuItems: [
                 MenuItem {
                     text: Tr.tr("Sunset to sunrise")

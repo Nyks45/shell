@@ -32,34 +32,46 @@ Item {
     // Its place in a group of rows (rounded corners like ConnectedRect's):
     // where it sits among the visible rows of its column (Rows) unless set
     property bool groupStart
+    readonly property int _rowsId: Rows.nextId()
     readonly property bool isGroupRow: true
-    property bool first: Rows.isFirst(root)
-    property bool last: Rows.isLast(root)
-    readonly property real gap: Rows.gapAbove(root)
+    readonly property bool headlessModal: !root.visible
+    readonly property bool transitioning: openTransition.running || closeTransition.running
+    property bool first: headlessModal ? true : Rows.isFirst(root)
+    property bool last: headlessModal ? true : Rows.isLast(root)
+    readonly property real gap: headlessModal ? 0 : Rows.gapAbove(root)
 
     signal accepted
     signal cancelled
 
-    function reparentWrapper(): void {
-        const newParent = open ? rootParent : root;
-        const pos = dialogWrapper.mapToItem(newParent, 0, 0);
-        dialogWrapper.parent = newParent;
+    function reparentTo(targetParent: Item): void {
+        if (!targetParent || dialogWrapper.parent === targetParent)
+            return;
+        if (root.headlessModal) {
+            dialogWrapper.parent = targetParent;
+            if (targetParent === root.rootParent) {
+                dialogWrapper.x = (targetParent.width - root.openWidth) / 2;
+                dialogWrapper.y = (targetParent.height - root.openHeight) / 2;
+            }
+            return;
+        }
+        const pos = dialogWrapper.mapToItem(targetParent, 0, 0);
+        dialogWrapper.parent = targetParent;
         dialogWrapper.x = pos.x;
         dialogWrapper.y = pos.y;
     }
 
-    Component.onCompleted: Rows.bump()
-    Component.onDestruction: Rows.bump()
+    Component.onCompleted: if (!root.headlessModal) Rows.bump(root)
+    Component.onDestruction: if (!root.headlessModal) Rows.onRowDestroyed(root)
 
     Layout.fillWidth: true
-    Layout.topMargin: root.groupStart && !Rows.isAtTop(root) ? Math.max(0, Tokens.spacing.largeIncreased - root.gap) : 0
+    Layout.topMargin: !root.headlessModal && root.groupStart && !Rows.isAtTop(root) ? Math.max(0, Tokens.spacing.largeIncreased - root.gap) : 0
     implicitHeight: openButton.implicitHeight
-    z: open || dialogTransition.running ? 2 : 0
+    z: open || transitioning ? 2 : 0
 
     BlobGroup {
         id: blobGroup
 
-        color: root.open ? Colours.palette.m3surfaceContainerHighest : Colours.tPalette.m3surfaceContainer
+        color: root.open || root.headlessModal ? Colours.palette.m3surfaceContainerHighest : Colours.tPalette.m3surfaceContainer
 
         Behavior on color {
             CAnim {}
@@ -67,7 +79,7 @@ Item {
     }
 
     Rectangle {
-        visible: !root.first && !root.open && !dialogTransition.running && root.gap > 0
+        visible: !root.first && !root.open && !root.transitioning && root.gap > 0
         y: -root.gap
         width: root.width
         height: root.gap
@@ -92,8 +104,12 @@ Item {
         id: dialogWrapper
 
         z: 1
-        width: root.width
-        height: openButton.implicitHeight
+        x: root.headlessModal && root.rootParent ? (root.rootParent.width - root.openWidth) / 2 : 0
+        y: root.headlessModal && root.rootParent ? (root.rootParent.height - root.openHeight) / 2 : 0
+        width: root.headlessModal ? root.openWidth : root.width
+        height: root.headlessModal ? root.openHeight : openButton.implicitHeight
+        opacity: root.headlessModal ? 0 : 1
+        scale: root.headlessModal ? 0.92 : 1
 
         states: State {
             name: "open"
@@ -104,6 +120,8 @@ Item {
                 elevation.opacity: 1
                 openButton.opacity: 0
                 dialogContent.opacity: 1
+                dialogWrapper.opacity: 1
+                dialogWrapper.scale: 1
                 dialogBg.radius: root.Tokens.rounding.extraLargeIncreased
                 dialogBg.topLeftRadius: root.Tokens.rounding.extraLargeIncreased
                 dialogBg.topRightRadius: root.Tokens.rounding.extraLargeIncreased
@@ -116,28 +134,65 @@ Item {
             }
         }
 
-        transitions: Transition {
-            id: dialogTransition
+        transitions: [
+            Transition {
+                id: openTransition
 
-            SequentialAnimation {
-                ScriptAction {
-                    script: root.reparentWrapper()
+                from: ""
+                to: "open"
+
+                SequentialAnimation {
+                    ScriptAction {
+                        script: root.reparentTo(root.rootParent)
+                    }
+                    Anim {
+                        properties: "x,y"
+                    }
+                }
+                PropertyAction {
+                    property: "enabled"
                 }
                 Anim {
-                    properties: "x,y"
+                    properties: "opacity,scale,radius,topLeftRadius,topRightRadius,bottomLeftRadius,bottomRightRadius"
+                    type: Anim.DefaultEffects
+                }
+                Anim {
+                    properties: "width,height"
+                }
+            },
+            Transition {
+                id: closeTransition
+
+                from: "open"
+                to: ""
+
+                SequentialAnimation {
+                    ScriptAction {
+                        script: if (!root.headlessModal) root.reparentTo(root)
+                    }
+                    ParallelAnimation {
+                        Anim {
+                            properties: "x,y"
+                        }
+                        PropertyAction {
+                            property: "enabled"
+                        }
+                        Anim {
+                            properties: "opacity,scale,radius,topLeftRadius,topRightRadius,bottomLeftRadius,bottomRightRadius"
+                            type: Anim.DefaultEffects
+                        }
+                        Anim {
+                            properties: "width,height"
+                        }
+                    }
+                    ScriptAction {
+                        // Headless modals are invisible items, so keep dialogWrapper on rootParent
+                        // until the fade/scale close finishes, then park it back if still closed.
+                        script: if (root.headlessModal && !root.open) root.reparentTo(root)
+                    }
                 }
             }
-            PropertyAction {
-                property: "enabled"
-            }
-            Anim {
-                properties: "opacity,radius,topLeftRadius,topRightRadius,bottomLeftRadius,bottomRightRadius"
-                type: Anim.DefaultEffects
-            }
-            Anim {
-                properties: "width,height"
-            }
-        }
+        ]
 
         Elevation {
             id: elevation
@@ -159,19 +214,21 @@ Item {
 
             anchors.fill: parent
 
-            deformScale: root.open || dialogTransition.running ? 0.00005 : 0
+            deformScale: !root.headlessModal && (root.open || root.transitioning) ? 0.00005 : 0
             group: blobGroup
             opacity: blobGroup.color.a
 
-            radius: 0
-            topLeftRadius: root.first ? Tokens.rounding.extraLarge : 0
-            topRightRadius: root.first ? Tokens.rounding.extraLarge : 0
-            bottomLeftRadius: root.last ? Tokens.rounding.extraLarge : 0
-            bottomRightRadius: root.last ? Tokens.rounding.extraLarge : 0
+            radius: root.headlessModal ? Tokens.rounding.extraLargeIncreased : 0
+            topLeftRadius: root.headlessModal ? Tokens.rounding.extraLargeIncreased : (root.first ? Tokens.rounding.extraLarge : 0)
+            topRightRadius: root.headlessModal ? Tokens.rounding.extraLargeIncreased : (root.first ? Tokens.rounding.extraLarge : 0)
+            bottomLeftRadius: root.headlessModal ? Tokens.rounding.extraLargeIncreased : (root.last ? Tokens.rounding.extraLarge : 0)
+            bottomRightRadius: root.headlessModal ? Tokens.rounding.extraLargeIncreased : (root.last ? Tokens.rounding.extraLarge : 0)
         }
 
         RowButton {
             id: openButton
+
+            visible: !root.headlessModal
 
             transform: Matrix4x4 {
                 matrix: dialogBg.deformMatrix

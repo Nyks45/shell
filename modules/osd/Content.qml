@@ -25,12 +25,22 @@ Item {
     required property bool sourceMuted
     required property real brightness
 
-    property real expandProg: root.screenState.osdExpanded ? 1 : 0
+    readonly property real expandProg: Math.min(1, Math.max(0, expandSpring.value))
     readonly property int mixerTargetW: 548
     readonly property int mixerTargetH: Math.min(500, ((QsWindow.window as QsWindow)?.screen?.height ?? 1080) - 160)
 
-    Behavior on expandProg {
-        Anim {}
+    SpringValue {
+        id: expandSpring
+
+        stiffness: 260
+        damping: 33
+        target: root.screenState.osdExpanded ? 1 : 0
+        // Set value directly without calling snap(), which would overwrite the target binding.
+        Component.onCompleted: {
+            frames.running = false;
+            velocity = 0;
+            value = target;
+        }
     }
 
     Shortcut {
@@ -43,22 +53,22 @@ Item {
     }
 
     // A floating island: even padding all round (expands leftward on arrow click)
-    implicitWidth: row.implicitWidth + Tokens.padding.medium * 2
-    implicitHeight: row.implicitHeight + Tokens.padding.medium * 2
+    implicitWidth: Math.round(row.implicitWidth + Tokens.padding.medium * 2)
+    implicitHeight: Math.round(row.implicitHeight + Tokens.padding.medium * 2)
 
     RowLayout {
         id: row
 
         anchors.centerIn: parent
-        spacing: root.expandProg > 0.01 ? Tokens.spacing.medium * root.expandProg : 0
+        spacing: root.expandProg > 0.01 ? Math.round(Tokens.spacing.medium * root.expandProg) : 0
 
         Item {
             id: mixerBox
 
             visible: root.expandProg > 0.002
             clip: true
-            Layout.preferredWidth: root.mixerTargetW * root.expandProg
-            Layout.preferredHeight: Math.max(railLayout.implicitHeight, root.mixerTargetH * root.expandProg)
+            Layout.preferredWidth: Math.round(root.mixerTargetW * root.expandProg)
+            Layout.preferredHeight: Math.round(Math.max(railLayout.implicitHeight, root.mixerTargetH * root.expandProg))
 
             Loader {
                 anchors.right: parent.right

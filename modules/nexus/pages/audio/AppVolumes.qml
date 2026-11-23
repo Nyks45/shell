@@ -61,7 +61,7 @@ PageBase {
                 isRecording: false
             }
 
-            onCountChanged: Rows.bump()
+            onCountChanged: Rows.bump(parent)
         }
 
         EmptyCard {
@@ -83,7 +83,7 @@ PageBase {
                 isRecording: true
             }
 
-            onCountChanged: Rows.bump()
+            onCountChanged: Rows.bump(parent)
         }
 
         EmptyCard {

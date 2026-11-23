@@ -227,6 +227,14 @@ Singleton {
         });
     }
 
+    function parseOpenMeteoUtcMs(iso: var, utcOffsetSec: var): real {
+        const m = String(iso ?? "").trim().match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+        const off = Number(utcOffsetSec);
+        if (!m || !Number.isFinite(off))
+            return NaN;
+        return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6] ?? 0)) - off * 1000;
+    }
+
     function fetchWeatherData(): void {
         const url = getWeatherUrl();
         if (url === "")
@@ -245,7 +253,10 @@ Singleton {
                 windSpeed: json.current.wind_speed_10m,
                 isDay: json.current.is_day,
                 sunrise: json.daily.sunrise[0].replace("T", " "),
-                sunset: json.daily.sunset[0].replace("T", " ")
+                sunset: json.daily.sunset[0].replace("T", " "),
+                utcOffsetSeconds: json.utc_offset_seconds,
+                sunriseUtcMs: parseOpenMeteoUtcMs(json.daily.sunrise[0], json.utc_offset_seconds),
+                sunsetUtcMs: parseOpenMeteoUtcMs(json.daily.sunset[0], json.utc_offset_seconds)
             };
 
             const forecastList = [];

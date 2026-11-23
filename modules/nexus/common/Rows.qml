@@ -8,23 +8,136 @@ import QtQuick.Layouts
 // section header, text or any other item ends it. Rows hidden by a condition
 // don't count, so the corners stay right whatever is shown. A row with
 // groupStart starts a new group even right after another row.
+//
+// Computed in a single O(n) pass per top-level column (and invalidated per
+// column) so adding/removing rows on one page never rescans other pages.
+// Uses integer row IDs on plain JS objects rather than Map/WeakMap with QObject
+// keys, which triggers a Qt 6.12 QV4 sameValueZero crash across page teardown.
 QtObject {
     id: rows
 
-    // Bumped (once per batch) when rows are made or go away: rows check their
-    // neighbours again once a whole page or list has been built (while it is
-    // built, the row below may not exist yet)
-    property int revision
-    property bool pending
+    // Plain JS state objects (no QML NOTIFY signals) so reading/updating flags
+    // during binding evaluation never creates spurious dependencies or loops.
+    readonly property var _state: ({
+        nextId: 1,
+        globalPending: false
+    })
+    readonly property var _trackers: []
+    readonly property var _trackerByRowId: ({})
 
-    function bump(): void {
-        if (pending)
+    function nextId(): int {
+        return _state.nextId++;
+    }
+
+    readonly property Component trackerComp: Component {
+        QtObject {
+            id: tracker
+
+            property Item topCol
+            readonly property var _st: ({
+                disposed: false,
+                pending: false
+            })
+            property var info: ({})
+            readonly property var _unsubs: []
+            readonly property var _bumpFn: () => tracker.bump()
+
+            function clearWatchers(): void {
+                while (_unsubs.length > 0) {
+                    const fn = _unsubs.pop();
+                    try {
+                        fn();
+                    } catch (e) {}
+                }
+            }
+
+            function recompute(): void {
+                if (_st.disposed || !topCol)
+                    return;
+                clearWatchers();
+                info = rows.computeColumn(topCol, _bumpFn, _unsubs);
+            }
+
+            function bump(): void {
+                if (_st.disposed || _st.pending)
+                    return;
+                _st.pending = true;
+                Qt.callLater(() => {
+                    if (!tracker || tracker._st.disposed)
+                        return;
+                    tracker._st.pending = false;
+                    tracker.recompute();
+                });
+            }
+
+            Component.onDestruction: {
+                _st.disposed = true;
+                clearWatchers();
+                const idx = rows._trackers.indexOf(tracker);
+                if (idx >= 0)
+                    rows._trackers.splice(idx, 1);
+            }
+        }
+    }
+
+    function watch(owner: var, sig: var, fn: var, unsubs: var): void {
+        if (!owner || !sig || typeof sig.connect !== "function")
             return;
-        pending = true;
-        Qt.callLater(() => {
-            rows.pending = false;
-            rows.revision++;
+        sig.connect(fn);
+        unsubs.push(() => {
+            if (owner)
+                sig.disconnect(fn);
         });
+    }
+
+    function findTracker(topCol: Item): var {
+        if (!topCol)
+            return null;
+        for (let i = _trackers.length - 1; i >= 0; i--) {
+            const t = _trackers[i];
+            if (!t || !t._st || t._st.disposed || !t.topCol) {
+                _trackers.splice(i, 1);
+                continue;
+            }
+            if (t.topCol === topCol)
+                return t;
+        }
+        return null;
+    }
+
+    function bump(item = null): void {
+        if (item) {
+            const id = item._rowsId ?? 0;
+            const byIdTracker = id > 0 ? _trackerByRowId[id] : null;
+            const t = (byIdTracker?._st && !byIdTracker._st.disposed && byIdTracker.topCol) ? byIdTracker : findTracker(topColumn(item, true));
+            if (t?._st && !t._st.disposed && t.topCol) {
+                t.bump();
+                return;
+            }
+        }
+        if (_state.globalPending)
+            return;
+        _state.globalPending = true;
+        Qt.callLater(() => {
+            rows._state.globalPending = false;
+            for (let i = rows._trackers.length - 1; i >= 0; i--) {
+                const t = rows._trackers[i];
+                if (t?._st && !t._st.disposed && t.topCol)
+                    t.recompute();
+            }
+        });
+    }
+
+    function onRowDestroyed(row: Item): void {
+        if (!row)
+            return;
+        const id = row._rowsId ?? 0;
+        const byIdTracker = id > 0 ? _trackerByRowId[id] : null;
+        if (id > 0)
+            delete _trackerByRowId[id];
+        const t = (byIdTracker?._st && !byIdTracker._st.disposed && byIdTracker.topCol) ? byIdTracker : findTracker(topColumn(row, false));
+        if (t?._st && !t._st.disposed && t.topCol)
+            t.bump();
     }
 
     // The item that sits in the column: the row, or the Loader showing it
@@ -37,155 +150,147 @@ QtObject {
         return item instanceof ColumnLayout || item instanceof Column;
     }
 
-    // Nearest visible visual item (skipping repeaters, empty loaders and 0px helpers) inside k
-    function edgeItem(k: Item, dir: int): Item {
-        if (!k || !k.visible)
+    function topColumn(item: Item, allowSelfColumn: bool): Item {
+        if (!item)
             return null;
-        if (k.delegate !== undefined && k.model !== undefined)
+        let col = allowSelfColumn && isColumn(item) ? item : host(item)?.parent;
+        if (!col)
             return null;
-        if (k.sourceComponent !== undefined)
-            return k.item ? edgeItem(k.item, dir) : null;
-        if (isColumn(k)) {
-            const kids = k.children;
-            for (let j = dir > 0 ? 0 : kids.length - 1; j >= 0 && j < kids.length; j += dir) {
-                const r = edgeItem(kids[j], dir);
-                if (r)
-                    return r;
-            }
-            return null;
-        }
-        return (k.implicitHeight > 0 || k.height > 0) ? k : null;
+        while (isColumn(col) && isColumn(host(col)?.parent))
+            col = host(col).parent;
+        return col;
     }
 
-    // Nearest visible non-row/row item next to `row` in its column chain (crossing nested columns)
-    function adjacentVisual(row: Item, dir: int): Item {
-        void revision;
-        let h = host(row);
-        let col = h?.parent;
-        while (col) {
-            const kids = col.children;
-            let i = -1;
-            for (let k = 0; k < kids.length; k++) {
-                if (kids[k] === h) {
-                    i = k;
-                    break;
-                }
-            }
-            if (i < 0)
-                return null;
-            for (let j = i + dir; j >= 0 && j < kids.length; j += dir) {
-                const r = edgeItem(kids[j], dir);
-                if (r)
-                    return r;
-            }
-            const outerH = host(col);
-            if (!isColumn(col) || !isColumn(outerH?.parent))
-                return null;
-            h = outerH;
-            col = outerH.parent;
+    function trackerFor(topCol: Item): var {
+        if (!topCol)
+            return null;
+        let t = findTracker(topCol);
+        if (!t) {
+            t = trackerComp.createObject(topCol, {
+                topCol: topCol
+            });
+            _trackers.push(t);
+            t.bump();
         }
-        return null;
+        return t;
+    }
+
+    // Single-pass unified traversal of all visible visual items (rows and non-rows)
+    // in a column hierarchy. Group rows are matched before reading/watching implicitHeight
+    // so SectionHeader.card height changes never trigger feedback recomputations.
+    function visit(k: Item, curGap: real, entries: var, bumpFn: var, unsubs: var): bool {
+        if (!k)
+            return false;
+        watch(k, k.visibleChanged, bumpFn, unsubs);
+        if (!k.visible)
+            return false;
+        if (k.isGroupRowChanged !== undefined)
+            watch(k, k.isGroupRowChanged, bumpFn, unsubs);
+        if (k.isGroupRow === true) {
+            entries.push({
+                item: k,
+                isRow: true,
+                gap: curGap
+            });
+            return true;
+        }
+        if (k.delegate !== undefined && k.model !== undefined)
+            return false;
+        if (k.sourceComponent !== undefined || k.source !== undefined) {
+            watch(k, k.itemChanged, bumpFn, unsubs);
+            return k.item ? visit(k.item, curGap, entries, bumpFn, unsubs) : false;
+        }
+        if (isColumn(k)) {
+            watch(k, k.childrenChanged, bumpFn, unsubs);
+            watch(k, k.spacingChanged, bumpFn, unsubs);
+            const kids = k.children;
+            const innerGap = k.spacing ?? 0;
+            let sawAny = false;
+            for (let i = 0; i < kids.length; i++) {
+                if (visit(kids[i], sawAny ? innerGap : curGap, entries, bumpFn, unsubs))
+                    sawAny = true;
+            }
+            return sawAny;
+        }
+        watch(k, k.implicitHeightChanged, bumpFn, unsubs);
+        if (k.implicitHeight > 0 || k.height > 0) {
+            entries.push({
+                item: k,
+                isRow: false,
+                gap: curGap
+            });
+            return true;
+        }
+        return false;
+    }
+
+    function computeColumn(topCol: Item, bumpFn: var, unsubs: var): var {
+        const byId = {};
+        if (!topCol)
+            return byId;
+        watch(topCol, topCol.childrenChanged, bumpFn, unsubs);
+        watch(topCol, topCol.spacingChanged, bumpFn, unsubs);
+        const entries = [];
+        const kids = topCol.children;
+        const gap = topCol.spacing ?? 0;
+        for (let i = 0; i < kids.length; i++)
+            visit(kids[i], gap, entries, bumpFn, unsubs);
+        for (let i = 0; i < entries.length; i++) {
+            const cur = entries[i];
+            const id = cur.item._rowsId ?? 0;
+            if (!(id > 0))
+                continue;
+            const prev = i > 0 ? entries[i - 1] : null;
+            const next = i + 1 < entries.length ? entries[i + 1] : null;
+            byId[id] = {
+                prevVisual: prev ? prev.item : null,
+                nextVisual: next ? next.item : null,
+                prevRow: prev && prev.isRow ? prev.item : null,
+                nextRow: next && next.isRow ? next.item : null,
+                gap: cur.gap
+            };
+        }
+        return byId;
+    }
+
+    function entryFor(row: Item): var {
+        const id = row?._rowsId ?? 0;
+        if (!(id > 0))
+            return null;
+        const topCol = topColumn(row, false);
+        if (!topCol)
+            return null;
+        const t = trackerFor(topCol);
+        if (!t || !t._st || t._st.disposed)
+            return null;
+        _trackerByRowId[id] = t;
+        return t.info ? (t.info[id] ?? null) : null;
+    }
+
+    // Nearest visible item next to `row` in its column chain (crossing nested columns)
+    function adjacentVisual(row: Item, dir: int): Item {
+        const e = entryFor(row);
+        return e ? (dir < 0 ? e.prevVisual : e.nextVisual) : null;
     }
 
     function isAtTop(row: Item): bool {
         return !adjacentVisual(row, -1);
     }
 
-    // What an item shown in a column is, seen from a row next to it (dir -1: from below, +1:
-    // from above): a row (the nearest one in it), "none" (nothing to see: a Repeater, an empty
-    // Loader or column) or "block" (anything else: a text, a picture... ends the group). A
-    // column of rows (a component grouping a few, like a pair of steppers) is see-through:
-    // its rows join the group around it.
-    function edge(k: Item, dir: int): var {
-        if (k.isGroupRow === true)
-            return k;
-        if (k.item?.isGroupRow === true)
-            return k.item;
-        // (a Repeater: its delegates are the column's own children)
-        if (k.delegate !== undefined && k.model !== undefined)
-            return "none";
-        if (k.sourceComponent !== undefined)
-            return k.item ? edge(k.item, dir) : "none";
-        if (isColumn(k)) {
-            const kids = k.children;
-            for (let j = dir > 0 ? 0 : kids.length - 1; j >= 0 && j < kids.length; j += dir) {
-                if (!kids[j].visible)
-                    continue;
-                const r = edge(kids[j], dir);
-                if (r !== "none")
-                    return r;
-            }
-            return "none";
-        }
-        return (k.implicitHeight > 0 || k.height > 0) ? "block" : "none";
-    }
-
-    // The visible row next to `row` (dir -1: above, +1: below), or null when
-    // the group ends there
-    function neighbour(row: Item, dir: int): Item {
-        void revision;
-        let h = host(row);
-        let col = h?.parent;
-        while (col) {
-            const kids = col.children;
-            let i = -1;
-            for (let k = 0; k < kids.length; k++) {
-                if (kids[k] === h) {
-                    i = k;
-                    break;
-                }
-            }
-            if (i < 0)
-                return null;
-            for (let j = i + dir; j >= 0 && j < kids.length; j += dir) {
-                if (!kids[j].visible)
-                    continue;
-                const r = edge(kids[j], dir);
-                if (r === "block")
-                    return null;
-                if (r !== "none")
-                    return r;
-            }
-            // The end of a column inside another column: on into the outer one (its rows are
-            // one group with the ones around it)
-            const outerH = host(col);
-            if (!isColumn(col) || !isColumn(outerH?.parent))
-                return null;
-            h = outerH;
-            col = outerH.parent;
-        }
-        return null;
-    }
-
     // The gap above a row (filled in when it continues a card): its column's spacing, or, for
     // the first row of a column inside another, the outer column's
     function gapAbove(row: Item): real {
-        void revision;
-        let h = host(row);
-        let col = h?.parent;
-        while (col && isColumn(col) && isColumn(host(col)?.parent)) {
-            const kids = col.children;
-            let firstShown = null;
-            for (let k = 0; k < kids.length; k++) {
-                if (kids[k].visible && edge(kids[k], 1) !== "none") {
-                    firstShown = kids[k];
-                    break;
-                }
-            }
-            if (firstShown !== h)
-                break;
-            h = host(col);
-            col = h?.parent;
-        }
-        return col?.spacing ?? 0;
+        const e = entryFor(row);
+        return e ? e.gap : (host(row)?.parent?.spacing ?? 0);
     }
 
     function isFirst(row: Item): bool {
-        return !!row && (row.groupStart === true || !neighbour(row, -1));
+        const e = entryFor(row);
+        return !!row && (row.groupStart === true || !e?.prevRow);
     }
 
     function isLast(row: Item): bool {
-        const n = neighbour(row, 1);
-        return !n || n.groupStart === true;
+        const e = entryFor(row);
+        return !e?.nextRow || e.nextRow.groupStart === true;
     }
 }

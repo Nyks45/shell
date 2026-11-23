@@ -279,9 +279,16 @@ Singleton {
     // restarted, which flashes the colours) when the times really changed.
     readonly property string sunsetConfPath: `${Quickshell.env("XDG_CONFIG_HOME") || `${Quickshell.env("HOME")}/.config`}/hypr/hyprsunset.conf`
 
-    // "HH:MM" from the weather's "YYYY-MM-DD HH:MM" (the weather place's local
-    // time: the same as this computer's when the weather follows its location)
-    function sunTime(raw: var, fallback: string): string {
+    // "HH:MM" in this computer's local timezone (what hyprsunset compares its clock
+    // against). Uses the UTC timestamp from Open-Meteo's utc_offset_seconds when
+    // available so a different weather timezone still converts to local clock time;
+    // falls back to extracting HH:MM from the raw string otherwise.
+    function sunTime(raw: var, fallback: string, utcMs = NaN): string {
+        const ms = Number(utcMs);
+        if (Number.isFinite(ms)) {
+            const d = new Date(ms);
+            return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+        }
         const m = String(raw ?? "").trim().match(/(\d{1,2}:\d{2})(?::\d{2})?$/);
         return m ? m[1].padStart(5, "0") : fallback;
     }
@@ -293,8 +300,8 @@ Singleton {
         if (sched === "always" || n.always) {
             body = `profile {\n    time = 0:00\n    temperature = ${temp}\n}\n`;
         } else {
-            const from = sched === "sun" ? sunTime(Weather.cc?.sunset, "20:00") : (n.from ?? "20:00");
-            const to = sched === "sun" ? sunTime(Weather.cc?.sunrise, "07:00") : (n.to ?? "07:00");
+            const from = sched === "sun" ? sunTime(Weather.cc?.sunset, "20:00", Weather.cc?.sunsetUtcMs) : (n.from ?? "20:00");
+            const to = sched === "sun" ? sunTime(Weather.cc?.sunrise, "07:00", Weather.cc?.sunriseUtcMs) : (n.to ?? "07:00");
             body = `profile {\n    time = ${to}\n    identity = true\n}\n\nprofile {\n    time = ${from}\n    temperature = ${temp}\n}\n`;
         }
         return `# Written by Caelestia's settings app (Display > Night light).\n\n${body}`;

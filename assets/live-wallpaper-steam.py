@@ -24,6 +24,7 @@ deletes them. Nothing else is stored.
 """
 
 import base64
+import ctypes
 import json
 import os
 import pty
@@ -248,6 +249,45 @@ def qr_from_text(lines: list[str]) -> str:
     return path
 
 
+def _rename_exchange(src: str, dst: str) -> bool:
+    """Atomically exchange two paths on the same Linux filesystem (renameat2)."""
+    try:
+        libc = ctypes.CDLL(None, use_errno=True)
+        renameat2 = libc.renameat2
+        renameat2.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+        renameat2.restype = ctypes.c_int
+        AT_FDCWD = -100
+        RENAME_EXCHANGE = 2
+        return renameat2(AT_FDCWD, os.fsencode(src), AT_FDCWD, os.fsencode(dst), RENAME_EXCHANGE) == 0
+    except (AttributeError, OSError):
+        return False
+
+
+def swap_dir(src: str, dst: str, backup_dir: str) -> None:
+    """Replace dst with src without leaving dst missing mid-swap."""
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    if not os.path.lexists(dst):
+        os.replace(src, dst)
+        return
+    if _rename_exchange(src, dst):
+        shutil.rmtree(src, ignore_errors=True)
+        return
+    # Fallback keeps the backup outside workshop/ so the scanner never sees duplicates.
+    os.makedirs(backup_dir, exist_ok=True)
+    backup = os.path.join(backup_dir, f"{os.path.basename(dst)}.old.{os.getpid()}")
+    shutil.rmtree(backup, ignore_errors=True)
+    os.replace(dst, backup)
+    try:
+        os.replace(src, dst)
+    except OSError:
+        try:
+            os.replace(backup, dst)
+        except OSError:
+            pass
+        raise
+    shutil.rmtree(backup, ignore_errors=True)
+
+
 def download(item: str) -> None:
     # DepotDownloader remembers its own session (not the keyring's); this
     # marker (the account name, no secret) says it has one
@@ -356,9 +396,12 @@ def download(item: str) -> None:
         os.utime(pj, None)
     except OSError:
         pass
-    shutil.rmtree(target, ignore_errors=True)
-    os.makedirs(os.path.dirname(target), exist_ok=True)
-    os.replace(tmp, target)
+    try:
+        swap_dir(tmp, target, os.path.join(LIBRARY, ".downloading"))
+    except OSError as e:
+        shutil.rmtree(tmp, ignore_errors=True)
+        out(state="error", error=f"Could not install wallpaper update: {e}")
+        return
     # Signed in with the QR code: remember who, so next time needs no code.
     # The account name is the keyring session's (the same Steam account).
     if not account:

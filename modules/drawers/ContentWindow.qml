@@ -209,7 +209,8 @@ StyledWindow {
             group: islandGroup
             visible: panels.osd.width > 1
             panel: panels.osdWrapper
-            deformAmount: root.screenState.osdExpanded ? 0.05 : 0.25
+            deformAmount: (root.screenState.osdExpanded || panels.osd.width > 120) ? 0 : 0.25
+            damping: 29
             x: panels.osdWrapper.x + panels.osd.x + bar.implicitWidth
             y: panels.osdWrapper.y + panels.osd.y + root.borderThickness
             implicitWidth: panels.osd.width

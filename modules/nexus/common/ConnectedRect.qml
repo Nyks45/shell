@@ -14,6 +14,7 @@ StyledRect {
     // Starts a new group even right after another row
     property bool groupStart
     property bool standalone
+    readonly property int _rowsId: Rows.nextId()
     readonly property bool isGroupRow: !standalone
     property bool first: standalone ? true : Rows.isFirst(root)
     property bool last: standalone ? true : Rows.isLast(root)
@@ -25,8 +26,8 @@ StyledRect {
 
     Layout.topMargin: root.rowItem === root && root.groupStart && !Rows.isAtTop(root) ? Math.max(0, Tokens.spacing.largeIncreased - root.gap) : 0
 
-    Component.onCompleted: Rows.bump()
-    Component.onDestruction: Rows.bump()
+    Component.onCompleted: Rows.bump(root.rowItem)
+    Component.onDestruction: Rows.onRowDestroyed(root.rowItem)
 
     color: Colours.tPalette.m3surfaceContainer
     topLeftRadius: first ? Tokens.rounding.extraLarge : 0
