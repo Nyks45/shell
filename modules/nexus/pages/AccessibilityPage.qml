@@ -109,6 +109,13 @@ PageBase {
             onMoved: v => HyprSettings.setOption("cursor:zoom_factor", Math.round((1 + v * 3) * 10) / 10)
         }
 
+        ToggleRow {
+            text: Tr.tr("Magnifier keyboard shortcuts")
+            subtext: Tr.tr("Super + Alt + = / - (or Super + Numpad + / -) to zoom, Super + Esc to reset")
+            checked: HyprSettings.saved.magnifierShortcuts !== false
+            onToggled: HyprSettings.setMagnifierShortcuts(checked)
+        }
+
         SectionHeader {
             text: Tr.tr("Motion")
         }

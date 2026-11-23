@@ -18,6 +18,9 @@ users, read as JSON for the settings app (runs as the user).
     caelestia-system kernels                 installed kernels and the ones to install
     caelestia-system firmware                UEFI boot entries, Secure Boot, firmware updates
     caelestia-system fwupd [--refresh]       updatable devices and available firmware updates
+    caelestia-system storage-overview        byte totals by category (apps, games, caches, logs, snapshots)
+    caelestia-system locales                 system language, regional format, enabled & available locales
+    caelestia-system security-status         firewall, Secure Boot / sbctl, TPM, LUKS, portal permissions
 
 Changes go through AccountsService, which asks polkit (the shell's prompt);
 starting/stopping services is plain systemctl (polkit too); group
@@ -425,9 +428,25 @@ def c_boot(args):
         or next((e for e in entries if "vmlinuz" in (e.get("loader") or "")), None)
         or next((e for e in entries if "root=" in (e.get("options") or "")), None)
     )
+    default_kernel = re.sub(r"^/?vmlinuz-", "", (main or {}).get("loader", "").strip())
+    installed_kernels = []
+    try:
+        installed_kernels = sorted(
+            f[len("vmlinuz-"):] for f in os.listdir("/boot")
+            if f.startswith("vmlinuz-") and os.path.exists(f"/boot/initramfs-{f[len('vmlinuz-'):]}.img")
+        )
+    except OSError:
+        installed_kernels = []
+    if not installed_kernels:
+        candidates = ([default_kernel] if default_kernel else []) + [
+            re.sub(r"^Kernel\s+", "", k).strip() for k in (main or {}).get("kernels", [])
+        ]
+        installed_kernels = list(dict.fromkeys(k for k in candidates if k))
     prev_conf = conf + ".caelestia-prev"
     out = {"exported": True, "setup": setup, "exportedAt": int(os.path.getmtime(conf)),
            "linuxEntry": (main or {}).get("name", ""),
+           "defaultKernel": default_kernel,
+           "installedKernels": installed_kernels,
            "hasBackup": os.path.exists(prev_conf),
            "backupAt": int(os.path.getmtime(prev_conf)) if os.path.exists(prev_conf) else 0,
            "timeout": int(state.get("timeout", "20") or 20), "defaultSelection": state.get("default_selection", "").strip('"'),
@@ -618,10 +637,259 @@ def c_fwupd(args):
     }))
 
 
+def _du_bytes(path):
+    if not path or not os.path.exists(path):
+        return 0
+    try:
+        p = subprocess.run(["du", "-sxb", path], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=5)
+        parts = p.stdout.split()
+        return int(parts[0]) if p.returncode == 0 and parts and parts[0].isdigit() else 0
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return 0
+
+
+def _steam_libraries():
+    home = os.path.expanduser("~")
+    root = os.path.realpath(os.path.join(home, ".steam/root")) if os.path.exists(os.path.join(home, ".steam/root")) \
+        else os.path.join(home, ".local/share/Steam")
+    libs = [root]
+    vdf = os.path.join(root, "steamapps/libraryfolders.vdf")
+    if os.path.isfile(vdf):
+        try:
+            text = open(vdf, errors="replace").read()
+            for p in re.findall(r'"path"\s+"([^"]+)"', text):
+                p = p.replace("\\\\", "\\")
+                if os.path.realpath(p) not in [os.path.realpath(x) for x in libs]:
+                    libs.append(p)
+        except OSError:
+            pass
+    return [l for l in libs if os.path.isdir(os.path.join(l, "steamapps"))]
+
+
+def c_storage_overview(args):
+    apps = 0
+    for desc in glob.glob("/var/lib/pacman/local/*/desc"):
+        try:
+            text = open(desc, errors="ignore").read()
+            idx = text.find("%SIZE%\n")
+            if idx >= 0:
+                end = text.find("\n", idx + 7)
+                apps += int(text[idx + 7:end if end >= 0 else None].strip())
+        except (OSError, ValueError):
+            pass
+    apps += _du_bytes("/var/lib/flatpak") + _du_bytes(os.path.expanduser("~/.local/share/flatpak"))
+
+    games = 0
+    for lib in _steam_libraries():
+        for acf in glob.glob(os.path.join(lib, "steamapps/appmanifest_*.acf")):
+            try:
+                text = open(acf, errors="replace").read()
+                m = re.search(r'"SizeOnDisk"\s+"(\d+)"', text)
+                if m:
+                    games += int(m.group(1))
+            except (OSError, ValueError):
+                pass
+    games += _du_bytes(os.path.expanduser("~/Games"))
+
+    caches = _du_bytes("/var/cache/pacman/pkg") + _du_bytes(os.path.expanduser("~/.cache"))
+    logs = _du_bytes("/var/log/journal") + _du_bytes("/var/lib/systemd/coredump")
+
+    snap_count = 0
+    snap_bytes = 0
+    for cfg, fallback_dir in (("root", "/.snapshots"), ("home", "/home/.snapshots")):
+        got = False
+        try:
+            raw = subprocess.run(["snapper", "--jsonout", "-c", cfg, "list"], text=True,
+                                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=4).stdout
+            if raw.strip():
+                rows = [s for s in (json.loads(raw).get(cfg) or []) if s.get("number") not in (0, "0", None)]
+                snap_count += len(rows)
+                snap_bytes += sum(int(s.get("used-space") or 0) for s in rows)
+                got = True
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            pass
+        if not got and os.path.isdir(fallback_dir):
+            try:
+                snap_count += sum(1 for n in os.listdir(fallback_dir) if n.isdigit() and n != "0")
+            except OSError:
+                pass
+
+    print(json.dumps({
+        "apps": apps,
+        "games": games,
+        "caches": caches,
+        "logs": logs,
+        "snapshots": snap_bytes,
+        "snapshotCount": snap_count,
+    }))
+
+
+def c_locales(args):
+    conf = {}
+    if os.path.isfile("/etc/locale.conf"):
+        try:
+            for line in open("/etc/locale.conf", errors="replace"):
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, _, v = line.partition("=")
+                conf[k.strip()] = v.strip().strip('"').strip("'")
+        except OSError:
+            pass
+    if not conf.get("LANG"):
+        for line in sh("localectl", "status").splitlines():
+            m = re.search(r"\b(LANG|LC_TIME|LC_NUMERIC)=([^\s]+)", line)
+            if m:
+                conf.setdefault(m.group(1), m.group(2))
+    lang = conf.get("LANG") or os.environ.get("LANG") or "en_US.UTF-8"
+    regional = conf.get("LC_TIME") or conf.get("LC_NUMERIC") or lang
+
+    enabled_set = set()
+    for line in sh("locale", "-a").splitlines():
+        loc = line.strip()
+        if loc.lower().endswith(".utf8"):
+            loc = loc[:-5] + ".UTF-8"
+        elif loc.lower().endswith(".utf-8"):
+            loc = loc[:-6] + ".UTF-8"
+        if re.fullmatch(r"[a-z]{2,3}_[A-Z]{2}\.UTF-8", loc):
+            enabled_set.add(loc)
+
+    available_set = set(enabled_set)
+    if os.path.isfile("/etc/locale.gen"):
+        try:
+            for line in open("/etc/locale.gen", errors="replace"):
+                m = re.match(r"^(#?)\s*([a-z]{2,3}_[A-Z]{2}\.UTF-8)\b", line)
+                if m:
+                    available_set.add(m.group(2))
+                    if not m.group(1):
+                        enabled_set.add(m.group(2))
+        except OSError:
+            pass
+
+    print(json.dumps({
+        "lang": lang,
+        "regional": regional,
+        "enabled": sorted(enabled_set),
+        "available": sorted(available_set),
+    }))
+
+
+def c_security_status(args):
+    fw = "none"
+    if os.path.exists("/usr/bin/ufw"):
+        active = sh("systemctl", "is-active", "ufw").strip() == "active"
+        conf_on = False
+        try:
+            conf_on = any(l.strip() == "ENABLED=yes" for l in open("/etc/ufw/ufw.conf", errors="replace"))
+        except OSError:
+            pass
+        fw = "active" if active and conf_on else "inactive"
+
+    def efivar(name):
+        try:
+            return open(glob.glob(f"/sys/firmware/efi/efivars/{name}-*")[0], "rb").read()[-1]
+        except (OSError, IndexError):
+            return None
+
+    sb_val = efivar("SecureBoot")
+    if not os.path.isdir("/sys/firmware/efi"):
+        sb_state = "bios"
+    elif sb_val == 1:
+        sb_state = "enabled"
+    elif sb_val == 0:
+        sb_state = "disabled"
+    else:
+        sb_state = "unknown"
+
+    sbctl_installed = os.path.exists("/usr/bin/sbctl")
+    sbctl_enrolled = False
+    setup_mode = efivar("SetupMode") == 1
+    if sbctl_installed:
+        try:
+            st = json.loads(sh("sbctl", "status", "--json") or "{}")
+            sbctl_enrolled = bool(st.get("installed"))
+            if "setup_mode" in st:
+                setup_mode = bool(st.get("setup_mode"))
+        except ValueError:
+            pass
+
+    tpm_ver = ""
+    for p in glob.glob("/sys/class/tpm/*/tpm_version_major"):
+        try:
+            raw = open(p).read().strip()
+            if raw == "2":
+                tpm_ver = "2.0"
+                break
+            if raw == "1":
+                tpm_ver = "1.2"
+        except OSError:
+            pass
+
+    encrypted_mounts = []
+    try:
+        devs = json.loads(sh("lsblk", "-J", "-o", "NAME,TYPE,FSTYPE,MOUNTPOINTS") or "{}")
+
+        def walk(node):
+            tp = node.get("type") or ""
+            fs = node.get("fstype") or ""
+            mps = [m for m in (node.get("mountpoints") or []) if m]
+            if tp == "crypt" or fs == "crypto_LUKS":
+                encrypted_mounts.extend(mps or [f"/dev/{node.get('name', '')}"])
+            for ch in node.get("children") or []:
+                walk(ch)
+
+        for b in devs.get("blockdevices") or []:
+            walk(b)
+    except ValueError:
+        pass
+
+    fsroot = sh("findmnt", "-n", "-o", "FSROOT", "/").strip()
+    booted_snapshot = "/.snapshots/" in fsroot or "/.refind-btrfs/" in fsroot
+
+    flatpak_installed = os.path.exists("/usr/bin/flatpak")
+    perms = []
+    if flatpak_installed:
+        raw_p = subprocess.run(["flatpak", "permissions", "-j"], text=True,
+                               stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.strip()
+        if raw_p:
+            try:
+                parsed = json.loads(raw_p)
+                if isinstance(parsed, list):
+                    for row in parsed:
+                        if not isinstance(row, dict):
+                            continue
+                        p_val = row.get("permissions")
+                        p_text = ", ".join(str(x) for x in p_val) if isinstance(p_val, list) else str(p_val or "")
+                        perms.append({
+                            "table": str(row.get("table") or ""),
+                            "id": str(row.get("id") or ""),
+                            "app": str(row.get("app") or row.get("app-id") or ""),
+                            "permissions": p_text,
+                        })
+            except ValueError:
+                pass
+
+    print(json.dumps({
+        "firewall": fw,
+        "secureBoot": sb_state,
+        "sbctlInstalled": sbctl_installed,
+        "sbctlEnrolled": sbctl_enrolled,
+        "setupMode": setup_mode,
+        "tpmVersion": tpm_ver,
+        "encrypted": len(encrypted_mounts) > 0,
+        "encryptedTargets": sorted(set(encrypted_mounts)),
+        "fsroot": fsroot,
+        "bootedSnapshot": booted_snapshot,
+        "flatpakInstalled": flatpak_installed,
+        "permissions": perms,
+    }))
+
+
 COMMANDS = {"units": c_units, "unit": c_unit, "timers": c_timers, "logs": c_logs, "boots": c_boots,
             "crashes": c_crashes, "crash": c_crash, "users": c_users, "user-add": c_user_add,
             "user-delete": c_user_delete, "user-type": c_user_type, "user-password": c_user_password,
-            "boot": c_boot, "kernels": c_kernels, "firmware": c_firmware, "fwupd": c_fwupd}
+            "boot": c_boot, "kernels": c_kernels, "firmware": c_firmware, "fwupd": c_fwupd,
+            "storage-overview": c_storage_overview, "locales": c_locales, "security-status": c_security_status}
 
 
 def main(argv):

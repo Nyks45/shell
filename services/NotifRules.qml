@@ -17,11 +17,32 @@ Singleton {
     // A sound when a notification pops up (not for quiet/low-urgency ones)
     property bool sound
     property string soundFile: "/usr/share/sounds/freedesktop/stereo/message.oga"
+    // Automatic Do not disturb rules & critical override
+    property bool dndScheduleEnabled: false
+    property string dndScheduleFrom: "22:00"
+    property string dndScheduleTo: "07:00"
+    property bool dndWhenGaming: false
+    property bool dndAllowCritical: true
 
     function setSound(on: bool, file: string): void {
         sound = on;
         if (file)
             soundFile = file;
+        save();
+    }
+
+    function setDndRules(changes: var): void {
+        ensureLoaded();
+        if ("dndScheduleEnabled" in changes)
+            dndScheduleEnabled = !!changes.dndScheduleEnabled;
+        if ("dndScheduleFrom" in changes && changes.dndScheduleFrom)
+            dndScheduleFrom = String(changes.dndScheduleFrom);
+        if ("dndScheduleTo" in changes && changes.dndScheduleTo)
+            dndScheduleTo = String(changes.dndScheduleTo);
+        if ("dndWhenGaming" in changes)
+            dndWhenGaming = !!changes.dndWhenGaming;
+        if ("dndAllowCritical" in changes)
+            dndAllowCritical = !!changes.dndAllowCritical;
         save();
     }
 
@@ -51,6 +72,14 @@ Singleton {
             sound = !!data.sound;
             if (data.soundFile)
                 soundFile = data.soundFile;
+            dndScheduleEnabled = !!data.dndScheduleEnabled;
+            if (data.dndScheduleFrom)
+                dndScheduleFrom = String(data.dndScheduleFrom);
+            if (data.dndScheduleTo)
+                dndScheduleTo = String(data.dndScheduleTo);
+            dndWhenGaming = !!data.dndWhenGaming;
+            if ("dndAllowCritical" in data)
+                dndAllowCritical = !!data.dndAllowCritical;
         } catch (e) {}
     }
 
@@ -90,7 +119,12 @@ Singleton {
                 rules,
                 seen,
                 sound,
-                soundFile
+                soundFile,
+                dndScheduleEnabled,
+                dndScheduleFrom,
+                dndScheduleTo,
+                dndWhenGaming,
+                dndAllowCritical
             }, null, 4) + "\n");
     }
 

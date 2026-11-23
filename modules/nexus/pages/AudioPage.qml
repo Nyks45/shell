@@ -2,8 +2,11 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
+import Quickshell.Io
 import Caelestia.Config
 import Caelestia.I18n
+import qs.components
 import qs.components.controls
 import qs.services
 import qs.utils
@@ -11,6 +14,11 @@ import qs.modules.nexus.common
 
 PageBase {
     id: root
+
+    property real micLevel: 0
+    property string micTestState: ""
+
+    Component.onCompleted: Audio.refreshCards()
 
     title: Tr.tr("Sound")
 
@@ -75,6 +83,120 @@ PageBase {
             placeholderIcon: "mic_off"
             placeholderText: Tr.trCtx("No input devices", "no audio inputs")
             onSelected: node => Audio.setAudioSource(node)
+        }
+
+        ConnectedRect {
+            visible: !!Audio.source
+            Layout.fillWidth: true
+            implicitHeight: micMeterRow.implicitHeight + Tokens.padding.medium * 2
+
+            RowLayout {
+                id: micMeterRow
+
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Tokens.padding.largeIncreased
+                anchors.rightMargin: Tokens.padding.largeIncreased
+                spacing: Tokens.spacing.medium
+
+                MaterialIcon {
+                    text: "graphic_eq"
+                    color: Colours.palette.m3onSurfaceVariant
+                    fontStyle: Tokens.font.icon.medium
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Tokens.spacing.extraSmall
+
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: Tr.tr("Microphone level")
+                            font: Tokens.font.body.small
+                            elide: Text.ElideRight
+                        }
+
+                        StyledText {
+                            text: root.micTestState === "recording" ? Tr.tr("Recording 3 s…") : root.micTestState === "playing" ? Tr.tr("Playing back…") : Audio.sourceMuted ? Tr.tr("Muted") : `${Math.round(root.micLevel * 100)}%`
+                            color: Colours.palette.m3outline
+                            font: Tokens.font.label.small
+                        }
+                    }
+
+                    StyledRect {
+                        Layout.fillWidth: true
+                        implicitHeight: 6
+                        radius: Tokens.rounding.full
+                        color: Colours.tPalette.m3surfaceContainerHighest
+
+                        StyledRect {
+                            anchors.left: parent.left
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            width: Math.max(0, Math.min(1, Audio.sourceMuted ? 0 : root.micLevel)) * parent.width
+                            radius: parent.radius
+                            color: root.micLevel > 0.85 ? Colours.palette.m3error : Colours.palette.m3primary
+
+                            Behavior on width {
+                                NumberAnimation {
+                                    duration: 60
+                                }
+                            }
+                        }
+                    }
+                }
+
+                TextButton {
+                    text: root.micTestState === "recording" ? Tr.tr("Recording…") : root.micTestState === "playing" ? Tr.tr("Playing…") : Tr.tr("Test mic (3 s)")
+                    type: TextButton.Tonal
+                    disabled: root.micTestState !== "" || Audio.sourceMuted
+                    onClicked: {
+                        root.micTestState = "recording";
+                        micTestProc.running = true;
+                    }
+                }
+            }
+        }
+
+        // Device hardware profiles & codecs
+        SectionHeader {
+            visible: Audio.cards.length > 0
+            text: Tr.tr("Device profiles & codecs")
+        }
+
+        Repeater {
+            model: Audio.cards
+
+            SelectRow {
+                id: cardRow
+
+                required property var modelData
+
+                label: modelData.label
+                subtext: Tr.tr("Hardware profile or Bluetooth codec")
+                segmentedAllowed: false
+                menuItems: profileItems.instances
+                active: profileItems.instances.find(i => i.value === cardRow.modelData.activeProfile) ?? null
+                fallbackText: cardRow.modelData.activeProfile
+                onSelected: item => Audio.setCardProfile(cardRow.modelData.name, String(item.value))
+
+                Variants {
+                    id: profileItems
+
+                    model: cardRow.modelData.profiles
+
+                    MenuItem {
+                        required property var modelData
+
+                        text: modelData.description
+                        value: modelData.name
+                    }
+                }
+            }
         }
 
         // Volume mixer
@@ -183,6 +305,35 @@ PageBase {
             subtext: Tr.tr("Event sounds of apps that play them (e.g. a click or an error)")
             checked: AppLook.get("org.gnome.desktop.sound", "event-sounds", true)
             onToggled: AppLook.set("org.gnome.desktop.sound", "event-sounds", checked)
+        }
+
+        Process {
+            id: micMeterProc
+
+            running: root.visible && !!Audio.source && !Audio.sourceMuted && root.micTestState === ""
+            command: ["sh", "-c", "parec --raw --format=s16le --rate=8000 --channels=1 --property=application.name=caelestia 2>/dev/null | python3 -u -c 'import array, sys\ns = sys.stdin.buffer\nwhile True:\n d = s.read(640)\n if not d: break\n a = array.array(\"h\")\n a.frombytes(d[:len(d) - (len(d) & 1)])\n peak = max((abs(x) for x in a), default=0) / 32768.0\n print(f\"{min(1.0, peak * 2.5):.3f}\", flush=True)'"]
+            onRunningChanged: if (!running)
+                root.micLevel = 0
+            stdout: SplitParser {
+                onRead: line => {
+                    const v = parseFloat(line.trim());
+                    if (!isNaN(v))
+                        root.micLevel = v;
+                }
+            }
+        }
+
+        Process {
+            id: micTestProc
+
+            command: ["sh", "-c", "f=/tmp/caelestia-mic-test.wav; rm -f \"$f\"; timeout 3 parecord --file-format=wav --property=application.name=caelestia \"$f\" >/dev/null 2>&1 || true; echo playing; pw-play \"$f\" >/dev/null 2>&1 || true; rm -f \"$f\""]
+            stdout: SplitParser {
+                onRead: line => {
+                    if (line.trim() === "playing")
+                        root.micTestState = "playing";
+                }
+            }
+            onExited: root.micTestState = ""
         }
     }
 }

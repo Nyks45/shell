@@ -68,7 +68,7 @@ PageBase {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
             Layout.bottomMargin: Tokens.spacing.small
-            text: root.changed ? Tr.tr("Changed: games started after you log in again use it.") : Tr.tr("For every game; games started after you log in again use a change. Kept in %1.").arg(Paths.shortenHome(root.env?.file ?? ""))
+            text: root.changed ? Tr.tr("Saved to your live session and %1 — newly started games and launchers use it right away (restart an already open launcher to pick it up).").arg(Paths.shortenHome(root.env?.file ?? "")) : Tr.tr("Applied across your live session and written to %1 for future logins. Already-open launchers need a restart to pick up new changes.").arg(Paths.shortenHome(root.env?.file ?? ""))
             wrapMode: Text.WordWrap
             color: root.changed ? Colours.palette.m3primary : Colours.palette.m3outline
             font: Tokens.font.label.small

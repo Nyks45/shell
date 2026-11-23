@@ -108,6 +108,79 @@ PageBase {
             onSelected: item => HyprSettings.setOption("misc:new_window_takes_over_fullscreen", item.value)
         }
 
+        // Alt+Tab switcher and Overview behaviour (hyprflow + hyprscrolling)
+        SectionHeader {
+            text: Tr.tr("Window switcher & overview")
+        }
+
+        SelectRow {
+            label: Tr.tr("Alt + Tab style")
+            subtext: Tr.tr("Overview switcher shows thumbnails of all windows; Quick cycle steps directly")
+            menuItems: [
+                MenuItem {
+                    text: Tr.tr("Overview switcher")
+                    value: "overview"
+                },
+                MenuItem {
+                    text: Tr.tr("Quick cycle")
+                    value: "cycle"
+                }
+            ]
+            active: menuItems.find(i => i.value === (HyprSettings.saved.altTab?.style ?? "overview")) ?? menuItems[0]
+            onSelected: item => HyprSettings.setAltTab({
+                    style: item.value
+                })
+        }
+
+        SelectRow {
+            visible: (HyprSettings.saved.altTab?.style ?? "overview") === "cycle"
+            label: Tr.tr("Windows in Quick cycle")
+            subtext: Tr.tr("Which windows Alt + Tab cycles through on the current workspace")
+            menuItems: [
+                MenuItem {
+                    text: Tr.tr("All windows")
+                    value: "all"
+                },
+                MenuItem {
+                    text: Tr.tr("Tiled windows only")
+                    value: "tiled"
+                },
+                MenuItem {
+                    text: Tr.tr("Floating windows only")
+                    value: "floating"
+                }
+            ]
+            active: menuItems.find(i => i.value === (HyprSettings.saved.altTab?.scope ?? "all")) ?? menuItems[0]
+            onSelected: item => HyprSettings.setAltTab({
+                    scope: item.value
+                })
+        }
+
+        SliderRow {
+            visible: root.scrollerLoaded
+            icon: "zoom_out_map"
+            label: Tr.tr("Overview size")
+            valueLabel: `${Math.round(root.sc("overview_zoom", 0.5) * 100)}%`
+            // 20% .. 80%
+            value: (root.sc("overview_zoom", 0.5) - 0.2) / 0.6
+            onMoved: v => root.setSc("overview_zoom", Math.round((0.2 + v * 0.6) * 100) / 100)
+        }
+
+        ToggleRow {
+            visible: root.scrollerLoaded
+            text: Tr.tr("Window titles in the overview")
+            checked: root.sc("overview_titles", true)
+            onToggled: root.setSc("overview_titles", checked ? 1 : 0)
+        }
+
+        ToggleRow {
+            visible: root.scrollerLoaded
+            text: Tr.tr("Animate overview transitions")
+            subtext: Tr.tr("Smooth zoom into and out of the overview (off: instant)")
+            checked: !!root.sc("overview_animate", true)
+            onToggled: root.setSc("overview_animate", checked ? 1 : 0)
+        }
+
         // The scrolling layout: columns of windows side by side, scrolled through
         SectionHeader {
             text: Tr.tr("Scrolling layout")
@@ -378,23 +451,6 @@ PageBase {
                     widthPresetsRow.toggleWidth(pct);
                 clear();
             }
-        }
-
-        SliderRow {
-            visible: root.scrollerLoaded
-            icon: "zoom_out_map"
-            label: Tr.tr("Overview size")
-            valueLabel: `${Math.round(root.sc("overview_zoom", 0.5) * 100)}%`
-            // 20% .. 80%
-            value: (root.sc("overview_zoom", 0.5) - 0.2) / 0.6
-            onMoved: v => root.setSc("overview_zoom", Math.round((0.2 + v * 0.6) * 100) / 100)
-        }
-
-        ToggleRow {
-            visible: root.scrollerLoaded
-            text: Tr.tr("Window titles in the overview")
-            checked: root.sc("overview_titles", true)
-            onToggled: root.setSc("overview_titles", checked ? 1 : 0)
         }
     }
 }

@@ -114,7 +114,10 @@ PageBase {
             "minus": "-",
             "equal": "=",
             "comma": ",",
-            "period": "."
+            "period": ".",
+            "kp_add": "Numpad +",
+            "kp_subtract": "Numpad -",
+            "escape": "Esc"
         };
         return k.split("+").map(p => {
             const s = p.trim();
@@ -358,7 +361,42 @@ PageBase {
                 reason
             };
         });
-        shortcuts = [...parseBinds(userFile.text()), ...parseBinds(hyprflowFile.text()), ...builtInBinds(keybindsFile.text()), ...list];
+        const extra = [];
+        if (HyprSettings.saved.magnifierShortcuts !== false) {
+            const magReason = Tr.tr("Managed in Accessibility › Magnifier keyboard shortcuts");
+            extra.push({
+                section: Tr.tr("Desktop & shell"),
+                label: Tr.tr("Magnifier zoom in"),
+                kind: "",
+                id: "",
+                raw: "SUPER + ALT + Equal",
+                rawList: ["SUPER + ALT + Equal", "SUPER + KP_Add"],
+                changed: false,
+                keys: `${prettyKeys("SUPER + ALT + Equal")}, ${prettyKeys("SUPER + KP_Add")}`,
+                reason: magReason
+            }, {
+                section: Tr.tr("Desktop & shell"),
+                label: Tr.tr("Magnifier zoom out"),
+                kind: "",
+                id: "",
+                raw: "SUPER + ALT + Minus",
+                rawList: ["SUPER + ALT + Minus", "SUPER + KP_Subtract"],
+                changed: false,
+                keys: `${prettyKeys("SUPER + ALT + Minus")}, ${prettyKeys("SUPER + KP_Subtract")}`,
+                reason: magReason
+            }, {
+                section: Tr.tr("Desktop & shell"),
+                label: Tr.tr("Reset magnifier zoom"),
+                kind: "",
+                id: "",
+                raw: "SUPER + Escape",
+                rawList: ["SUPER + Escape"],
+                changed: false,
+                keys: prettyKeys("SUPER + Escape"),
+                reason: magReason
+            });
+        }
+        shortcuts = [...parseBinds(userFile.text()), ...parseBinds(hyprflowFile.text()), ...builtInBinds(keybindsFile.text()), ...list, ...extra];
     }
 
     // The one being changed (kind/id), and the custom shortcut index being edited (-1 = none)
@@ -844,6 +882,8 @@ PageBase {
 
         // Non-visual helpers (the page takes one item: they live in its column)
         // The four files load one after another: build the list once, after them
+        Component.onCompleted: rebuildTimer.restart()
+
         Timer {
             id: rebuildTimer
 

@@ -45,7 +45,7 @@ PageBase {
         InfoRow {
             icon: "schedule"
             label: Time.format(Units.twelveHourClock ? "h:mm AP" : "HH:mm")
-            subtext: Time.format("dddd, d MMMM yyyy")
+            subtext: Time.date.toLocaleDateString(Qt.locale(), Locale.LongFormat)
             value: root.synced ? Tr.tr("Synced") : ""
         }
 

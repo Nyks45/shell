@@ -61,6 +61,16 @@ PageBase {
         return allApps.filter(a => a.title.toLowerCase().includes(q) || a.app.toLowerCase().includes(q));
     }
 
+    function halfHourSlots(): var {
+        const out = [];
+        for (let slot = 0; slot < 48; slot++) {
+            const hh = String(Math.floor(slot / 2)).padStart(2, "0");
+            const mm = slot % 2 === 0 ? "00" : "30";
+            out.push(`${hh}:${mm}`);
+        }
+        return out;
+    }
+
     title: Tr.tr("Notifications")
 
     ColumnLayout {
@@ -75,9 +85,86 @@ PageBase {
 
         ToggleRow {
             text: Tr.tr("Do not disturb")
-            subtext: Tr.tr("Silences popup notifications; they still wait in the notification list")
+            subtext: Notifs.scheduledDndActive && !PersistentState.doNotDisturb ? Tr.tr("Active right now from your quiet-hours schedule") : (NotifRules.dndWhenGaming && RuntimeState.gameMode && !PersistentState.doNotDisturb) ? Tr.tr("Active right now while Game mode is on") : Tr.tr("Silences popup notifications; they still wait in the notification list")
             checked: PersistentState.doNotDisturb
             onToggled: PersistentState.doNotDisturb = checked
+        }
+
+        ToggleRow {
+            text: Tr.tr("Turn on automatically on a schedule")
+            subtext: NotifRules.dndScheduleEnabled ? Tr.tr("Quiet hours from %1 to %2").arg(NotifRules.dndScheduleFrom).arg(NotifRules.dndScheduleTo) : Tr.tr("Automatically silence popups during chosen hours")
+            checked: NotifRules.dndScheduleEnabled
+            onToggled: NotifRules.setDndRules({
+                dndScheduleEnabled: checked
+            })
+        }
+
+        SelectRow {
+            visible: NotifRules.dndScheduleEnabled
+            label: Tr.tr("Starts at")
+            segmentedAllowed: false
+            menuItems: dndFromItems.instances
+            active: dndFromItems.instances.find(i => i.value === NotifRules.dndScheduleFrom) ?? null
+            fallbackText: NotifRules.dndScheduleFrom
+            onSelected: item => NotifRules.setDndRules({
+                    dndScheduleFrom: item.value
+                })
+
+            Variants {
+                id: dndFromItems
+
+                model: root.halfHourSlots()
+
+                MenuItem {
+                    required property string modelData
+
+                    text: modelData
+                    value: modelData
+                }
+            }
+        }
+
+        SelectRow {
+            visible: NotifRules.dndScheduleEnabled
+            label: Tr.tr("Ends at")
+            segmentedAllowed: false
+            menuItems: dndToItems.instances
+            active: dndToItems.instances.find(i => i.value === NotifRules.dndScheduleTo) ?? null
+            fallbackText: NotifRules.dndScheduleTo
+            onSelected: item => NotifRules.setDndRules({
+                    dndScheduleTo: item.value
+                })
+
+            Variants {
+                id: dndToItems
+
+                model: root.halfHourSlots()
+
+                MenuItem {
+                    required property string modelData
+
+                    text: modelData
+                    value: modelData
+                }
+            }
+        }
+
+        ToggleRow {
+            text: Tr.tr("Turn on automatically in Game mode")
+            subtext: Tr.tr("Silences non-urgent popups while Game mode is active")
+            checked: NotifRules.dndWhenGaming
+            onToggled: NotifRules.setDndRules({
+                dndWhenGaming: checked
+            })
+        }
+
+        ToggleRow {
+            text: Tr.tr("Allow critical notifications")
+            subtext: Tr.tr("Urgent alerts such as low battery or system errors still pop up during Do not disturb")
+            checked: NotifRules.dndAllowCritical
+            onToggled: NotifRules.setDndRules({
+                dndAllowCritical: checked
+            })
         }
 
         SelectRow {

@@ -68,8 +68,8 @@ Singleton {
             interface: iface,
             connectCmd: (custom && custom.connectCmd.length > 0 ? custom.connectCmd : resolve(adapter ? adapter.connectCmd : null)) || [name, "up"],
             disconnectCmd: (custom && custom.disconnectCmd.length > 0 ? custom.disconnectCmd : resolve(adapter ? adapter.disconnectCmd : null)) || [name, "down"],
-            statusCmd: (adapter ? adapter.statusCmd : null) || ["ip", "link", "show"],
-            parse: (adapter ? adapter.parse : null) || (out => root.parseInterfaceStatus(out, iface)),
+            statusCmd: resolve(adapter ? adapter.statusCmd : null) || ["ip", "link", "show"],
+            parse: (adapter ? adapter.parse : null) ? (out => adapter.parse(out, iface)) : (out => root.parseInterfaceStatus(out, iface)),
             service: adapter ? adapter.service : `${name}d`,
             connectHint: adapter ? adapter.connectHint : null,
             registerCmd: adapter ? adapter.registerCmd : null,
@@ -83,7 +83,7 @@ Singleton {
     readonly property string interfaceName: active.interface
     readonly property var currentConfig: active
 
-    readonly property var adapters: [wireguardAdapter, warpAdapter, netbirdAdapter, tailscaleAdapter]
+    readonly property var adapters: [wireguardAdapter, nmAdapter, warpAdapter, netbirdAdapter, tailscaleAdapter]
 
     // Live list of configured providers, straight from the typed config list.
     // Each entry is a config node with id/name/displayName/interface and the
@@ -386,6 +386,41 @@ Singleton {
         return status;
     }
 
+    function parseNmVpnStatus(output: string, connName: string): var {
+        const status = {
+            connected: false,
+            state: "disconnected",
+            reason: "",
+            authUrl: "",
+            server: ""
+        };
+        if (!connName)
+            return status;
+        for (const raw of (output || "").split("\n")) {
+            if (!raw)
+                continue;
+            const fields = [];
+            let cur = "";
+            for (let i = 0; i < raw.length; i++) {
+                if (raw[i] === "\\" && i + 1 < raw.length && (raw[i + 1] === ":" || raw[i + 1] === "\\")) {
+                    cur += raw[++i];
+                } else if (raw[i] === ":") {
+                    fields.push(cur);
+                    cur = "";
+                } else {
+                    cur += raw[i];
+                }
+            }
+            fields.push(cur);
+            if (fields[0] === connName && (fields[3] === "activated" || fields[3] === "activating")) {
+                status.connected = fields[3] === "activated";
+                status.state = status.connected ? "connected" : "connecting";
+                break;
+            }
+        }
+        return status;
+    }
+
     function parseWarpServer(output: string): string {
         // Look for an endpoint hint in the tunnel stats output. WARP shows an
         // "Endpoint" line with the server IP.
@@ -555,6 +590,18 @@ Singleton {
         disconnectCmd: iface => ["pkexec", "wg-quick", "down", iface]
         // TRANSLATORS: %1 = a shell command, leave it untranslated
         connectHint: error => error.includes("Unknown device type") || error.includes("Protocol not supported") ? Tr.mark("WireGuard module not loaded. Run: %1", ["sudo modprobe wireguard"]) : ""
+    }
+
+    Adapter {
+        id: nmAdapter
+
+        name: "nm"
+        display: iface => iface
+        service: "NetworkManager"
+        connectCmd: iface => ["nmcli", "connection", "up", iface]
+        disconnectCmd: iface => ["nmcli", "connection", "down", iface]
+        statusCmd: ["nmcli", "-t", "-f", "NAME,TYPE,DEVICE,STATE", "connection", "show", "--active"]
+        parse: (out, iface) => root.parseNmVpnStatus(out, iface)
     }
 
     Adapter {

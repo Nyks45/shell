@@ -118,32 +118,39 @@ ColumnLayout {
         }
     }
 
+    readonly property var pillEntriesList: {
+        const items = [];
+        for (const e of Config.bar.entries.values) {
+            if (!e.enabled)
+                continue;
+            if (e.id === "logo" || e.id === "taskbar" || (e.id === "tray" && SystemTray.items.values.length > 0))
+                items.push({
+                    id: e.id
+                });
+        }
+        if (items.length === 0)
+            items.push({
+                id: "logo"
+            });
+        return [
+            {
+                id: "spacer"
+            },
+            ...items,
+            {
+                id: "spacer"
+            }
+        ];
+    }
+
     spacing: Tokens.spacing.medium
 
     Repeater {
         id: repeater
 
         model: ScriptModel {
-            // (the tray only when something's in it: no empty space in the pill)
-            values: [
-                {
-                    id: "spacer"
-                },
-                {
-                    id: "logo"
-                },
-                {
-                    id: "taskbar"
-                },
-                ...(SystemTray.items.values.length > 0 ? [
-                        {
-                            id: "tray"
-                        }
-                    ] : []),
-                {
-                    id: "spacer"
-                }
-            ]
+            // Pill bar follows the enabled order in Config.bar.entries (the tray only when non-empty)
+            values: root.pillEntriesList
         }
 
         DelegateChooser {

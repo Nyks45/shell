@@ -22,6 +22,31 @@ Singleton {
     readonly property list<NotifData> popups: list.filter(n => n.popup)
 
     property bool loaded
+    property bool scheduledDndActive: false
+    readonly property bool effectiveDnd: PersistentState.doNotDisturb || scheduledDndActive || (NotifRules.dndWhenGaming && RuntimeState.gameMode)
+
+    function _toMinutes(hhmm: string): int {
+        const m = String(hhmm ?? "").match(/^(\d{1,2}):(\d{2})$/);
+        if (!m)
+            return -1;
+        return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    }
+
+    function updateSchedule(): void {
+        if (!NotifRules.dndScheduleEnabled) {
+            scheduledDndActive = false;
+            return;
+        }
+        const from = _toMinutes(NotifRules.dndScheduleFrom);
+        const to = _toMinutes(NotifRules.dndScheduleTo);
+        if (from < 0 || to < 0 || from === to) {
+            scheduledDndActive = false;
+            return;
+        }
+        const now = new Date();
+        const cur = now.getHours() * 60 + now.getMinutes();
+        scheduledDndActive = from < to ? (cur >= from && cur < to) : (cur >= from || cur < to);
+    }
 
     // A click on a notification: the app's "default" action (the notification spec), else its
     // only action when actionOnClick is set, else the app that sent it to the front. Restored
@@ -64,16 +89,43 @@ Singleton {
         return false;
     }
 
-    function shouldShowPopup(): bool {
-        if (PersistentState.doNotDisturb || ShellState.anySidebarOpen())
+    function shouldShowPopup(notif: var): bool {
+        if (ShellState.anySidebarOpen())
             return false;
+        if (effectiveDnd)
+            return NotifRules.dndAllowCritical && notif?.urgency === NotificationUrgency.Critical;
         if (GlobalConfig.notifs.fullscreen === NotifsFullscreen.Off && hasFullscreen())
             return false;
         return true;
     }
 
     // The per-app rules ready before the first notification
-    Component.onCompleted: NotifRules.ensureLoaded()
+    Component.onCompleted: {
+        NotifRules.ensureLoaded();
+        updateSchedule();
+    }
+
+    Connections {
+        function onDndScheduleEnabledChanged(): void {
+            root.updateSchedule();
+        }
+        function onDndScheduleFromChanged(): void {
+            root.updateSchedule();
+        }
+        function onDndScheduleToChanged(): void {
+            root.updateSchedule();
+        }
+
+        target: NotifRules
+    }
+
+    Timer {
+        interval: 30000
+        repeat: true
+        running: NotifRules.dndScheduleEnabled
+        triggeredOnStart: true
+        onTriggered: root.updateSchedule()
+    }
 
     // The shell's own messages (Toaster.toast: "Copied", "Do not disturb enabled"...) are real
     // notifications: sent to this server, so they pop up, follow do not disturb and the rules,
@@ -156,7 +208,7 @@ Singleton {
             notif.tracked = true;
 
             const comp = notifComp.createObject(root, {
-                popup: mode !== "quiet" && root.shouldShowPopup(),
+                popup: mode !== "quiet" && root.shouldShowPopup(notif),
                 notification: notif
             });
             if (comp.popup && NotifRules.sound && notif.urgency !== NotificationUrgency.Low)

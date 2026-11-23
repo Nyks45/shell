@@ -8,13 +8,14 @@ import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
+import qs.components.controls
 import qs.services
 import qs.utils
 import qs.modules.nexus
 import qs.modules.nexus.common
 
-// Privacy & security: the firewall (ufw), screen lock, recent files (GTK's
-// history), the shell's notification history and clipboard history.
+// Privacy & security: the firewall (ufw), encryption/TPM, camera/mic/portal
+// permissions, screen lock, and recent files/notifications/clipboard history.
 PageBase {
     id: root
 
@@ -22,13 +23,29 @@ PageBase {
     property bool firewallPending
     property bool hasCliphist
     property string secureBootState: "unknown"
+    property bool sbctlInstalled
+    property bool sbctlEnrolled
+    property bool setupMode
+    property string tpmVersion
+    property bool encrypted
+    property var encryptedTargets: []
+    property bool flatpakInstalled
+    property var permissions: []
+    property var videoStreams: []
     property bool checked
 
     function refresh(): void {
-        fwProc.running = true;
+        secProc.running = false;
+        secProc.running = true;
+        clipProc.running = false;
+        clipProc.running = true;
+        videoProc.running = false;
+        videoProc.running = true;
     }
 
     title: Tr.tr("Privacy & security")
+
+    Component.onCompleted: refresh()
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -37,19 +54,61 @@ PageBase {
         spacing: Tokens.spacing.extraSmall / 2
 
         Process {
-            id: fwProc
+            id: secProc
 
-            running: true
-            command: ["sh", "-c", "if command -v ufw >/dev/null; then if [ \"$(systemctl is-active ufw)\" = active ] && grep -qx 'ENABLED=yes' /etc/ufw/ufw.conf 2>/dev/null; then echo active; else echo inactive; fi; else echo none; fi; command -v cliphist >/dev/null && echo cliphist; sb=$(ls /sys/firmware/efi/efivars/SecureBoot-* 2>/dev/null | head -n1); if [ -n \"$sb\" ] && [ \"$(od -An -t u1 -j 4 -N 1 \"$sb\" 2>/dev/null | tr -d ' ')\" = \"1\" ]; then echo sb:enabled; elif [ -d /sys/firmware/efi ]; then echo sb:disabled; else echo sb:bios; fi"]
+            command: [`${Paths.libdir}/caelestia-system`, "security-status"]
             stdout: StdioCollector {
                 onStreamFinished: {
-                    const lines = text.split("\n").map(l => l.trim());
-                    root.firewall = lines[0] === "none" ? "" : lines[0];
-                    root.hasCliphist = lines.includes("cliphist");
-                    root.secureBootState = lines.includes("sb:enabled") ? "enabled" : lines.includes("sb:disabled") ? "disabled" : lines.includes("sb:bios") ? "bios" : "unknown";
+                    try {
+                        const d = JSON.parse(text);
+                        root.firewall = d.firewall === "none" ? "" : (d.firewall ?? "");
+                        root.secureBootState = d.secureBoot ?? "unknown";
+                        root.sbctlInstalled = !!d.sbctlInstalled;
+                        root.sbctlEnrolled = !!d.sbctlEnrolled;
+                        root.setupMode = !!d.setupMode;
+                        root.tpmVersion = d.tpmVersion ?? "";
+                        root.encrypted = !!d.encrypted;
+                        root.encryptedTargets = d.encryptedTargets ?? [];
+                        root.flatpakInstalled = !!d.flatpakInstalled;
+                        root.permissions = d.permissions ?? [];
+                    } catch (e) {}
                     root.firewallPending = false;
                     root.checked = true;
                 }
+            }
+        }
+
+        Process {
+            id: clipProc
+
+            command: ["sh", "-c", "command -v cliphist >/dev/null && echo yes || true"]
+            stdout: StdioCollector {
+                onStreamFinished: root.hasCliphist = text.trim() === "yes"
+            }
+        }
+
+        Process {
+            id: videoProc
+
+            command: ["python3", "-I", "-c", "import json, subprocess\ntry:\n nodes = json.loads(subprocess.check_output(['pw-dump'], text=True))\nexcept Exception:\n nodes = []\napps = []\nfor n in nodes:\n if not isinstance(n, dict) or n.get('type') != 'PipeWire:Interface:Node': continue\n info = n.get('info') or {}\n if info.get('state') != 'running': continue\n p = info.get('props') or {}\n mc = str(p.get('media.class') or '')\n if 'Video' in mc and ('Stream' in mc or 'Source' in mc):\n  apps.append(str(p.get('application.name') or p.get('node.description') or p.get('node.name') or 'Video'))\nprint(json.dumps(sorted(set(apps))))"]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    try {
+                        root.videoStreams = JSON.parse(text);
+                    } catch (e) {
+                        root.videoStreams = [];
+                    }
+                }
+            }
+        }
+
+        Process {
+            id: flatpakRevokeProc
+
+            onExited: code => {
+                if (code === 0)
+                    Toaster.toast(Tr.tr("Permission revoked"), "", "shield");
+                root.refresh();
             }
         }
 
@@ -100,7 +159,7 @@ PageBase {
         NavRow {
             icon: "verified_user"
             text: Tr.tr("Secure Boot")
-            subtext: root.secureBootState === "enabled" ? Tr.tr("Enabled · Manage keys and boot entries in Recovery & boot") : root.secureBootState === "disabled" ? Tr.tr("Disabled · Manage keys and boot entries in Recovery & boot") : Tr.tr("Not available (legacy BIOS)")
+            subtext: root.secureBootState === "enabled" ? (root.sbctlEnrolled ? Tr.tr("Enabled · Keys enrolled (sbctl) · Manage in Recovery & boot") : Tr.tr("Enabled · Manage keys and boot entries in Recovery & boot")) : root.secureBootState === "disabled" ? (root.setupMode ? Tr.tr("Disabled (Setup Mode) · Ready for sbctl key enrolment in Recovery & boot") : Tr.tr("Disabled · Manage keys and boot entries in Recovery & boot")) : root.secureBootState === "bios" ? Tr.tr("Not available (legacy BIOS)") : Tr.tr("Status unknown")
             onClicked: root.nState.goTo({
                 page: PageRegistry.find("recovery"),
                 tab: "",
@@ -108,14 +167,127 @@ PageBase {
             })
         }
 
+        InfoRow {
+            icon: root.encrypted ? "enhanced_encryption" : "no_encryption"
+            label: Tr.tr("Disk encryption & TPM")
+            value: root.encrypted ? Tr.tr("Encrypted") : Tr.tr("Not encrypted")
+            subtext: [root.encrypted ? Tr.tr("LUKS active on %1").arg(root.encryptedTargets.join(", ")) : Tr.tr("Root filesystem is not LUKS-encrypted"), root.tpmVersion ? Tr.tr("TPM %1 detected").arg(root.tpmVersion) : Tr.tr("No TPM device detected")].join(" · ")
+        }
+
         NavRow {
             icon: "system_update_alt"
             text: Tr.tr("System updates")
-            subtext: Tr.tr("Keep system packages and security patches up to date")
+            subtext: Packages.total > 0 ? Tr.trN("%n update waiting", "%n updates waiting", Packages.total) : Tr.tr("Up to date · Keep packages and security patches current")
             onClicked: root.nState.goTo({
                 page: PageRegistry.find("updates"),
                 tab: "",
                 path: []
+            })
+        }
+
+        SectionHeader {
+            text: Tr.tr("Camera, microphone & screen sharing")
+        }
+
+        InfoRow {
+            icon: Audio.recordingStreams.length > 0 ? "mic" : "mic_none"
+            label: Tr.tr("Microphone in use")
+            value: Audio.recordingStreams.length > 0 ? Tr.trN("%n app", "%n apps", Audio.recordingStreams.length) : Tr.tr("Idle")
+            subtext: Audio.recordingStreams.length > 0 ? Audio.recordingStreams.map(s => Audio.getStreamName(s)).join(", ") : Tr.tr("No apps are currently recording audio")
+        }
+
+        InfoRow {
+            icon: root.videoStreams.length > 0 ? "videocam" : "videocam_off"
+            label: Tr.tr("Camera & screen capture")
+            value: root.videoStreams.length > 0 ? Tr.trN("%n app", "%n apps", root.videoStreams.length) : Tr.tr("Idle")
+            subtext: root.videoStreams.length > 0 ? root.videoStreams.join(", ") : Tr.tr("No active PipeWire camera or screen-capture streams")
+        }
+
+        InfoRow {
+            visible: root.flatpakInstalled && root.permissions.length === 0
+            icon: "admin_panel_settings"
+            label: Tr.tr("Flatpak portal permissions")
+            value: Tr.tr("None stored")
+            subtext: Tr.tr("Granted camera, microphone, screenshot or background permissions appear here when Flatpak apps store them")
+        }
+
+        Repeater {
+            model: root.flatpakInstalled ? root.permissions : []
+
+            ConnectedRect {
+                id: permRow
+
+                required property var modelData
+
+                Layout.fillWidth: true
+                implicitHeight: permLayout.implicitHeight + Tokens.padding.medium * 2
+
+                RowLayout {
+                    id: permLayout
+
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: Tokens.padding.largeIncreased
+                    anchors.rightMargin: Tokens.padding.largeIncreased
+                    spacing: Tokens.spacing.small
+
+                    MaterialIcon {
+                        text: "admin_panel_settings"
+                        color: Colours.palette.m3onSurfaceVariant
+                        fontStyle: Tokens.font.icon.medium
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: `${permRow.modelData.app || Tr.tr("Global")} · ${permRow.modelData.table}/${permRow.modelData.id}`
+                            font: Tokens.font.body.small
+                            elide: Text.ElideRight
+                        }
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: permRow.modelData.permissions
+                            color: Colours.palette.m3outline
+                            font: Tokens.font.label.small
+                            elide: Text.ElideRight
+                        }
+                    }
+
+                    TextButton {
+                        text: Tr.tr("Revoke")
+                        type: TextButton.Text
+                        disabled: flatpakRevokeProc.running
+                        onClicked: {
+                            const args = ["permission-remove", permRow.modelData.table, permRow.modelData.id];
+                            if (permRow.modelData.app)
+                                args.push(permRow.modelData.app);
+                            flatpakRevokeProc.command = ["flatpak", ...args];
+                            flatpakRevokeProc.running = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        RowButton {
+            visible: root.flatpakInstalled && root.permissions.length > 0
+            icon: "reset_wrench"
+            text: Tr.tr("Reset all Flatpak permissions…")
+            subtext: Tr.tr("Revokes all stored Flatpak portal permissions across every app")
+            disabled: flatpakRevokeProc.running
+            onClicked: confirmDialog.ask({
+                header: Tr.tr("Reset all Flatpak permissions?"),
+                body: Tr.tr("All %1 stored Flatpak portal permission entries will be cleared. Apps will ask again when needed.").arg(root.permissions.length),
+                confirmLabel: Tr.tr("Reset all"),
+                onConfirm: () => {
+                    flatpakRevokeProc.command = ["flatpak", "permission-reset", "--all"];
+                    flatpakRevokeProc.running = true;
+                }
             })
         }
 

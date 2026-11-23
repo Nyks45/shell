@@ -1,16 +1,58 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
 import qs.components.controls
 import qs.services
+import qs.utils
 import qs.modules.nexus
 import qs.modules.nexus.common
 
 PageBase {
     id: root
+
+    property string sysLang: ""
+    property string sysRegional: ""
+    property var availableLocales: []
+    readonly property string localeBusyWhat: Tr.tr("Change system locale")
+    readonly property bool localeBusy: Admin.jobs.some(j => j.what === localeBusyWhat)
+
+    function localeDisplayName(code: string): string {
+        const base = String(code ?? "").replace(/\.UTF-8$/i, "");
+        const loc = Qt.locale(base);
+        const lang = loc.nativeLanguageName || loc.name;
+        const country = loc.nativeCountryName || "";
+        return country ? `${lang} (${country}) · ${base}` : `${lang} · ${base}`;
+    }
+
+    function regionalSample(): string {
+        const base = String(root.sysRegional ?? "").replace(/\.UTF-8$/i, "");
+        const loc = base ? Qt.locale(base) : Qt.locale();
+        return `${loc.nativeCountryName || loc.name} · ${Qt.formatDate(new Date(), loc.dateFormat(Locale.ShortFormat))} · ${(1234.56).toLocaleString(loc, "f", 2)}`;
+    }
+
+    function refreshLocales(): void {
+        localesProc.running = false;
+        localesProc.running = true;
+    }
+
+    function applyLocale(nextLang: string, nextRegional: string): void {
+        if (!nextLang || !nextRegional)
+            return;
+        Admin.run("set-locale", [nextLang, nextRegional], localeBusyWhat, ok => {
+            if (ok) {
+                root.sysLang = nextLang;
+                root.sysRegional = nextRegional;
+                Toaster.toast(Tr.tr("Locale updated"), Tr.tr("Sign out and back in for all apps to use %1").arg(nextLang), "language");
+            }
+            root.refreshLocales();
+        });
+    }
+
+    Component.onCompleted: refreshLocales()
 
     // Temperature units (there must be one for each value of the TemperatureUnit enum)
     readonly property list<MenuItem> tempItems: [
@@ -89,10 +131,61 @@ PageBase {
             }
         }
 
+        SelectRow {
+            visible: root.availableLocales.length > 0
+            label: Tr.tr("System language (apps)")
+            subtext: root.localeBusy ? Tr.tr("Generating and saving locale…") : Tr.tr("Default language for apps and system tools (takes effect after signing out)")
+            enabled: !root.localeBusy
+            segmentedAllowed: false
+            menuItems: sysLangItems.instances
+            active: sysLangItems.instances.find(i => i.value === root.sysLang) ?? null
+            fallbackText: root.sysLang ? root.localeDisplayName(root.sysLang) : ""
+            onSelected: item => root.applyLocale(String(item.value), root.sysRegional || String(item.value))
+
+            Variants {
+                id: sysLangItems
+
+                model: root.availableLocales
+
+                MenuItem {
+                    required property string modelData
+
+                    text: root.localeDisplayName(modelData)
+                    value: modelData
+                }
+            }
+        }
+
+        SelectRow {
+            visible: root.availableLocales.length > 0
+            label: Tr.tr("Regional format")
+            subtext: root.regionalSample()
+            enabled: !root.localeBusy
+            segmentedAllowed: false
+            menuItems: sysRegItems.instances
+            active: sysRegItems.instances.find(i => i.value === root.sysRegional) ?? null
+            fallbackText: root.sysRegional ? root.localeDisplayName(root.sysRegional) : ""
+            onSelected: item => root.applyLocale(root.sysLang || String(item.value), String(item.value))
+
+            Variants {
+                id: sysRegItems
+
+                model: root.availableLocales
+
+                MenuItem {
+                    required property string modelData
+
+                    text: root.localeDisplayName(modelData)
+                    value: modelData
+                }
+            }
+        }
+
         InfoRow {
+            visible: root.availableLocales.length === 0
             icon: "calendar_today"
             label: Tr.tr("Regional format")
-            value: `${Qt.locale().nativeCountryName || Qt.locale().name} · ${Qt.formatDate(new Date(), Qt.locale().dateFormat(Locale.ShortFormat))} · ${(1234.56).toLocaleString(Qt.locale(), "f", 2)}`
+            value: root.regionalSample()
         }
 
         NavRow {
@@ -146,6 +239,22 @@ PageBase {
             menuItems: root.dataItems
             active: root.dataItems.find(i => i.value === GlobalConfig.services.dataUnits)
             onSelected: item => GlobalConfig.services.dataUnits = item.value
+        }
+
+        Process {
+            id: localesProc
+
+            command: [`${Paths.libdir}/caelestia-system`, "locales"]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    try {
+                        const d = JSON.parse(text);
+                        root.sysLang = d.lang ?? "";
+                        root.sysRegional = d.regional ?? d.lang ?? "";
+                        root.availableLocales = d.available ?? [];
+                    } catch (e) {}
+                }
+            }
         }
     }
 }

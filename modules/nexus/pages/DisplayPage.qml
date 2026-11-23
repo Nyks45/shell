@@ -58,6 +58,7 @@ PageBase {
     property int pendingTemp: -1
 
     readonly property var night: HyprSettings.saved.nightLight ?? {}
+    readonly property string nightSchedule: night.schedule ?? (night.always ? "always" : "custom")
     property bool sunsetInstalled
     // A laptop-style backlight (brightnessctl); external monitors go over DDC
     property bool hasBacklight
@@ -155,17 +156,35 @@ PageBase {
         return parts.join(" · ");
     }
 
+    function sunTime(raw: var, fallback: string): string {
+        const s = String(raw ?? "").trim();
+        const m = s.match(/(\d{1,2}:\d{2})(?::\d{2})?$/);
+        if (m)
+            return m[1].padStart(5, "0");
+        return fallback;
+    }
+
+    function nightProfileBody(n: var, temp: int): string {
+        const sched = n.schedule ?? (n.always ? "always" : "custom");
+        if (sched === "always" || n.always)
+            return `profile {\n    time = 0:00\n    temperature = ${temp}\n}\n`;
+        const from = sched === "sun" ? sunTime(Weather.cc?.sunset, "20:00") : (n.from ?? "20:00");
+        const to = sched === "sun" ? sunTime(Weather.cc?.sunrise, "07:00") : (n.to ?? "07:00");
+        return `profile {\n    time = ${to}\n    identity = true\n}\n\nprofile {\n    time = ${from}\n    temperature = ${temp}\n}\n`;
+    }
+
     // Night light: hyprsunset, scheduled by its config (identity by day)
     function writeSunsetConf(n: var): void {
         const temp = n.temperature ?? 4000;
-        const from = n.from ?? "20:00", to = n.to ?? "07:00";
-        const body = n.always ? `profile {\n    time = 0:00\n    temperature = ${temp}\n}\n` : `profile {\n    time = ${to}\n    identity = true\n}\n\nprofile {\n    time = ${from}\n    temperature = ${temp}\n}\n`;
-        sunsetFile.setText(`# Written by Caelestia's settings app (Display > Night light).\n\n${body}`);
+        sunsetFile.setText(`# Written by Caelestia's settings app (Display > Night light).\n\n${nightProfileBody(n, temp)}`);
     }
 
     function setNight(changes: var): void {
-        const n = Object.assign({}, night, changes);
-        HyprSettings.setNightLight(changes);
+        const nextChanges = Object.assign({}, changes);
+        if ("schedule" in nextChanges)
+            nextChanges.always = nextChanges.schedule === "always";
+        const n = Object.assign({}, night, nextChanges);
+        HyprSettings.setNightLight(nextChanges);
         writeSunsetConf(n);
         // (Re)start or stop it now; at login hypr-settings.lua starts it
         Quickshell.execDetached(["sh", "-c", n.enabled ? "pkill -x hyprsunset; sleep 0.3; exec hyprsunset" : "pkill -x hyprsunset"]);
@@ -173,7 +192,11 @@ PageBase {
 
     title: Tr.tr("Display")
 
-    Component.onCompleted: refresh()
+    Component.onCompleted: {
+        refresh();
+        if (!Weather.cc)
+            Weather.reload();
+    }
     Component.onDestruction: {
         if (sdrDebounce.running) {
             sdrDebounce.stop();
@@ -190,9 +213,7 @@ PageBase {
                 HyprSettings.setNightLight({
                     temperature: t
                 });
-                const from = n.from ?? "20:00", to = n.to ?? "07:00";
-                const body = n.always ? `profile {\n    time = 0:00\n    temperature = ${t}\n}\n` : `profile {\n    time = ${to}\n    identity = true\n}\n\nprofile {\n    time = ${from}\n    temperature = ${t}\n}\n`;
-                const text = `# Written by Caelestia's settings app (Display > Night light).\n\n${body}`;
+                const text = `# Written by Caelestia's settings app (Display > Night light).\n\n${nightProfileBody(n, t)}`;
                 Quickshell.execDetached(["sh", "-c", 'printf "%s" "$2" > "$1"; if [ "$3" = "1" ]; then pkill -x hyprsunset; sleep 0.3; exec hyprsunset; fi', "sh", sunsetConf, text, n.enabled ? "1" : "0"]);
             }
         }
@@ -320,19 +341,34 @@ PageBase {
             }
         }
 
-        ToggleRow {
+        SelectRow {
             visible: root.sunsetInstalled
-            text: Tr.tr("All day")
-            subtext: Tr.tr("Instead of only in the evening and at night")
-            checked: root.night.always ?? false
-            onToggled: root.setNight({
-                always: checked
-            })
+            label: Tr.tr("Schedule")
+            subtext: root.nightSchedule === "sun" ? Tr.tr("Sunset (%1) to sunrise (%2)").arg(root.sunTime(Weather.cc?.sunset, "20:00")).arg(root.sunTime(Weather.cc?.sunrise, "07:00")) : root.nightSchedule === "always" ? Tr.tr("Active all day") : Tr.tr("Turn on and off at chosen hours")
+            menuItems: [
+                MenuItem {
+                    text: Tr.tr("Sunset to sunrise")
+                    value: "sun"
+                },
+                MenuItem {
+                    text: Tr.tr("Custom hours")
+                    value: "custom"
+                },
+                MenuItem {
+                    text: Tr.tr("All day")
+                    value: "always"
+                }
+            ]
+            active: menuItems.find(i => i.value === root.nightSchedule) ?? null
+            onSelected: item => root.setNight({
+                    schedule: item.value
+                })
         }
 
         SelectRow {
-            visible: root.sunsetInstalled && !(root.night.always ?? false)
+            visible: root.sunsetInstalled && root.nightSchedule === "custom"
             label: Tr.tr("Turns on at")
+            segmentedAllowed: false
             menuItems: fromItems.instances
             active: fromItems.instances.find(i => i.value === (root.night.from ?? "20:00")) ?? null
             fallbackText: root.night.from ?? "20:00"
@@ -343,7 +379,7 @@ PageBase {
             Variants {
                 id: fromItems
 
-                model: root.halfHourSlots(16, 23)
+                model: root.halfHourSlots(0, 23)
 
                 MenuItem {
                     required property string modelData
@@ -355,8 +391,9 @@ PageBase {
         }
 
         SelectRow {
-            visible: root.sunsetInstalled && !(root.night.always ?? false)
+            visible: root.sunsetInstalled && root.nightSchedule === "custom"
             label: Tr.tr("Turns off at")
+            segmentedAllowed: false
             menuItems: toItems.instances
             active: toItems.instances.find(i => i.value === (root.night.to ?? "07:00")) ?? null
             fallbackText: root.night.to ?? "07:00"
@@ -367,7 +404,7 @@ PageBase {
             Variants {
                 id: toItems
 
-                model: root.halfHourSlots(5, 10)
+                model: root.halfHourSlots(0, 23)
 
                 MenuItem {
                     required property string modelData
@@ -692,6 +729,15 @@ PageBase {
             }
 
             target: HyprSettings
+        }
+
+        Connections {
+            function onCcChanged(): void {
+                if (root.nightSchedule === "sun" && (root.night.enabled ?? false))
+                    root.setNight({});
+            }
+
+            target: Weather
         }
 
         Timer {
