@@ -6,6 +6,7 @@ import Quickshell
 import Quickshell.Services.Pipewire
 import Caelestia.Config
 import Caelestia.I18n
+import Caelestia.Services
 import qs.components
 import qs.components.controls
 import qs.services
@@ -18,11 +19,24 @@ PageBase {
     title: Tr.tr("App volumes")
     isSubPage: true
 
+    Component.onCompleted: Audio.openCards()
+    Component.onDestruction: Audio.closeCards()
+
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         width: root.cappedWidth
         spacing: Tokens.spacing.extraSmall / 2
+
+        AudioPeakMonitor {
+            id: peakMonitor
+
+            active: root.visible
+            targets: [...Audio.streams, ...Audio.recordingStreams].map(n => ({
+                        serial: Audio.nodeKey(n),
+                        captureSink: false
+                    })).filter(t => !!t.serial)
+        }
 
         StyledText {
             Layout.fillWidth: true
@@ -38,104 +52,185 @@ PageBase {
             text: Tr.tr("Apps playing audio")
         }
 
-        StreamGroup {
-            streams: Audio.streams
-            devices: Audio.sinks
-            placeholderIcon: "music_off"
-            placeholderText: Tr.tr("No apps playing audio")
+        Repeater {
+            model: ScriptModel {
+                values: [...Audio.streams]
+            }
+
+            delegate: StreamCard {
+                isRecording: false
+            }
+
+            onCountChanged: Rows.bump()
+        }
+
+        EmptyCard {
+            visible: Audio.streams.length === 0
+            icon: "music_off"
+            text: Tr.tr("No apps playing audio")
         }
 
         SectionHeader {
             text: Tr.tr("Apps recording audio")
         }
 
-        StreamGroup {
-            streams: Audio.recordingStreams
-            devices: Audio.sources
-            isRecording: true
-            placeholderIcon: "mic_off"
-            placeholderText: Tr.tr("No apps recording audio")
+        Repeater {
+            model: ScriptModel {
+                values: [...Audio.recordingStreams]
+            }
+
+            delegate: StreamCard {
+                isRecording: true
+            }
+
+            onCountChanged: Rows.bump()
+        }
+
+        EmptyCard {
+            visible: Audio.recordingStreams.length === 0
+            icon: "mic_off"
+            text: Tr.tr("No apps recording audio")
         }
     }
 
-    component StreamGroup: ItemList {
-        id: group
+    component EmptyCard: ConnectedRect {
+        id: empty
 
-        property var streams: []
-        property var devices: []
-        property bool isRecording: false
+        required property string icon
+        required property string text
 
-        showList: true
-        color: list.count === 0 ? Colours.tPalette.m3surfaceContainer : "transparent"
-        list.spacing: Tokens.spacing.medium
+        Layout.fillWidth: true
+        implicitHeight: emptyCol.implicitHeight + Tokens.padding.extraLarge * 2
 
-        model: ScriptModel {
-            values: [...(group.streams ?? [])]
-        }
+        ColumnLayout {
+            id: emptyCol
 
-        delegate: ColumnLayout {
-            id: streamCard
+            anchors.centerIn: parent
+            spacing: Tokens.spacing.extraSmall
 
-            required property PwNode modelData
-            required property int index
-            readonly property bool muted: streamCard.modelData?.audio?.muted ?? false
-
-            anchors.left: group.list.contentItem.left
-            anchors.right: group.list.contentItem.right
-            spacing: Tokens.spacing.extraSmall / 2
-
-            SliderRow {
-                icon: group.isRecording
-                    ? Icons.getMicVolumeIcon(streamCard.modelData?.audio?.volume ?? 0, streamCard.muted)
-                    : Icons.getVolumeIcon(streamCard.modelData?.audio?.volume ?? 0, streamCard.muted)
-                iconClickable: true
-                label: Audio.getStreamName(streamCard.modelData)
-                valueLabel: streamCard.muted ? Tr.tr("Muted") : Strings.percentOne(value)
-                value: streamCard.modelData?.audio?.volume ?? 0
-                enabled: true
-                onMoved: v => Audio.setStreamVolume(streamCard.modelData, v)
-                onIconClicked: Audio.setStreamMuted(streamCard.modelData, !Audio.getStreamMuted(streamCard.modelData))
+            MaterialIcon {
+                Layout.alignment: Qt.AlignHCenter
+                text: empty.icon
+                color: Colours.palette.m3outline
+                fontStyle: Tokens.font.icon.large
             }
 
-            SelectRow {
-                visible: group.devices.length > 1
-                label: group.isRecording ? Tr.tr("Input device") : Tr.tr("Output device")
-                segmentedAllowed: false
-                fallbackText: Tr.tr("Default")
-                menuItems: deviceItems.instances
-                // The device the stream is linked to now (follows pactl moves):
-                // playback links stream -> sink, recording links source -> stream
-                active: {
-                    const s = streamCard.modelData;
-                    const g = streamLinks.linkGroups.find(l => group.isRecording ? l.target === s : l.source === s);
-                    const dev = g ? (group.isRecording ? g.source : g.target) : null;
-                    return dev ? (deviceItems.instances.find(i => i.value === dev) ?? null) : null;
+            StyledText {
+                Layout.alignment: Qt.AlignHCenter
+                text: empty.text
+                color: Colours.palette.m3outline
+                font: Tokens.font.body.large
+            }
+        }
+    }
+
+    component StreamCard: ColumnLayout {
+        id: streamCard
+
+        required property PwNode modelData
+        required property int index
+        property bool isRecording: false
+
+        readonly property string serial: Audio.nodeKey(modelData)
+        readonly property bool muted: modelData?.audio?.muted ?? false
+        readonly property real maxVol: Math.max(1, GlobalConfig.services.maxVolume)
+        readonly property real vol: modelData?.audio?.volume ?? 0
+        readonly property real peak: muted ? 0 : Number(peakMonitor.peaks[serial] ?? 0)
+        readonly property string mediaName: String(modelData?.properties?.["media.name"] ?? "")
+        readonly property string appTitle: Audio.getStreamName(modelData)
+        readonly property PwNode linkedDevice: {
+            if (!modelData)
+                return null;
+            const g = streamLinks.linkGroups.find(l => isRecording ? l.target === modelData : l.source === modelData);
+            return g ? (isRecording ? g.source : g.target) : null;
+        }
+        readonly property string activeRouteValue: Audio.streamRouteName(isRecording ? "recording" : "playback", modelData, linkedDevice)
+        readonly property var routeChoices: {
+            const devices = isRecording ? Audio.sources : Audio.sinks;
+            const out = devices.map(d => ({
+                        value: String(d.name ?? ""),
+                        label: Audio.friendlyDeviceName(d),
+                        isMonitor: false
+                    }));
+            if (isRecording) {
+                for (const m of Audio.monitorSources) {
+                    out.push({
+                        value: m.name,
+                        label: Tr.tr("Monitor: %1").arg(m.friendlyLabel || m.description.replace(/^Monitor of\s+/i, "")),
+                        isMonitor: true
+                    });
                 }
-                onSelected: item => {
-                    const target = item.value as PwNode;
-                    if (group.isRecording)
-                        Audio.moveRecordingToSource(streamCard.modelData, target);
-                    else
-                        Audio.moveStreamToSink(streamCard.modelData, target);
+            }
+            return out;
+        }
+
+        Layout.fillWidth: true
+        spacing: Tokens.spacing.extraSmall / 2
+
+        PwNodeLinkTracker {
+            id: streamLinks
+
+            node: streamCard.modelData
+        }
+
+        SliderRow {
+            icon: streamCard.isRecording ? Icons.getMicVolumeIcon(streamCard.vol, streamCard.muted) : Icons.getVolumeIcon(streamCard.vol, streamCard.muted)
+            iconClickable: true
+            label: streamCard.appTitle
+            subtext: streamCard.mediaName && streamCard.mediaName !== streamCard.appTitle ? streamCard.mediaName : ""
+            valueLabel: streamCard.muted ? Tr.tr("Muted") : `${Math.round(streamCard.vol * 100)}% · ${Audio.volumeDb(streamCard.vol)}`
+            value: Math.min(1, streamCard.vol / streamCard.maxVol)
+            peak: streamCard.peak
+            enabled: true
+            onMoved: v => Audio.setStreamVolume(streamCard.modelData, v * streamCard.maxVol)
+            onIconClicked: Audio.setStreamMuted(streamCard.modelData, !Audio.getStreamMuted(streamCard.modelData))
+        }
+
+        SelectRow {
+            id: deviceSelect
+
+            visible: streamCard.routeChoices.length > 0
+            label: streamCard.isRecording ? Tr.tr("Input device") : Tr.tr("Output device")
+            segmentedAllowed: false
+            fallbackText: {
+                if (streamCard.activeRouteValue.endsWith(".monitor")) {
+                    const base = streamCard.activeRouteValue.replace(/\.monitor$/, "");
+                    const sink = Audio.sinks.find(s => s.name === base);
+                    return sink ? Tr.tr("Monitor: %1").arg(Audio.friendlyDeviceName(sink)) : Tr.tr("Monitor");
                 }
-
-                PwNodeLinkTracker {
-                    id: streamLinks
-
-                    node: streamCard.modelData
+                return Tr.tr("Default");
+            }
+            menuItems: deviceItems.instances
+            onSelected: item => {
+                const targetName = String(item.value ?? "");
+                if (!streamCard.modelData || !targetName)
+                    return;
+                if (streamCard.isRecording) {
+                    Audio.moveRecordingToSourceName(streamCard.modelData, targetName);
+                } else {
+                    const targetSink = Audio.sinks.find(s => s.name === targetName);
+                    if (targetSink)
+                        Audio.moveStreamToSink(streamCard.modelData, targetSink);
                 }
+            }
 
-                Variants {
-                    id: deviceItems
+            Binding {
+                target: deviceSelect
+                property: "active"
+                value: deviceItems.instances.find(i => i.value === streamCard.activeRouteValue) ?? null
+            }
 
-                    model: group.devices
+            Variants {
+                id: deviceItems
 
-                    MenuItem {
-                        required property PwNode modelData
+                model: streamCard.routeChoices
 
-                        text: Audio.friendlyDeviceName(modelData)
-                        value: modelData
-                    }
+                MenuItem {
+                    required property var modelData
+
+                    text: modelData.label
+                    value: modelData.value
+                    icon: modelData.isMonitor ? "hearing" : (streamCard.isRecording ? "mic" : "speaker")
                 }
             }
         }

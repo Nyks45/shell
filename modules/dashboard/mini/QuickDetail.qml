@@ -28,8 +28,19 @@ Item {
     readonly property bool wired: !!Nmcli.activeEthernet && !Nmcli.active
     readonly property bool btOn: Bluetooth.defaultAdapter?.enabled ?? false
 
+    AudioMixer {
+        anchors.fill: parent
+        visible: root.kind === "audio"
+        active: root.kind === "audio" && root.opacity > 0.1
+        compact: false
+        showCloseButton: true
+        onCloseRequested: root.closeRequested()
+        onSettingsRequested: id => root.settingsRequested(id)
+    }
+
     ColumnLayout {
         anchors.fill: parent
+        visible: root.kind !== "audio"
         spacing: Tokens.spacing.small
 
         // The header

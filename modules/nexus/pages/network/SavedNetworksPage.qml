@@ -46,11 +46,11 @@ PageBase {
                 anchors.left: savedList.list.contentItem.left
                 anchors.right: savedList.list.contentItem.right
                 implicitHeight: savedLayout.implicitHeight + savedLayout.anchors.margins * 2
-                radius: Tokens.rounding.extraSmall
-                topLeftRadius: index === 0 ? Tokens.rounding.extraLarge : radius
-                topRightRadius: index === 0 ? Tokens.rounding.extraLarge : radius
-                bottomLeftRadius: index === savedList?.list.count - 1 ? Tokens.rounding.extraLarge : radius
-                bottomRightRadius: index === savedList?.list.count - 1 ? Tokens.rounding.extraLarge : radius
+                radius: 0
+                topLeftRadius: index === 0 ? (savedList?.topLeftRadius ?? Tokens.rounding.extraLarge) : 0
+                topRightRadius: index === 0 ? (savedList?.topRightRadius ?? Tokens.rounding.extraLarge) : 0
+                bottomLeftRadius: index === (savedList?.list.count ?? 0) - 1 ? (savedList?.bottomLeftRadius ?? Tokens.rounding.extraLarge) : 0
+                bottomRightRadius: index === (savedList?.list.count ?? 0) - 1 ? (savedList?.bottomRightRadius ?? Tokens.rounding.extraLarge) : 0
                 anchors.fill: undefined
 
                 onClicked: {

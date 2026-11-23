@@ -82,7 +82,7 @@ CustomMouseArea {
     onContainsMouseChanged: {
         if (!containsMouse) {
             // Only hide if not activated by shortcut
-            if (!osdShortcutActive) {
+            if (!osdShortcutActive && !screenState.osdExpanded) {
                 screenState.osd = false;
                 root.panels.osd.hovered = false;
             }
@@ -111,7 +111,7 @@ CustomMouseArea {
             if (!root.dashboardShortcutActive && !root.screenState.dashboardSticky)
                 root.screenState.dashboard = false;
             root.panels.dashboard.peeking = false;
-            if (!root.osdShortcutActive) {
+            if (!root.osdShortcutActive && !root.screenState.osdExpanded) {
                 root.screenState.osd = false;
                 root.panels.osd.hovered = false;
             }
@@ -159,7 +159,7 @@ CustomMouseArea {
         // The volume and brightness island: shown while the pointer is on its part of the right
         // edge (or on it)
         const showOsd = inRightPanel(panels.osdWrapper, x, y);
-        if (!osdShortcutActive) {
+        if (!osdShortcutActive && !screenState.osdExpanded) {
             screenState.osd = showOsd;
             root.panels.osd.hovered = showOsd;
         } else if (showOsd) {
@@ -234,7 +234,7 @@ CustomMouseArea {
                 if (!inDashboardArea) {
                     root.screenState.dashboard = false;
                 }
-                if (!inOsdArea) {
+                if (!inOsdArea && !root.screenState.osdExpanded) {
                     root.screenState.osd = false;
                     root.panels.osd.hovered = false;
                 }

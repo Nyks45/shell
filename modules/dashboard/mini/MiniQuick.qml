@@ -58,8 +58,27 @@ Item {
         return entry ? entry.enabled : true;
     }
 
-    implicitWidth: Tokens.sizes.dashboard.islandWidth
-    implicitHeight: Tokens.sizes.dashboard.islandHeight
+    readonly property bool expandedAudio: detail.kind === "audio" && detail.t > 0.01
+
+    function consumeQuickDetail(): void {
+        if (screenState.dashboardQuickDetail === "audio") {
+            screenState.dashboardQuickDetail = "";
+            detail.open("audio", track);
+        }
+    }
+
+    implicitWidth: expandedAudio ? 620 : Tokens.sizes.dashboard.islandWidth
+    implicitHeight: expandedAudio ? Math.min(540, ((QsWindow.window as QsWindow)?.screen?.height ?? 1080) - 180) : Tokens.sizes.dashboard.islandHeight
+
+    Component.onCompleted: Qt.callLater(consumeQuickDetail)
+
+    Connections {
+        function onDashboardQuickDetailChanged(): void {
+            root.consumeQuickDetail();
+        }
+
+        target: root.screenState
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -418,7 +437,8 @@ Item {
                             RowLayout {
                                 id: vol
 
-                                readonly property real level: Audio.muted ? 0 : Math.max(0, Math.min(1, Audio.volume))
+                                readonly property real maxVol: Math.max(1, GlobalConfig.services.maxVolume)
+                                readonly property real level: Audio.muted ? 0 : Math.max(0, Math.min(1, Audio.volume / maxVol))
 
                                 Layout.fillWidth: true
                                 spacing: Tokens.spacing.small
@@ -517,7 +537,7 @@ Item {
                                         id: volArea
 
                                         function set(x: real): void {
-                                            Audio.setVolume(Math.max(0, Math.min(1, x / width)));
+                                            Audio.setVolume(Math.max(0, Math.min(1, x / width)) * vol.maxVol);
                                         }
 
                                         anchors.fill: parent
@@ -528,7 +548,7 @@ Item {
                                             if (pressed)
                                                 set(event.x);
                                         }
-                                        onWheel: event => Audio.setVolume(Math.max(0, Math.min(1, Audio.volume + (event.angleDelta.y > 0 ? 0.05 : -0.05))))
+                                        onWheel: event => Audio.setVolume(Math.max(0, Math.min(vol.maxVol, Audio.volume + (event.angleDelta.y > 0 ? 0.05 : -0.05))))
                                     }
                                 }
 
@@ -550,6 +570,7 @@ Item {
                         property string kind
                         property Item from
                         property rect start
+                        property bool _stickySet
                         // 0 at the tile .. 1 the whole pane
                         property real t: 0
                         readonly property rect full: Qt.rect(0, 0, quickPane.width, quickPane.height)
@@ -559,11 +580,26 @@ Item {
                             start = Qt.rect(p.x, p.y, item.width, item.height);
                             from = item;
                             kind = k;
+                            if (k === "audio" && !root.screenState.dashboardSticky) {
+                                _stickySet = true;
+                                root.screenState.dashboardSticky = true;
+                            }
                             t = 1;
                         }
 
                         function close(): void {
+                            if (_stickySet) {
+                                _stickySet = false;
+                                root.screenState.dashboardSticky = false;
+                            }
                             t = 0;
+                        }
+
+                        Component.onDestruction: {
+                            if (_stickySet) {
+                                _stickySet = false;
+                                root.screenState.dashboardSticky = false;
+                            }
                         }
 
                         Shortcut {
@@ -585,13 +621,22 @@ Item {
                             }
                         }
 
-                        // Leaving the pane closes it
+                        // Leaving the pane or closing the dashboard closes the detail view
                         Connections {
                             function onPaneChanged(): void {
-                                detail.t = 0;
+                                detail.close();
                             }
 
                             target: root
+                        }
+
+                        Connections {
+                            function onDashboardChanged(): void {
+                                if (!root.screenState.dashboard)
+                                    detail.close();
+                            }
+
+                            target: root.screenState
                         }
 
                         // See-through: the island's own blurred glass shows, with a soft rim (the

@@ -16,6 +16,7 @@ ConnectedRect {
     property string subtext
     property alias valueLabel: valueLabel.text
     property real value
+    property real peak: -1
     property bool iconClickable
 
     signal moved(value: real)
@@ -108,6 +109,29 @@ ConnectedRect {
                     value: root.value
                     enabled: root.enabled
                     onInteraction: v => root.moved(v)
+                }
+            }
+
+            StyledRect {
+                visible: root.peak >= 0
+                Layout.fillWidth: true
+                implicitHeight: 3
+                radius: 2
+                color: Qt.alpha(Colours.tPalette.m3surfaceContainerHighest, 0.5)
+
+                StyledRect {
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: Math.max(0, Math.min(1, root.peak)) * parent.width
+                    radius: parent.radius
+                    color: root.peak > 0.88 ? Colours.palette.m3error : Colours.palette.m3primary
+
+                    Behavior on width {
+                        NumberAnimation {
+                            duration: 40
+                        }
+                    }
                 }
             }
         }

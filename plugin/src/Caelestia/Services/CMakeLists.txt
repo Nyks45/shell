@@ -5,6 +5,7 @@ qml_module(caelestia-services
         serviceref.cpp
         beattracker.cpp
         audiocollector.cpp
+        audiometer.cpp
         audioprovider.cpp
         cavaprovider.cpp
         tickingservice.cpp

@@ -82,7 +82,10 @@ StyledRect {
                 root.internalChecked = !root.internalChecked;
             root.clicked();
             if (root.isToggle && root.followChecked)
-                Qt.callLater(() => root.internalChecked = root.checked);
+                Qt.callLater(() => {
+                    if (root)
+                        root.internalChecked = root.checked;
+                });
         }
     }
 

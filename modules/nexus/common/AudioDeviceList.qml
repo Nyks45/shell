@@ -37,9 +37,11 @@ ItemList {
         implicitHeight: deviceLayout.implicitHeight + deviceLayout.anchors.margins * 2
 
         StateLayer {
-            radius: Tokens.rounding.extraSmall
-            bottomLeftRadius: device.index === root?.list.count - 1 ? Tokens.rounding.extraLarge : radius
-            bottomRightRadius: device.index === root?.list.count - 1 ? Tokens.rounding.extraLarge : radius
+            radius: 0
+            topLeftRadius: device.index === 0 ? root.topLeftRadius : 0
+            topRightRadius: device.index === 0 ? root.topRightRadius : 0
+            bottomLeftRadius: device.index === root.list.count - 1 ? root.bottomLeftRadius : 0
+            bottomRightRadius: device.index === root.list.count - 1 ? root.bottomRightRadius : 0
             onClicked: root.selected(device.modelData)
         }
 

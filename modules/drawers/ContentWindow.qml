@@ -41,6 +41,7 @@ StyledWindow {
     readonly property real borderLayoutThickness: hasFullscreen ? 0 : contentItem.Config.border.thickness
 
     property color surfaceColour: Colours.tPalette.m3surface
+    property int openMenus: 0
     // The islands (dashboard, pill, its menus): lighter glass than the panels, more of the blurred
     // picture behind showing through (their cards keep their own tint, so text stays readable)
     readonly property color islandColour: Qt.alpha(Colours.palette.m3surface, Math.min(root.surfaceColour.a, 0.6))
@@ -67,13 +68,14 @@ StyledWindow {
     onHasFullscreenChanged: {
         screenState.launcher = false;
         screenState.dashboard = false;
+        screenState.osdExpanded = false;
         panels.popouts.close();
     }
 
     name: "drawers"
     WlrLayershell.exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: (fsTransitionProg > 0 && contentItem.Config.general.showOverFullscreen) || (hasSpecialWorkspace && hasFullscreenOnNormalWs) ? WlrLayer.Overlay : WlrLayer.Top
-    WlrLayershell.keyboardFocus: screenState.launcher || (screenState.dashboard && screenState.dashboardSticky) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: screenState.launcher || (screenState.dashboard && screenState.dashboardSticky) || (screenState.osd && screenState.osdExpanded) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     mask: hasFullscreen ? emptyRegion : regions
 
@@ -100,7 +102,7 @@ StyledWindow {
 
         Region {
             x: root.width - width
-            y: panels.osdWrapper.y + root.borderThickness
+            y: panels.osdWrapper.y + panels.osd.y + root.borderThickness
             width: panels.osdWrapper.width * (1 - panels.osd.offsetScale) + root.borderThickness
             height: panels.osd.height
         }
@@ -128,6 +130,8 @@ StyledWindow {
                 return true;
             if (s.dashboard && s.dashboardSticky)
                 return true;
+            if (s.osd && s.osdExpanded)
+                return true;
             if (panels.popouts.currentName.startsWith("traymenu") && (panels.popouts.current as StackView)?.depth > 1)
                 return true;
             return false;
@@ -136,6 +140,8 @@ StyledWindow {
         onCleared: {
             root.screenState.launcher = false;
             root.screenState.dashboard = false;
+            root.screenState.osdExpanded = false;
+            root.screenState.osd = false;
             panels.popouts.hasCurrent = false;
             bar.closeTray();
         }
@@ -203,7 +209,7 @@ StyledWindow {
             group: islandGroup
             visible: panels.osd.width > 1
             panel: panels.osdWrapper
-            deformAmount: 0.25
+            deformAmount: root.screenState.osdExpanded ? 0.05 : 0.25
             x: panels.osdWrapper.x + panels.osd.x + bar.implicitWidth
             y: panels.osdWrapper.y + panels.osd.y + root.borderThickness
             implicitWidth: panels.osd.width

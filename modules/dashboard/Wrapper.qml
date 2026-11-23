@@ -175,6 +175,7 @@ Item {
                 screenState.dashboardSticky = false;
             }
             screenState.dashboardSettingsPage = "";
+            screenState.dashboardQuickDetail = "";
         }
     }
 

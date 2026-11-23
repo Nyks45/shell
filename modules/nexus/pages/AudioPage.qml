@@ -66,14 +66,15 @@ PageBase {
 
         SliderRow {
             visible: !!Audio.source
+            readonly property real maxVolume: GlobalConfig.services.maxVolume > 0 ? GlobalConfig.services.maxVolume : 1
             icon: Icons.getMicVolumeIcon(Audio.sourceVolume, Audio.sourceMuted)
             iconClickable: true
             label: Tr.tr("Volume")
             subtext: Tr.tr("Tap the microphone icon to mute or unmute")
-            valueLabel: Audio.sourceMuted ? Tr.tr("Muted") : Strings.percentOne(value)
-            value: Audio.sourceVolume
+            valueLabel: Audio.sourceMuted ? Tr.tr("Muted") : Strings.percentOne(Audio.sourceVolume)
+            value: Math.min(1, Audio.sourceVolume / maxVolume)
             enabled: !!Audio.source
-            onMoved: v => Audio.setSourceVolume(v)
+            onMoved: v => Audio.setSourceVolume(v * maxVolume)
             onIconClicked: Audio.setStreamMuted(Audio.source, !Audio.sourceMuted)
         }
 

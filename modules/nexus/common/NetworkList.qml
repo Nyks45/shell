@@ -55,9 +55,11 @@ ItemList {
         anchors.left: root.list.contentItem.left
         anchors.right: root.list.contentItem.right
         implicitHeight: networkLayout.implicitHeight + networkLayout.anchors.margins * 2
-        radius: Tokens.rounding.extraSmall
-        bottomLeftRadius: root?.last && index === root.list.count - 1 ? Tokens.rounding.extraLarge : radius
-        bottomRightRadius: root?.last && index === root.list.count - 1 ? Tokens.rounding.extraLarge : radius
+        radius: 0
+        topLeftRadius: index === 0 ? (root?.topLeftRadius ?? 0) : 0
+        topRightRadius: index === 0 ? (root?.topRightRadius ?? 0) : 0
+        bottomLeftRadius: index === (root?.list.count ?? 0) - 1 ? (root?.bottomLeftRadius ?? 0) : 0
+        bottomRightRadius: index === (root?.list.count ?? 0) - 1 ? (root?.bottomRightRadius ?? 0) : 0
         anchors.fill: undefined
 
         onClicked: {

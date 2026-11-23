@@ -6,6 +6,7 @@ PersistentProperties {
     // Drawer visibilities
     property bool bar
     property bool osd
+    property bool osdExpanded
     property bool session
     // The power menu is the bar's popout on this screen (it has a power button)
     property bool sessionAtBar
@@ -25,5 +26,6 @@ PersistentProperties {
     // settings page to show there (a page id, PageRegistry)
     property string dashboardRequest
     property string dashboardSettingsPage
+    property string dashboardQuickDetail
     property date dashboardDate: new Date()
 }

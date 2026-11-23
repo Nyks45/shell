@@ -94,10 +94,12 @@ Region {
     // (Closed, it's parked off the window: an empty region would count as all
     // of it.)
     Region {
-        x: TaskbarApps.menuOpen ? root.x : -10
-        y: TaskbarApps.menuOpen ? root.y : -10
-        width: TaskbarApps.menuOpen ? root.width : 1
-        height: TaskbarApps.menuOpen ? root.height : 1
+        readonly property bool fullInput: TaskbarApps.menuOpen || (root.win.openMenus ?? 0) > 0
+
+        x: fullInput ? root.x : -10
+        y: fullInput ? root.y : -10
+        width: fullInput ? root.width : 1
+        height: fullInput ? root.height : 1
         intersection: Intersection.Subtract
     }
 

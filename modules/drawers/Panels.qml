@@ -43,7 +43,7 @@ Item {
         anchors.right: parent.right
 
         implicitWidth: osd.implicitWidth > 0 ? osd.implicitWidth + osd.floatGap : 0
-        implicitHeight: osd.zoneHeight
+        implicitHeight: Math.max(osd.zoneHeight, osd.implicitHeight)
 
         Osd.Wrapper {
             id: osd

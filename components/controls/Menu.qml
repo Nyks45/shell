@@ -34,8 +34,32 @@ MouseArea {
     property MenuItem active: items[0] ?? null
     property bool expanded
     readonly property bool inDrawer: !!(QsWindow.window as ContentWindow)
+    property bool _menuCounted: false
+    property var _menuWin: null
 
     signal itemSelected(item: MenuItem)
+
+    function syncDrawerMenuCount(open: bool): void {
+        const want = open && root.inDrawer;
+        if (want === root._menuCounted)
+            return;
+        if (want) {
+            const cw = QsWindow.window as ContentWindow;
+            if (cw) {
+                root._menuWin = cw;
+                root._menuCounted = true;
+                cw.openMenus++;
+            }
+        } else {
+            root._menuCounted = false;
+            if (root._menuWin) {
+                root._menuWin.openMenus = Math.max(0, root._menuWin.openMenus - 1);
+                root._menuWin = null;
+            }
+        }
+    }
+
+    Component.onDestruction: syncDrawerMenuCount(false)
 
     parent: {
         const win = QsWindow.window;
@@ -54,8 +78,11 @@ MouseArea {
         root.expanded = false;
         event.accepted = true;
     }
-    onExpandedChanged: if (expanded)
-        menuFlick.contentY = 0
+    onExpandedChanged: {
+        syncDrawerMenuCount(expanded);
+        if (expanded)
+            menuFlick.contentY = 0;
+    }
     // A press outside closes the menu and goes on to what's under it: another
     // menu's button or a row works with that one click, not a second one
     // (A press on the menu's own button just closes it: passed on, the button

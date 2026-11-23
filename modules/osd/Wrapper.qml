@@ -46,11 +46,16 @@ Item {
     readonly property real fullHeight: content.implicitHeight
     // Its height for the hover zone on the edge while it's closed (unloaded then: no size of
     // its own), the last one it had, at first one slider's
-    property real zoneHeight: Tokens.sizes.osd.sliderHeight + Tokens.padding.large * 2
+    property real zoneHeight: Tokens.sizes.osd.sliderHeight + 44 + Tokens.padding.large * 2
 
     onFullHeightChanged: {
-        if (fullHeight > 0)
+        if (fullHeight > 0 && !screenState.osdExpanded)
             zoneHeight = fullHeight;
+    }
+
+    onOffsetScaleChanged: {
+        if (offsetScale >= 0.999 && !shouldBeActive && screenState.osdExpanded)
+            screenState.osdExpanded = false;
     }
 
     visible: offsetScale < 1
@@ -98,12 +103,25 @@ Item {
         target: root.monitor
     }
 
+    Connections {
+        function onOsdExpandedChanged(): void {
+            if (root.screenState.osdExpanded) {
+                root.show();
+                timer.stop();
+            } else if (root.screenState.osd) {
+                timer.restart();
+            }
+        }
+
+        target: root.screenState
+    }
+
     Timer {
         id: timer
 
         interval: root.Config.osd.hideDelay
         onTriggered: {
-            if (!root.hovered)
+            if (!root.hovered && !root.screenState.osdExpanded)
                 root.screenState.osd = false;
         }
     }
@@ -113,7 +131,7 @@ Item {
 
         anchors.centerIn: parent
 
-        asynchronous: true
+        asynchronous: false
         active: root.shouldBeActive || root.visible
 
         sourceComponent: Content {
