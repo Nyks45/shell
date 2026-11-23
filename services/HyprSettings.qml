@@ -273,6 +273,44 @@ Singleton {
         });
     }
 
+    // Night light's own schedule file (hyprsunset reads it). Kept here, not in
+    // the Display page, so "sunset to sunrise" follows the sun all year: each
+    // weather update recomputes it, and it is only rewritten (and hyprsunset
+    // restarted, which flashes the colours) when the times really changed.
+    readonly property string sunsetConfPath: `${Quickshell.env("XDG_CONFIG_HOME") || `${Quickshell.env("HOME")}/.config`}/hypr/hyprsunset.conf`
+
+    // "HH:MM" from the weather's "YYYY-MM-DD HH:MM" (the weather place's local
+    // time: the same as this computer's when the weather follows its location)
+    function sunTime(raw: var, fallback: string): string {
+        const m = String(raw ?? "").trim().match(/(\d{1,2}:\d{2})(?::\d{2})?$/);
+        return m ? m[1].padStart(5, "0") : fallback;
+    }
+
+    function sunsetConfText(n: var): string {
+        const temp = n.temperature ?? 4000;
+        const sched = n.schedule ?? (n.always ? "always" : "custom");
+        let body;
+        if (sched === "always" || n.always) {
+            body = `profile {\n    time = 0:00\n    temperature = ${temp}\n}\n`;
+        } else {
+            const from = sched === "sun" ? sunTime(Weather.cc?.sunset, "20:00") : (n.from ?? "20:00");
+            const to = sched === "sun" ? sunTime(Weather.cc?.sunrise, "07:00") : (n.to ?? "07:00");
+            body = `profile {\n    time = ${to}\n    identity = true\n}\n\nprofile {\n    time = ${from}\n    temperature = ${temp}\n}\n`;
+        }
+        return `# Written by Caelestia's settings app (Display > Night light).\n\n${body}`;
+    }
+
+    // N: the night light settings to apply. restart: (re)start or stop
+    // hyprsunset even when the file stays the same (the person changed it)
+    function applyNightLight(n: var, restart: bool): void {
+        const text = sunsetConfText(n);
+        const changed = text !== sunsetFile.text();
+        if (changed)
+            sunsetFile.setText(text);
+        if (restart || (changed && n.enabled))
+            Quickshell.execDetached(["sh", "-c", n.enabled ? "pkill -x hyprsunset; sleep 0.3; exec hyprsunset" : "pkill -x hyprsunset"]);
+    }
+
     function setAutostart(on: bool): void {
         update({
             autostart: on
@@ -521,6 +559,11 @@ function S.apply()
     -- The user's own shortcuts (past the remap hook: their keys are theirs)
     local bind = _G.__caelestia_bind or hl.bind
     local unbind = _G.__caelestia_unbind or hl.unbind
+
+    -- Magnifier zoom keyboard shortcuts (Accessibility > Vision), before the
+    -- person's own shortcuts so one of theirs on the same keys wins
+    ${magnifierLua}
+
     for _, b in ipairs(${luaValue((s.customBinds ?? []).filter(b => b.key && b.command), "    ")}) do
         if unbind then pcall(unbind, b.key) end
         bind(b.key, hl.dsp.exec_cmd(b.command))
@@ -542,9 +585,6 @@ function S.apply()
 
     -- Alt + Tab window switcher (override hyprflow's overview switcher when set to Quick cycle)
     ${altTabLua}
-
-    -- Magnifier zoom keyboard shortcuts (Accessibility > Vision)
-    ${magnifierLua}
 
     -- Night light (hyprsunset, scheduled in ~/.config/hypr/hyprsunset.conf)
     if ${night.enabled ? "true" : "false"} then
@@ -596,6 +636,26 @@ return S
 
         interval: 400
         onTriggered: Hypr.extras.message("reload")
+    }
+
+    // A "sunset to sunrise" night light follows each weather update (hourly)
+    Connections {
+        function onCcChanged(): void {
+            const n = root.saved.nightLight ?? {};
+            if (Weather.cc && n.enabled && n.schedule === "sun")
+                root.applyNightLight(n, false);
+        }
+
+        target: Weather
+    }
+
+    FileView {
+        id: sunsetFile
+
+        path: root.sunsetConfPath
+        printErrors: false
+        // Read at once: compared before writing (a login must not restart it)
+        blockLoading: true
     }
 
     FileView {

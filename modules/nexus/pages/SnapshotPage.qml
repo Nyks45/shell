@@ -9,6 +9,7 @@ import Caelestia.I18n
 import qs.components
 import qs.components.controls
 import qs.services
+import qs.utils
 import qs.modules.nexus.common
 
 // One system snapshot: what changed since it (snapper status), putting a file
@@ -32,6 +33,8 @@ PageBase {
     }
     readonly property var shown: matching.slice(0, limit)
     property string restored
+    // Why rolling back can't work on this system ("" when it can; caelestia-system rollback-status)
+    property string rollbackBlocker
 
     title: nState.selectedSnapshotLabel || Tr.tr("Snapshot #%1").arg(number)
     isSubPage: true
@@ -41,6 +44,18 @@ PageBase {
         anchors.top: parent.top
         width: root.cappedWidth
         spacing: Tokens.spacing.extraSmall / 2
+
+        Process {
+            running: root.config === "root"
+            command: [`${Paths.libdir}/caelestia-system`, "rollback-status"]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    try {
+                        root.rollbackBlocker = JSON.parse(text).rollbackBlocker ?? "";
+                    } catch (e) {}
+                }
+            }
+        }
 
         Process {
             id: configProc
@@ -127,14 +142,14 @@ PageBase {
         RowButton {
             readonly property string what: Tr.tr("Roll back system snapshot")
 
-            visible: root.config === "root" && root.number > 0
+            visible: root.config === "root" && root.number > 0 && !root.rollbackBlocker
             icon: "restore"
             text: Tr.tr("Roll back system to this snapshot…")
-            subtext: Tr.tr("Sets snapshot #%1 as the active system root for the next restart").arg(root.number)
+            subtext: Tr.tr("Makes a writable copy of snapshot #%1 the system for the next start").arg(root.number)
             disabled: Admin.jobs.some(j => j.what === what)
             onClicked: rollbackConfirm.ask({
                 header: Tr.tr("Roll back to snapshot #%1?").arg(root.number),
-                body: Tr.tr("Creates a writable snapshot from #%1 as the next boot root and updates rEFInd. Files changed in / since that snapshot will revert after you restart (/home is separate).").arg(root.number),
+                body: Tr.tr("Makes a writable copy of #%1 the system for the next start. Files changed in / since that snapshot are back as they were after you restart (/home is separate).").arg(root.number),
                 confirmLabel: Tr.tr("Roll back"),
                 icon: "restore",
                 onConfirm: () => Admin.run("snapper-rollback", [String(root.number)], what, ok => {
@@ -142,6 +157,16 @@ PageBase {
                         Toaster.toast(Tr.tr("Rollback scheduled"), Tr.tr("Restart to boot into snapshot #%1").arg(root.number), "restore");
                 })
             })
+        }
+
+        // Here the boot entry names the system's subvolume (rootflags=subvol=/@):
+        // snapper's rollback (a new default subvolume) would change nothing, so
+        // say how to go back instead of offering it
+        InfoRow {
+            visible: root.config === "root" && root.number > 0 && !!root.rollbackBlocker
+            icon: "info"
+            label: Tr.tr("Going back to this snapshot")
+            subtext: Tr.tr("Start it from the boot menu (CachyOS › its snapshot entry) to use the system as it was then, or restore single files below. A lasting roll-back isn't possible here: %1.").arg(root.rollbackBlocker)
         }
 
         ConfirmDialog {

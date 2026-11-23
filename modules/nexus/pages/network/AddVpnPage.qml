@@ -95,6 +95,9 @@ PageBase {
         importingConfig = true;
         const type = path.toLowerCase().endsWith(".ovpn") ? "openvpn" : "wireguard";
         nmImportProc.command = ["nmcli", "connection", "import", "type", type, "file", path];
+        nmImportProc.outText = "";
+        nmImportProc.errText = "";
+        nmImportProc.pending = 3;
         nmImportProc.running = false;
         nmImportProc.running = true;
     }
@@ -262,7 +265,7 @@ PageBase {
             visible: root.providerType === "nm"
             icon: "upload_file"
             text: Tr.tr("Import config file (.conf / .ovpn)…")
-            subtext: root.importingConfig ? Tr.tr("Importing into NetworkManager…") : Tr.tr("Imports an OpenVPN (.ovpn) or WireGuard (.conf) profile without touching wg-quick")
+            subtext: root.importingConfig ? Tr.tr("Importing into NetworkManager…") : Tr.tr("An OpenVPN (.ovpn) or WireGuard (.conf) profile, kept off until you connect it")
             disabled: root.importingConfig
             onClicked: configFileDialog.open()
         }
@@ -483,32 +486,59 @@ PageBase {
 
             property string outText: ""
             property string errText: ""
+            property int exitCode: -1
+            // Exit and the two streams can come in any order: the result is read
+            // once all three are in (the error text was empty otherwise)
+            property int pending: 0
 
-            stdout: StdioCollector {
-                onStreamFinished: nmImportProc.outText = text
-            }
-            stderr: StdioCollector {
-                onStreamFinished: nmImportProc.errText = text
-            }
-            onExited: code => {
+            function settle(): void {
+                if (--pending > 0)
+                    return;
                 root.importingConfig = false;
-                if (code === 0) {
-                    const m = nmImportProc.outText.match(/'([^']+)'/);
+                if (exitCode === 0) {
+                    const m = outText.match(/'([^']+)'/);
+                    const uuid = outText.match(/\(([0-9a-f-]{36})\)/i);
                     const fallbackName = root.lastImportFile.split("/").pop().replace(/\.(ovpn|conf)$/i, "");
                     const connName = m ? m[1] : fallbackName;
                     interfaceField.text = connName;
                     interfaceField.isError = false;
                     if (!displayField.text.trim() || displayField.text.trim() === root.builtInPresets.nm)
                         displayField.text = connName;
+                    // nmcli imports with autoconnect on: a full-tunnel profile would
+                    // come up by itself right away; it connects only when asked
+                    nmAutoProc.command = ["nmcli", "connection", "modify", uuid ? uuid[1] : connName, "connection.autoconnect", "no"];
+                    nmAutoProc.running = true;
                     root.refreshNmProfiles();
-                    Toaster.toast(Tr.tr("VPN profile imported"), connName, "vpn_lock");
+                    Toaster.toast(Tr.tr("VPN profile imported"), Tr.tr("%1 · connects only when you turn it on").arg(connName), "vpn_lock");
                 } else {
-                    const msg = nmImportProc.errText.trim() || nmImportProc.outText.trim();
-                    if (/openvpn/i.test(root.lastImportFile) && /plugin|vpn service|not installed|support/i.test(msg))
+                    const msg = errText.trim() || outText.trim();
+                    // An .ovpn file NetworkManager can't read without its OpenVPN plugin
+                    if ((/\.ovpn$/i.test(root.lastImportFile) || /openvpn/i.test(msg)) && /plugin|vpn service|not installed|support|unknown/i.test(msg))
                         root.missingOpenvpnPlugin = true;
                     Toaster.toast(Tr.tr("Couldn't import VPN config"), msg || Tr.tr("Check that the config file is valid"), "error");
                 }
             }
+
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    nmImportProc.outText = text;
+                    nmImportProc.settle();
+                }
+            }
+            stderr: StdioCollector {
+                onStreamFinished: {
+                    nmImportProc.errText = text;
+                    nmImportProc.settle();
+                }
+            }
+            onExited: code => {
+                exitCode = code;
+                settle();
+            }
+        }
+
+        Process {
+            id: nmAutoProc
         }
 
         ConfirmDialog {

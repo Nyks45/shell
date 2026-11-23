@@ -64,7 +64,21 @@ class UtilitiesConfig : public settings::ObjectNode {
     CONFIG_SUBOBJECT(UtilitiesCards, cards)
     CONFIG_GLOBAL_SUBOBJECT(UtilitiesToasts, toasts)
     CONFIG_GLOBAL_SUBOBJECT(UtilitiesVpn, vpn)
+    // The full style's quick toggles (its own ids: settings, no desktop/keepAwake/recorder)
     CONFIG_LIST(EntryList, quickToggles,
+        DEFAULT_ARG({
+            LIST_ENTRY(wifi, true),
+            LIST_ENTRY(bluetooth, true),
+            LIST_ENTRY(mic, true),
+            LIST_ENTRY(settings, true),
+            LIST_ENTRY(gameMode, true),
+            LIST_ENTRY(wallpaperPlaying, true),
+            LIST_ENTRY(dnd, true),
+            LIST_ENTRY(vpn, false),
+        }))
+    // The pill's quick settings island (MiniQuick): its own list, so editing it
+    // never changes the full style's toggles
+    CONFIG_LIST(EntryList, pillQuickToggles,
         DEFAULT_ARG({
             LIST_ENTRY(wifi, true),
             LIST_ENTRY(bluetooth, true),

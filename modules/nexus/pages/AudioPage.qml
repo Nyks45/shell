@@ -18,7 +18,8 @@ PageBase {
     property real micLevel: 0
     property string micTestState: ""
 
-    Component.onCompleted: Audio.refreshCards()
+    Component.onCompleted: Audio.openCards()
+    Component.onDestruction: Audio.closeCards()
 
     title: Tr.tr("Sound")
 
@@ -311,7 +312,8 @@ PageBase {
             id: micMeterProc
 
             running: root.visible && !!Audio.source && !Audio.sourceMuted && root.micTestState === ""
-            command: ["sh", "-c", "parec --raw --format=s16le --rate=8000 --channels=1 --property=application.name=caelestia 2>/dev/null | python3 -u -c 'import array, sys\ns = sys.stdin.buffer\nwhile True:\n d = s.read(640)\n if not d: break\n a = array.array(\"h\")\n a.frombytes(d[:len(d) - (len(d) & 1)])\n peak = max((abs(x) for x in a), default=0) / 32768.0\n print(f\"{min(1.0, peak * 2.5):.3f}\", flush=True)'"]
+            // Stopping it (the page closes) stops parec and python too, not only sh
+            command: ["sh", "-c", "trap 'pkill -P $$; exit 0' TERM INT HUP; parec --raw --format=s16le --rate=8000 --channels=1 --property=application.name=caelestia 2>/dev/null | python3 -u -c 'import array, sys\ns = sys.stdin.buffer\nwhile True:\n d = s.read(640)\n if not d: break\n a = array.array(\"h\")\n a.frombytes(d[:len(d) - (len(d) & 1)])\n peak = max((abs(x) for x in a), default=0) / 32768.0\n print(f\"{min(1.0, peak * 2.5):.3f}\", flush=True)' & wait"]
             onRunningChanged: if (!running)
                 root.micLevel = 0
             stdout: SplitParser {
@@ -326,7 +328,9 @@ PageBase {
         Process {
             id: micTestProc
 
-            command: ["sh", "-c", "f=/tmp/caelestia-mic-test.wav; rm -f \"$f\"; timeout 3 parecord --file-format=wav --property=application.name=caelestia \"$f\" >/dev/null 2>&1 || true; echo playing; pw-play \"$f\" >/dev/null 2>&1 || true; rm -f \"$f\""]
+            // Leaving the page stops the recording or the playback (sh alone
+            // being stopped left parecord / pw-play running and playing it later)
+            command: ["sh", "-c", "f=/tmp/caelestia-mic-test.wav; trap 'pkill -P $$; rm -f \"$f\"; exit 0' TERM INT HUP; rm -f \"$f\"; timeout 3 parecord --file-format=wav --property=application.name=caelestia \"$f\" >/dev/null 2>&1 & wait $!; echo playing; pw-play \"$f\" >/dev/null 2>&1 & wait $!; rm -f \"$f\""]
             stdout: SplitParser {
                 onRead: line => {
                     if (line.trim() === "playing")

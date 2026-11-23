@@ -63,7 +63,6 @@ PageBase {
     // A laptop-style backlight (brightnessctl); external monitors go over DDC
     property bool hasBacklight
     property bool hasDdcutil: true
-    readonly property string sunsetConf: `${Quickshell.env("XDG_CONFIG_HOME") || `${Quickshell.env("HOME")}/.config`}/hypr/hyprsunset.conf`
 
     // This monitor's settings now, as hypr-settings keeps them
     function currentSettings(): var {
@@ -157,26 +156,7 @@ PageBase {
     }
 
     function sunTime(raw: var, fallback: string): string {
-        const s = String(raw ?? "").trim();
-        const m = s.match(/(\d{1,2}:\d{2})(?::\d{2})?$/);
-        if (m)
-            return m[1].padStart(5, "0");
-        return fallback;
-    }
-
-    function nightProfileBody(n: var, temp: int): string {
-        const sched = n.schedule ?? (n.always ? "always" : "custom");
-        if (sched === "always" || n.always)
-            return `profile {\n    time = 0:00\n    temperature = ${temp}\n}\n`;
-        const from = sched === "sun" ? sunTime(Weather.cc?.sunset, "20:00") : (n.from ?? "20:00");
-        const to = sched === "sun" ? sunTime(Weather.cc?.sunrise, "07:00") : (n.to ?? "07:00");
-        return `profile {\n    time = ${to}\n    identity = true\n}\n\nprofile {\n    time = ${from}\n    temperature = ${temp}\n}\n`;
-    }
-
-    // Night light: hyprsunset, scheduled by its config (identity by day)
-    function writeSunsetConf(n: var): void {
-        const temp = n.temperature ?? 4000;
-        sunsetFile.setText(`# Written by Caelestia's settings app (Display > Night light).\n\n${nightProfileBody(n, temp)}`);
+        return HyprSettings.sunTime(raw, fallback);
     }
 
     function setNight(changes: var): void {
@@ -185,9 +165,10 @@ PageBase {
             nextChanges.always = nextChanges.schedule === "always";
         const n = Object.assign({}, night, nextChanges);
         HyprSettings.setNightLight(nextChanges);
-        writeSunsetConf(n);
-        // (Re)start or stop it now; at login hypr-settings.lua starts it
-        Quickshell.execDetached(["sh", "-c", n.enabled ? "pkill -x hyprsunset; sleep 0.3; exec hyprsunset" : "pkill -x hyprsunset"]);
+        // Its schedule file, and (re)start or stop it now; at login
+        // hypr-settings.lua starts it, and HyprSettings keeps "sunset to
+        // sunrise" following the sun from then on
+        HyprSettings.applyNightLight(n, true);
     }
 
     title: Tr.tr("Display")
@@ -213,8 +194,7 @@ PageBase {
                 HyprSettings.setNightLight({
                     temperature: t
                 });
-                const text = `# Written by Caelestia's settings app (Display > Night light).\n\n${nightProfileBody(n, t)}`;
-                Quickshell.execDetached(["sh", "-c", 'printf "%s" "$2" > "$1"; if [ "$3" = "1" ]; then pkill -x hyprsunset; sleep 0.3; exec hyprsunset; fi', "sh", sunsetConf, text, n.enabled ? "1" : "0"]);
+                HyprSettings.applyNightLight(n, n.enabled ?? false);
             }
         }
     }
@@ -731,15 +711,6 @@ PageBase {
             target: HyprSettings
         }
 
-        Connections {
-            function onCcChanged(): void {
-                if (root.nightSchedule === "sun" && (root.night.enabled ?? false))
-                    root.setNight({});
-            }
-
-            target: Weather
-        }
-
         Timer {
             id: refreshTimer
 
@@ -800,14 +771,6 @@ PageBase {
             running: true
             command: ["sh", "-c", "command -v hyprsunset"]
             onExited: code => root.sunsetInstalled = code === 0
-        }
-
-        FileView {
-            id: sunsetFile
-
-            path: root.sunsetConf
-            printErrors: false
-            blockLoading: false
         }
 
         ConfirmDialog {

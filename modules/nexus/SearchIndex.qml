@@ -727,7 +727,7 @@ QtObject {
         {
             "label": "Restore whole system",
             "ctx": "",
-            "sub": "Pick a snapshot under CachyOS in the boot menu (F2 or Insert) to test it, then run `sudo snapper rollback` to make that snapshot the active system.",
+            "sub": "",
             "section": "Automatic snapshots",
             "tab": "backups",
             "page": 4,
@@ -738,7 +738,7 @@ QtObject {
         {
             "label": "Backup destination",
             "ctx": "",
-            "sub": "Warning: this folder is on the same partition as /home — a drive failure could affect both",
+            "sub": "",
             "section": "Home folder backup",
             "tab": "backups",
             "page": 4,
@@ -3132,17 +3132,6 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Quick settings & notifications",
-            "ctx": "",
-            "sub": "Choose and reorder toggles in the Quick settings island",
-            "section": "Panels",
-            "opens": 1,
-            "page": 12,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
             "label": "Launcher",
             "ctx": "",
             "sub": "Enabled",
@@ -4916,7 +4905,7 @@ QtObject {
         {
             "label": "Secure Boot",
             "ctx": "",
-            "sub": "Enabled · Keys enrolled (sbctl) · Manage in Recovery & boot",
+            "sub": "Enabled · sbctl has its own keys · Manage in Recovery & boot",
             "section": "Security",
             "page": 19,
             "path": [],
@@ -4926,7 +4915,7 @@ QtObject {
         {
             "label": "Disk encryption & TPM",
             "ctx": "",
-            "sub": "",
+            "sub": "System (/) is LUKS-encrypted",
             "section": "Security",
             "page": 19,
             "path": [],

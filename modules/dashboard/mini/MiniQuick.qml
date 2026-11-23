@@ -33,12 +33,14 @@ Item {
     }
     readonly property var notifs: Notifs.notClosed
     readonly property list<string> knownRoundIds: ["desktop", "mic", "dnd", "gameMode", "vpn", "wallpaperPlaying", "keepAwake", "recorder"]
+    // The pill's own toggles (Config.utilities.pillQuickToggles, not the full
+    // style's quickToggles): known ids once each, missing ones shown at the end
     readonly property list<string> enabledRoundIds: {
-        const entries = Config.utilities.quickToggles.values;
+        const entries = Config.utilities.pillQuickToggles.values;
         const out = [];
         const seen = {};
         for (const e of entries) {
-            if (!knownRoundIds.includes(e.id))
+            if (!knownRoundIds.includes(e.id) || seen[e.id])
                 continue;
             seen[e.id] = true;
             if (e.enabled)
@@ -52,7 +54,7 @@ Item {
     }
 
     function toggleEnabled(id: string): bool {
-        const entry = Config.utilities.quickToggles.values.find(e => e.id === id);
+        const entry = Config.utilities.pillQuickToggles.values.find(e => e.id === id);
         return entry ? entry.enabled : true;
     }
 

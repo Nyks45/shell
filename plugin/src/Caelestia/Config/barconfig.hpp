@@ -129,6 +129,14 @@ class BarConfig : public settings::ObjectNode {
             LIST_ENTRY(bluetooth, true),
             LIST_ENTRY(battery, true),
         }))
+    // The pill bar's items and order (logo, taskbar, tray): its own list, so
+    // reordering them never changes the full bar's entries
+    CONFIG_LIST(EntryList, pillEntries,
+        DEFAULT_ARG({
+            LIST_ENTRY(logo, true),
+            LIST_ENTRY(taskbar, true),
+            LIST_ENTRY(tray, true),
+        }))
     CONFIG_LIST(EntryList, entries,
         DEFAULT_ARG({
             LIST_ENTRY(logo, true),

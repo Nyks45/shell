@@ -517,10 +517,36 @@ def act_btrfs_status(args):
 
 # --- Snapshots ------------------------------------------------------------------
 
+def rollback_blocker():
+    """Why snapper's rollback can't work here ("" when it can). It only changes
+    the btrfs default subvolume; a boot entry (rootflags=subvol=...) or an
+    fstab line naming the root's subvolume ignores that default, so the next
+    start would still use the old system (same check as caelestia-system)."""
+    try:
+        cmdline = open("/proc/cmdline").read()
+    except OSError:
+        cmdline = ""
+    m = re.search(r"\brootflags=(\S+)", cmdline)
+    if m and re.search(r"(^|,)subvol(id)?=", m.group(1)):
+        return f"the boot entry names the system's subvolume ({m.group(1)})"
+    try:
+        for line in open("/etc/fstab"):
+            f = line.split()
+            if len(f) >= 4 and not f[0].startswith("#") and f[1] == "/" and re.search(r"(^|,)subvol(id)?=", f[3]):
+                return f"/etc/fstab names the system's subvolume ({f[3].split(',')[0]})"
+    except OSError:
+        pass
+    return ""
+
+
 def act_snapper_rollback(args):
     """snapper-rollback [NUMBER]: roll back the active root snapshot (and update rEFInd boot entries)."""
     if len(args) > 1:
         raise Refused("usage: snapper-rollback [NUMBER]")
+    blocker = rollback_blocker()
+    if blocker:
+        raise Refused(f"rolling back can't work on this system: {blocker}, so the next start would "
+                      "still use the current system. Start the snapshot from the boot menu instead.")
     cmd = ["snapper", "--ambit", "classic", "rollback"]
     if args:
         if not args[0].isdigit() or int(args[0]) <= 0:
@@ -531,7 +557,16 @@ def act_snapper_rollback(args):
         run("refind-btrfs", check=False)
 
 
-LOCALE_RE = re.compile(r"^[a-z]{2,3}_[A-Z]{2}\.UTF-8$")
+LOCALE_RE = re.compile(r"[a-z]{2,3}_[A-Z]{2}\.UTF-8")
+
+
+def supported_locales():
+    """The UTF-8 locales glibc can generate (one appended to locale.gen that
+    isn't among them makes locale-gen fail, on every later run too)."""
+    try:
+        return {l.split()[0] for l in open("/usr/share/i18n/SUPPORTED") if l.split() and l.split()[0].endswith(".UTF-8")}
+    except OSError:
+        return set()
 LC_KEYS = ("LC_NUMERIC", "LC_TIME", "LC_MONETARY", "LC_PAPER", "LC_NAME",
            "LC_ADDRESS", "LC_TELEPHONE", "LC_MEASUREMENT", "LC_IDENTIFICATION")
 
@@ -540,8 +575,11 @@ def act_set_locale(args):
     """set-locale LANG REGIONAL: set system language and regional format (generating locales if needed)."""
     need(args, 2, "set-locale LANG REGIONAL")
     lang, reg = args
-    if not LOCALE_RE.match(lang) or not LOCALE_RE.match(reg):
+    if not LOCALE_RE.fullmatch(lang) or not LOCALE_RE.fullmatch(reg):
         raise Refused("bad locale name")
+    supported = supported_locales()
+    if supported and (lang not in supported or reg not in supported):
+        raise Refused("not a locale this system can generate")
     enabled = set()
     proc = subprocess.run(["locale", "-a"], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     for line in proc.stdout.splitlines():
@@ -570,7 +608,18 @@ def act_set_locale(args):
         else:
             write_file(gen_path, "\n".join(lines).rstrip("\n") + "\n")
         run("locale-gen")
-    run("localectl", "set-locale", f"LANG={lang}", *(f"{k}={reg}" for k in LC_KEYS))
+    # localectl replaces the whole set: settings this page doesn't choose
+    # (LANGUAGE, LC_MESSAGES, LC_CTYPE, LC_COLLATE) are passed on as they are
+    kept = []
+    try:
+        for line in open("/etc/locale.conf"):
+            k, _, v = line.strip().partition("=")
+            v = v.strip().strip('"')
+            if k in ("LANGUAGE", "LC_MESSAGES", "LC_CTYPE", "LC_COLLATE") and re.fullmatch(r"[A-Za-z0-9_.:@-]+", v):
+                kept.append(f"{k}={v}")
+    except OSError:
+        pass
+    run("localectl", "set-locale", f"LANG={lang}", *(f"{k}={reg}" for k in LC_KEYS), *kept)
 
 
 def act_snapper_restore(args):

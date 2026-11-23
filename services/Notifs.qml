@@ -92,10 +92,12 @@ Singleton {
     function shouldShowPopup(notif: var): bool {
         if (ShellState.anySidebarOpen())
             return false;
-        if (effectiveDnd)
-            return NotifRules.dndAllowCritical && notif?.urgency === NotificationUrgency.Critical;
+        // The fullscreen rule first: do not disturb can only hide more than
+        // without it (an urgent one it lets through still stays off a game)
         if (GlobalConfig.notifs.fullscreen === NotifsFullscreen.Off && hasFullscreen())
             return false;
+        if (effectiveDnd)
+            return NotifRules.dndAllowCritical && notif?.urgency === NotificationUrgency.Critical;
         return true;
     }
 

@@ -21,6 +21,9 @@ Singleton {
     property list<PwNode> recordingStreams: []
     // [{ name, label, activeProfile, profiles: [{ name, description }] }]
     property var cards: []
+    // Pages showing the cards (openCards/closeCards): only then are they read
+    // again on PipeWire changes (each read runs pactl)
+    property int cardsUsers: 0
 
     readonly property PwNode sink: Pipewire.defaultAudioSink
     readonly property PwNode source: Pipewire.defaultAudioSource
@@ -135,6 +138,15 @@ Singleton {
             cardsProc.running = true;
     }
 
+    function openCards(): void {
+        cardsUsers++;
+        refreshCards();
+    }
+
+    function closeCards(): void {
+        cardsUsers = Math.max(0, cardsUsers - 1);
+    }
+
     function setCardProfile(cardName: string, profileName: string): void {
         if (!cardName || !profileName)
             return;
@@ -199,7 +211,6 @@ Singleton {
     // lazily-loaded singleton is created, so onValuesChanged would never fire.
     Component.onCompleted: {
         refreshNodes();
-        refreshCards();
         previousSinkName = sink?.description || sink?.name || Tr.trCtx("Unknown device", "unknown audio device");
         previousSourceName = source?.description || source?.name || Tr.trCtx("Unknown device", "unknown audio device");
     }
@@ -207,7 +218,8 @@ Singleton {
     Connections {
         function onValuesChanged(): void {
             root.refreshNodes();
-            cardsRefreshTimer.restart();
+            if (root.cardsUsers > 0)
+                cardsRefreshTimer.restart();
         }
 
         target: Pipewire.nodes
@@ -248,7 +260,9 @@ Singleton {
                                 profiles
                             });
                     }
-                    root.cards = out;
+                    // Unchanged: kept (a new list rebuilds the rows, closing an open menu)
+                    if (JSON.stringify(out) !== JSON.stringify(root.cards))
+                        root.cards = out;
                 } catch (e) {}
             }
         }

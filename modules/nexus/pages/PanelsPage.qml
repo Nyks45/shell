@@ -56,13 +56,6 @@ PageBase {
         }
 
         NavRow {
-            icon: "quick_reference_all"
-            text: Tr.tr("Quick settings & notifications")
-            subtext: Tr.tr("Choose and reorder toggles in the Quick settings island")
-            onClicked: root.nState.openSubPage(1)
-        }
-
-        NavRow {
             icon: "apps"
             text: Tr.tr("Launcher")
             subtext: Config.launcher.enabled ? Tr.trCtx("Enabled", "panel status") : Tr.trCtx("Disabled", "panel status")

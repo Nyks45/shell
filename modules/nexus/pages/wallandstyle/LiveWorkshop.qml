@@ -290,7 +290,7 @@ PageBase {
 
                 StyledText {
                     Layout.fillWidth: true
-                    text: LiveWallpaper.checkingWorkshopUpdates ? Tr.tr("Checking subscribed wallpapers for updates…") : LiveWallpaper.workshopUpdatesError ? Tr.tr("Couldn't check for updates: %1").arg(LiveWallpaper.workshopUpdatesError) : LiveWallpaper.workshopUpdates.length > 0 ? Tr.tr("Updates available (%1)").arg(LiveWallpaper.workshopUpdates.length) : Tr.tr("Subscribed wallpapers (%1)").arg(root.mineList.length)
+                    text: LiveWallpaper.checkingWorkshopUpdates ? Tr.tr("Checking subscribed wallpapers for updates…") : LiveWallpaper.workshopUpdatesError ? Tr.tr("Couldn't check for updates: %1").arg(LiveWallpaper.workshopUpdatesError) : LiveWallpaper.workshopUpdates.length > 0 ? (LiveWallpaper.updateFailures.length > 0 && LiveWallpaper.updateQueue.length === 0 ? Tr.tr("Updates available (%1) · %2 failed").arg(LiveWallpaper.workshopUpdates.length).arg(LiveWallpaper.updateFailures.length) : Tr.tr("Updates available (%1)").arg(LiveWallpaper.workshopUpdates.length)) : Tr.tr("Subscribed wallpapers (%1)").arg(root.mineList.length)
                     color: LiveWallpaper.workshopUpdatesError ? Colours.palette.m3error : LiveWallpaper.workshopUpdates.length > 0 ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
                     font: Tokens.font.body.small
                     wrapMode: Text.WordWrap

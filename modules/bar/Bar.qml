@@ -118,16 +118,29 @@ ColumnLayout {
         }
     }
 
+    // The pill's own items and order (Config.bar.pillEntries, not the full bar's
+    // entries): known ids once each, missing ones after (shown), the tray only
+    // when something's in it
     readonly property var pillEntriesList: {
-        const items = [];
-        for (const e of Config.bar.entries.values) {
-            if (!e.enabled)
+        const known = ["logo", "taskbar", "tray"];
+        const seen = {};
+        const order = [];
+        for (const e of Config.bar.pillEntries.values) {
+            if (!known.includes(e.id) || seen[e.id])
                 continue;
-            if (e.id === "logo" || e.id === "taskbar" || (e.id === "tray" && SystemTray.items.values.length > 0))
-                items.push({
-                    id: e.id
-                });
+            seen[e.id] = true;
+            if (e.enabled)
+                order.push(e.id);
         }
+        for (const id of known)
+            if (!seen[id])
+                order.push(id);
+        const items = [];
+        for (const id of order)
+            if (id !== "tray" || SystemTray.items.values.length > 0)
+                items.push({
+                    id
+                });
         if (items.length === 0)
             items.push({
                 id: "logo"
@@ -149,7 +162,6 @@ ColumnLayout {
         id: repeater
 
         model: ScriptModel {
-            // Pill bar follows the enabled order in Config.bar.entries (the tray only when non-empty)
             values: root.pillEntriesList
         }
 

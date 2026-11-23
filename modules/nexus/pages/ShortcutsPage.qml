@@ -285,7 +285,8 @@ PageBase {
                     kind: s.kind,
                     id: s.id,
                     label: s.label,
-                    section: s.section
+                    section: s.section,
+                    reason: s.reason ?? ""
                 });
         }
         for (let i = 0; i < customBinds.length; i++) {
@@ -827,8 +828,11 @@ PageBase {
                         Layout.fillWidth: true
                         Layout.topMargin: Tokens.spacing.medium
                         readonly property string listText: (conflictDialog.pendingAction?.conflicts ?? []).map(c => `${c.label} (${c.section})`).join("\n• ")
-                        readonly property bool hasNonEditable: (conflictDialog.pendingAction?.conflicts ?? []).some(c => !c.kind)
-                        text: Tr.tr("%1 is already used by:\n• %2\n\nReplacing turns off the previous shortcut.").arg(root.prettyKeys(conflictDialog.pendingAction?.keys ?? "")).arg(listText) + (hasNonEditable ? "\n\n" + Tr.tr("Note: loop shortcuts can't be turned off automatically.") : "")
+                        // Ones Replace can't turn off (built in, or set elsewhere,
+                        // e.g. the magnifier keys): named, with where to change them
+                        readonly property var keptOn: (conflictDialog.pendingAction?.conflicts ?? []).filter(c => !c.kind)
+                        readonly property bool hasNonEditable: keptOn.length > 0
+                        text: Tr.tr("%1 is already used by:\n• %2\n\nReplacing turns off the previous shortcut.").arg(root.prettyKeys(conflictDialog.pendingAction?.keys ?? "")).arg(listText) + (hasNonEditable ? "\n\n" + Tr.tr("These stay on (change them where they're set):\n• %1").arg(keptOn.map(c => c.reason ? `${c.label} — ${c.reason}` : c.label).join("\n• ")) : "")
                         color: Colours.palette.m3onSurfaceVariant
                         font: Tokens.font.body.small
                         wrapMode: Text.WordWrap

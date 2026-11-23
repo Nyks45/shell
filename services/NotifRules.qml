@@ -22,7 +22,8 @@ Singleton {
     property string dndScheduleFrom: "22:00"
     property string dndScheduleTo: "07:00"
     property bool dndWhenGaming: false
-    property bool dndAllowCritical: true
+    // Off unless chosen: do not disturb used to hold back every popup
+    property bool dndAllowCritical: false
 
     function setSound(on: bool, file: string): void {
         sound = on;

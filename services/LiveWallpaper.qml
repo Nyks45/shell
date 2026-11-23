@@ -65,6 +65,8 @@ Singleton {
     property bool checkingWorkshopUpdates
     property string workshopUpdatesError
     property var updateQueue: []
+    // "Update all": the ones whose download failed (the queue goes on without them)
+    property var updateFailures: []
     property bool pendingRandom
 
     readonly property string configPath: `${Paths.config}/live-wallpaper.json`
@@ -751,8 +753,25 @@ Singleton {
         const ids = workshopUpdates.map(u => String(u.id)).filter(id => id);
         if (!ids.length)
             return;
+        updateFailures = [];
         updateQueue = ids.slice(1);
         getWallpaper(ids[0]);
+    }
+
+    // The next one of "Update all", after one finished or failed
+    function nextUpdate(): void {
+        if (updateQueue.length === 0)
+            return;
+        const nextId = updateQueue[0];
+        updateQueue = updateQueue.slice(1);
+        Qt.callLater(() => root.getWallpaper(nextId));
+    }
+
+    // A wallpaper folder that was just replaced: if a screen shows it, the
+    // renderer restarts so it loads the new files (not the deleted old ones)
+    function reloadIfShown(id: string): void {
+        if (Object.values(screens).some(p => String(p).split("/").pop() === String(id)))
+            restartTimer.restart();
     }
 
     // Unsubscribe: off the Steam account and out of the library
@@ -1116,6 +1135,23 @@ Singleton {
     Process {
         id: downloadProc
 
+        // Ended without saying done or error (it crashed): the queue goes on too
+        onExited: {
+            // An earlier run stopped by the next download starting: not this one
+            if (running)
+                return;
+            const st = root.download?.state ?? "";
+            if (root.download && st !== "done" && st !== "error") {
+                root.download = Object.assign({}, root.download, {
+                    state: "error",
+                    error: Tr.tr("The download stopped")
+                });
+                if (root.updateQueue.length > 0)
+                    root.updateFailures = root.updateFailures.concat([String(root.download.id)]);
+                root.nextUpdate();
+            }
+        }
+
         stdout: SplitParser {
             onRead: line => {
                 try {
@@ -1128,11 +1164,14 @@ Singleton {
                         root.steamPending = root.steamPending.filter(x => x !== doneId);
                         root.workshopUpdates = root.workshopUpdates.filter(u => String(u.id) !== String(doneId));
                         root.refresh();
-                        if (root.updateQueue.length > 0) {
-                            const nextId = root.updateQueue[0];
-                            root.updateQueue = root.updateQueue.slice(1);
-                            Qt.callLater(() => root.getWallpaper(nextId));
-                        }
+                        root.reloadIfShown(doneId);
+                        root.nextUpdate();
+                    } else if (st.state === "error") {
+                        // One failed: noted, and "Update all" goes on with the rest
+                        // (it used to wait for a "done" that never came)
+                        if (root.updateQueue.length > 0 || root.updateFailures.length > 0)
+                            root.updateFailures = root.updateFailures.concat([String(root.download.id)]);
+                        root.nextUpdate();
                     }
                 } catch (e) {}
             }

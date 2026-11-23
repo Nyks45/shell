@@ -13,7 +13,47 @@ PageBase {
     id: root
 
     readonly property bool isPill: ShellStyle.current === "compact"
-    readonly property var pillEntries: GlobalConfig.bar.entries.values.filter(e => e.id === "logo" || e.id === "taskbar" || e.id === "tray")
+    // The pill's own list (bar.pillEntries; the full bar's entries stay as they
+    // are): known ids once each, missing ones shown on (written on the first edit)
+    readonly property list<string> pillIds: ["logo", "taskbar", "tray"]
+    readonly property var pillEntries: {
+        const seen = {};
+        const out = [];
+        for (const e of GlobalConfig.bar.pillEntries.values) {
+            if (!pillIds.includes(e.id) || seen[e.id])
+                continue;
+            seen[e.id] = true;
+            out.push({
+                id: e.id,
+                enabled: e.enabled
+            });
+        }
+        for (const id of pillIds)
+            if (!seen[id])
+                out.push({
+                    id,
+                    enabled: true
+                });
+        return out;
+    }
+
+    // Writes the list as shown (known ids, once each, in this order)
+    function savePill(list: var): void {
+        const node = GlobalConfig.bar.pillEntries;
+        node.clear();
+        for (const e of list)
+            node.insert({
+                id: e.id,
+                enabled: e.enabled
+            });
+    }
+
+    function setPillEnabled(id: string, on: bool): void {
+        savePill(pillEntries.map(e => e.id === id ? {
+                id,
+                enabled: on
+            } : e));
+    }
 
     function entryTitle(id: string): string {
         if (id === "logo")
@@ -36,16 +76,14 @@ PageBase {
     }
 
     function movePillEntry(id: string, delta: int): void {
-        const subset = pillEntries;
-        const pos = subset.findIndex(e => e.id === id);
-        const targetPos = pos + delta;
-        if (pos < 0 || targetPos < 0 || targetPos >= subset.length)
+        const list = pillEntries.slice();
+        const pos = list.findIndex(e => e.id === id);
+        const target = pos + delta;
+        if (pos < 0 || target < 0 || target >= list.length)
             return;
-        const all = GlobalConfig.bar.entries.values;
-        const fromIdx = all.indexOf(subset[pos]);
-        const toIdx = all.indexOf(subset[targetPos]);
-        if (fromIdx >= 0 && toIdx >= 0 && fromIdx !== toIdx)
-            GlobalConfig.bar.entries.move(fromIdx, toIdx);
+        const [item] = list.splice(pos, 1);
+        list.splice(target, 0, item);
+        savePill(list);
     }
 
     title: Tr.tr("Taskbar")
@@ -187,7 +225,7 @@ PageBase {
                     StyledSwitch {
                         cLayer: 2
                         checked: entryRow.modelData.enabled
-                        onToggled: entryRow.modelData.enabled = checked
+                        onToggled: root.setPillEnabled(entryRow.modelData.id, checked)
                     }
                 }
             }

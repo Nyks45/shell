@@ -39,6 +39,103 @@ PageBase {
         Games.set(game.key, c, what);
     }
 
+    // Extra environment: KEY=VALUE items, a value may be quoted ("a b", 'a b')
+    // or empty. The same checks as caelestia-gaming (EXTRA_KEY, VALUE,
+    // OVERRIDES_VALUE), so what passes here isn't refused there.
+    // -> { items: [{ k, v }], bad: "" | the item that isn't right }
+    function parseEnv(text: string): var {
+        const items = [];
+        let i = 0;
+        const n = text.length;
+        while (i < n) {
+            while (i < n && /\s/.test(text[i]))
+                i++;
+            if (i >= n)
+                break;
+            const start = i;
+            while (i < n && text[i] !== "=" && !/\s/.test(text[i]))
+                i++;
+            const k = text.slice(start, i);
+            if (text[i] !== "=" || !/^[A-Za-z_][A-Za-z0-9_]{0,80}$/.test(k)) {
+                while (i < n && !/\s/.test(text[i]))
+                    i++;
+                return {
+                    items,
+                    bad: text.slice(start, i)
+                };
+            }
+            i++;
+            let v = "";
+            if (text[i] === '"' || text[i] === "'") {
+                const q = text[i++];
+                const end = text.indexOf(q, i);
+                if (end < 0)
+                    return {
+                        items,
+                        bad: text.slice(start)
+                    };
+                v = text.slice(i, end);
+                i = end + 1;
+            } else {
+                const vs = i;
+                while (i < n && !/\s/.test(text[i]))
+                    i++;
+                v = text.slice(vs, i);
+            }
+            const valueOk = k === "WINEDLLOVERRIDES" ? /^[A-Za-z0-9_.,=;*-]{0,400}$/.test(v) : /^[A-Za-z0-9_.,=:\/@+ -]{0,400}$/.test(v);
+            if (!valueOk)
+                return {
+                    items,
+                    bad: text.slice(start, i)
+                };
+            items.push({
+                k,
+                v
+            });
+        }
+        return {
+            items,
+            bad: ""
+        };
+    }
+
+    // Shown the way it is saved back: quoted when it has a space or is empty
+    function envText(items: var): string {
+        return items.map(e => /\s/.test(e.v) || e.v === "" ? `${e.k}="${e.v}"` : `${e.k}=${e.v}`).join(" ");
+    }
+
+    // The game's extra environment as items (each saved one parsed the same way)
+    readonly property var savedEnv: parseEnv((shown?.otherEnv ?? []).join(" ")).items
+
+    // Wrapper commands: separated by ";" (a wrapper's own arguments stay with
+    // it: "gamescope -W 2560 -- ; prime-run"); each word as caelestia-gaming
+    // allows it. -> { cmds: [[words]], bad: "" }
+    function parseWrappers(text: string): var {
+        const cmds = [];
+        for (const part of text.split(";")) {
+            const words = part.trim().split(/\s+/).filter(w => w);
+            if (!words.length)
+                continue;
+            if (words[0] === "mangohud" || words[0] === "game-performance")
+                return {
+                    cmds,
+                    bad: words[0],
+                    managed: true
+                };
+            const bad = words.find(w => !/^[A-Za-z0-9_.,=:\/@+-]{1,400}$/.test(w));
+            if (bad)
+                return {
+                    cmds,
+                    bad
+                };
+            cmds.push(words);
+        }
+        return {
+            cmds,
+            bad: ""
+        };
+    }
+
     // The game's newest Proton log (caelestia-gaming game-log): { path, size, modified, errors, tail }
     property var log: null
     property string extraEnvError: ""
@@ -555,10 +652,10 @@ PageBase {
             visible: !!root.game
             enabled: root.canChange
             label: Tr.tr("Extra environment variables")
-            subtext: Tr.tr("Space-separated KEY=VALUE pairs besides the toggles above")
-            placeholderText: Tr.tr("e.g. DXVK_FRAME_RATE=144 MANGOHUD_CONFIG=full")
+            subtext: Tr.tr("KEY=VALUE pairs besides the toggles above; quote a value with spaces")
+            placeholderText: Tr.tr("e.g. DXVK_FRAME_RATE=144 MANGOHUD_CONFIG=\"fps, gpu\"")
             errorText: root.extraEnvError
-            value: (root.shown?.otherEnv ?? []).join(" ")
+            value: root.envText(root.savedEnv)
             onValueEdited: {
                 root.extraEnvError = "";
                 extraEnvRow.field.isError = false;
@@ -566,19 +663,18 @@ PageBase {
             onEditingFinished: v => {
                 if (!root.game)
                     return;
-                const raw = v.trim();
-                const parts = raw ? raw.split(/\s+/) : [];
-                const bad = parts.find(p => !/^[A-Za-z_][A-Za-z0-9_]{0,80}=.+$/.test(p));
-                if (bad) {
-                    root.extraEnvError = Tr.tr("Expected KEY=VALUE, got: %1").arg(bad);
+                const res = root.parseEnv(v.trim());
+                if (res.bad) {
+                    root.extraEnvError = Tr.tr("Not allowed here: %1 (KEY=VALUE; letters, numbers and . , = : / @ + - in values)").arg(res.bad);
                     extraEnvRow.field.isError = true;
                     return;
                 }
                 root.extraEnvError = "";
                 extraEnvRow.field.isError = false;
-                if (JSON.stringify(parts) !== JSON.stringify(root.shown?.otherEnv ?? []))
+                // Sent unquoted (the helper quotes them when it writes them)
+                if (root.envText(res.items) !== root.envText(root.savedEnv))
                     root.change({
-                        otherEnv: parts
+                        otherEnv: res.items.map(e => `${e.k}=${e.v}`)
                     });
             }
         }
@@ -589,10 +685,11 @@ PageBase {
             visible: !!root.game && root.game.launcher !== "lutris"
             enabled: root.canChange
             label: Tr.tr("Custom wrapper command")
-            subtext: Tr.tr("Wrapper commands run before the game, e.g. gamescope or prime-run")
-            placeholderText: Tr.tr("e.g. prime-run")
+            subtext: Tr.tr("Commands run before the game, with their own arguments; separate several with ;")
+            placeholderText: Tr.tr("e.g. gamescope -W 2560 -H 1440 -- ; prime-run")
             errorText: root.wrappersError
-            value: (root.shown?.wrappers ?? []).join(" ")
+            // Heroic keeps each wrapper apart ("exe args"); Steam and Faugus one line of words
+            value: (root.shown?.wrappers ?? []).join(root.game?.launcher === "heroic" ? " ; " : " ")
             onValueEdited: {
                 root.wrappersError = "";
                 wrappersRow.field.isError = false;
@@ -600,19 +697,19 @@ PageBase {
             onEditingFinished: v => {
                 if (!root.game)
                     return;
-                const raw = v.trim();
-                const parts = raw ? raw.split(/\s+/) : [];
-                const bad = parts.find(p => p === "mangohud" || p === "game-performance");
-                if (bad) {
-                    root.wrappersError = Tr.tr("Use the Overlay / Performance mode toggles above for %1").arg(bad);
+                const res = root.parseWrappers(v);
+                if (res.bad) {
+                    root.wrappersError = res.managed ? Tr.tr("Use the Overlay / Performance mode toggles above for %1").arg(res.bad) : Tr.tr("Not allowed in a wrapper: %1").arg(res.bad);
                     wrappersRow.field.isError = true;
                     return;
                 }
                 root.wrappersError = "";
                 wrappersRow.field.isError = false;
-                if (JSON.stringify(parts) !== JSON.stringify(root.shown?.wrappers ?? []))
+                const cmds = res.cmds.map(c => c.join(" "));
+                const before = root.parseWrappers((root.shown?.wrappers ?? []).join(root.game?.launcher === "heroic" ? ";" : " ")).cmds.map(c => c.join(" "));
+                if (JSON.stringify(cmds) !== JSON.stringify(before))
                     root.change({
-                        wrappers: parts
+                        wrappers: cmds
                     });
             }
         }

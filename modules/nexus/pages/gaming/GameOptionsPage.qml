@@ -68,7 +68,9 @@ PageBase {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
             Layout.bottomMargin: Tokens.spacing.small
-            text: root.changed ? Tr.tr("Saved to your live session and %1 — newly started games and launchers use it right away (restart an already open launcher to pick it up).").arg(Paths.shortenHome(root.env?.file ?? "")) : Tr.tr("Applied across your live session and written to %1 for future logins. Already-open launchers need a restart to pick up new changes.").arg(Paths.shortenHome(root.env?.file ?? ""))
+            // Honest about where a change reaches before the next login: apps the
+            // shell starts carry the shell's own (older) environment
+            text: root.changed ? Tr.tr("Saved to %1. Apps started with a keyboard shortcut use it right away; apps started from the launcher or taskbar, and launchers already open, after the next login.").arg(Paths.shortenHome(root.env?.file ?? "")) : Tr.tr("Written to %1 and used by everything from the next login on (apps started with a keyboard shortcut get a change right away).").arg(Paths.shortenHome(root.env?.file ?? ""))
             wrapMode: Text.WordWrap
             color: root.changed ? Colours.palette.m3primary : Colours.palette.m3outline
             font: Tokens.font.label.small

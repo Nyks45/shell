@@ -569,10 +569,11 @@ PageBase {
             visible: !!root.draft && root.showBootSnapshots
             icon: "settings_backup_restore"
             text: Tr.tr("Manage snapshots")
-            subtext: Tr.tr("Create, delete or roll back Btrfs snapshots in Storage › Snapshots")
+            subtext: Tr.tr("Create, delete and restore from Btrfs snapshots in Storage › Snapshots")
             onClicked: root.nState.goTo({
                 page: PageRegistry.find("storage"),
-                tab: "snapshots",
+                // Storage's Snapshots tab has the key "backups"
+                tab: "backups",
                 path: []
             })
         }

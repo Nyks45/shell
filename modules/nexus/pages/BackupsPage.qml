@@ -38,6 +38,10 @@ PageBase {
     property int limitWeekly: 4
     property bool limitsDirty: false
     property bool bootedSnapshot: false
+    // Why snapper's rollback can't work here ("" when it can): this system
+    // starts from the subvolume its boot entry names (rootflags=subvol=/@),
+    // so changing the btrfs default subvolume has no effect
+    property string rollbackBlocker: ""
     property var homeBackup: ({
             dest: "",
             excludeCaches: true,
@@ -49,6 +53,102 @@ PageBase {
     property bool homeBackingUp: false
     property string homeBackupProgress: ""
     property bool homeDailyActive: false
+    property bool timerRefreshed: false
+    readonly property string homeDir: (Quickshell.env("HOME") || "").replace(/\/$/, "")
+    readonly property bool homeBackupInHome: !!homeBackup.dest && (homeBackup.dest.replace(/\/$/, "") + "/").startsWith(homeDir + "/")
+    readonly property string homeBackupConfig: `${Paths.config}/home-backup.json`
+    // The copy itself, for "Back up now" and the daily timer alike (the timer
+    // runs it from a file): reads home-backup.json when it runs, so the timer
+    // always uses the destination set now; checks the drive is there; leaves a
+    // backup folder inside home out of the copy; writes lastRun/lastStatus back
+    readonly property string backupScript: `import json, os, signal, subprocess, sys, time
+cfg_path = sys.argv[1]
+def load():
+    try:
+        with open(cfg_path) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+def save(changes):
+    d = load()
+    d.update(changes)
+    tmp = cfg_path + ".tmp"
+    with open(tmp, "w") as f:
+        f.write(json.dumps(d, indent=4) + chr(10))
+    os.replace(tmp, cfg_path)
+def fail(note, code):
+    save({"lastStatus": "error", "lastNote": note})
+    print(note, file=sys.stderr, flush=True)
+    sys.exit(code)
+def mount_of(p):
+    while p and p != "/" and not os.path.exists(p):
+        p = os.path.dirname(p)
+    r = subprocess.run(["findmnt", "-n", "-o", "TARGET,FSTYPE", "--target", p or "/"], capture_output=True, text=True)
+    parts = r.stdout.split()
+    return (parts[0], parts[1]) if len(parts) >= 2 else ("", "")
+d = load()
+dest = (d.get("dest") or "").rstrip("/")
+if not dest:
+    fail("No backup destination is set", 2)
+mnt, fstype = mount_of(dest)
+saved = d.get("destMount") or ""
+# The drive it was chosen on must be there: otherwise the folder would be
+# made on the system disk and the whole home folder copied onto it
+if saved and mnt != saved:
+    fail("The backup drive isn't connected (%s isn't mounted)" % saved, 3)
+if not saved and mnt in ("/", "/home") and dest.startswith(("/mnt/", "/media/", "/run/media/")):
+    fail("The backup drive isn't connected (%s is on the system disk)" % dest, 3)
+home = os.path.expanduser("~").rstrip("/")
+target = dest + "/home-backup"
+os.makedirs(target, exist_ok=True)
+# NTFS/exFAT/FAT keep no Unix owners, ACLs or extended attributes: copying
+# those fails every run (rsync exit 23); times are 2 s exact on FAT
+if fstype in ("ntfs", "ntfs3", "fuseblk", "exfat", "vfat", "msdos"):
+    args = ["rsync", "-rlt", "--modify-window=2"]
+else:
+    args = ["rsync", "-aHAX"]
+args += ["--delete", "--info=progress2", "--no-inc-recursive"]
+if d.get("excludeCaches", True):
+    for ex in (".cache", ".local/share/Steam/steamapps", ".local/share/Trash", "node_modules"):
+        args += ["--exclude", ex]
+# A backup folder inside the home folder is left out of it (else each run
+# copies the last backup into the new one)
+if target == home or target.startswith(home + "/"):
+    args += ["--exclude", "/" + os.path.relpath(target, home)]
+args += [home + "/", target + "/"]
+proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+cancelled = False
+def stop(*_):
+    global cancelled
+    cancelled = True
+    proc.terminate()
+signal.signal(signal.SIGTERM, stop)
+signal.signal(signal.SIGINT, stop)
+# rsync redraws its progress line with a carriage return: one line each for the page
+last_msg = ""
+buf = b""
+while True:
+    chunk = proc.stdout.read1(4096)
+    if not chunk:
+        break
+    buf += chunk.replace(bytes([13]), bytes([10]))
+    *lines, buf = buf.split(bytes([10]))
+    for raw in lines:
+        line = raw.decode(errors="replace").strip()
+        if not line:
+            continue
+        print(line, flush=True)
+        if "%" not in line:
+            last_msg = line
+code = proc.wait()
+if cancelled:
+    fail("Cancelled", 130)
+if code in (0, 24):
+    # 24: files that went away while copying (normal on a home in use)
+    save({"lastRun": int(time.time()), "lastStatus": "ok", "lastNote": "vanished" if code == 24 else ""})
+    sys.exit(0)
+fail(last_msg or "rsync exited with code %d" % code, code)
+`
 
     readonly property var filteredSnapshots: {
         if (snapFilter === "hourly")
@@ -92,24 +192,12 @@ PageBase {
             homeBackupDevProc.running = true;
     }
 
-    function _rsyncArgs(): list<string> {
-        const homeDir = Quickshell.env("HOME") || "";
-        const target = `${homeBackup.dest.replace(/\/$/, "")}/home-backup/`;
-        const args = ["-aHAX", "--delete", "--info=progress2", "--no-inc-recursive"];
-        if (homeBackup.excludeCaches !== false) {
-            for (const ex of [".cache", ".local/share/Steam/steamapps", ".local/share/Trash", "node_modules"])
-                args.push("--exclude", ex);
-        }
-        args.push(`${homeDir}/`, target);
-        return args;
-    }
-
     function runHomeBackupNow(): void {
         if (!homeBackup.dest || homeBackingUp)
             return;
         homeBackupProgress = Tr.tr("Starting backup…");
         homeBackingUp = true;
-        rsyncProc.command = ["sh", "-c", "mkdir -p \"$1\" && shift && exec rsync \"$@\"", "sh", `${homeBackup.dest.replace(/\/$/, "")}/home-backup`, ..._rsyncArgs()];
+        rsyncProc.command = ["python3", "-I", "-c", backupScript, homeBackupConfig];
         rsyncProc.running = true;
     }
 
@@ -118,40 +206,37 @@ PageBase {
             rsyncProc.running = false;
     }
 
-    function applyHomeDailyTimer(enabled: bool): void {
-        if (enabled && !homeBackup.dest)
-            return;
-        const cfg = JSON.stringify({
-            dest: homeBackup.dest,
-            excludeCaches: homeBackup.excludeCaches !== false,
-            enabled
-        });
+    // The daily timer on (writes the script and units) or off (removes them).
+    // quiet: no message (refreshing old units when the page opens)
+    function applyHomeDailyTimer(enabled: bool, quiet: bool): void {
+        const on = enabled && !!homeBackup.dest;
+        timerSetupProc.quiet = !!quiet;
+        timerSetupProc.wanted = on;
         timerSetupProc.command = ["python3", "-I", "-c", `
-import json, os, shlex, subprocess
-d = json.loads(os.environ["CAELESTIA_HB"])
-cfg_dir = os.path.expanduser("~/.config/systemd/user")
-os.makedirs(cfg_dir, exist_ok=True)
-svc_p = os.path.join(cfg_dir, "caelestia-home-backup.service")
-tmr_p = os.path.join(cfg_dir, "caelestia-home-backup.timer")
-if d["enabled"] and d["dest"]:
-    target = d["dest"].rstrip("/") + "/home-backup/"
-    home = os.path.expanduser("~").rstrip("/") + "/"
-    args = ["/usr/bin/rsync", "-aHAX", "--delete"]
-    if d.get("excludeCaches", True):
-        for ex in (".cache", ".local/share/Steam/steamapps", ".local/share/Trash", "node_modules"):
-            args.extend(["--exclude", ex])
-    args.extend([home, target])
-    cmd = "mkdir -p " + shlex.quote(target) + " && exec " + " ".join(shlex.quote(a) for a in args)
-    open(svc_p, "w").write("[Unit]\\nDescription=Caelestia Home Folder Backup\\n\\n[Service]\\nType=oneshot\\nExecStart=/usr/bin/sh -c " + json.dumps(cmd) + "\\n")
-    open(tmr_p, "w").write("[Unit]\\nDescription=Daily Home Folder Backup\\n\\n[Timer]\\nOnCalendar=daily\\nPersistent=true\\n\\n[Install]\\nWantedBy=timers.target\\n")
+import os, subprocess, sys
+on, script, cfg = sys.argv[1] == "1", sys.argv[2], sys.argv[3]
+unit_dir = os.path.expanduser("~/.config/systemd/user")
+data_dir = os.path.expanduser("~/.local/share/caelestia")
+svc_p = os.path.join(unit_dir, "caelestia-home-backup.service")
+tmr_p = os.path.join(unit_dir, "caelestia-home-backup.timer")
+script_p = os.path.join(data_dir, "home-backup.py")
+def q(s):
+    # systemd unit quoting: % and $ are expanded by systemd otherwise
+    return chr(34) + s.replace(chr(92), chr(92) * 2).replace(chr(34), chr(92) + chr(34)).replace("%", "%%").replace("$", "$$") + chr(34)
+if on:
+    os.makedirs(unit_dir, exist_ok=True)
+    os.makedirs(data_dir, exist_ok=True)
+    open(script_p, "w").write(script)
+    open(svc_p, "w").write("[Unit]" + chr(10) + "Description=Caelestia home folder backup" + chr(10) + chr(10) + "[Service]" + chr(10) + "Type=oneshot" + chr(10) + "ExecStart=/usr/bin/python3 -I " + q(script_p) + " " + q(cfg) + chr(10))
+    open(tmr_p, "w").write("[Unit]" + chr(10) + "Description=Daily home folder backup" + chr(10) + chr(10) + "[Timer]" + chr(10) + "OnCalendar=daily" + chr(10) + "Persistent=true" + chr(10) + chr(10) + "[Install]" + chr(10) + "WantedBy=timers.target" + chr(10))
     subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
-    subprocess.run(["systemctl", "--user", "enable", "--now", "caelestia-home-backup.timer"], check=True)
-else:
-    subprocess.run(["systemctl", "--user", "disable", "--now", "caelestia-home-backup.timer"], check=False)
-`, ...[]];
-        timerSetupProc.environment = ({
-                CAELESTIA_HB: cfg
-            });
+    sys.exit(subprocess.run(["systemctl", "--user", "enable", "--now", "caelestia-home-backup.timer"]).returncode)
+subprocess.run(["systemctl", "--user", "disable", "--now", "caelestia-home-backup.timer"], check=False)
+for f in (svc_p, tmr_p, script_p):
+    if os.path.exists(f):
+        os.remove(f)
+subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
+`, on ? "1" : "0", backupScript, homeBackupConfig];
         timerSetupProc.running = false;
         timerSetupProc.running = true;
     }
@@ -265,30 +350,53 @@ else:
             }
         }
 
+        // Only what this page needs (the full security check is much slower)
         Process {
             running: true
-            command: [`${Paths.libdir}/caelestia-system`, "security-status"]
+            command: [`${Paths.libdir}/caelestia-system`, "rollback-status"]
             stdout: StdioCollector {
                 onStreamFinished: {
                     try {
-                        root.bootedSnapshot = !!JSON.parse(text).bootedSnapshot;
+                        const st = JSON.parse(text);
+                        root.bootedSnapshot = !!st.bootedSnapshot;
+                        root.rollbackBlocker = st.rollbackBlocker ?? "";
                     } catch (e) {}
                 }
             }
         }
 
         Process {
+            id: dailyStateProc
+
             running: true
             command: ["systemctl", "--user", "is-enabled", "caelestia-home-backup.timer"]
-            onExited: code => root.homeDailyActive = code === 0
+            onExited: code => {
+                root.homeDailyActive = code === 0;
+                // Units written by an older version had the destination built
+                // in (and kept using an old one): written again in the new form
+                if (root.homeDailyActive && !root.timerRefreshed && root.homeBackup.dest) {
+                    root.timerRefreshed = true;
+                    root.applyHomeDailyTimer(true, true);
+                }
+            }
         }
 
         Process {
             id: homeBackupDevProc
 
-            command: ["sh", "-c", "test -n \"$1\" && test -d \"$1\" && test \"$(findmnt -n -o SOURCE -T /home 2>/dev/null)\" = \"$(findmnt -n -o SOURCE -T \"$1\" 2>/dev/null)\" && echo same || echo ok", "sh", root.homeBackup.dest ?? ""]
+            // Line 1: same device as /home or not; line 2: the mount point the
+            // folder is on (saved: a run checks that drive is there first)
+            command: ["sh", "-c", "test -n \"$1\" && test -d \"$1\" || exit 0; test \"$(findmnt -n -o SOURCE -T /home 2>/dev/null)\" = \"$(findmnt -n -o SOURCE -T \"$1\" 2>/dev/null)\" && echo same || echo ok; findmnt -n -o TARGET -T \"$1\" 2>/dev/null", "sh", root.homeBackup.dest ?? ""]
             stdout: StdioCollector {
-                onStreamFinished: root.homeBackupSameDev = text.trim() === "same"
+                onStreamFinished: {
+                    const lines = text.trim().split("\n");
+                    root.homeBackupSameDev = lines[0] === "same";
+                    const mnt = (lines[1] ?? "").trim();
+                    if (mnt && mnt !== (root.homeBackup.destMount ?? ""))
+                        root.saveHomeBackup({
+                            destMount: mnt
+                        });
+                }
             }
         }
 
@@ -302,39 +410,49 @@ else:
                         root.homeBackupProgress = clean;
                 }
             }
+            stderr: StdioCollector {
+                id: rsyncErr
+            }
+            // The script wrote lastRun/lastStatus/lastNote: read back
             onExited: code => {
                 root.homeBackingUp = false;
-                if (code === 0) {
-                    root.saveHomeBackup({
-                        lastRun: Math.floor(Date.now() / 1000),
-                        lastStatus: "ok"
-                    });
-                    Toaster.toast(Tr.tr("Home folder backed up"), Paths.shortenHome(root.homeBackup.dest), "backup");
-                } else {
-                    root.saveHomeBackup({
-                        lastStatus: "error"
-                    });
-                    Toaster.toast(Tr.tr("Home folder backup stopped"), Tr.tr("rsync exited with code %1").arg(code), "error");
-                }
                 root.homeBackupProgress = "";
+                homeBackupFile.reload();
+                if (code === 0)
+                    Toaster.toast(Tr.tr("Home folder backed up"), Paths.shortenHome(root.homeBackup.dest), "backup");
+                else
+                    Toaster.toast(Tr.tr("Home folder backup stopped"), rsyncErr.text.trim().split("\n").pop() || Tr.tr("rsync exited with code %1").arg(code), "error");
             }
         }
 
         Process {
             id: timerSetupProc
 
+            property bool quiet
+            property bool wanted
+
+            stderr: StdioCollector {
+                id: timerErr
+            }
             onExited: code => {
-                root.homeDailyActive = code === 0 && (root.homeBackup.daily ?? false);
-                if (code === 0)
-                    Toaster.toast(root.homeDailyActive ? Tr.tr("Daily home backup enabled") : Tr.tr("Daily home backup turned off"), "", "schedule");
+                // The real state, whatever was asked
+                dailyStateProc.running = false;
+                dailyStateProc.running = true;
+                if (code !== 0)
+                    Toaster.toast(Tr.tr("Couldn't change the daily backup"), timerErr.text.trim().split("\n").pop() || Tr.tr("systemctl exited with code %1").arg(code), "error");
+                else if (!quiet)
+                    Toaster.toast(wanted ? Tr.tr("Daily home backup enabled") : Tr.tr("Daily home backup turned off"), "", "schedule");
             }
         }
 
         FileView {
             id: homeBackupFile
 
-            path: `${Paths.config}/home-backup.json`
+            path: root.homeBackupConfig
             printErrors: false
+            // Timer runs write their result into it
+            watchChanges: true
+            onFileChanged: reload()
             onLoaded: {
                 try {
                     root.homeBackup = Object.assign({
@@ -383,7 +501,7 @@ else:
 
                     StyledText {
                         Layout.fillWidth: true
-                        text: Tr.tr("If everything works well here, you can make this snapshot the active system.")
+                        text: root.rollbackBlocker ? Tr.tr("This start only: the next one is the normal system again. Making this snapshot the system for good isn't possible from here: this system starts from the subvolume its boot entry names. Files you need can be restored from a snapshot's page.") : Tr.tr("If everything works well here, you can make this snapshot the active system.")
                         color: Colours.palette.m3onSecondaryContainer
                         font: Tokens.font.label.small
                         wrapMode: Text.WordWrap
@@ -391,16 +509,18 @@ else:
                 }
 
                 TextButton {
+                    // Only where it works (see rollbackBlocker)
+                    visible: !root.rollbackBlocker
                     text: Tr.tr("Roll back to this snapshot…")
                     type: TextButton.Filled
                     onClicked: rollbackBannerDialog.ask({
                         header: Tr.tr("Roll back to this booted snapshot?"),
-                        body: Tr.tr("Sets this read-write snapshot as the default system root in Btrfs and updates the boot menu. Restart to switch to it cleanly."),
+                        body: Tr.tr("snapper makes a new read-write snapshot of the system running now and makes it the default; the next start uses it."),
                         confirmLabel: Tr.tr("Roll back"),
                         icon: "restore",
                         onConfirm: () => Admin.run("snapper-rollback", [], Tr.tr("Roll back system snapshot"), ok => {
                             if (ok)
-                                Toaster.toast(Tr.tr("Rollback scheduled"), Tr.tr("Restart to boot into the rolled-back system"), "restore");
+                                Toaster.toast(Tr.tr("Rollback set up"), Tr.tr("The next start uses this system"), "restore");
                         })
                     })
                 }
@@ -783,7 +903,7 @@ else:
             visible: root.allowed && root.config === "root"
             icon: "restore"
             label: Tr.tr("Restore whole system")
-            subtext: Tr.tr("Pick a snapshot under CachyOS in the boot menu (F2 or Insert) to test it, then run `sudo snapper rollback` to make that snapshot the active system.")
+            subtext: root.rollbackBlocker ? Tr.tr("To start an earlier state once, pick a snapshot under CachyOS in the boot menu (F2 or Insert). Single files: open a snapshot above and restore them. Making a snapshot the system for good needs the boot entry changed: %1.").arg(root.rollbackBlocker) : Tr.tr("Pick a snapshot under CachyOS in the boot menu (F2 or Insert) to test it; started from it, this page offers to make it the system.")
         }
 
         StyledText {
@@ -807,15 +927,34 @@ else:
             label: Tr.tr("Backup destination")
             placeholderText: Tr.tr("Choose a folder on another drive or backup disk")
             value: root.homeBackup.dest ?? ""
-            subtext: root.homeBackupSameDev ? Tr.tr("Warning: this folder is on the same partition as /home — a drive failure could affect both") : root.homeBackup.lastRun > 0 ? Tr.tr("Last backup: %1").arg(Qt.formatDateTime(new Date(root.homeBackup.lastRun * 1000), "d MMM yyyy, HH:mm")) : ""
+            subtext: {
+                const notes = [];
+                if (root.homeBackupInHome)
+                    notes.push(Tr.tr("Inside your home folder: the backup folder itself is left out"));
+                if (root.homeBackupSameDev)
+                    notes.push(Tr.tr("Warning: on the same partition as /home — a drive failure could affect both"));
+                if (root.homeBackup.lastStatus === "error")
+                    notes.push(Tr.tr("Last backup failed: %1").arg(root.homeBackup.lastNote || Tr.tr("unknown error")));
+                else if (root.homeBackup.lastRun > 0)
+                    notes.push(Tr.tr("Last backup: %1").arg(Qt.formatDateTime(new Date(root.homeBackup.lastRun * 1000), "d MMM yyyy, HH:mm")) + (root.homeBackup.lastNote === "vanished" ? Tr.tr(" (some files changed while copying)") : ""));
+                return notes.join(" · ");
+            }
             canReset: !!(root.homeBackup.dest)
+            // A new folder: its drive is found again (destMount) before any run
             onPicked: path => root.saveHomeBackup({
-                    dest: path
+                    dest: path,
+                    destMount: ""
                 })
-            onResetClicked: root.saveHomeBackup({
-                dest: "",
-                daily: false
-            })
+            // No destination: no timer either
+            onResetClicked: {
+                root.saveHomeBackup({
+                    dest: "",
+                    destMount: "",
+                    daily: false
+                });
+                if (root.homeDailyActive)
+                    root.applyHomeDailyTimer(false, false);
+            }
         }
 
         ToggleRow {
@@ -841,10 +980,13 @@ else:
             disabled: !root.homeBackup.dest && !root.homeDailyActive
             checked: root.homeDailyActive
             onToggled: {
+                const want = checked;
+                // Shows the real state again once it's known (also when it fails)
+                checked = Qt.binding(() => root.homeDailyActive);
                 root.saveHomeBackup({
-                    daily: checked
+                    daily: want
                 });
-                root.applyHomeDailyTimer(checked);
+                root.applyHomeDailyTimer(want, false);
             }
         }
     }

@@ -159,7 +159,7 @@ PageBase {
         NavRow {
             icon: "verified_user"
             text: Tr.tr("Secure Boot")
-            subtext: root.secureBootState === "enabled" ? (root.sbctlEnrolled ? Tr.tr("Enabled · Keys enrolled (sbctl) · Manage in Recovery & boot") : Tr.tr("Enabled · Manage keys and boot entries in Recovery & boot")) : root.secureBootState === "disabled" ? (root.setupMode ? Tr.tr("Disabled (Setup Mode) · Ready for sbctl key enrolment in Recovery & boot") : Tr.tr("Disabled · Manage keys and boot entries in Recovery & boot")) : root.secureBootState === "bios" ? Tr.tr("Not available (legacy BIOS)") : Tr.tr("Status unknown")
+            subtext: root.secureBootState === "enabled" ? (root.sbctlEnrolled ? Tr.tr("Enabled · sbctl has its own keys · Manage in Recovery & boot") : Tr.tr("Enabled · Manage keys and boot entries in Recovery & boot")) : root.secureBootState === "disabled" ? (root.setupMode ? Tr.tr("Disabled (Setup Mode) · Ready for sbctl key enrolment in Recovery & boot") : Tr.tr("Disabled · Manage keys and boot entries in Recovery & boot")) : root.secureBootState === "bios" ? Tr.tr("Not available (legacy BIOS)") : Tr.tr("Status unknown")
             onClicked: root.nState.goTo({
                 page: PageRegistry.find("recovery"),
                 tab: "",
@@ -167,11 +167,17 @@ PageBase {
             })
         }
 
+        // What matters is the system and the home folder: one encrypted USB
+        // drive (also in encryptedTargets) doesn't make this PC encrypted
         InfoRow {
-            icon: root.encrypted ? "enhanced_encryption" : "no_encryption"
+            readonly property bool rootEncrypted: root.encryptedTargets.includes("/")
+            readonly property bool homeEncrypted: root.encryptedTargets.includes("/home")
+            readonly property var others: root.encryptedTargets.filter(t => t !== "/" && t !== "/home")
+
+            icon: rootEncrypted ? "enhanced_encryption" : "no_encryption"
             label: Tr.tr("Disk encryption & TPM")
-            value: root.encrypted ? Tr.tr("Encrypted") : Tr.tr("Not encrypted")
-            subtext: [root.encrypted ? Tr.tr("LUKS active on %1").arg(root.encryptedTargets.join(", ")) : Tr.tr("Root filesystem is not LUKS-encrypted"), root.tpmVersion ? Tr.tr("TPM %1 detected").arg(root.tpmVersion) : Tr.tr("No TPM device detected")].join(" · ")
+            value: rootEncrypted ? Tr.tr("System encrypted") : homeEncrypted ? Tr.tr("Home only") : Tr.tr("Not encrypted")
+            subtext: [rootEncrypted ? Tr.tr("System (/) is LUKS-encrypted") : Tr.tr("System (/) is not encrypted"), homeEncrypted ? Tr.tr("/home is encrypted") : "", others.length ? Tr.tr("also encrypted: %1").arg(others.join(", ")) : "", root.tpmVersion ? Tr.tr("TPM %1 detected").arg(root.tpmVersion) : Tr.tr("No TPM device detected")].filter(x => x).join(" · ")
         }
 
         NavRow {
@@ -244,7 +250,7 @@ PageBase {
 
                         StyledText {
                             Layout.fillWidth: true
-                            text: `${permRow.modelData.app || Tr.tr("Global")} · ${permRow.modelData.table}/${permRow.modelData.id}`
+                            text: `${permRow.modelData.app || Tr.tr("Global")} · ${permRow.modelData.table}/${permRow.modelData.id || permRow.modelData.object || "?"}`
                             font: Tokens.font.body.small
                             elide: Text.ElideRight
                         }
@@ -259,11 +265,15 @@ PageBase {
                     }
 
                     TextButton {
+                        // flatpak's JSON names the column "object" (the helper may pass it as id)
+                        readonly property string objectId: permRow.modelData.id || permRow.modelData.object || ""
+
                         text: Tr.tr("Revoke")
                         type: TextButton.Text
-                        disabled: flatpakRevokeProc.running
+                        // Without the object, permission-remove would get "" (wrong entry)
+                        disabled: flatpakRevokeProc.running || !objectId
                         onClicked: {
-                            const args = ["permission-remove", permRow.modelData.table, permRow.modelData.id];
+                            const args = ["permission-remove", permRow.modelData.table, objectId];
                             if (permRow.modelData.app)
                                 args.push(permRow.modelData.app);
                             flatpakRevokeProc.command = ["flatpak", ...args];

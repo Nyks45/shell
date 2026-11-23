@@ -174,15 +174,30 @@ def c_env_set(args):
     with open(tmp, "w") as f:
         f.write("\n".join(lines).rstrip("\n") + "\n")
     os.replace(tmp, path)
-    # Propagate immediately to the live user session (systemd, D-Bus, Hyprland)
-    for cmd in (
-        ["systemctl", "--user", "unset-environment" if val == "--unset" else "set-environment",
-         key if val == "--unset" else f"{key}={val}"],
-        *([] if val == "--unset" else [["dbus-update-activation-environment", "--systemd", f"{key}={val}"]]),
-        ["hyprctl", "-q", "keyword", "env", f"{key},{'' if val == '--unset' else val}"],
-    ):
+    # Also into the running session, for what starts from now on: systemd
+    # user units and D-Bus-activated apps, and what Hyprland itself launches
+    # (its Lua config: hl.env through `hyprctl eval`; the old config: keyword).
+    # Apps the shell starts inherit the shell's own environment: those, and
+    # launchers already open, see it after logging in again / a restart.
+    # Unsetting: systemd forgets it; D-Bus and Hyprland can't unset one, so
+    # there it lasts until the next login.
+    cmds = [["systemctl", "--user", "unset-environment" if val == "--unset" else "set-environment",
+             key if val == "--unset" else f"{key}={val}"]]
+    if val != "--unset":
+        cmds.append(["dbus-update-activation-environment", "--systemd", f"{key}={val}"])
+    for cmd in cmds:
         try:
             subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        except OSError:
+            pass
+    if val != "--unset":
+        # key is an ENV_KEYS name and val a VALUE (no quotes or backslashes): safe in a Lua string
+        try:
+            r = subprocess.run(["hyprctl", "eval", f'hl.env("{key}", "{val}")'], text=True,
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+            if r.returncode != 0 or "error" in (r.stdout or "").lower():
+                subprocess.run(["hyprctl", "-q", "keyword", "env", f"{key},{val}"],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
         except OSError:
             pass
     out({"file": path, "values": read_env(path)})
@@ -775,14 +790,19 @@ def check_changes(req):
         raw_wrap = req["wrappers"]
         if not isinstance(raw_wrap, list):
             sys.exit("wrappers must be a list")
+        # Each entry is one wrapper command with its own arguments
+        # ("gamescope -W 2560 --"): a list of words, each like a VALUE word
         custom_wrappers = []
         for entry in raw_wrap:
-            w = str(entry).strip()
-            if not w:
+            words = str(entry).split()
+            if not words:
                 continue
-            if any(c.isspace() for c in w) or not VALUE.match(w) or w in ("mangohud", PERF):
-                sys.exit(f"not allowed in wrapper: {w}")
-            custom_wrappers.append(w)
+            if words[0] in ("mangohud", PERF):
+                sys.exit(f"not allowed in wrapper: {words[0]} (use its toggle)")
+            for w in words:
+                if not VALUE.match(w):
+                    sys.exit(f"not allowed in wrapper: {w}")
+            custom_wrappers.append(words)
     return {k: (None if v is None else str(v)) for k, v in env.items()}, proton, req_args, other_env, custom_wrappers
 
 
@@ -1060,7 +1080,7 @@ def _merge_launch_opts(opts, env_changes, req_args, other_env, custom_wrappers, 
         env = [item for item in env if item[0] in ENV_KEYS] + other_env
     if custom_wrappers is not None:
         managed = [w for w in wrappers if w[1] in ("mangohud", PERF)]
-        wrappers = [(w, w) for w in custom_wrappers] + managed
+        wrappers = [(w, w) for cmd in custom_wrappers for w in cmd] + managed
     for name, key in (("mangohud", "mangohud"), (PERF, "perf")):
         if key in req:
             wrappers = [w for w in wrappers if w[1] != name]
@@ -1324,7 +1344,7 @@ def faugus_set(gid, req):
         if other_env is not None:
             env = [item for item in env if item[0] in ENV_KEYS] + other_env
         if custom_wrappers is not None:
-            rest = custom_wrappers
+            rest = [w for cmd in custom_wrappers for w in cmd]
         env = apply_env(env, env_changes)
         g["launch_arguments"] = " ".join([raw or f"{k}={shlex.quote(v)}" for k, v, raw in env] + rest)
     if req_args is not None:
@@ -1395,12 +1415,14 @@ def heroic_games():
             pass
         env = {e.get("key"): str(e.get("value", "")) for e in cfg.get("enviromentOptions", []) if isinstance(e, dict)}
         wv = cfg.get("wineVersion") or {}
-        wrappers = [w.get("exe") for w in cfg.get("wrapperOptions", []) if isinstance(w, dict)]
+        wrapper_opts = [w for w in cfg.get("wrapperOptions", []) if isinstance(w, dict) and w.get("exe")]
+        wrappers = [w.get("exe") for w in wrapper_opts]
         games.append({"key": f"heroic:{app}", "launcher": "heroic", "id": app, "title": title, "cover": "",
                       "proton": os.path.dirname(wv.get("bin", "")) if wv.get("type") == "proton" else "",
                       "env": {k: v for k, v in env.items() if k in ENV_KEYS},
                       "otherEnv": [f"{k}={v}" for k, v in env.items() if k not in ENV_KEYS],
-                      "wrappers": [w for w in wrappers if w and w != PERF],
+                      # each wrapper with its own arguments ("exe args"), so editing keeps them
+                      "wrappers": [" ".join([w["exe"]] + ([str(w["args"])] if w.get("args") else [])) for w in wrapper_opts if w["exe"] != PERF],
                       "mangohud": bool(cfg.get("showMangohud")), "perf": PERF in wrappers, "args": cfg.get("launcherArgs", ""),
                       "lastPlayed": 0, "state": "installed", "path": path, "runner": runner,
                       "play": ["xdg-open", f"heroic://launch?appName={app}&runner={runner}"], "removable": False})
@@ -1429,8 +1451,9 @@ def heroic_set(app, req):
         else:
             cfg.pop("launcherArgs", None)
     if custom_wrappers is not None:
+        # Heroic keeps each wrapper as {exe, args}: the first word and the rest
         kept = [w for w in cfg.get("wrapperOptions", []) if isinstance(w, dict) and w.get("exe") == PERF]
-        cfg["wrapperOptions"] = kept + [{"exe": w, "args": ""} for w in custom_wrappers]
+        cfg["wrapperOptions"] = kept + [{"exe": cmd[0], "args": " ".join(cmd[1:])} for cmd in custom_wrappers]
     if "mangohud" in req:
         cfg["showMangohud"] = bool(req["mangohud"])
     if "perf" in req:

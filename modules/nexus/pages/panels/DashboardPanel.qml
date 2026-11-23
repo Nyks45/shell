@@ -24,33 +24,59 @@ PageBase {
             keepAwake: Tr.tr("Keep awake"),
             recorder: Tr.tr("Screen recorder")
         })
-    readonly property var visibleToggles: GlobalConfig.utilities.quickToggles.values.filter(e => toggleMeta[e.id] !== undefined)
-
-    function ensureKnownToggles(): void {
-        const have = new Set(GlobalConfig.utilities.quickToggles.values.map(e => e.id));
-        for (const id of Object.keys(toggleMeta)) {
-            if (!have.has(id))
-                GlobalConfig.utilities.quickToggles.insert({
+    // The pill's own toggles (utilities.pillQuickToggles; the full style's
+    // quickToggles stay as they are): known ids once each, missing ones shown
+    // on (written on the first edit). Wi-Fi and Bluetooth are the two wide
+    // tiles on top: only the round toggles are reordered, among themselves.
+    readonly property list<string> tileIds: ["wifi", "bluetooth"]
+    readonly property var visibleToggles: {
+        const seen = {};
+        const out = [];
+        for (const e of GlobalConfig.utilities.pillQuickToggles.values) {
+            if (toggleMeta[e.id] === undefined || seen[e.id])
+                continue;
+            seen[e.id] = true;
+            out.push({
+                id: e.id,
+                enabled: e.enabled
+            });
+        }
+        for (const id of Object.keys(toggleMeta))
+            if (!seen[id])
+                out.push({
                     id,
                     enabled: true
                 });
-        }
+        return [...out.filter(e => tileIds.includes(e.id)), ...out.filter(e => !tileIds.includes(e.id))];
+    }
+
+    function saveToggles(list: var): void {
+        const node = GlobalConfig.utilities.pillQuickToggles;
+        node.clear();
+        for (const e of list)
+            node.insert({
+                id: e.id,
+                enabled: e.enabled
+            });
+    }
+
+    function setToggleEnabled(id: string, on: bool): void {
+        saveToggles(visibleToggles.map(e => e.id === id ? {
+                id,
+                enabled: on
+            } : e));
     }
 
     function moveToggle(id: string, delta: int): void {
-        const subset = visibleToggles;
-        const pos = subset.findIndex(e => e.id === id);
-        const targetPos = pos + delta;
-        if (pos < 0 || targetPos < 0 || targetPos >= subset.length)
+        const list = visibleToggles.slice();
+        const pos = list.findIndex(e => e.id === id);
+        const target = pos + delta;
+        if (pos < 0 || tileIds.includes(id) || target < 0 || target >= list.length || tileIds.includes(list[target].id))
             return;
-        const all = GlobalConfig.utilities.quickToggles.values;
-        const fromIdx = all.indexOf(subset[pos]);
-        const toIdx = all.indexOf(subset[targetPos]);
-        if (fromIdx >= 0 && toIdx >= 0 && fromIdx !== toIdx)
-            GlobalConfig.utilities.quickToggles.move(fromIdx, toIdx);
+        const [item] = list.splice(pos, 1);
+        list.splice(target, 0, item);
+        saveToggles(list);
     }
-
-    Component.onCompleted: ensureKnownToggles()
 
     title: Tr.tr("Dashboard")
     isSubPage: true
@@ -212,7 +238,7 @@ PageBase {
                     StyledSwitch {
                         cLayer: 2
                         checked: qtRow.modelData.enabled
-                        onToggled: qtRow.modelData.enabled = checked
+                        onToggled: root.setToggleEnabled(qtRow.modelData.id, checked)
                     }
                 }
             }

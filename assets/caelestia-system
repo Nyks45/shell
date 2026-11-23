@@ -641,9 +641,11 @@ def _du_bytes(path):
     if not path or not os.path.exists(path):
         return 0
     try:
-        p = subprocess.run(["du", "-sxb", path], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=5)
+        # du prints the total even when some folders can't be read (exit 1):
+        # that total is still the size of what is there
+        p = subprocess.run(["du", "-sxb", path], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=15)
         parts = p.stdout.split()
-        return int(parts[0]) if p.returncode == 0 and parts and parts[0].isdigit() else 0
+        return int(parts[0]) if p.returncode in (0, 1) and parts and parts[0].isdigit() else 0
     except (OSError, ValueError, subprocess.TimeoutExpired):
         return 0
 
@@ -774,6 +776,38 @@ def c_locales(args):
     }))
 
 
+def rollback_blocker():
+    """Why snapper's rollback can't work here ("" when it can): it changes the
+    btrfs default subvolume, which is ignored when the boot entry
+    (rootflags=subvol=...) or fstab names the root's subvolume itself."""
+    try:
+        cmdline = open("/proc/cmdline").read()
+    except OSError:
+        cmdline = ""
+    m = re.search(r"\brootflags=(\S+)", cmdline)
+    if m and re.search(r"(^|,)subvol(id)?=", m.group(1)):
+        return f"the boot entry names the system's subvolume ({m.group(1)})"
+    try:
+        for line in open("/etc/fstab"):
+            f = line.split()
+            if len(f) >= 4 and not f[0].startswith("#") and f[1] == "/" and re.search(r"(^|,)subvol(id)?=", f[3]):
+                return f"/etc/fstab names the system's subvolume ({f[3].split(',')[0]})"
+    except OSError:
+        pass
+    return ""
+
+
+def booted_from_snapshot():
+    fsroot = sh("findmnt", "-n", "-o", "FSROOT", "/").strip()
+    return fsroot, "/.snapshots/" in fsroot or "/.refind-btrfs/" in fsroot
+
+
+def c_rollback_status(args):
+    """rollback-status: whether this boot is a snapshot and whether rollback can work."""
+    fsroot, booted = booted_from_snapshot()
+    print(json.dumps({"fsroot": fsroot, "bootedSnapshot": booted, "rollbackBlocker": rollback_blocker()}))
+
+
 def c_security_status(args):
     fw = "none"
     if os.path.exists("/usr/bin/ufw"):
@@ -843,8 +877,7 @@ def c_security_status(args):
     except ValueError:
         pass
 
-    fsroot = sh("findmnt", "-n", "-o", "FSROOT", "/").strip()
-    booted_snapshot = "/.snapshots/" in fsroot or "/.refind-btrfs/" in fsroot
+    fsroot, booted_snapshot = booted_from_snapshot()
 
     flatpak_installed = os.path.exists("/usr/bin/flatpak")
     perms = []
@@ -862,7 +895,8 @@ def c_security_status(args):
                         p_text = ", ".join(str(x) for x in p_val) if isinstance(p_val, list) else str(p_val or "")
                         perms.append({
                             "table": str(row.get("table") or ""),
-                            "id": str(row.get("id") or ""),
+                            # flatpak's JSON calls this column "object" (older output: "id")
+                            "id": str(row.get("object") or row.get("id") or ""),
                             "app": str(row.get("app") or row.get("app-id") or ""),
                             "permissions": p_text,
                         })
@@ -880,6 +914,7 @@ def c_security_status(args):
         "encryptedTargets": sorted(set(encrypted_mounts)),
         "fsroot": fsroot,
         "bootedSnapshot": booted_snapshot,
+        "rollbackBlocker": rollback_blocker(),
         "flatpakInstalled": flatpak_installed,
         "permissions": perms,
     }))
@@ -889,7 +924,8 @@ COMMANDS = {"units": c_units, "unit": c_unit, "timers": c_timers, "logs": c_logs
             "crashes": c_crashes, "crash": c_crash, "users": c_users, "user-add": c_user_add,
             "user-delete": c_user_delete, "user-type": c_user_type, "user-password": c_user_password,
             "boot": c_boot, "kernels": c_kernels, "firmware": c_firmware, "fwupd": c_fwupd,
-            "storage-overview": c_storage_overview, "locales": c_locales, "security-status": c_security_status}
+            "storage-overview": c_storage_overview, "locales": c_locales, "security-status": c_security_status,
+            "rollback-status": c_rollback_status}
 
 
 def main(argv):
