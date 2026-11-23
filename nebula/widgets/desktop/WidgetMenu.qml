@@ -19,7 +19,10 @@ PanelWindow {
     screen: modelData
     // Not over a full-screen window (a game, a remote desktop): the corner and its popups wait
     // until the desktop is shown again
-    readonly property bool fullscreenHere: Shell.Hypr.monitorFor(screen)?.activeWorkspace?.toplevels.values.some(t => t.lastIpcObject.fullscreen > 1) ?? false
+    // From modelData, not `screen`: the window's own screen property changes as it hides and
+    // shows, and reading it here made a loop through `visible` (binding loop on fullscreenHere)
+    readonly property HyprlandMonitor monitor: Shell.Hypr.monitorFor(modelData)
+    readonly property bool fullscreenHere: monitor?.activeWorkspace?.toplevels.values.some(t => t.lastIpcObject.fullscreen > 1) ?? false
     visible: !fullscreenHere
     anchors {
         top: true
