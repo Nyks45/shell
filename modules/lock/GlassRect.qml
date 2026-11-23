@@ -3,9 +3,9 @@ import QtQuick
 Rectangle {
     id: root
 
-    property color fill: NebulaTheme.colors.surfaceContainerHigh
-    property real tint: NebulaTheme.glass.tint
-    property real light: NebulaTheme.glass.topLight
+    property color fill: LockTheme.colors.surfaceContainerHigh
+    property real tint: LockTheme.glass.tint
+    property real light: LockTheme.glass.topLight
 
     color: Qt.alpha(fill, tint)
 

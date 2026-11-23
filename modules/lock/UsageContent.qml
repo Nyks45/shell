@@ -9,11 +9,11 @@ Item {
     property string title: ""
     property string subText: ""
     property string valueText: ""
-    property color iconBg: NebulaTheme.colors.primaryContainer
-    property color iconFg: NebulaTheme.colors.textOnPrimaryContainer
-    property color titleColor: NebulaTheme.colors.textOnSurfaceVariant
-    property color subColor: NebulaTheme.colors.textOnSurfaceVariant
-    property color valueColor: NebulaTheme.colors.textOnSurface
+    property color iconBg: LockTheme.colors.primaryContainer
+    property color iconFg: LockTheme.colors.textOnPrimaryContainer
+    property color titleColor: LockTheme.colors.textOnSurfaceVariant
+    property color subColor: LockTheme.colors.textOnSurfaceVariant
+    property color valueColor: LockTheme.colors.textOnSurface
 
     Item {
         id: chip
@@ -32,7 +32,7 @@ Item {
         Text {
             anchors.centerIn: parent
             text: cc.icon
-            font.family: NebulaTheme.font.icons
+            font.family: LockTheme.font.icons
             font.pixelSize: 17
             color: cc.iconFg
         }
@@ -43,7 +43,7 @@ Item {
         anchors.rightMargin: 12
         anchors.verticalCenter: chip.verticalCenter
         text: cc.title
-        font.family: NebulaTheme.font.family
+        font.family: LockTheme.font.family
         font.pixelSize: 13
         font.weight: Font.DemiBold
         color: cc.titleColor
@@ -56,7 +56,7 @@ Item {
         anchors.bottomMargin: 13
         text: cc.subText
         visible: text !== ""
-        font.family: NebulaTheme.font.family
+        font.family: LockTheme.font.family
         font.pixelSize: 15
         font.weight: Font.DemiBold
         color: cc.subColor
@@ -68,7 +68,7 @@ Item {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 12
         text: cc.valueText
-        font.family: NebulaTheme.font.family
+        font.family: LockTheme.font.family
         font.pixelSize: 26
         font.weight: Font.DemiBold
         color: cc.valueColor

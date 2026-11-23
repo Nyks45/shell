@@ -5,8 +5,8 @@ Item {
     id: root
 
     property real value: 0
-    property color colorFill: NebulaTheme.colors.primary
-    property color onFill: NebulaTheme.colors.textOnPrimary
+    property color colorFill: LockTheme.colors.primary
+    property color onFill: LockTheme.colors.textOnPrimary
     property int chipShape: MaterialShape.Cookie6Sided
     property string icon: ""
     property string title: ""
@@ -19,13 +19,13 @@ Item {
 
     property real shown: Math.max(0, Math.min(1, value))
     readonly property real fillRatio: shown
-    readonly property real cardRadius: NebulaTheme.radius.large
+    readonly property real cardRadius: LockTheme.radius.large
 
     Behavior on shown {
         NumberAnimation {
-            duration: NebulaTheme.anim.medium
+            duration: LockTheme.anim.medium
             easing.type: Easing.BezierSpline
-            easing.bezierCurve: NebulaTheme.anim.standard
+            easing.bezierCurve: LockTheme.anim.standard
         }
     }
 
@@ -68,9 +68,9 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: root.cardRadius
-        color: Qt.alpha(NebulaTheme.colors.surfaceContainerHigh, NebulaTheme.lock.surfaceTint)
+        color: Qt.alpha(LockTheme.colors.surfaceContainerHigh, LockTheme.lock.surfaceTint)
         border.width: 1
-        border.color: Qt.alpha(NebulaTheme.colors.textOnSurface, 0.06)
+        border.color: Qt.alpha(LockTheme.colors.textOnSurface, 0.06)
     }
 
     ShaderEffect {
@@ -97,9 +97,9 @@ Item {
         valueText: root.valueText
         iconBg: Qt.alpha(root.colorFill, 0.22)
         iconFg: root.colorFill
-        titleColor: NebulaTheme.colors.textOnSurfaceVariant
-        subColor: NebulaTheme.colors.textOnSurfaceVariant
-        valueColor: NebulaTheme.colors.textOnSurface
+        titleColor: LockTheme.colors.textOnSurfaceVariant
+        subColor: LockTheme.colors.textOnSurfaceVariant
+        valueColor: LockTheme.colors.textOnSurface
     }
 
     Item {

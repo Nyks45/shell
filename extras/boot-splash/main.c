@@ -6,7 +6,7 @@
 // surfaces under a lock that has no surface yet, so this fills that time with the picture
 // the boot animation (assets/plymouth-nebula) ended on and the lock screen starts with:
 // the space colour, the same star field, the black hole with its halo, orbiting dots and
-// the loading shape. Same numbers as modules/lock (NebulaTheme, BlackHole, LockStars).
+// the loading shape. Same numbers as modules/lock (LockTheme, BlackHole, LockStars).
 // The lock screen then covers it and the shell ends it (SIGTERM via the pid file); it also
 // ends by itself after MAX seconds (argv[1], default 12): it must never outlive the lock.
 
@@ -28,7 +28,7 @@
 
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
-// NebulaTheme.qml
+// LockTheme.qml
 #define STARS 160
 #define RING_DOTS 90
 #define RING_TILT 0.32

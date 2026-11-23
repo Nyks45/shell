@@ -7,7 +7,7 @@ Item {
     property real level: 0.85
     property bool low: false
 
-    readonly property real thickness: NebulaTheme.batteryRing.thickness
+    readonly property real thickness: LockTheme.batteryRing.thickness
     readonly property real r: (width - thickness) / 2
     readonly property real sweep: 360 * Math.max(0, Math.min(1, level))
     readonly property real gap: 14
@@ -18,14 +18,14 @@ Item {
 
     Behavior on level {
         NumberAnimation {
-            duration: NebulaTheme.anim.slow
+            duration: LockTheme.anim.slow
             easing.type: Easing.BezierSpline
-            easing.bezierCurve: NebulaTheme.anim.standard
+            easing.bezierCurve: LockTheme.anim.standard
         }
     }
 
-    implicitWidth: NebulaTheme.batteryRing.size
-    implicitHeight: NebulaTheme.batteryRing.size
+    implicitWidth: LockTheme.batteryRing.size
+    implicitHeight: LockTheme.batteryRing.size
 
     function arcPoints(startDeg: real, sweepDeg: real): var {
         const points = [];
@@ -48,7 +48,7 @@ Item {
         preferredRendererType: Shape.CurveRenderer
 
         ShapePath {
-            strokeColor: root.low ? NebulaTheme.colors.errorColor : NebulaTheme.colors.primary
+            strokeColor: root.low ? LockTheme.colors.errorColor : LockTheme.colors.primary
             strokeWidth: root.thickness
             capStyle: ShapePath.RoundCap
             joinStyle: ShapePath.RoundJoin
@@ -60,7 +60,7 @@ Item {
         }
 
         ShapePath {
-            strokeColor: Qt.alpha(NebulaTheme.colors.primary, NebulaTheme.batteryRing.trackOpacity)
+            strokeColor: Qt.alpha(LockTheme.colors.primary, LockTheme.batteryRing.trackOpacity)
             strokeWidth: root.thickness
             capStyle: ShapePath.RoundCap
             joinStyle: ShapePath.RoundJoin

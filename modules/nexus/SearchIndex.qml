@@ -5223,7 +5223,7 @@ QtObject {
             "path": [],
             "trail": [],
             "tab": "desktop",
-            "keywords": "desktop icons widgets nebula audio visualiser bars"
+            "keywords": "desktop icons widgets audio visualiser bars"
         },
         {
             "label": "Lock screen",

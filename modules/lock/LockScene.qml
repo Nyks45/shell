@@ -32,18 +32,18 @@ FocusScope {
     property real shakeX: 0
     property real seconds: 0
 
-    readonly property real o: openT * NebulaTheme.lock.openDuration
-    readonly property real c: closeT * NebulaTheme.lock.closeDuration
-    readonly property real m: modeT * NebulaTheme.lock.modeDuration
+    readonly property real o: openT * LockTheme.lock.openDuration
+    readonly property real c: closeT * LockTheme.lock.closeDuration
+    readonly property real m: modeT * LockTheme.lock.modeDuration
     readonly property real unit: Math.max(0.65, Math.min(1.5, Math.min(width / 1920, height / 1080)))
     readonly property real cx: width / 2
-    readonly property real cy: height * NebulaTheme.lock.centerHeight
-    readonly property real phase: seconds * Math.PI * 2 / NebulaTheme.lock.orbitPeriod - Math.PI / 2
-    readonly property real radiusX: width * NebulaTheme.lock.orbitX
-    readonly property real radiusY: height * NebulaTheme.lock.orbitY
-    readonly property real innerPhase: -seconds * Math.PI * 2 / NebulaTheme.lock.innerPeriod + Math.PI / 2
-    readonly property real innerX: width * NebulaTheme.lock.innerOrbitX
-    readonly property real innerY: height * NebulaTheme.lock.innerOrbitY
+    readonly property real cy: height * LockTheme.lock.centerHeight
+    readonly property real phase: seconds * Math.PI * 2 / LockTheme.lock.orbitPeriod - Math.PI / 2
+    readonly property real radiusX: width * LockTheme.lock.orbitX
+    readonly property real radiusY: height * LockTheme.lock.orbitY
+    readonly property real innerPhase: -seconds * Math.PI * 2 / LockTheme.lock.innerPeriod + Math.PI / 2
+    readonly property real innerX: width * LockTheme.lock.innerOrbitX
+    readonly property real innerY: height * LockTheme.lock.innerOrbitY
 
     readonly property var missedList: {
         if (Config.lock.hideNotifs)
@@ -68,7 +68,7 @@ FocusScope {
                     g.summary = n.summary;
             }
         }
-        return Array.from(groups.values()).slice(0, NebulaTheme.lock.maxNotifications);
+        return Array.from(groups.values()).slice(0, LockTheme.lock.maxNotifications);
     }
 
     readonly property var activePlayer: Players.active
@@ -80,14 +80,14 @@ FocusScope {
     readonly property int innerTotal: (weatherOn ? 1 : 0) + 1 + (batteryOn ? 1 : 0)
     readonly property int moonIndex: weatherOn ? 1 : 0
 
-    readonly property real activeClock: NebulaTheme.lock.activeClockSize * unit
-    readonly property real musicX: cx - activeClock / 2 - NebulaTheme.lock.sideGap * unit - NebulaTheme.lock.activeMusicWidth * unit / 2
-    readonly property real notificationX: cx + activeClock / 2 + NebulaTheme.lock.sideGap * unit + NebulaTheme.lock.activeNotificationWidth * unit / 2
-    readonly property real rowY: cy - activeClock / 2 - NebulaTheme.lock.rowOffset * unit
-    readonly property real inputY: cy + activeClock / 2 + (NebulaTheme.lock.inputGap + NebulaTheme.lock.inputHeight / 2) * unit
+    readonly property real activeClock: LockTheme.lock.activeClockSize * unit
+    readonly property real musicX: cx - activeClock / 2 - LockTheme.lock.sideGap * unit - LockTheme.lock.activeMusicWidth * unit / 2
+    readonly property real notificationX: cx + activeClock / 2 + LockTheme.lock.sideGap * unit + LockTheme.lock.activeNotificationWidth * unit / 2
+    readonly property real rowY: cy - activeClock / 2 - LockTheme.lock.rowOffset * unit
+    readonly property real inputY: cy + activeClock / 2 + (LockTheme.lock.inputGap + LockTheme.lock.inputHeight / 2) * unit
     // Login session row (session picker + power) below the stats grid: same 44 + 10 as LockStats
-    readonly property real statsFullHeight: NebulaTheme.lock.statsHeight + (GlobalConfig.lock.enableSessionControls ? 54 : 0)
-    readonly property real statsY: inputY + (NebulaTheme.lock.inputHeight / 2 + NebulaTheme.lock.statsGap + statsFullHeight / 2) * unit
+    readonly property real statsFullHeight: LockTheme.lock.statsHeight + (GlobalConfig.lock.enableSessionControls ? 54 : 0)
+    readonly property real statsY: inputY + (LockTheme.lock.inputHeight / 2 + LockTheme.lock.statsGap + statsFullHeight / 2) * unit
 
     readonly property real bass: {
         const v = Audio.cava.values;
@@ -133,14 +133,14 @@ FocusScope {
 
     readonly property real holeScale: {
         if (closing) {
-            const grow = modeT > 0 ? Curves.outBack(Curves.phase(c, 180, 350), NebulaTheme.lock.centerOvershoot) : 0;
-            return Math.max(holeBase, grow) * (1 - Curves.inBack(Curves.phase(c, 1000, 420), NebulaTheme.lock.foldOvershoot));
+            const grow = modeT > 0 ? Curves.outBack(Curves.phase(c, 180, 350), LockTheme.lock.centerOvershoot) : 0;
+            return Math.max(holeBase, grow) * (1 - Curves.inBack(Curves.phase(c, 1000, 420), LockTheme.lock.foldOvershoot));
         }
         // At boot the hole is there from the first frame: the boot splash under it
         // (extras/boot-splash) shows the same hole in the same place
         if (bootLoading)
             return 1;
-        const pop = Curves.outBack(Curves.phase(o, 0, 350), NebulaTheme.lock.centerOvershoot);
+        const pop = Curves.outBack(Curves.phase(o, 0, 350), LockTheme.lock.centerOvershoot);
         const bump = bootLock ? 0 : Curves.outCubic(Curves.phase(o, 820, 260)) - Curves.outCubic(Curves.phase(o, 1080, 320));
         return pop * (1 + 0.25 * bump) * holeBase;
     }
@@ -163,11 +163,11 @@ FocusScope {
         ? 1 - Curves.inQuad(Curves.phase(c, 0, 100))
         : Curves.outCubic(Curves.phase(o, 1150, 140))
 
-    readonly property real nebula: closing
+    readonly property real cloudSpread: closing
         ? 1 - Curves.inQuad(Curves.phase(c, 180, 900))
         : Curves.outQuint(Curves.phase(o, 1000, 2400))
 
-    readonly property real inputT: Curves.outBack(Curves.phase(m, 560, 300), NebulaTheme.lock.wingOvershoot)
+    readonly property real inputT: Curves.outBack(Curves.phase(m, 560, 300), LockTheme.lock.wingOvershoot)
 
     ServiceRef {
         service: root.visible && root.mediaPlaying && !root.active ? Audio.cava : null
@@ -176,19 +176,19 @@ FocusScope {
     function wing(openDelay: real, closeDelay: real): real {
         if (closing)
             return 1 - Curves.inQuad(Curves.phase(c, closeDelay, 300));
-        return Curves.outBack(Curves.phase(o, 1080 + openDelay, 250), NebulaTheme.lock.wingOvershoot);
+        return Curves.outBack(Curves.phase(o, 1080 + openDelay, 250), LockTheme.lock.wingOvershoot);
     }
 
     function settle(delay: real): real {
-        return Curves.outBack(Curves.phase(m, 260 + delay, 380), NebulaTheme.lock.wingOvershoot);
+        return Curves.outBack(Curves.phase(m, 260 + delay, 380), LockTheme.lock.wingOvershoot);
     }
 
     function openMs(): int {
-        return Math.round(NebulaTheme.lock.openDuration * NebulaTheme.anim.scale);
+        return Math.round(LockTheme.lock.openDuration * LockTheme.anim.scale);
     }
 
     function closeMs(): int {
-        return Math.round(NebulaTheme.lock.closeDuration * NebulaTheme.anim.scale);
+        return Math.round(LockTheme.lock.closeDuration * LockTheme.anim.scale);
     }
 
     function finishBootLoading(): void {
@@ -319,7 +319,7 @@ FocusScope {
     onActiveChanged: {
         modeAnim.stop();
         modeAnim.to = active ? 1 : 0;
-        modeAnim.duration = Math.max(1, Math.round(NebulaTheme.lock.modeDuration * NebulaTheme.anim.scale * Math.abs(modeAnim.to - modeT)));
+        modeAnim.duration = Math.max(1, Math.round(LockTheme.lock.modeDuration * LockTheme.anim.scale * Math.abs(modeAnim.to - modeT)));
         modeAnim.start();
         if (active && GlobalConfig.lock.triggerHowdyOnWake && pam.howdy.canAttempt && !pam.howdy.active)
             pam.howdy.start();
@@ -363,7 +363,7 @@ FocusScope {
     Timer {
         id: bootMinTimer
 
-        interval: NebulaTheme.lock.bootLoadingMinMs
+        interval: LockTheme.lock.bootLoadingMinMs
         onTriggered: {
             root.bootMinElapsed = true;
             if (LiveStartFrame.ready || !LiveStartFrame.showing)
@@ -389,7 +389,7 @@ FocusScope {
     Timer {
         id: idleTimer
 
-        interval: NebulaTheme.lock.idleTimeout
+        interval: LockTheme.lock.idleTimeout
         running: root.active && root.pam.buffer.length === 0 && !root.pam.passwd.active && !root.closing
         onTriggered: {
             if (root.pam.buffer.length === 0 && !root.pam.passwd.active && !root.closing)
@@ -477,17 +477,17 @@ FocusScope {
             : (root.bootLock ? 1 : Math.min(1, root.openT * 2.5))
     }
 
-    NebulaClouds {
+    LockClouds {
         anchors.fill: parent
-        spread: root.nebula
+        spread: root.cloudSpread
     }
 
     BlackHole {
         x: root.cx - width / 2
         y: root.cy - height / 2
-        width: NebulaTheme.lock.holeSize * root.unit
+        width: LockTheme.lock.holeSize * root.unit
         height: width
-        scale: Math.max(0, root.holeScale) * (1 + NebulaTheme.lock.holePulse * root.pulse)
+        scale: Math.max(0, root.holeScale) * (1 + LockTheme.lock.holePulse * root.pulse)
         boost: root.holeBoost
         pulse: root.pulse
         bootLoading: root.bootLoading
@@ -507,7 +507,7 @@ FocusScope {
         total: root.total
         reveal: root.wing(0, 0)
         settle: root.settle(0)
-        idleWidth: NebulaTheme.lock.clockSize * root.unit
+        idleWidth: LockTheme.lock.clockSize * root.unit
         idleHeight: idleWidth
         layoutWidth: root.activeClock
         layoutHeight: layoutWidth
@@ -532,10 +532,10 @@ FocusScope {
         total: root.total
         reveal: root.activePlayer ? root.wing(60, 40) : 0
         settle: root.settle(60)
-        idleWidth: NebulaTheme.lock.musicWidth * root.unit
-        idleHeight: NebulaTheme.lock.musicHeight * root.unit
-        layoutWidth: NebulaTheme.lock.activeMusicWidth * root.unit
-        layoutHeight: NebulaTheme.lock.activeMusicHeight * root.unit
+        idleWidth: LockTheme.lock.musicWidth * root.unit
+        idleHeight: LockTheme.lock.musicHeight * root.unit
+        layoutWidth: LockTheme.lock.activeMusicWidth * root.unit
+        layoutHeight: LockTheme.lock.activeMusicHeight * root.unit
         layoutX: root.musicX
         layoutY: root.cy
 
@@ -567,12 +567,12 @@ FocusScope {
             total: root.total
             reveal: root.wing(120 + index * 60, 80 + index * 40)
             settle: root.settle(120 + index * 60)
-            idleWidth: NebulaTheme.lock.notificationWidth * root.unit
-            idleHeight: NebulaTheme.lock.notificationHeight * root.unit
-            layoutWidth: NebulaTheme.lock.activeNotificationWidth * root.unit
-            layoutHeight: NebulaTheme.lock.activeNotificationHeight * root.unit
+            idleWidth: LockTheme.lock.notificationWidth * root.unit
+            idleHeight: LockTheme.lock.notificationHeight * root.unit
+            layoutWidth: LockTheme.lock.activeNotificationWidth * root.unit
+            layoutHeight: LockTheme.lock.activeNotificationHeight * root.unit
             layoutX: root.notificationX
-            layoutY: root.cy + (index - (notes.count - 1) / 2) * (NebulaTheme.lock.activeNotificationHeight + NebulaTheme.lock.notificationGap) * root.unit
+            layoutY: root.cy + (index - (notes.count - 1) / 2) * (LockTheme.lock.activeNotificationHeight + LockTheme.lock.notificationGap) * root.unit
 
             Component.onCompleted: {
                 if (root.openT > 0.7 && !root.closing)
@@ -602,11 +602,11 @@ FocusScope {
         total: root.innerTotal
         reveal: root.weatherOn ? root.wing(180, 120) : 0
         settle: root.settle(200)
-        idleWidth: NebulaTheme.lock.planetSize * root.unit
+        idleWidth: LockTheme.lock.planetSize * root.unit
         idleHeight: idleWidth
         layoutWidth: 92 * root.unit
         layoutHeight: layoutWidth
-        layoutX: root.cx + (0 - (root.innerTotal - 1) / 2) * NebulaTheme.lock.rowSpacing * root.unit
+        layoutX: root.cx + (0 - (root.innerTotal - 1) / 2) * LockTheme.lock.rowSpacing * root.unit
         layoutY: root.rowY
 
         LockWeather {
@@ -625,11 +625,11 @@ FocusScope {
         total: root.innerTotal
         reveal: root.wing(240, 160)
         settle: root.settle(240)
-        idleWidth: NebulaTheme.lock.moonSize * root.unit
+        idleWidth: LockTheme.lock.moonSize * root.unit
         idleHeight: idleWidth + 24
         layoutWidth: 80 * root.unit
         layoutHeight: layoutWidth + 24
-        layoutX: root.cx + (root.moonIndex - (root.innerTotal - 1) / 2) * NebulaTheme.lock.rowSpacing * root.unit
+        layoutX: root.cx + (root.moonIndex - (root.innerTotal - 1) / 2) * LockTheme.lock.rowSpacing * root.unit
         layoutY: root.rowY + 12
 
         LockMoon {
@@ -648,11 +648,11 @@ FocusScope {
         total: root.innerTotal
         reveal: root.batteryOn ? root.wing(300, 200) : 0
         settle: root.settle(280)
-        idleWidth: NebulaTheme.lock.batterySize * root.unit
+        idleWidth: LockTheme.lock.batterySize * root.unit
         idleHeight: idleWidth
         layoutWidth: 80 * root.unit
         layoutHeight: layoutWidth
-        layoutX: root.cx + (root.moonIndex + 1 - (root.innerTotal - 1) / 2) * NebulaTheme.lock.rowSpacing * root.unit
+        layoutX: root.cx + (root.moonIndex + 1 - (root.innerTotal - 1) / 2) * LockTheme.lock.rowSpacing * root.unit
         layoutY: root.rowY
 
         LockBattery {
@@ -666,8 +666,8 @@ FocusScope {
         targetX: root.cx + root.shakeX
         targetY: root.inputY
         reveal: Math.min(root.inputT, root.closing ? 1 - Curves.inQuad(Curves.phase(root.c, 0, 300)) : 1)
-        width: NebulaTheme.lock.inputWidth * root.unit
-        height: NebulaTheme.lock.inputHeight * root.unit
+        width: LockTheme.lock.inputWidth * root.unit
+        height: LockTheme.lock.inputHeight * root.unit
 
         LockInput {
             anchors.fill: parent
@@ -684,7 +684,7 @@ FocusScope {
 
         x: root.cx - width / 2
         y: root.statsY - height / 2 + (1 - shownT) * 28 * root.unit
-        width: NebulaTheme.lock.statsWidth * root.unit
+        width: LockTheme.lock.statsWidth * root.unit
         height: root.statsFullHeight * root.unit
         opacity: shownT
         visible: opacity > 0

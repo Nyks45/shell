@@ -11,7 +11,7 @@ Item {
     }
 
     Repeater {
-        model: NebulaTheme.galaxy.stars
+        model: LockTheme.galaxy.stars
 
         Rectangle {
             required property int index
@@ -23,13 +23,13 @@ Item {
             radius: width / 2
             x: root.rand(index + 2) * root.width - width / 2
             y: root.rand(index + 3) * root.height - height / 2
-            color: NebulaTheme.lock.star
-            opacity: big ? NebulaTheme.galaxy.starBright : NebulaTheme.galaxy.starFaint
+            color: LockTheme.lock.star
+            opacity: big ? LockTheme.galaxy.starBright : LockTheme.galaxy.starFaint
         }
     }
 
     Repeater {
-        model: NebulaTheme.lock.twinklers
+        model: LockTheme.lock.twinklers
 
         Rectangle {
             required property int index
@@ -39,7 +39,7 @@ Item {
             width: 2
             height: 2
             radius: 1
-            color: NebulaTheme.lock.star
+            color: LockTheme.lock.star
             opacity: 0
 
             SequentialAnimation on opacity {

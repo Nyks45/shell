@@ -14,8 +14,8 @@ Item {
     property var levels: []
     readonly property real radius: width / 2
 
-    implicitWidth: NebulaTheme.lock.holeSize
-    implicitHeight: NebulaTheme.lock.holeSize
+    implicitWidth: LockTheme.lock.holeSize
+    implicitHeight: LockTheme.lock.holeSize
 
     FrameAnimation {
         running: root.visible
@@ -48,11 +48,11 @@ Item {
                 focalY: halo.r
                 GradientStop {
                     position: 0.2
-                    color: Qt.alpha(NebulaTheme.colors.primary, 0.32)
+                    color: Qt.alpha(LockTheme.colors.primary, 0.32)
                 }
                 GradientStop {
                     position: 1
-                    color: Qt.alpha(NebulaTheme.colors.primary, 0)
+                    color: Qt.alpha(LockTheme.colors.primary, 0)
                 }
             }
             startX: 0
@@ -77,7 +77,7 @@ Item {
     }
 
     Repeater {
-        model: NebulaTheme.lock.ringDots
+        model: LockTheme.lock.ringDots
 
         Rectangle {
             id: dot
@@ -94,10 +94,10 @@ Item {
             width: 3 + 2.5 * root.pulse + 4 * level
             height: width
             radius: width / 2
-            x: root.width / 2 + Math.cos(angle) * ring * root.radius * (1 + NebulaTheme.lock.pulseGain * root.pulse + 0.25 * level) - width / 2
-            y: root.height / 2 + Math.sin(angle) * ring * root.radius * (1 + NebulaTheme.lock.pulseGain * root.pulse + 0.25 * level) * NebulaTheme.lock.ringTilt - width / 2
+            x: root.width / 2 + Math.cos(angle) * ring * root.radius * (1 + LockTheme.lock.pulseGain * root.pulse + 0.25 * level) - width / 2
+            y: root.height / 2 + Math.sin(angle) * ring * root.radius * (1 + LockTheme.lock.pulseGain * root.pulse + 0.25 * level) * LockTheme.lock.ringTilt - width / 2
             z: Math.sin(angle) > 0 ? 2 : 0
-            color: index % 3 === 0 ? NebulaTheme.colors.tertiary : NebulaTheme.colors.primary
+            color: index % 3 === 0 ? LockTheme.colors.tertiary : LockTheme.colors.primary
             opacity: 0.75 + 0.25 * level
         }
     }
@@ -111,7 +111,7 @@ Item {
         radius: width / 2
         color: "black"
         border.width: 2
-        border.color: Qt.alpha(NebulaTheme.colors.inversePrimary, 0.75)
+        border.color: Qt.alpha(LockTheme.colors.inversePrimary, 0.75)
         z: 1
     }
 
@@ -121,7 +121,7 @@ Item {
         height: width
         contained: false
         startIndex: 1
-        color: NebulaTheme.colors.primary
+        color: LockTheme.colors.primary
         running: root.bootLoading
         visible: opacity > 0
         opacity: root.bootLoading ? root.iconOpacity : 0
@@ -131,15 +131,15 @@ Item {
     Text {
         anchors.centerIn: parent
         text: "lock"
-        font.family: NebulaTheme.font.icons
+        font.family: LockTheme.font.icons
         font.pixelSize: root.width * 0.26
-        color: NebulaTheme.colors.textOnSurface
+        color: LockTheme.colors.textOnSurface
         opacity: root.bootLoading ? 0 : root.iconOpacity
         z: 3
 
         Behavior on opacity {
             NumberAnimation {
-                duration: NebulaTheme.anim.medium
+                duration: LockTheme.anim.medium
             }
         }
     }
@@ -151,10 +151,10 @@ Item {
         anchors.topMargin: 18
         anchors.horizontalCenter: parent.horizontalCenter
         text: "Starting desktop…"
-        font.family: NebulaTheme.font.family
-        font.pixelSize: NebulaTheme.font.normal
+        font.family: LockTheme.font.family
+        font.pixelSize: LockTheme.font.normal
         font.weight: Font.Medium
-        color: NebulaTheme.colors.textOnSurface
+        color: LockTheme.colors.textOnSurface
         opacity: root.bootLoading ? pulseAlpha * labelIn : 0
         visible: opacity > 0.01
         z: 3
@@ -186,7 +186,7 @@ Item {
 
         Behavior on opacity {
             NumberAnimation {
-                duration: NebulaTheme.anim.medium
+                duration: LockTheme.anim.medium
             }
         }
     }

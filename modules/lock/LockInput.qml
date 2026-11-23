@@ -44,9 +44,9 @@ Item {
         MaterialShape.Sunny
     ]
     readonly property var dotColors: [
-        NebulaTheme.colors.primary,
-        NebulaTheme.colors.tertiary,
-        NebulaTheme.colors.secondary
+        LockTheme.colors.primary,
+        LockTheme.colors.tertiary,
+        LockTheme.colors.secondary
     ]
 
     function submit(): void {
@@ -62,7 +62,7 @@ Item {
     function syncDots(): void {
         // As many shapes as fit the field (15px + 4px gap each, plus the caret), never more than dotMax
         const fit = Math.floor((dotArea.width - 7 + 4) / 19);
-        const cap = Math.max(1, Math.min(NebulaTheme.lock.dotMax, dotArea.width > 0 ? fit : NebulaTheme.lock.dotMax));
+        const cap = Math.max(1, Math.min(LockTheme.lock.dotMax, dotArea.width > 0 ? fit : LockTheme.lock.dotMax));
         if (root.typed <= 0) {
             dotModel.clear();
             return;
@@ -89,8 +89,8 @@ Item {
     GlassRect {
         anchors.fill: parent
         radius: height / 2
-        fill: NebulaTheme.colors.surfaceContainerHigh
-        tint: NebulaTheme.lock.surfaceTint
+        fill: LockTheme.colors.surfaceContainerHigh
+        tint: LockTheme.lock.surfaceTint
         light: 0
     }
 
@@ -105,12 +105,12 @@ Item {
         color: "transparent"
         border.width: 1.5
         border.color: root.failed
-            ? NebulaTheme.colors.errorColor
-            : (root.typing || root.checking ? Qt.alpha(NebulaTheme.colors.primary, 0.7) : Qt.alpha(NebulaTheme.colors.textOnSurface, 0.06))
+            ? LockTheme.colors.errorColor
+            : (root.typing || root.checking ? Qt.alpha(LockTheme.colors.primary, 0.7) : Qt.alpha(LockTheme.colors.textOnSurface, 0.06))
 
         Behavior on border.color {
             ColorAnimation {
-                duration: NebulaTheme.anim.fast
+                duration: LockTheme.anim.fast
             }
         }
     }
@@ -132,8 +132,8 @@ Item {
                 : root.checking ? MaterialShape.Clover4Leaf
                 : root.typing ? MaterialShape.Cookie12Sided
                 : MaterialShape.Cookie9Sided
-            color: root.failed ? Qt.alpha(NebulaTheme.colors.errorColor, 0.28) : Qt.alpha(NebulaTheme.colors.primary, 0.28)
-            animationDuration: NebulaTheme.anim.slow
+            color: root.failed ? Qt.alpha(LockTheme.colors.errorColor, 0.28) : Qt.alpha(LockTheme.colors.primary, 0.28)
+            animationDuration: LockTheme.anim.slow
 
             RotationAnimation on rotation {
                 from: 0
@@ -148,9 +148,9 @@ Item {
             anchors.centerIn: parent
             anchors.verticalCenterOffset: 1
             text: root.failed ? "lock_reset" : root.unlocking ? "lock_open" : "lock"
-            font.family: NebulaTheme.font.icons
+            font.family: LockTheme.font.icons
             font.pixelSize: 21
-            color: root.failed ? NebulaTheme.colors.errorColor : NebulaTheme.colors.primary
+            color: root.failed ? LockTheme.colors.errorColor : LockTheme.colors.primary
         }
     }
 
@@ -174,10 +174,10 @@ Item {
             elide: Text.ElideRight
             visible: !root.typing && !root.checking
             text: root.promptText
-            font.family: NebulaTheme.font.family
-            font.pixelSize: NebulaTheme.font.large
+            font.family: LockTheme.font.family
+            font.pixelSize: LockTheme.font.large
             font.weight: Font.Medium
-            color: root.failed ? NebulaTheme.colors.errorColor : Qt.alpha(NebulaTheme.colors.textOnSurface, 0.55)
+            color: root.failed ? LockTheme.colors.errorColor : Qt.alpha(LockTheme.colors.textOnSurface, 0.55)
         }
 
         Row {
@@ -276,7 +276,7 @@ Item {
                 width: 3
                 height: 20
                 radius: 1.5
-                color: NebulaTheme.colors.primary
+                color: LockTheme.colors.primary
                 visible: !root.checking
 
                 SequentialAnimation on opacity {
@@ -307,7 +307,7 @@ Item {
 
         Behavior on scale {
             NumberAnimation {
-                duration: NebulaTheme.anim.fast
+                duration: LockTheme.anim.fast
                 easing.type: Easing.OutCubic
             }
         }
@@ -316,12 +316,12 @@ Item {
             anchors.fill: parent
             visible: !root.checking
             shape: root.typing ? MaterialShape.Cookie9Sided : MaterialShape.Circle
-            color: root.typing ? NebulaTheme.colors.primary : Qt.alpha(NebulaTheme.colors.textOnSurface, 0.08)
-            animationDuration: NebulaTheme.anim.slow
+            color: root.typing ? LockTheme.colors.primary : Qt.alpha(LockTheme.colors.textOnSurface, 0.08)
+            animationDuration: LockTheme.anim.slow
 
             Behavior on color {
                 ColorAnimation {
-                    duration: NebulaTheme.anim.fast
+                    duration: LockTheme.anim.fast
                 }
             }
         }
@@ -330,9 +330,9 @@ Item {
             anchors.centerIn: parent
             visible: !root.checking
             text: "arrow_forward"
-            font.family: NebulaTheme.font.icons
+            font.family: LockTheme.font.icons
             font.pixelSize: 22
-            color: root.typing ? NebulaTheme.colors.textOnPrimary : Qt.alpha(NebulaTheme.colors.textOnSurface, 0.4)
+            color: root.typing ? LockTheme.colors.textOnPrimary : Qt.alpha(LockTheme.colors.textOnSurface, 0.4)
         }
 
         MouseArea {

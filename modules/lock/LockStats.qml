@@ -111,12 +111,12 @@ Item {
         readonly property real gap: 10
         readonly property real cardW: (width - gap * 2) / 3
         readonly property real sessionH: root.showSession ? 44 : 0
-        readonly property real gridH: NebulaTheme.lock.statsHeight
+        readonly property real gridH: LockTheme.lock.statsHeight
         readonly property real cardH: (gridH - gap) / 2
 
-        width: NebulaTheme.lock.statsWidth
+        width: LockTheme.lock.statsWidth
         // The session row sits below the grid and adds to the height, so the cards keep their size
-        height: NebulaTheme.lock.statsHeight + (root.showSession ? sessionH + gap : 0)
+        height: LockTheme.lock.statsHeight + (root.showSession ? sessionH + gap : 0)
         scale: root.width / width
         transformOrigin: Item.TopLeft
 
@@ -126,8 +126,8 @@ Item {
             width: box.cardW
             height: box.cardH
             value: root.cpu
-            colorFill: NebulaTheme.colors.primary
-            onFill: NebulaTheme.colors.textOnPrimary
+            colorFill: LockTheme.colors.primary
+            onFill: LockTheme.colors.textOnPrimary
             chipShape: MaterialShape.Cookie6Sided
             icon: "memory"
             title: "CPU"
@@ -140,8 +140,8 @@ Item {
             width: box.cardW
             height: box.cardH
             value: root.mem
-            colorFill: NebulaTheme.colors.secondary
-            onFill: NebulaTheme.colors.textOnSecondary
+            colorFill: LockTheme.colors.secondary
+            onFill: LockTheme.colors.textOnSecondary
             chipShape: MaterialShape.Cookie9Sided
             icon: "memory_alt"
             title: "RAM"
@@ -154,8 +154,8 @@ Item {
             width: box.cardW
             height: box.cardH
             value: root.gpu
-            colorFill: NebulaTheme.colors.tertiary
-            onFill: NebulaTheme.colors.textOnTertiary
+            colorFill: LockTheme.colors.tertiary
+            onFill: LockTheme.colors.textOnTertiary
             chipShape: MaterialShape.Clover4Leaf
             icon: "developer_board"
             title: "GPU"
@@ -169,8 +169,8 @@ Item {
             width: box.cardW
             height: box.cardH
             value: Math.max(0, Math.min(1, root.temp / 100))
-            colorFill: NebulaTheme.colors.primary
-            onFill: NebulaTheme.colors.textOnPrimary
+            colorFill: LockTheme.colors.primary
+            onFill: LockTheme.colors.textOnPrimary
             chipShape: MaterialShape.Sunny
             icon: "thermostat"
             title: "TEMP"
@@ -183,8 +183,8 @@ Item {
             width: box.cardW
             height: box.cardH
             value: root.disk
-            colorFill: NebulaTheme.colors.secondary
-            onFill: NebulaTheme.colors.textOnSecondary
+            colorFill: LockTheme.colors.secondary
+            onFill: LockTheme.colors.textOnSecondary
             chipShape: MaterialShape.Pentagon
             icon: "storage"
             title: root.diskTotalKib > 0 ? root.formatGb(root.diskTotalKib) : "DISK"
@@ -198,8 +198,8 @@ Item {
             width: box.cardW
             height: box.cardH
             value: 0.04
-            colorFill: NebulaTheme.colors.tertiary
-            onFill: NebulaTheme.colors.textOnTertiary
+            colorFill: LockTheme.colors.tertiary
+            onFill: LockTheme.colors.textOnTertiary
             chipShape: MaterialShape.Circle
             icon: "swap_vert"
             title: "NET"
@@ -216,14 +216,14 @@ Item {
                 SpeedPill {
                     width: parent.width
                     arrow: "arrow_downward"
-                    accent: NebulaTheme.colors.tertiary
+                    accent: LockTheme.colors.tertiary
                     text: root.formatRate(root.netDown)
                 }
 
                 SpeedPill {
                     width: parent.width
                     arrow: "arrow_upward"
-                    accent: NebulaTheme.colors.secondary
+                    accent: LockTheme.colors.secondary
                     text: root.formatRate(root.netUp)
                 }
             }
@@ -238,14 +238,14 @@ Item {
             Rectangle {
                 id: sessionPill
 
-                height: NebulaTheme.button.size
+                height: LockTheme.button.size
                 implicitWidth: Math.min(240, sessionRow.implicitWidth + 24)
-                radius: NebulaTheme.radius.full
-                color: sessionMouse.pressed ? NebulaTheme.colors.surfaceContainerHighest
-                    : sessionMouse.containsMouse ? NebulaTheme.colors.surfaceContainerHigh
-                    : NebulaTheme.colors.surfaceContainer
+                radius: LockTheme.radius.full
+                color: sessionMouse.pressed ? LockTheme.colors.surfaceContainerHighest
+                    : sessionMouse.containsMouse ? LockTheme.colors.surfaceContainerHigh
+                    : LockTheme.colors.surfaceContainer
                 border.width: 1
-                border.color: sessionMouse.containsMouse ? Qt.alpha(NebulaTheme.colors.primary, 0.45) : Qt.alpha(NebulaTheme.colors.textOnSurface, 0.08)
+                border.color: sessionMouse.containsMouse ? Qt.alpha(LockTheme.colors.primary, 0.45) : Qt.alpha(LockTheme.colors.textOnSurface, 0.08)
 
                 Row {
                     id: sessionRow
@@ -256,27 +256,27 @@ Item {
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "desktop_windows"
-                        font.family: NebulaTheme.font.icons
+                        font.family: LockTheme.font.icons
                         font.pixelSize: 18
-                        color: NebulaTheme.colors.primary
+                        color: LockTheme.colors.primary
                     }
 
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: root.sessionLabel
-                        font.family: NebulaTheme.font.family
-                        font.pixelSize: NebulaTheme.font.normal
+                        font.family: LockTheme.font.family
+                        font.pixelSize: LockTheme.font.normal
                         font.weight: Font.Medium
-                        color: NebulaTheme.colors.textOnSurface
+                        color: LockTheme.colors.textOnSurface
                     }
 
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         visible: root.sessions.length > 1
                         text: "swap_horiz"
-                        font.family: NebulaTheme.font.icons
+                        font.family: LockTheme.font.icons
                         font.pixelSize: 16
-                        color: Qt.alpha(NebulaTheme.colors.textOnSurface, 0.55)
+                        color: Qt.alpha(LockTheme.colors.textOnSurface, 0.55)
                     }
                 }
 
@@ -290,19 +290,19 @@ Item {
                 }
             }
 
-            NebulaIconButton {
+            LockIconButton {
                 icon: Config.session.icons.logout
                 onClicked: root.execSession(Config.session.commands.logout)
             }
-            NebulaIconButton {
+            LockIconButton {
                 icon: Config.session.icons.sleep
                 onClicked: root.execSession(Config.session.commands.sleep)
             }
-            NebulaIconButton {
+            LockIconButton {
                 icon: Config.session.icons.reboot
                 onClicked: root.execSession(Config.session.commands.reboot)
             }
-            NebulaIconButton {
+            LockIconButton {
                 icon: Config.session.icons.shutdown
                 onClicked: root.execSession(Config.session.commands.shutdown)
             }

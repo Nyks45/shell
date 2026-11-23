@@ -243,7 +243,7 @@ static int init_nebula_assets(int w, int h, const char* theme_dir, struct nebula
     if (!a->base_rgb)
         return -1;
 
-    // Match NebulaTheme SPACE (#05050F) instead of pure black
+    // Match LockTheme SPACE (#05050F) instead of pure black
     for (size_t i = 0; i < npix; i++) {
         a->base_rgb[i * 3 + 0] = 0x05;
         a->base_rgb[i * 3 + 1] = 0x05;

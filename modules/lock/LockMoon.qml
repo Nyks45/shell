@@ -71,7 +71,7 @@ Item {
             ctx.stroke();
             const k = Math.cos(root.phase * Math.PI * 2);
             const dir = root.phase < 0.5 ? 1 : -1;
-            ctx.fillStyle = NebulaTheme.lock.star;
+            ctx.fillStyle = LockTheme.lock.star;
             ctx.beginPath();
             for (let i = 0; i <= 40; i++) {
                 const t = -Math.PI / 2 + i / 40 * Math.PI;
@@ -96,8 +96,8 @@ Item {
         anchors.top: disc.bottom
         anchors.topMargin: 6
         text: `${root.phaseName} · ${root.illumination}%`
-        font.family: NebulaTheme.font.family
-        font.pixelSize: NebulaTheme.font.small
-        color: Qt.alpha(NebulaTheme.colors.textOnSurface, 0.85)
+        font.family: LockTheme.font.family
+        font.pixelSize: LockTheme.font.small
+        color: Qt.alpha(LockTheme.colors.textOnSurface, 0.85)
     }
 }

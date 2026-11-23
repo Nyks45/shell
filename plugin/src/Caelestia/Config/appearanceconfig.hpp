@@ -270,7 +270,7 @@ class AppearanceTransparency : public settings::ObjectNode {
     CONFIG_GLOBAL_PROPERTY(qreal, layers, 0.4)
 };
 
-// Glass cards and shapes (after Nebula, github.com/LilaccFlowerr/Nebula): a translucent tint
+// Glass cards and shapes (based on LilaccFlowerr's Nebula, see widgets/README.md): a translucent tint
 // over the compositor's blur, with a soft light across their top
 class AppearanceGlass : public settings::ObjectNode {
     CONFIG_NODE(AppearanceGlass, settings::ObjectNode)
@@ -291,8 +291,8 @@ class AppearanceBlur : public settings::ObjectNode {
     CONFIG_GLOBAL_PROPERTY(int, widgetsPasses, 0)
 };
 
-// Nebula's desktop widgets (github.com/LilaccFlowerr/Nebula, see NEBULA.md).
-// Settings > Wallpaper & style > Nebula.
+// The desktop widgets (see widgets/README.md).
+// Settings > Wallpaper & style > Desktop.
 class AppearanceStyle : public settings::ObjectNode {
     CONFIG_NODE(AppearanceStyle, settings::ObjectNode)
 

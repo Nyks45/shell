@@ -4,12 +4,12 @@ Rectangle {
     id: pill
 
     property string arrow: ""
-    property color accent: NebulaTheme.colors.tertiary
+    property color accent: LockTheme.colors.tertiary
     property string text: ""
 
     height: 26
     radius: 13
-    color: Qt.alpha(NebulaTheme.colors.surfaceContainerHighest, 0.6)
+    color: Qt.alpha(LockTheme.colors.surfaceContainerHighest, 0.6)
 
     Rectangle {
         x: 3
@@ -22,7 +22,7 @@ Rectangle {
         Text {
             anchors.centerIn: parent
             text: pill.arrow
-            font.family: NebulaTheme.font.icons
+            font.family: LockTheme.font.icons
             font.pixelSize: 12
             color: pill.accent
         }
@@ -34,9 +34,9 @@ Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         elide: Text.ElideRight
         text: pill.text
-        font.family: NebulaTheme.font.family
+        font.family: LockTheme.font.family
         font.pixelSize: 12
         font.weight: Font.DemiBold
-        color: NebulaTheme.colors.textOnSurface
+        color: LockTheme.colors.textOnSurface
     }
 }

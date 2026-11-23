@@ -1,4 +1,4 @@
-// Fast native boot launcher for Caelestia's Nebula login manager.
+// Fast native boot launcher for Caelestia's login manager.
 // Avoids Python + `/bin/sh -l` (~280 ms) on cold Hyprland boots while keeping
 // `/usr/lib/caelestia/caelestia-session` for `list`, `set`, and non-Hyprland sessions.
 

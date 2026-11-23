@@ -13,15 +13,15 @@ Item {
 
     readonly property real fade: Math.max(0, Math.min(1, (morph - 0.35) / 0.3))
     readonly property real idleFade: 1 - Math.max(0, Math.min(1, morph * 3))
-    readonly property real bubble: NebulaTheme.lock.bubbleSize * unit
+    readonly property real bubble: LockTheme.lock.bubbleSize * unit
     readonly property int tone: {
         let h = 0;
         for (let i = 0; i < name.length; i++)
             h = (h * 31 + name.charCodeAt(i)) % 997;
         return h % 3;
     }
-    readonly property color toneFill: [NebulaTheme.colors.secondary, NebulaTheme.colors.tertiary, NebulaTheme.colors.primary][tone]
-    readonly property color toneText: [NebulaTheme.colors.textOnSecondary, NebulaTheme.colors.textOnTertiary, NebulaTheme.colors.textOnPrimary][tone]
+    readonly property color toneFill: [LockTheme.colors.secondary, LockTheme.colors.tertiary, LockTheme.colors.primary][tone]
+    readonly property color toneText: [LockTheme.colors.textOnSecondary, LockTheme.colors.textOnTertiary, LockTheme.colors.textOnPrimary][tone]
     readonly property string initial: name.length > 0 ? name.charAt(0).toUpperCase() : "?"
 
     Item {
@@ -36,7 +36,7 @@ Item {
             width: root.bubble
             height: width
             radius: width / 2
-            color: Qt.alpha(NebulaTheme.colors.secondaryContainer, NebulaTheme.lock.surfaceTint)
+            color: Qt.alpha(LockTheme.colors.secondaryContainer, LockTheme.lock.surfaceTint)
 
             ShapedArt {
                 id: idleArt
@@ -53,7 +53,7 @@ Item {
                     anchors.centerIn: parent
                     visible: !idleArt.hasImage
                     text: root.initial
-                    font.family: NebulaTheme.font.family
+                    font.family: LockTheme.font.family
                     font.pixelSize: parent.height * 0.5
                     font.weight: Font.DemiBold
                     color: root.toneText
@@ -68,17 +68,17 @@ Item {
             width: Math.max(height, badge.implicitWidth + 12)
             height: 24
             radius: 12
-            color: NebulaTheme.colors.primary
+            color: LockTheme.colors.primary
 
             Text {
                 id: badge
 
                 anchors.centerIn: parent
                 text: root.count
-                font.family: NebulaTheme.font.family
+                font.family: LockTheme.font.family
                 font.pixelSize: 12
                 font.weight: Font.Medium
-                color: NebulaTheme.colors.textOnPrimary
+                color: LockTheme.colors.textOnPrimary
             }
         }
 
@@ -89,9 +89,9 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
             text: root.name
-            font.family: NebulaTheme.font.family
-            font.pixelSize: NebulaTheme.font.small
-            color: Qt.alpha(NebulaTheme.colors.textOnSurface, 0.75)
+            font.family: LockTheme.font.family
+            font.pixelSize: LockTheme.font.small
+            color: Qt.alpha(LockTheme.colors.textOnSurface, 0.75)
         }
     }
 
@@ -103,8 +103,8 @@ Item {
         GlassRect {
             anchors.fill: parent
             radius: height / 2
-            fill: NebulaTheme.colors.secondaryContainer
-            tint: NebulaTheme.lock.surfaceTint
+            fill: LockTheme.colors.secondaryContainer
+            tint: LockTheme.lock.surfaceTint
             light: 0
         }
 
@@ -124,7 +124,7 @@ Item {
                 anchors.centerIn: parent
                 visible: !art.hasImage
                 text: root.initial
-                font.family: NebulaTheme.font.family
+                font.family: LockTheme.font.family
                 font.pixelSize: parent.height * 0.5
                 font.weight: Font.DemiBold
                 color: root.toneText
@@ -143,19 +143,19 @@ Item {
                 width: parent.width
                 elide: Text.ElideRight
                 text: root.name + (root.count > 1 ? `  ·  ${root.count}` : "")
-                font.family: NebulaTheme.font.family
-                font.pixelSize: NebulaTheme.font.large
+                font.family: LockTheme.font.family
+                font.pixelSize: LockTheme.font.large
                 font.weight: Font.Medium
-                color: NebulaTheme.colors.textOnSecondaryContainer
+                color: LockTheme.colors.textOnSecondaryContainer
             }
 
             Text {
                 width: parent.width
                 elide: Text.ElideRight
                 text: root.summary
-                font.family: NebulaTheme.font.family
-                font.pixelSize: NebulaTheme.font.normal
-                color: Qt.alpha(NebulaTheme.colors.textOnSecondaryContainer, 0.7)
+                font.family: LockTheme.font.family
+                font.pixelSize: LockTheme.font.normal
+                color: Qt.alpha(LockTheme.colors.textOnSecondaryContainer, 0.7)
             }
         }
     }

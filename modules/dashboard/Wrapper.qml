@@ -8,7 +8,7 @@ import qs.services
 // The dashboard as a hiding island: touching the top edge brings out a small pill with the time
 // and date and a button per page (two rows a side); a button opens that page alone, clicking
 // the time and date or the shortcut the overview (hovering only shows the pill). Moving away shrinks it
-// back into the edge. The shortcut opens the dashboard at once. It grows like Nebula's media island: the shape eases
+// back into the edge. The shortcut opens the dashboard at once. It grows like a media island: the shape eases
 // out over about half a second, revealing the page at full size, which fades in near the end.
 Item {
     id: root
@@ -183,7 +183,7 @@ Item {
     implicitWidth: visible ? pillWidth * Math.max(0, peek) + (fullWidth - pillWidth * Math.max(0, peek)) * morph : 0
     implicitHeight: Math.max(0, pillHeight * Math.max(0, peek) + (fullHeight - pillHeight * Math.max(0, peek)) * morph)
 
-    // The opening: like Nebula's media island, about half a second, slowing to a stop with no
+    // The opening: like a media island, about half a second, slowing to a stop with no
     // bounce (a spring just past critical, so turning around mid-way stays smooth)
     HoverHandler {
         id: pillHover
@@ -403,7 +403,7 @@ Item {
         anchors.top: parent.top
 
         // At full size, revealed by the growing shape; fades in over the last part of the way
-        // (Nebula's media island)
+        // (as a media island does)
         opacity: Math.min(1, Math.max(0, (root.morph - 0.4) / 0.45))
         visible: root.morph > 0.002
 

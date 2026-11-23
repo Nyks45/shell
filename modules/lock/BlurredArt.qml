@@ -20,12 +20,12 @@ Item {
             anchors.fill: parent
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
-            sourceSize: Qt.size(NebulaTheme.media.artSourceSize, NebulaTheme.media.artSourceSize)
+            sourceSize: Qt.size(LockTheme.media.artSourceSize, LockTheme.media.artSourceSize)
             opacity: (root.showingA ? status === Image.Ready : b.status !== Image.Ready) ? 1 : 0
 
             Behavior on opacity {
                 NumberAnimation {
-                    duration: NebulaTheme.media.artFade * NebulaTheme.anim.scale
+                    duration: LockTheme.media.artFade * LockTheme.anim.scale
                 }
             }
         }
@@ -36,12 +36,12 @@ Item {
             anchors.fill: parent
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
-            sourceSize: Qt.size(NebulaTheme.media.artSourceSize, NebulaTheme.media.artSourceSize)
+            sourceSize: Qt.size(LockTheme.media.artSourceSize, LockTheme.media.artSourceSize)
             opacity: (!root.showingA ? status === Image.Ready : a.status !== Image.Ready) ? 1 : 0
 
             Behavior on opacity {
                 NumberAnimation {
-                    duration: NebulaTheme.media.artFade * NebulaTheme.anim.scale
+                    duration: LockTheme.media.artFade * LockTheme.anim.scale
                 }
             }
         }
@@ -53,8 +53,8 @@ Item {
         autoPaddingEnabled: false
         blurEnabled: true
         blur: 1
-        blurMax: NebulaTheme.media.artBlur
-        opacity: NebulaTheme.media.artOpacity
+        blurMax: LockTheme.media.artBlur
+        opacity: LockTheme.media.artOpacity
     }
 
     onSourceChanged: {

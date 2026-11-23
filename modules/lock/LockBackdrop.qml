@@ -48,7 +48,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: NebulaTheme.lock.space
+        color: LockTheme.lock.space
     }
 
     Item {
@@ -62,7 +62,7 @@ Item {
             autoPaddingEnabled: false
             blurEnabled: true
             blur: root.blurAmount
-            blurMax: NebulaTheme.lock.blurMax
+            blurMax: LockTheme.lock.blurMax
         }
 
         Loader {
@@ -99,7 +99,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: NebulaTheme.lock.space
+        color: LockTheme.lock.space
         opacity: Math.min(1, root.openT * 1.6) * (0.18 + 0.26 * root.modeT) * root.backdropFade
     }
 }

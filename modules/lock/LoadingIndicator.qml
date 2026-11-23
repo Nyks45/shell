@@ -9,8 +9,8 @@ Item {
     property bool shown: running && delay <= 0
     property bool contained: true
     property int interval: 520
-    property color color: NebulaTheme.colors.primary
-    property color containerColor: NebulaTheme.colors.primaryContainer
+    property color color: LockTheme.colors.primary
+    property color containerColor: LockTheme.colors.primaryContainer
     property int startIndex: 0
     property int index: startIndex
 
@@ -31,7 +31,7 @@ Item {
 
     Behavior on opacity {
         NumberAnimation {
-            duration: NebulaTheme.anim.fast
+            duration: LockTheme.anim.fast
         }
     }
 
@@ -50,9 +50,9 @@ Item {
         height: parent.height * 0.56
         shape: root.shapes[root.index]
         color: root.color
-        animationDuration: NebulaTheme.anim.medium
+        animationDuration: LockTheme.anim.medium
         animationEasing.type: Easing.BezierSpline
-        animationEasing.bezierCurve: NebulaTheme.anim.emphasizedDecel
+        animationEasing.bezierCurve: LockTheme.anim.emphasizedDecel
 
         RotationAnimation on rotation {
             from: 0

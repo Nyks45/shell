@@ -8,7 +8,7 @@ Item {
     property bool smoothProgress: true
     property real shownProgress: Math.max(0, Math.min(1, progress))
     property bool animated: true
-    property color color: NebulaTheme.colors.secondary
+    property color color: LockTheme.colors.secondary
     property real thickness: 3
     property real amplitude: 2.5
     property real shownAmplitude: animated ? amplitude : 0
@@ -19,15 +19,15 @@ Item {
     Behavior on shownProgress {
         enabled: root.smoothProgress
         NumberAnimation {
-            duration: Math.round(1000 * NebulaTheme.anim.scale)
+            duration: Math.round(1000 * LockTheme.anim.scale)
         }
     }
 
     Behavior on shownAmplitude {
         NumberAnimation {
-            duration: NebulaTheme.anim.medium
+            duration: LockTheme.anim.medium
             easing.type: Easing.BezierSpline
-            easing.bezierCurve: NebulaTheme.anim.standard
+            easing.bezierCurve: LockTheme.anim.standard
         }
     }
 
@@ -100,7 +100,7 @@ Item {
         width: Math.max(0, root.width - x)
         height: root.thickness
         radius: height / 2
-        color: Qt.alpha(root.color, NebulaTheme.batteryRing.trackOpacity)
+        color: Qt.alpha(root.color, LockTheme.batteryRing.trackOpacity)
         visible: width > root.thickness
     }
 

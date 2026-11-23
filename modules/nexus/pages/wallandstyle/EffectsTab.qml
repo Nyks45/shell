@@ -99,8 +99,8 @@ PageBase {
             visible: root.blurOn
             label: Tr.tr("Look")
             subtext: Tr.tr("Sets windows' blur strength and panel glass preset")
-            menuItems: [nebulaBlur, strongBlur, frostedBlur]
-            active: root.winBlurSize === 4 && root.winBlurPasses === 1 ? nebulaBlur : root.winBlurSize === 8 && root.winBlurPasses === 2 ? strongBlur : root.winBlurSize === 8 && root.winBlurPasses === 3 && (root.frostedPanels || (GlobalConfig.appearance.blur.shellSize === 12 && GlobalConfig.appearance.blur.shellPasses === 4)) ? frostedBlur : null
+            menuItems: [softBlur, strongBlur, frostedBlur]
+            active: root.winBlurSize === 4 && root.winBlurPasses === 1 ? softBlur : root.winBlurSize === 8 && root.winBlurPasses === 2 ? strongBlur : root.winBlurSize === 8 && root.winBlurPasses === 3 && (root.frostedPanels || (GlobalConfig.appearance.blur.shellSize === 12 && GlobalConfig.appearance.blur.shellPasses === 4)) ? frostedBlur : null
             fallbackText: Tr.tr("Custom")
             onSelected: item => {
                 HyprSettings.setOption("decoration:blur:size", item.value[0]);
@@ -127,7 +127,7 @@ PageBase {
             }
 
             MenuItem {
-                id: nebulaBlur
+                id: softBlur
 
                 text: Tr.tr("Soft: shapes show through")
                 value: [4, 1]

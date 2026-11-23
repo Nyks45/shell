@@ -10,7 +10,7 @@ import qs.modules.dashboard as Dashboard
 import qs.modules.launcher.services
 
 // The centred launchers (Config.launcher.style):
-//  "grid"      — Nebula-like: the search over a grid of apps
+//  "grid"      — the search over a grid of apps
 //  "wallpaper" — HyDE-like: the current wallpaper beside the search and the list of apps
 // Actions (the action prefix) and the wallpaper picker use the usual list in both.
 Item {

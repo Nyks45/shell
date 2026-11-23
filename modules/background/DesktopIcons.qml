@@ -271,13 +271,13 @@ Item {
         onClicked: Quickshell.execDetached([...GlobalConfig.general.apps.explorer, DesktopFiles.dir])
     }
 
-    // Nebula's desktop widgets (Settings > Style), when they're on
+    // The desktop widgets (Settings > Wallpaper & style > Desktop), when they're on
     MenuItem {
         id: editWidgetsItem
 
         text: qsTr("Edit widgets")
         icon: "edit"
-        onClicked: Quickshell.execDetached(["caelestia", "shell", "nebulaWidgets", "edit"])
+        onClicked: Quickshell.execDetached(["caelestia", "shell", "desktopWidgets", "edit"])
     }
 
     MenuItem {

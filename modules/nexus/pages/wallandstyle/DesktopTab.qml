@@ -28,7 +28,7 @@ PageBase {
             onToggled: GlobalConfig.background.desktopIcons = checked
         }
 
-        // Desktop widgets (from Nebula, see NEBULA.md): clock, calendar, weather... in glass shapes
+        // Desktop widgets (see widgets/README.md): clock, calendar, weather... in glass shapes
         SectionHeader {
             text: Tr.tr("Desktop widgets")
         }

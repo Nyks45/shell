@@ -33,7 +33,7 @@ Item {
     MaterialShape {
         anchors.fill: parent
         shape: MaterialShape.Cookie12Sided
-        color: Qt.tint(Qt.alpha(NebulaTheme.colors.primaryContainer, NebulaTheme.lock.surfaceTint), Qt.alpha(NebulaTheme.colors.errorContainer, root.flash))
+        color: Qt.tint(Qt.alpha(LockTheme.colors.primaryContainer, LockTheme.lock.surfaceTint), Qt.alpha(LockTheme.colors.errorContainer, root.flash))
 
         RotationAnimation on rotation {
             from: 0
@@ -54,29 +54,29 @@ Item {
 
             Text {
                 text: `${Time.hourStr}:${Time.minuteStr}`
-                font.family: NebulaTheme.font.family
+                font.family: LockTheme.font.family
                 font.pixelSize: root.width * 0.24
                 font.weight: Font.Medium
-                color: NebulaTheme.colors.textOnPrimaryContainer
+                color: LockTheme.colors.textOnPrimaryContainer
             }
 
             Text {
                 visible: Units.twelveHourClock && Time.amPmStr !== ""
                 anchors.baseline: parent.children[0].baseline
                 text: Time.amPmStr
-                font.family: NebulaTheme.font.family
+                font.family: LockTheme.font.family
                 font.pixelSize: root.width * 0.08
                 font.weight: Font.Medium
-                color: Qt.alpha(NebulaTheme.colors.textOnPrimaryContainer, 0.8)
+                color: Qt.alpha(LockTheme.colors.textOnPrimaryContainer, 0.8)
             }
         }
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: Time.format("ddd, MMM d")
-            font.family: NebulaTheme.font.family
+            font.family: LockTheme.font.family
             font.pixelSize: root.width * 0.065
-            color: Qt.alpha(NebulaTheme.colors.textOnPrimaryContainer, 0.78)
+            color: Qt.alpha(LockTheme.colors.textOnPrimaryContainer, 0.78)
         }
     }
 }

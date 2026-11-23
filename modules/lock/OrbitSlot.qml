@@ -25,15 +25,15 @@ SpiralSlot {
 
     Behavior on offset {
         NumberAnimation {
-            duration: NebulaTheme.anim.slow * 2
+            duration: LockTheme.anim.slow * 2
             easing.type: Easing.BezierSpline
-            easing.bezierCurve: NebulaTheme.anim.standard
+            easing.bezierCurve: LockTheme.anim.standard
         }
     }
 
     readonly property real angle: phase + offset
     readonly property real depth: Math.sin(angle)
-    readonly property real bobY: Math.sin(seconds * Math.PI * 2 / NebulaTheme.lock.bobPeriod + slotIndex * 1.7) * NebulaTheme.lock.bob
+    readonly property real bobY: Math.sin(seconds * Math.PI * 2 / LockTheme.lock.bobPeriod + slotIndex * 1.7) * LockTheme.lock.bob
     readonly property real held: Math.max(0, Math.min(1, settle))
     readonly property real orbitTargetX: centerX + Math.cos(angle) * radiusX
     readonly property real orbitTargetY: centerY + Math.sin(angle) * radiusY + bobY
@@ -65,7 +65,7 @@ SpiralSlot {
     targetY: centerY + ((baseX - centerX) * Math.sin(swirl) + (baseY - centerY) * Math.cos(swirl)) * farness
     width: idleWidth + (layoutWidth - idleWidth) * settle
     height: idleHeight + (layoutHeight - idleHeight) * settle
-    depthScale: ((1 - NebulaTheme.lock.depthScale * (1 - depth) / 2) * (1 - held) + held) * (0.45 + 0.55 * arrive)
-    depthOpacity: ((1 - NebulaTheme.lock.depthOpacity * (1 - depth) / 2) * (1 - held) + held) * Math.min(1, arrive * 3)
+    depthScale: ((1 - LockTheme.lock.depthScale * (1 - depth) / 2) * (1 - held) + held) * (0.45 + 0.55 * arrive)
+    depthOpacity: ((1 - LockTheme.lock.depthOpacity * (1 - depth) / 2) * (1 - held) + held) * Math.min(1, arrive * 3)
     z: 10 + depth * (1 - held)
 }

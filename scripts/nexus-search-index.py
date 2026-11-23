@@ -91,7 +91,7 @@ EXTRA_ENTRIES = [
     # Wallpaper & style / Windows tabs (their tab buttons)
     ("wallpaper", "colours", "Wallpaper & style", "Colours", "colour scheme dark light theme palette accent dynamic", ""),
     ("wallpaper", "effects", "Wallpaper & style", "Effects", "transparency opacity roundness blur frosted glass", ""),
-    ("wallpaper", "desktop", "Wallpaper & style", "Desktop", "desktop icons widgets nebula audio visualiser bars", ""),
+    ("wallpaper", "desktop", "Wallpaper & style", "Desktop", "desktop icons widgets audio visualiser bars", ""),
     ("wallpaper", "lockscreen", "Wallpaper & style", "Lock screen", "lockscreen wallpaper logo notifications power buttons fingerprint face howdy", ""),
     ("windows", "titlebars", "Windows", "Title bars", "window title bar font blur buttons hover double middle click", "Title bars"),
     ("windows", "apprules", "Windows", "App rules", "window rules float centre pin workspace opacity tearing", ""),

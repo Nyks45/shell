@@ -48,7 +48,7 @@ Item {
 
     readonly property var bars: {
         const v = Audio.cava.values;
-        const n = NebulaTheme.lock.visualizerBars;
+        const n = LockTheme.lock.visualizerBars;
         const out = [];
         for (let j = 0; j < n; j++) {
             const a = Math.floor(j * v.length / n);
@@ -101,7 +101,7 @@ Item {
         Rectangle {
             anchors.fill: parent
             radius: root.corner
-            color: Qt.alpha(NebulaTheme.colors.primaryContainer, NebulaTheme.lock.surfaceTint)
+            color: Qt.alpha(LockTheme.colors.primaryContainer, LockTheme.lock.surfaceTint)
         }
 
         Rectangle {
@@ -137,7 +137,7 @@ Item {
         Rectangle {
             anchors.fill: parent
             radius: root.corner
-            color: NebulaTheme.colors.primaryContainer
+            color: LockTheme.colors.primaryContainer
             opacity: 0.45
         }
     }
@@ -156,7 +156,7 @@ Item {
             anchors.fill: parent
 
             ShapePath {
-                strokeColor: Qt.alpha(NebulaTheme.colors.textOnSurface, 0.16)
+                strokeColor: Qt.alpha(LockTheme.colors.textOnSurface, 0.16)
                 strokeWidth: 3
                 fillColor: "transparent"
 
@@ -171,7 +171,7 @@ Item {
             }
 
             ShapePath {
-                strokeColor: NebulaTheme.colors.primary
+                strokeColor: LockTheme.colors.primary
                 strokeWidth: 3
                 capStyle: ShapePath.RoundCap
                 fillColor: "transparent"
@@ -193,7 +193,7 @@ Item {
             width: idle.d
             height: width
             shape: MaterialShape.Cookie9Sided
-            color: NebulaTheme.colors.primary
+            color: LockTheme.colors.primary
             source: root.artUrl
             sourceSize: Qt.size(width * 2, height * 2)
             shapeRotation: root.spin
@@ -210,10 +210,10 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideRight
                 text: root.title
-                font.family: NebulaTheme.font.family
-                font.pixelSize: NebulaTheme.font.large
+                font.family: LockTheme.font.family
+                font.pixelSize: LockTheme.font.large
                 font.weight: Font.Medium
-                color: NebulaTheme.colors.textOnSurface
+                color: LockTheme.colors.textOnSurface
             }
 
             Text {
@@ -221,9 +221,9 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideRight
                 text: root.artist
-                font.family: NebulaTheme.font.family
-                font.pixelSize: NebulaTheme.font.normal
-                color: Qt.alpha(NebulaTheme.colors.textOnSurface, 0.7)
+                font.family: LockTheme.font.family
+                font.pixelSize: LockTheme.font.normal
+                color: Qt.alpha(LockTheme.colors.textOnSurface, 0.7)
             }
         }
     }
@@ -231,8 +231,8 @@ Item {
     Item {
         id: design
 
-        width: NebulaTheme.lock.activeMusicWidth
-        height: NebulaTheme.lock.activeMusicHeight
+        width: LockTheme.lock.activeMusicWidth
+        height: LockTheme.lock.activeMusicHeight
         scale: root.width / width
         transformOrigin: Item.TopLeft
         opacity: root.fade
@@ -250,7 +250,7 @@ Item {
                 width: 96
                 height: 96
                 shape: MaterialShape.Cookie9Sided
-                color: NebulaTheme.colors.primary
+                color: LockTheme.colors.primary
                 source: root.artUrl
                 sourceSize: Qt.size(width * 2, height * 2)
                 shapeRotation: root.spin
@@ -261,10 +261,10 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideRight
                 text: root.title
-                font.family: NebulaTheme.font.family
-                font.pixelSize: NebulaTheme.font.large + 2
+                font.family: LockTheme.font.family
+                font.pixelSize: LockTheme.font.large + 2
                 font.weight: Font.Medium
-                color: NebulaTheme.colors.textOnPrimaryContainer
+                color: LockTheme.colors.textOnPrimaryContainer
             }
 
             Text {
@@ -272,9 +272,9 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideRight
                 text: root.artist
-                font.family: NebulaTheme.font.family
-                font.pixelSize: NebulaTheme.font.normal
-                color: Qt.alpha(NebulaTheme.colors.textOnPrimaryContainer, 0.8)
+                font.family: LockTheme.font.family
+                font.pixelSize: LockTheme.font.normal
+                color: Qt.alpha(LockTheme.colors.textOnPrimaryContainer, 0.8)
             }
 
             WavyProgress {
@@ -282,28 +282,28 @@ Item {
                 height: 14
                 progress: root.progress
                 animated: root.playing
-                color: NebulaTheme.colors.primary
+                color: LockTheme.colors.primary
             }
 
             Row {
                 anchors.horizontalCenter: parent.horizontalCenter
                 spacing: 12
 
-                NebulaIconButton {
+                LockIconButton {
                     anchors.verticalCenter: parent.verticalCenter
                     icon: "skip_previous"
                     enabled: root.player?.canGoPrevious ?? false
                     onClicked: root.player?.previous()
                 }
 
-                NebulaPlayButton {
+                LockPlayButton {
                     anchors.verticalCenter: parent.verticalCenter
                     playing: root.playing
                     enabled: root.player?.canTogglePlaying ?? false
                     onClicked: root.player?.togglePlaying()
                 }
 
-                NebulaIconButton {
+                LockIconButton {
                     anchors.verticalCenter: parent.verticalCenter
                     icon: "skip_next"
                     enabled: root.player?.canGoNext ?? false
@@ -316,9 +316,9 @@ Item {
             x: 16
             y: parent.height - 16 - height
             width: parent.width - 32
-            height: NebulaTheme.lock.eqHeight - 24
-            radius: NebulaTheme.radius.large
-            fill: NebulaTheme.colors.surfaceContainer
+            height: LockTheme.lock.eqHeight - 24
+            radius: LockTheme.radius.large
+            fill: LockTheme.colors.surfaceContainer
             tint: 0.45
             light: 0.06
 
@@ -341,10 +341,10 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         elide: Text.ElideRight
                         text: line < 0 ? (modelData === 0 ? "♪" : "") : (Lyrics.lyrics[line] ?? "")
-                        font.family: NebulaTheme.font.family
-                        font.pixelSize: modelData === 0 ? NebulaTheme.font.large : NebulaTheme.font.normal
+                        font.family: LockTheme.font.family
+                        font.pixelSize: modelData === 0 ? LockTheme.font.large : LockTheme.font.normal
                         font.weight: modelData === 0 ? Font.Medium : Font.Normal
-                        color: modelData === 0 ? NebulaTheme.colors.textOnPrimaryContainer : Qt.alpha(NebulaTheme.colors.textOnPrimaryContainer, 0.55)
+                        color: modelData === 0 ? LockTheme.colors.textOnPrimaryContainer : Qt.alpha(LockTheme.colors.textOnPrimaryContainer, 0.55)
                     }
                 }
             }
@@ -362,7 +362,7 @@ Item {
                     }
                 }
 
-                readonly property int count: NebulaTheme.lock.visualizerBars
+                readonly property int count: LockTheme.lock.visualizerBars
 
                 Repeater {
                     model: parent.count
@@ -378,7 +378,7 @@ Item {
                             width: parent.width
                             height: Math.max(6, parent.height * (root.bars[parent.index] ?? 0.06))
                             radius: width / 2
-                            color: parent.index % 3 === 0 ? NebulaTheme.colors.tertiary : NebulaTheme.colors.primary
+                            color: parent.index % 3 === 0 ? LockTheme.colors.tertiary : LockTheme.colors.primary
 
                             Behavior on height {
                                 NumberAnimation {

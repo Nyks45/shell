@@ -78,28 +78,28 @@ if("shell" IN_LIST ENABLE_MODULES)
         COMMENT "Compiling liquid.frag shader"
         VERBATIM
     )
-    # Nebula's shaders (nebula/shaders), built here with a GLSL ES variant: the .qsb files Nebula
+    # The desktop widgets' shaders (widgets/shaders), built here with a GLSL ES variant: the .qsb files they
     # ships have none, and Qt then warns that the pipeline's stages share no GLSL ES version
-    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/nebula/shaders")
-    set(NEBULA_QSB "")
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/widgets/shaders")
+    set(WIDGETS_QSB "")
     foreach(shader glitch liquid outline snapgrid)
         add_custom_command(
-            OUTPUT "${CMAKE_BINARY_DIR}/nebula/shaders/${shader}.frag.qsb"
-            COMMAND "${QSB_EXECUTABLE}" --glsl "100 es,120,150" --hlsl 50 --msl 12 -o "${CMAKE_BINARY_DIR}/nebula/shaders/${shader}.frag.qsb" "${CMAKE_SOURCE_DIR}/nebula/shaders/${shader}.frag"
-            DEPENDS "${CMAKE_SOURCE_DIR}/nebula/shaders/${shader}.frag"
-            COMMENT "Compiling Nebula's ${shader}.frag shader"
+            OUTPUT "${CMAKE_BINARY_DIR}/widgets/shaders/${shader}.frag.qsb"
+            COMMAND "${QSB_EXECUTABLE}" --glsl "100 es,120,150" --hlsl 50 --msl 12 -o "${CMAKE_BINARY_DIR}/widgets/shaders/${shader}.frag.qsb" "${CMAKE_SOURCE_DIR}/widgets/shaders/${shader}.frag"
+            DEPENDS "${CMAKE_SOURCE_DIR}/widgets/shaders/${shader}.frag"
+            COMMENT "Compiling the desktop widgets' ${shader}.frag shader"
             VERBATIM
         )
-        list(APPEND NEBULA_QSB "${CMAKE_BINARY_DIR}/nebula/shaders/${shader}.frag.qsb")
+        list(APPEND WIDGETS_QSB "${CMAKE_BINARY_DIR}/widgets/shaders/${shader}.frag.qsb")
     endforeach()
-    add_custom_target(shell_shaders ALL DEPENDS "${CMAKE_BINARY_DIR}/assets/shaders/liquid.frag.qsb" ${NEBULA_QSB})
+    add_custom_target(shell_shaders ALL DEPENDS "${CMAKE_BINARY_DIR}/assets/shaders/liquid.frag.qsb" ${WIDGETS_QSB})
 
-    foreach(dir assets components daemons modules nebula services utils)
+    foreach(dir assets components daemons modules widgets services utils)
         install(DIRECTORY ${dir} DESTINATION "${INSTALL_QSCONFDIR}")
     endforeach()
 
     install(FILES "${CMAKE_BINARY_DIR}/assets/shaders/liquid.frag.qsb" DESTINATION "${INSTALL_QSCONFDIR}/assets/shaders")
-    install(FILES ${NEBULA_QSB} DESTINATION "${INSTALL_QSCONFDIR}/nebula/shaders")
+    install(FILES ${WIDGETS_QSB} DESTINATION "${INSTALL_QSCONFDIR}/widgets/shaders")
 
     install(PROGRAMS assets/wrap_term_launch.sh assets/live-wallpaper assets/caelestia-session assets/caelestia-paint assets/paint-paste.sh DESTINATION "${INSTALL_QSCONFDIR}/assets")
 

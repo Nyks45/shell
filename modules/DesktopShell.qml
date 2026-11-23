@@ -9,7 +9,7 @@ import qs.modules.background
 import qs.modules.bluetooth
 import qs.modules.drawers
 import qs.modules.lock
-import qs.modules.nebula
+import qs.modules.desktopwidgets
 import qs.modules.nexus
 import qs.modules.polkit
 import qs.modules.taskmanager
@@ -22,7 +22,7 @@ Scope {
 
     Component.onCompleted: {
         // The shell's old Desktop clock lives on as the clock widget's digital face: if it was
-        // on, the widgets come on and take it over (nebula/services/Widgets.qml adoptShellClock)
+        // on, the widgets come on and take it over (widgets/services/Widgets.qml adoptShellClock)
         if (GlobalConfig.background.desktopClock.enabled)
             GlobalConfig.appearance.style.desktopWidgets = true;
         Players;
@@ -46,11 +46,11 @@ Scope {
 
     Background {}
 
-    // Nebula's desktop widgets (Settings > Style), above the wallpaper and the desktop icons
+    // The desktop widgets (Settings > Wallpaper & style > Desktop), above the wallpaper and the desktop icons
     LazyLoader {
         active: GlobalConfig.appearance.style.desktopWidgets
 
-        NebulaDesktop {}
+        DesktopWidgets {}
     }
     Drawers {}
     AreaPicker {}

@@ -92,9 +92,9 @@ Singleton {
             rule = "keyword layerrule %1 %2, match:namespace caelestia-drawers";
             trEnabled = transparency.enabled ? 1 : 0;
         }
-        // Nebula's desktop widgets and their menus: their glass shapes are blurred behind, following each
-        // shape's outline (ignore_alpha 0.1, as in Nebula's own rules)
-        const neb = Hypr.usingLua ? `eval hl.layer_rule({ match = { namespace = "caelestia-nebula-(widgets|widgetmenu)" }, blur = true, ignore_alpha = 0.1 })` : "keyword layerrule blur on, match:namespace caelestia-nebula-(widgets|widgetmenu)";
+        // The desktop widgets and their menus: their glass shapes are blurred behind, following each
+        // shape's outline (ignore_alpha 0.1)
+        const neb = Hypr.usingLua ? `eval hl.layer_rule({ match = { namespace = "caelestia-widgets-(widgets|widgetmenu)" }, blur = true, ignore_alpha = 0.1 })` : "keyword layerrule blur on, match:namespace caelestia-widgets-(widgets|widgetmenu)";
         // Paint's page is solid (the windows' see-through opacity would show the desktop through it)
         const paint = Hypr.usingLua ? [`eval hl.window_rule({ match = { class = "^caelestia-paint$" }, opacity = "1 override" })`] : [];
         Hypr.extras.batchMessage([rule.arg("blur").arg(trEnabled), rule.arg("ignore_alpha").arg(Math.max(0, transparency.base - 0.03)), neb, ...paint]);
@@ -104,7 +104,7 @@ Singleton {
         if (Hypr.usingLua) {
             const b = GlobalConfig.appearance.blur;
             const strength = (ns, size, passes) => `eval hl.layer_rule({ match = { namespace = "${ns}" }, blur_size = ${Math.max(0, size)}, blur_passes = ${Math.max(0, passes)} })`;
-            Hypr.extras.batchMessage([strength("caelestia-drawers", b.shellSize, b.shellPasses), strength("caelestia-nebula-(widgets|widgetmenu)", b.widgetsSize, b.widgetsPasses)]);
+            Hypr.extras.batchMessage([strength("caelestia-drawers", b.shellSize, b.shellPasses), strength("caelestia-widgets-(widgets|widgetmenu)", b.widgetsSize, b.widgetsPasses)]);
         }
     }
 
@@ -188,9 +188,9 @@ Singleton {
         onTriggered: root.requestReloadHyprRules()
     }
 
-    // Glass cards and shapes (components/nebula: GlassRect, GlassShape): how see-through their
+    // Glass cards and shapes (widgets/components: GlassRect, GlassShape): how see-through their
     // tint is and how strong the soft light across their top is. Panels and the bar are not
-    // glass cards: they are the plain translucent surface of `transparency` (as in Nebula).
+    // glass cards: they are the plain translucent surface of `transparency`.
     component Glass: QtObject {
         readonly property real tint: Math.max(0.2, Math.min(1, GlobalConfig.appearance.glass.tint))
         readonly property real topLight: Math.max(0, Math.min(0.4, GlobalConfig.appearance.glass.topLight))

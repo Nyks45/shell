@@ -27,8 +27,8 @@ Item {
     MaterialShape {
         anchors.fill: parent
         shape: root.shapeType
-        color: Qt.alpha(NebulaTheme.colors.tertiaryContainer, NebulaTheme.lock.surfaceTint)
-        animationDuration: NebulaTheme.anim.slow
+        color: Qt.alpha(LockTheme.colors.tertiaryContainer, LockTheme.lock.surfaceTint)
+        animationDuration: LockTheme.anim.slow
 
         RotationAnimation on rotation {
             from: 0
@@ -46,18 +46,18 @@ Item {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: Weather.icon
-            font.family: NebulaTheme.font.icons
+            font.family: LockTheme.font.icons
             font.pixelSize: root.width * 0.22
-            color: NebulaTheme.colors.textOnTertiaryContainer
+            color: LockTheme.colors.textOnTertiaryContainer
         }
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: Weather.temp
-            font.family: NebulaTheme.font.family
+            font.family: LockTheme.font.family
             font.pixelSize: root.width * 0.24
             font.weight: Font.Medium
-            color: NebulaTheme.colors.textOnTertiaryContainer
+            color: LockTheme.colors.textOnTertiaryContainer
         }
     }
 }

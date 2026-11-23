@@ -105,7 +105,7 @@ QtObject {
             "wallandstyle/LiveWorkshop.qml",
             "wallandstyle/LiveSettings.qml",
             // The desktop widgets' own pages (9): the widgets, one widget, add one, pick an image
-            "style/NebulaPages.qml"
+            "style/DesktopWidgetPages.qml"
         ],
         // 10: Fonts & themes
         [
