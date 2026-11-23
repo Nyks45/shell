@@ -28,7 +28,12 @@ PageBase {
     }
 
     function setRecArg(flag: string, value: string): void {
+        // "-f" is always set by the caelestia CLI (the monitor's refresh rate) and
+        // gpu-screen-recorder refuses it twice, so a saved one is dropped here
         const args = [...recArgs];
+        const f = args.indexOf("-f");
+        if (f >= 0)
+            args.splice(f, 2);
         const i = args.indexOf(flag);
         if (i >= 0)
             args.splice(i, 2);
@@ -197,36 +202,11 @@ PageBase {
         }
 
         SelectRow {
-            label: Tr.tr("Frame rate")
-            subtext: Tr.tr("Automatic matches the monitor's refresh rate")
-            menuItems: [
-                MenuItem {
-                    text: Tr.tr("Automatic")
-                    value: ""
-                },
-                MenuItem {
-                    text: "30 fps"
-                    value: "30"
-                },
-                MenuItem {
-                    text: "60 fps"
-                    value: "60"
-                },
-                MenuItem {
-                    text: "120 fps"
-                    value: "120"
-                }
-            ]
-            active: menuItems.find(i => i.value === root.recArg("-f", "")) ?? null
-            onSelected: item => root.setRecArg("-f", item.value)
-        }
-
-        SelectRow {
             label: Tr.tr("Audio source")
-            subtext: Tr.tr("Always capture audio, or only when using the sound shortcut")
+            subtext: Tr.tr("Always recorded when chosen here; the sound shortcut adds desktop audio as a second track")
             menuItems: [
                 MenuItem {
-                    text: Tr.tr("From shortcut (-s)")
+                    text: Tr.tr("Only with the sound shortcut")
                     value: ""
                 },
                 MenuItem {

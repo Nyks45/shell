@@ -76,6 +76,11 @@ DialogRowButton {
             if (a.noDisplay)
                 continue;
             const wmClass = runningById[a.id] || a.startupClass || a.id;
+            // Not open and no StartupWMClass: the class is only a guess from the
+            // desktop id (windows are often "Spotify" for spotify, "Discord" for
+            // com.discordapp.Discord): callers match it loosely
+            const classGuessed = !runningById[a.id] && !a.startupClass;
+            const parts = a.id.split(".");
             if (excluded.has(a.id.toLowerCase()) || excluded.has(wmClass.toLowerCase()))
                 continue;
             out.push({
@@ -83,6 +88,8 @@ DialogRowButton {
                 name: a.name || a.id,
                 icon: a.icon || "",
                 wmClass,
+                classGuessed,
+                classAlt: classGuessed && parts.length >= 3 ? parts[parts.length - 1] : "",
                 command: cleanCommand(a),
                 comment: a.comment || a.genericName || "",
                 desktopEntry: a,

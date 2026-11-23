@@ -606,7 +606,7 @@ QtObject {
             "page": 4,
             "path": [],
             "trail": [],
-            "keywords": ""
+            "keywords": "home folder snapshots partition backup snapper"
         },
         {
             "label": "Description",
@@ -773,7 +773,7 @@ QtObject {
             "page": 5,
             "path": [],
             "trail": [],
-            "keywords": ""
+            "keywords": "boot backup undo refind"
         },
         {
             "label": "Restart into Windows",
@@ -793,7 +793,7 @@ QtObject {
             "page": 5,
             "path": [],
             "trail": [],
-            "keywords": ""
+            "keywords": "sbctl uefi keys signed"
         },
         {
             "label": "UEFI boot order",
@@ -803,24 +803,13 @@ QtObject {
             "page": 5,
             "path": [],
             "trail": [],
-            "keywords": ""
+            "keywords": "efibootmgr boot priority"
         },
         {
             "label": "Firmware updates",
             "ctx": "",
             "sub": "Updates for the motherboard, SSD and devices (fwupd): install it",
             "section": "Firmware",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Firmware updates",
-            "ctx": "",
-            "sub": "Check and install motherboard, SSD and device firmware updates (fwupd)",
-            "section": "Firmware",
-            "opens": 1,
             "page": 5,
             "path": [],
             "trail": [],
@@ -1300,17 +1289,6 @@ QtObject {
             "label": "Speed",
             "ctx": "",
             "sub": "Automatic: the card's own curve",
-            "section": "Temperatures",
-            "tab": "fans",
-            "page": 7,
-            "path": [],
-            "trail": [],
-            "keywords": ""
-        },
-        {
-            "label": "Speed",
-            "ctx": "",
-            "sub": "",
             "section": "Temperatures",
             "tab": "fans",
             "page": 7,
@@ -2782,7 +2760,7 @@ QtObject {
             "page": 11,
             "path": [],
             "trail": [],
-            "keywords": ""
+            "keywords": "window title bar font blur buttons hover double middle click"
         },
         {
             "label": "Show only on hover",
@@ -3882,6 +3860,17 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Add a width",
+            "ctx": "",
+            "sub": "Percent of the screen, 5 to 100",
+            "section": "Scrolling layout",
+            "tab": "multitasking",
+            "page": 13,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Overview size",
             "ctx": "",
             "sub": "",
@@ -4014,20 +4003,9 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Frame rate",
-            "ctx": "",
-            "sub": "Automatic matches the monitor's refresh rate",
-            "section": "Screen recording",
-            "tab": "screenshots",
-            "page": 13,
-            "path": [],
-            "trail": [],
-            "keywords": "fps live wallpaper"
-        },
-        {
             "label": "Audio source",
             "ctx": "",
-            "sub": "Always capture audio, or only when using the sound shortcut",
+            "sub": "Always recorded when chosen here; the sound shortcut adds desktop audio as a second track",
             "section": "Screen recording",
             "tab": "screenshots",
             "page": 13,
@@ -4243,7 +4221,7 @@ QtObject {
             "page": 15,
             "path": [],
             "trail": [],
-            "keywords": ""
+            "keywords": "gamemode performance cpu governor"
         },
         {
             "label": "Allow screen tearing",
@@ -4375,7 +4353,7 @@ QtObject {
             "page": 15,
             "path": [],
             "trail": [],
-            "keywords": ""
+            "keywords": "fsr gamescope upscaling sharp"
         },
         {
             "label": "Never clean the shader cache",
@@ -4491,7 +4469,7 @@ QtObject {
             "page": 16,
             "path": [],
             "trail": [],
-            "keywords": ""
+            "keywords": "groups permissions access audio video input storage network"
         },
         {
             "label": "Add someone",
@@ -4936,7 +4914,7 @@ QtObject {
             "page": 21,
             "path": [],
             "trail": [],
-            "keywords": ""
+            "keywords": "cpu scheduler scx sched-ext scx_lavd bpfland ananicy gaming"
         },
         {
             "label": "Automatic priorities (ananicy-cpp)",
@@ -5008,7 +4986,7 @@ QtObject {
             "label": "Colours",
             "ctx": "",
             "sub": "Wallpaper & style",
-            "section": "Colours",
+            "section": "",
             "page": 9,
             "path": [],
             "trail": [],
@@ -5019,7 +4997,7 @@ QtObject {
             "label": "Effects",
             "ctx": "",
             "sub": "Wallpaper & style",
-            "section": "Effects",
+            "section": "",
             "page": 9,
             "path": [],
             "trail": [],
@@ -5030,7 +5008,7 @@ QtObject {
             "label": "Desktop",
             "ctx": "",
             "sub": "Wallpaper & style",
-            "section": "Desktop",
+            "section": "",
             "page": 9,
             "path": [],
             "trail": [],
@@ -5041,7 +5019,7 @@ QtObject {
             "label": "Lock screen",
             "ctx": "",
             "sub": "Wallpaper & style",
-            "section": "Lock screen",
+            "section": "",
             "page": 9,
             "path": [],
             "trail": [],
@@ -5049,21 +5027,10 @@ QtObject {
             "keywords": "lockscreen wallpaper logo notifications power buttons fingerprint face howdy"
         },
         {
-            "label": "Title bars",
-            "ctx": "",
-            "sub": "Windows",
-            "section": "Title bars",
-            "page": 11,
-            "path": [],
-            "trail": [],
-            "tab": "titlebars",
-            "keywords": "window title bar font blur buttons hover double middle click"
-        },
-        {
             "label": "App rules",
             "ctx": "",
             "sub": "Windows",
-            "section": "App rules",
+            "section": "",
             "page": 11,
             "path": [],
             "trail": [],
@@ -5074,51 +5041,51 @@ QtObject {
             "label": "Close window",
             "ctx": "",
             "sub": "Shortcuts",
-            "section": "Shortcut",
+            "section": "Windows",
             "page": 13,
             "path": [],
             "trail": [],
             "tab": "shortcuts",
-            "keywords": "Super+Q window close kill"
+            "keywords": "Super+Q window close kill shortcut"
         },
         {
-            "label": "Open terminal",
+            "label": "Terminal",
             "ctx": "",
             "sub": "Shortcuts",
-            "section": "Shortcut",
+            "section": "Apps",
             "page": 13,
             "path": [],
             "trail": [],
             "tab": "shortcuts",
-            "keywords": "terminal foot kitty alacritty shortcut"
+            "keywords": "terminal foot kitty alacritty open shortcut"
         },
         {
-            "label": "App launcher",
+            "label": "Launcher",
             "ctx": "",
             "sub": "Shortcuts",
-            "section": "Shortcut",
+            "section": "Desktop & shell",
             "page": 13,
             "path": [],
             "trail": [],
             "tab": "shortcuts",
-            "keywords": "launcher dmenu rofi shortcut"
+            "keywords": "app launcher dmenu rofi shortcut"
         },
         {
-            "label": "Lock screen",
+            "label": "Lock",
             "ctx": "",
             "sub": "Shortcuts",
-            "section": "Shortcut",
+            "section": "Desktop & shell",
             "page": 13,
             "path": [],
             "trail": [],
             "tab": "shortcuts",
-            "keywords": "lock session suspend shortcut"
+            "keywords": "lock screen session shortcut"
         },
         {
-            "label": "Take a screenshot",
+            "label": "Screenshot",
             "ctx": "",
             "sub": "Shortcuts",
-            "section": "Shortcut",
+            "section": "Screenshots & media",
             "page": 13,
             "path": [],
             "trail": [],
@@ -5126,18 +5093,18 @@ QtObject {
             "keywords": "screenshot capture snip print shortcut"
         },
         {
-            "label": "Switch workspace",
+            "label": "Next workspace",
             "ctx": "",
             "sub": "Shortcuts",
-            "section": "Shortcut",
+            "section": "Workspaces",
             "page": 13,
             "path": [],
             "trail": [],
             "tab": "shortcuts",
-            "keywords": "workspace focus move shortcut"
+            "keywords": "switch workspace focus move shortcut"
         },
         {
-            "label": "Custom keyboard shortcuts",
+            "label": "Add a shortcut",
             "ctx": "",
             "sub": "Shortcuts",
             "section": "Your own shortcuts",
@@ -5145,24 +5112,13 @@ QtObject {
             "path": [],
             "trail": [],
             "tab": "shortcuts",
-            "keywords": "hotkey keybind shortcut bind"
-        },
-        {
-            "label": "GameMode",
-            "ctx": "",
-            "sub": "Gaming",
-            "section": "Overview",
-            "page": 15,
-            "path": [],
-            "trail": [],
-            "tab": "gamemode",
-            "keywords": "gamemode performance cpu governor"
+            "keywords": "custom keyboard shortcuts hotkey keybind bind"
         },
         {
             "label": "NVIDIA Reflex",
             "ctx": "",
             "sub": "Gaming",
-            "section": "Graphics",
+            "section": "NVIDIA",
             "page": 15,
             "path": [],
             "trail": [],
@@ -5170,10 +5126,10 @@ QtObject {
             "keywords": "reflex low latency nvidia game options"
         },
         {
-            "label": "DLSS",
+            "label": "Newest DLSS",
             "ctx": "",
             "sub": "Gaming",
-            "section": "Graphics",
+            "section": "NVIDIA",
             "page": 15,
             "path": [],
             "trail": [],
@@ -5181,21 +5137,21 @@ QtObject {
             "keywords": "dlss frame generation upscaling nvidia"
         },
         {
-            "label": "HDR in games",
+            "label": "HDR",
             "ctx": "",
             "sub": "Gaming",
-            "section": "Graphics",
+            "section": "Proton",
             "page": 15,
             "path": [],
             "trail": [],
             "tab": "gpu",
-            "keywords": "hdr dxvk gamescope"
+            "keywords": "hdr in games dxvk gamescope"
         },
         {
             "label": "NTSync",
             "ctx": "",
             "sub": "Gaming",
-            "section": "Graphics",
+            "section": "Proton",
             "page": 15,
             "path": [],
             "trail": [],
@@ -5203,21 +5159,21 @@ QtObject {
             "keywords": "ntsync fsync esync wine proton"
         },
         {
-            "label": "FSR / upscaling",
+            "label": "Graphics",
             "ctx": "",
             "sub": "Gaming",
-            "section": "Graphics",
+            "section": "",
             "page": 15,
             "path": [],
             "trail": [],
             "tab": "gpu",
-            "keywords": "fsr gamescope upscaling sharp"
+            "keywords": "graphics card gpu nvidia power limit clocks"
         },
         {
-            "label": "MangoHud overlay",
+            "label": "Overlay",
             "ctx": "",
             "sub": "Gaming",
-            "section": "Overlay",
+            "section": "",
             "page": 15,
             "path": [],
             "trail": [],
@@ -5225,43 +5181,21 @@ QtObject {
             "keywords": "mangohud fps overlay hud metrics"
         },
         {
-            "label": "Proton versions (GE-Proton)",
+            "label": "Compatibility",
             "ctx": "",
             "sub": "Gaming",
-            "section": "Compatibility",
+            "section": "",
             "page": 15,
             "path": [],
             "trail": [],
             "tab": "proton",
-            "keywords": "proton wine compatibility ge-proton"
-        },
-        {
-            "label": "Graphics card (NVIDIA)",
-            "ctx": "",
-            "sub": "Gaming",
-            "section": "Graphics",
-            "page": 15,
-            "path": [],
-            "trail": [],
-            "tab": "gpu",
-            "keywords": "gpu nvidia power limit clocks"
-        },
-        {
-            "label": "Boot menu",
-            "ctx": "",
-            "sub": "Recovery & boot",
-            "section": "Recovery & boot",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "tab": "",
-            "keywords": "refind bootloader dual boot menu"
+            "keywords": "proton versions ge-proton wine compatibility"
         },
         {
             "label": "Quiet start",
             "ctx": "",
             "sub": "Recovery & boot",
-            "section": "Recovery & boot",
+            "section": "Linux start options",
             "page": 5,
             "path": [],
             "trail": [],
@@ -5272,7 +5206,7 @@ QtObject {
             "label": "Splash screen",
             "ctx": "",
             "sub": "Recovery & boot",
-            "section": "Recovery & boot",
+            "section": "Linux start options",
             "page": 5,
             "path": [],
             "trail": [],
@@ -5283,7 +5217,7 @@ QtObject {
             "label": "Starts by default",
             "ctx": "",
             "sub": "Recovery & boot",
-            "section": "Recovery & boot",
+            "section": "Starting",
             "page": 5,
             "path": [],
             "trail": [],
@@ -5291,54 +5225,21 @@ QtObject {
             "keywords": "default boot os windows cachyos"
         },
         {
-            "label": "Secure Boot",
-            "ctx": "",
-            "sub": "Recovery & boot",
-            "section": "Recovery & boot",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "tab": "",
-            "keywords": "sbctl uefi keys signed"
-        },
-        {
-            "label": "UEFI boot order",
-            "ctx": "",
-            "sub": "Recovery & boot",
-            "section": "Recovery & boot",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "tab": "",
-            "keywords": "efibootmgr boot priority"
-        },
-        {
-            "label": "Restore previous boot menu",
-            "ctx": "",
-            "sub": "Recovery & boot",
-            "section": "Recovery & boot",
-            "page": 5,
-            "path": [],
-            "trail": [],
-            "tab": "",
-            "keywords": "boot backup undo refind"
-        },
-        {
-            "label": "System services",
+            "label": "Services",
             "ctx": "",
             "sub": "Advanced",
-            "section": "Services",
+            "section": "",
             "page": 21,
             "path": [],
             "trail": [],
             "tab": "systemd",
-            "keywords": "systemd service unit daemon start stop"
+            "keywords": "system services systemd service unit daemon start stop"
         },
         {
             "label": "Scheduled tasks",
             "ctx": "",
             "sub": "Advanced",
-            "section": "Services",
+            "section": "",
             "page": 21,
             "path": [],
             "trail": [],
@@ -5346,21 +5247,21 @@ QtObject {
             "keywords": "systemd timer timers cron schedule"
         },
         {
-            "label": "System logs",
+            "label": "Logs",
             "ctx": "",
             "sub": "Advanced",
-            "section": "Logs",
+            "section": "",
             "page": 21,
             "path": [],
             "trail": [],
             "tab": "logs",
-            "keywords": "journalctl log logs error warnings crash coredump"
+            "keywords": "system logs journalctl log error warnings crash coredump"
         },
         {
             "label": "Kernels",
             "ctx": "",
             "sub": "Advanced",
-            "section": "Kernels",
+            "section": "",
             "page": 21,
             "path": [],
             "trail": [],
@@ -5368,21 +5269,10 @@ QtObject {
             "keywords": "linux kernel cachyos lts headers"
         },
         {
-            "label": "CPU scheduler (scx)",
-            "ctx": "",
-            "sub": "Advanced",
-            "section": "Performance",
-            "page": 21,
-            "path": [],
-            "trail": [],
-            "tab": "scheduler",
-            "keywords": "sched-ext scx_lavd bpfland ananicy gaming scheduler cpu"
-        },
-        {
             "label": "Hyprland plugins",
             "ctx": "",
             "sub": "Advanced",
-            "section": "Plugins",
+            "section": "",
             "page": 21,
             "path": [],
             "trail": [],
@@ -5393,23 +5283,12 @@ QtObject {
             "label": "Snapshots",
             "ctx": "",
             "sub": "Storage",
-            "section": "Snapshots",
+            "section": "",
             "page": 4,
             "path": [],
             "trail": [],
             "tab": "backups",
             "keywords": "backup backups snapper btrfs restore"
-        },
-        {
-            "label": "Home folder snapshots",
-            "ctx": "",
-            "sub": "Storage",
-            "section": "Snapshots",
-            "page": 4,
-            "path": [],
-            "trail": [],
-            "tab": "backups",
-            "keywords": "home partition backup snapper"
         },
         {
             "label": "Full name",
@@ -5432,17 +5311,6 @@ QtObject {
             "trail": [],
             "tab": "",
             "keywords": "hostname device name pc name"
-        },
-        {
-            "label": "Groups and permissions",
-            "ctx": "",
-            "sub": "Account",
-            "section": "Your access",
-            "page": 16,
-            "path": [],
-            "trail": [],
-            "tab": "",
-            "keywords": "groups access audio video input storage network"
         }
     ]
 }

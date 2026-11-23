@@ -308,13 +308,16 @@ ColumnLayout {
             subtitle: "Gone for good"
 
             ActionButton {
+                id: removeBtn
+
                 property bool confirming: false
 
                 Timer {
                     id: removeConfirmTimer
 
                     interval: 5000
-                    onTriggered: parent.confirming = false
+                    // A Timer has no parent: the button by its id
+                    onTriggered: removeBtn.confirming = false
                 }
 
                 icon: "delete"

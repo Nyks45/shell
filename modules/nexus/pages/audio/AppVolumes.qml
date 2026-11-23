@@ -103,12 +103,26 @@ PageBase {
                 segmentedAllowed: false
                 fallbackText: Tr.tr("Default")
                 menuItems: deviceItems.instances
+                // The device the stream is linked to now (follows pactl moves):
+                // playback links stream -> sink, recording links source -> stream
+                active: {
+                    const s = streamCard.modelData;
+                    const g = streamLinks.linkGroups.find(l => group.isRecording ? l.target === s : l.source === s);
+                    const dev = g ? (group.isRecording ? g.source : g.target) : null;
+                    return dev ? (deviceItems.instances.find(i => i.value === dev) ?? null) : null;
+                }
                 onSelected: item => {
                     const target = item.value as PwNode;
                     if (group.isRecording)
                         Audio.moveRecordingToSource(streamCard.modelData, target);
                     else
                         Audio.moveStreamToSink(streamCard.modelData, target);
+                }
+
+                PwNodeLinkTracker {
+                    id: streamLinks
+
+                    node: streamCard.modelData
                 }
 
                 Variants {

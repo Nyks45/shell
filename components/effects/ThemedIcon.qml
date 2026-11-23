@@ -39,21 +39,18 @@ Item {
 
             anchors.fill: parent
             asynchronous: true
-            onStatusChanged: {
-                if (status === Image.Ready && String(source).length > 0)
-                    analyser.requestUpdate();
-            }
-            onSourceChanged: {
-                if (status === Image.Ready && String(source).length > 0)
-                    analyser.requestUpdate();
-            }
         }
     }
 
+    // Looked at once the icon has loaded; the result is shared by every
+    // ThemedIcon showing the same icon (cacheKey), so each is grabbed once
     ImageAnalyser {
         id: analyser
 
-        sourceItem: icon
+        readonly property bool ready: icon.status === Image.Ready && String(icon.source).length > 0
+
+        sourceItem: ready ? icon : null
+        cacheKey: ready ? String(icon.source) : ""
         rescaleSize: 48
     }
 }

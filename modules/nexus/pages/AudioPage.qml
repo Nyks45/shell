@@ -31,10 +31,13 @@ PageBase {
             iconClickable: true
             label: Tr.tr("Volume")
             subtext: Tr.tr("Tap the speaker icon to mute or unmute")
-            valueLabel: Audio.muted ? Tr.tr("Muted") : Strings.percentOne(value)
-            value: Audio.volume
+            // The slider spans 0 .. "Max volume" (up to 200%), so above 100% can
+            // be set here and isn't shown pinned at the end
+            readonly property real maxVolume: GlobalConfig.services.maxVolume > 0 ? GlobalConfig.services.maxVolume : 1
+            valueLabel: Audio.muted ? Tr.tr("Muted") : Strings.percentOne(Audio.volume)
+            value: Math.min(1, Audio.volume / maxVolume)
             enabled: !!Audio.sink
-            onMoved: v => Audio.setVolume(v)
+            onMoved: v => Audio.setVolume(v * maxVolume)
             onIconClicked: Audio.setStreamMuted(Audio.sink, !Audio.muted)
         }
 

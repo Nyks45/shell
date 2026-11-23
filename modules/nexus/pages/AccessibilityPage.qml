@@ -54,9 +54,9 @@ PageBase {
             label: Tr.tr("Text size in apps")
             subtext: Tr.tr("GTK apps; some apps need a restart")
             valueLabel: `${Math.round(AppLook.get("org.gnome.desktop.interface", "text-scaling-factor", 1) * 100)}%`
-            // Aligned 80% .. 150% so 100% matches the shell slider above
-            value: Math.max(0, Math.min(1, (AppLook.get("org.gnome.desktop.interface", "text-scaling-factor", 1) - 0.8) / 0.7))
-            onMoved: v => AppLook.set("org.gnome.desktop.interface", "text-scaling-factor", Math.round((0.8 + v * 0.7) * 20) / 20)
+            // 80% .. 200% (large text for low vision needs the top of the range)
+            value: Math.max(0, Math.min(1, (AppLook.get("org.gnome.desktop.interface", "text-scaling-factor", 1) - 0.8) / 1.2))
+            onMoved: v => AppLook.set("org.gnome.desktop.interface", "text-scaling-factor", Math.round((0.8 + v * 1.2) * 20) / 20)
         }
 
         ToggleRow {

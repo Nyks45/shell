@@ -22,6 +22,22 @@ PageBase {
 
     readonly property var monitors: Hypr.monitors.values.map(m => m.name)
 
+    // The app for a new rule. Rules match the window class as a lowercase
+    // substring, so a class guessed from a reverse-DNS desktop id uses its last
+    // part (com.discordapp.Discord -> Discord)
+    function pickRuleApp(): void {
+        appPicker.openPicker({
+            header: Tr.tr("Choose an app"),
+            includeRunning: true,
+            allowCustom: true,
+            onPicked: item => {
+                newRuleCard.selectedApp = item.classAlt || item.wmClass || item.id;
+                newRuleCard.selectedName = item.name;
+                newRuleCard.selectedIcon = item.icon;
+            }
+        });
+    }
+
     function whenText(w: string): string {
         return ({
                 running: Tr.tr("is running"),
@@ -404,16 +420,7 @@ PageBase {
                     StateLayer {
                         anchors.fill: parent
                         radius: parent.radius
-                        onClicked: appPicker.openPicker({
-                            header: Tr.tr("Choose an app"),
-                            includeRunning: true,
-                            allowCustom: true,
-                            onPicked: item => {
-                                newRuleCard.selectedApp = item.wmClass || item.id;
-                                newRuleCard.selectedName = item.name;
-                                newRuleCard.selectedIcon = item.icon;
-                            }
-                        })
+                        onClicked: root.pickRuleApp()
                     }
 
                     RowLayout {
@@ -457,16 +464,7 @@ PageBase {
                         TextButton {
                             text: Tr.tr("Pick app")
                             type: TextButton.Tonal
-                            onClicked: appPicker.openPicker({
-                                header: Tr.tr("Choose an app"),
-                                includeRunning: true,
-                                allowCustom: true,
-                                onPicked: item => {
-                                    newRuleCard.selectedApp = item.wmClass || item.id;
-                                    newRuleCard.selectedName = item.name;
-                                    newRuleCard.selectedIcon = item.icon;
-                                }
-                            })
+                            onClicked: root.pickRuleApp()
                         }
                     }
                 }

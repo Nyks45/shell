@@ -142,7 +142,13 @@ PageBase {
                         type: IconButton.Text
                         isRound: true
                         visible: !appRow.modelData.systemBacked
-                        onClicked: root.removeEntry(appRow.modelData.file)
+                        // The entry file is deleted: asked first
+                        onClicked: confirmDialog.ask({
+                            header: Tr.tr("Remove %1 from startup apps?").arg(appRow.modelData.name),
+                            body: Tr.tr("It won't start at login any more. The app itself stays installed."),
+                            confirmLabel: Tr.tr("Remove"),
+                            onConfirm: () => root.removeEntry(appRow.modelData.file)
+                        })
                     }
                 }
             }
@@ -224,6 +230,12 @@ PageBase {
 
         AppPickerDialog {
             id: appPicker
+
+            hostFlickable: root.flickable
+        }
+
+        ConfirmDialog {
+            id: confirmDialog
 
             hostFlickable: root.flickable
         }

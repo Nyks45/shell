@@ -418,6 +418,8 @@ ColumnLayout {
         message: Tr.tr("Everything on %1 (%2) is deleted: all partitions and their files. GPT suits every modern PC; MBR only very old ones.").arg(root.drive?.device ?? "").arg(Disks.human(root.drive?.size ?? 0))
         confirmText: root.drive?.device.replace("/dev/", "") ?? ""
         acceptLabel: Tr.trCtx("Erase", "button")
+        // Not while pending changes are being applied (they'd go on on an erased drive)
+        acceptAllowed: typed === confirmText && !Disks.applyingPending
         onAccepted: {
             Disks.clearPending(root.drive.id);
             Disks.run("table", [root.drive.block, "gpt"], what);

@@ -81,7 +81,11 @@ Item {
         parent: root.open ? root.rootParent : root
         enabled: false
         hoverEnabled: enabled
-        onClicked: root.open = false
+        // A click outside is a cancel (callers clear their state on cancelled)
+        onClicked: {
+            root.cancelled();
+            root.open = false;
+        }
     }
 
     Item {

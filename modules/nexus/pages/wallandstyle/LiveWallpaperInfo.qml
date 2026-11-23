@@ -289,7 +289,7 @@ PageBase {
                     for (const s of root.onScreens)
                         LiveWallpaper.stopScreen(s);
                     LiveWallpaper.removeWallpaper(root.w.id);
-                    root.nState.back();
+                    root.nState.up();
                 }
             }
 
@@ -551,7 +551,8 @@ PageBase {
                         placeholderText: propLoader.modelData.type === "directory" ? Tr.tr("No folder selected") : Tr.tr("No file selected")
                         canReset: true
                         onPicked: path => root.setProp(propLoader.modelData, path)
-                        onResetClicked: root.setProp(propLoader.modelData, "")
+                        // Back to the author's own file/folder (the override removed)
+                        onResetClicked: LiveWallpaper.setProperty(root.path, propLoader.modelData.name, null)
                     }
                 }
 

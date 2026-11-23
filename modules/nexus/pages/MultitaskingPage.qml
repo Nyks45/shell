@@ -284,15 +284,29 @@ PageBase {
             ]
             readonly property var activeNums: String(root.sc("explicit_column_widths", "") || root.sc("column_widths", "0.333,0.5,0.667,1.0")).split(",").map(s => parseFloat(s.trim())).filter(n => !isNaN(n) && n > 0 && n <= 1.01)
 
-            function isSelected(pct: int): bool {
+            // The chosen widths that aren't one of the presets (typed in, or from
+            // the config file): shown as chips of their own, kept by the presets
+            readonly property var customNums: activeNums.filter(n => !presets.some(p => Math.abs(n * 100 - p.pct) <= 1.5))
+            // Presets and those in one row, smallest first
+            readonly property var chips: [...presets.map(p => p.pct), ...customNums.map(n => Math.round(n * 1000) / 10)].sort((a, b) => a - b)
+
+            function isSelected(pct: real): bool {
                 return activeNums.some(n => Math.abs(n * 100 - pct) <= 1.5);
             }
 
-            function togglePreset(pct: int): void {
-                const chosen = presets.filter(p => p.pct === pct ? !isSelected(p.pct) : isSelected(p.pct));
-                if (chosen.length === 0)
+            function fmt(n: real): string {
+                return n >= 0.999 ? "1.0" : String(Number(n.toFixed(3)));
+            }
+
+            // One width on or off; every other chosen width stays as it is
+            function toggleWidth(pct: real): void {
+                const on = isSelected(pct);
+                const preset = presets.find(p => p.pct === pct);
+                const nums = on ? activeNums.filter(n => Math.abs(n * 100 - pct) > 1.5) : [...activeNums, preset ? parseFloat(preset.val) : pct / 100];
+                if (nums.length === 0)
                     return;
-                root.setSc("explicit_column_widths", chosen.map(p => p.val).join(","));
+                nums.sort((a, b) => a - b);
+                root.setSc("explicit_column_widths", nums.map(fmt).join(","));
             }
 
             visible: root.scrollerLoaded
@@ -333,20 +347,36 @@ PageBase {
                     spacing: Tokens.spacing.extraSmall
 
                     Repeater {
-                        model: widthPresetsRow.presets
+                        model: widthPresetsRow.chips
 
                         TextButton {
-                            required property var modelData
+                            required property real modelData
 
-                            text: `${modelData.pct}%`
+                            text: `${modelData}%`
                             isToggle: true
                             followChecked: true
-                            checked: widthPresetsRow.isSelected(modelData.pct)
+                            checked: widthPresetsRow.isSelected(modelData)
                             type: TextButton.Tonal
-                            onClicked: widthPresetsRow.togglePreset(modelData.pct)
+                            onClicked: widthPresetsRow.toggleWidth(modelData)
                         }
                     }
                 }
+            }
+        }
+
+        TextFieldRow {
+            visible: root.scrollerLoaded
+            label: Tr.tr("Add a width")
+            subtext: Tr.tr("Percent of the screen, 5 to 100")
+            placeholderText: Tr.tr("e.g. 40")
+            smallField: true
+            validate: t => !t.trim() || (/^\s*\d{1,3}(\.\d)?\s*%?\s*$/.test(t) && parseFloat(t) >= 5 && parseFloat(t) <= 100)
+            errorText: Tr.tr("A number from 5 to 100")
+            onEditingFinished: v => {
+                const pct = parseFloat(v);
+                if (pct >= 5 && pct <= 100 && !widthPresetsRow.isSelected(pct))
+                    widthPresetsRow.toggleWidth(pct);
+                clear();
             }
         }
 

@@ -109,7 +109,8 @@ Singleton {
         if (item.source === "repo")
             Admin.run("install", [name], what, end);
         else if (item.source === "aur")
-            // --skipreview is required only because paru runs headless here; all UI callers gate AUR builds behind AurReviewDialog.
+            // --skipreview: paru runs headless here. The callers show the recipe
+            // first (AurReviewDialog: its PKGBUILD, not its dependencies' or patches)
             Admin.exec(["paru", "-S", "--noconfirm", "--skipreview", "--sudo", "pkexec", "--", name], what, end);
         else
             Admin.exec(["flatpak", "install", "--system", "-y", "--noninteractive", item.remote || "flathub", name], what, end);
@@ -153,7 +154,8 @@ Singleton {
             if (aurNames.length === 0)
                 return flatpakStep();
             updateStep = "aur";
-            // --skipreview is required only because paru runs headless here; UI surfaces AurReviewDialog for inspection.
+            // --skipreview: paru runs headless here. The Updates page asks before
+            // building any AUR update whose recipe wasn't opened with Review
             Admin.exec(["paru", "-S", "--noconfirm", "--skipreview", "--sudo", "pkexec", "--", ...aurNames], updateWhat, ok => ok ? flatpakStep() : finish(false));
         };
         if (!includeRepo || repo.length === 0)

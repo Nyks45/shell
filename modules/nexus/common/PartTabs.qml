@@ -23,12 +23,25 @@ ColumnLayout {
         return parts.find(p => p.key === k || p.altKeys.includes(k)) ?? null;
     }
 
+    // The Settings this page is in (its page's nState)
+    function ownState(): var {
+        for (let p = root.parent; p; p = p.parent)
+            if (p.nState !== undefined)
+                return p.nState;
+        return null;
+    }
+
+    // A pending tab is for the Settings that asked for it (or any, if none said)
+    function pendingForMe(): bool {
+        return !PageRegistry.pendingTabFor || PageRegistry.pendingTabFor === ownState();
+    }
+
     Layout.fillWidth: true
     spacing: Tokens.spacing.extraSmall / 2
 
     Component.onCompleted: {
         // Opened at a former page id: that tab
-        const pending = PageRegistry.pendingTab && Date.now() - PageRegistry.pendingTabAt < 3000;
+        const pending = PageRegistry.pendingTab && Date.now() - PageRegistry.pendingTabAt < 3000 && pendingForMe();
         const wanted = pending ? findPart(PageRegistry.pendingTab) : null;
         if (wanted) {
             show(wanted);
@@ -40,6 +53,8 @@ ColumnLayout {
     // A link to one of these tabs while the page is already open
     Connections {
         function onPendingTabAtChanged(): void {
+            if (!root.pendingForMe())
+                return;
             const wanted = root.findPart(PageRegistry.pendingTab);
             if (wanted)
                 root.show(wanted);

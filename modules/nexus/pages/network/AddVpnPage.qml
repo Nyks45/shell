@@ -25,6 +25,10 @@ PageBase {
         })
     property string providerType: "wireguard"
     property bool overrideCommands: false
+    // Overrides the person turned on (or a saved built-in provider had): a
+    // built-in type keeps its own commands otherwise ("Custom" forces them on,
+    // and switching back from it mustn't keep them)
+    property bool overridesChosen: false
 
     function splitCmd(arr: var): string {
         return arr?.join(" ") ?? "";
@@ -53,6 +57,7 @@ PageBase {
         if (typeId !== "custom") {
             nameField.text = typeId;
             nameField.isError = false;
+            overrideCommands = overridesChosen;
             if (resetDisplay || !displayField.text.trim() || displayField.text.trim() === prevDefault)
                 displayField.text = builtInPresets[typeId] ?? typeId;
         } else {
@@ -124,7 +129,8 @@ PageBase {
             interfaceField.text = existing.interface;
             connectField.text = splitCmd(existing.connectCmd);
             disconnectField.text = splitCmd(existing.disconnectCmd);
-            overrideCommands = typeId === "custom" || connectField.text.length > 0 || disconnectField.text.length > 0;
+            overridesChosen = typeId !== "custom" && (connectField.text.length > 0 || disconnectField.text.length > 0);
+            overrideCommands = typeId === "custom" || overridesChosen;
             selectType(typeId, false);
         } else {
             selectType("wireguard", true);
@@ -233,7 +239,10 @@ PageBase {
             text: Tr.tr("Override connect/disconnect commands")
             subtext: Tr.tr("Replace the built-in CLI commands with custom ones")
             checked: root.overrideCommands
-            onToggled: root.overrideCommands = checked
+            onToggled: {
+                root.overrideCommands = checked;
+                root.overridesChosen = checked;
+            }
         }
 
         SectionHeader {

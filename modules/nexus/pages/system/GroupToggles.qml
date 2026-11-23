@@ -20,7 +20,10 @@ ColumnLayout {
     property Item hostFlickable: null
     // Called after a change (to read the accounts again)
     property var changed: null
-    readonly property var criticalGroups: ["audio", "video", "input", "storage", "network"]
+    // Removing yourself from these asks first (it changes what you can use from
+    // your next sign-in). None is needed for a normal desktop: systemd-logind
+    // gives the person at the screen its sound, graphics and input devices
+    readonly property var askBeforeRemoving: ["audio", "video", "input", "storage", "network"]
 
     spacing: Tokens.spacing.extraSmall / 2
 
@@ -33,14 +36,14 @@ ColumnLayout {
             required property var modelData
 
             text: modelData.about
-            subtext: root.criticalGroups.includes(modelData.name) ? Tr.tr("Group %1 · Required for normal desktop use").arg(modelData.name) : Tr.tr("Group %1").arg(modelData.name)
+            subtext: modelData.name === "input" ? Tr.tr("Group %1 · Lets every program you run read every key press").arg(modelData.name) : Tr.tr("Group %1").arg(modelData.name)
             checked: root.user?.groups.includes(modelData.name) ?? false
             onToggled: {
                 const runChange = add => Admin.run("group-member", [root.user.name, modelData.name, add ? "add" : "remove"], add ? Tr.tr("Add %1 to %2").arg(root.user.name).arg(modelData.name) : Tr.tr("Remove %1 from %2").arg(root.user.name).arg(modelData.name), () => {
                     if (typeof root.changed === "function")
                         root.changed();
                 });
-                if (!checked && root.user?.name === SysInfo.user && root.criticalGroups.includes(modelData.name) && root.hostFlickable) {
+                if (!checked && root.user?.name === SysInfo.user && root.askBeforeRemoving.includes(modelData.name) && root.hostFlickable) {
                     checked = Qt.binding(() => root.user?.groups.includes(row.modelData.name) ?? false);
                     confirmDialog.ask({
                         header: Tr.tr("Remove yourself from %1?").arg(modelData.name),

@@ -27,9 +27,17 @@ PageBase {
     readonly property var sortedFolders: Object.entries(root.folders).filter(([, size]) => size > 0).sort((a, b) => b[1] - a[1])
     readonly property real maxFolderSize: sortedFolders.length > 0 ? sortedFolders[0][1] : 1
 
-    function refresh(): void {
+    // The cleanup sizes are cheap; measuring the home folders (du over all of
+    // it, Steam included) is not: only after a change there (homeChanged) or
+    // when the last measure is over 10 minutes old
+    function refresh(homeChanged: bool): void {
         sizesProc.running = false;
         sizesProc.running = true;
+        if (homeChanged || !(Date.now() - Disks.cachedFoldersAt < 600000))
+            measureHome();
+    }
+
+    function measureHome(): void {
         _scanFolders = {};
         measuringFolders = true;
         foldersProc.running = false;
@@ -40,7 +48,9 @@ PageBase {
 
     Component.onCompleted: {
         if (!(Disks.cachedAt > 0 && (Date.now() - Disks.cachedAt) < 60000))
-            refresh();
+            refresh(false);
+        else if (!(Date.now() - Disks.cachedFoldersAt < 600000))
+            measureHome();
     }
 
     ColumnLayout {
@@ -139,6 +149,7 @@ done
                 root.measuringFolders = false;
                 root.folders = Object.assign({}, root._scanFolders);
                 Disks.cachedFolders = root.folders;
+                Disks.cachedFoldersAt = Date.now();
                 Disks.cachedAt = Date.now();
             }
         }
@@ -149,8 +160,9 @@ done
             interval: 4000
             repeat: true
             property int left
+            // Used by the actions that delete files in the home folder
             onTriggered: {
-                root.refresh();
+                root.refresh(true);
                 if (--left <= 0)
                     stop();
             }
@@ -316,7 +328,7 @@ done
             text: what
             subtext: busy ? Tr.tr("Cleaning…") : Tr.tr("%1 of downloaded packages; keeps the 3 newest versions of each").arg(Disks.human(root.sizes.pkg ?? 0))
             disabled: busy
-            onClicked: Admin.run("clean-package-cache", [], what, () => root.refresh())
+            onClicked: Admin.run("clean-package-cache", [], what, () => root.refresh(false))
         }
 
         RowButton {
@@ -343,16 +355,35 @@ done
             icon: "remove_selection"
             text: what
             subtext: busy ? Tr.tr("Removing…") : root.orphans === 0 ? Tr.tr("None") : Tr.tr("%1 installed as dependencies of packages that are gone").arg(root.orphans)
-            disabled: root.orphans === 0 || busy
-            onClicked: {
-                const shown = root.orphanNames.slice(0, 25).join(", ");
-                const extra = root.orphanNames.length > 25 ? Tr.tr(" … and %1 more").arg(root.orphanNames.length - 25) : "";
-                confirmDialog.ask({
-                    header: Tr.tr("Remove %1 unused packages?").arg(root.orphans),
-                    body: shown ? Tr.tr("Packages to remove: %1%2").arg(shown).arg(extra) : Tr.tr("%1 unused dependency packages will be removed.").arg(root.orphans),
-                    confirmLabel: Tr.tr("Remove"),
-                    onConfirm: () => Admin.run("remove-orphans", [], what, () => root.refresh())
-                });
+            disabled: root.orphans === 0 || busy || orphanCheck.running
+            // The list is read again first (the one shown may be minutes old;
+            // the helper removes what is unused at that moment)
+            onClicked: orphanCheck.running = true
+
+            Process {
+                id: orphanCheck
+
+                command: ["pacman", "-Qdtq"]
+                stdout: StdioCollector {
+                    onStreamFinished: {
+                        const names = text.split("\n").map(n => n.trim()).filter(Boolean);
+                        root.orphanNames = names;
+                        root.orphans = names.length;
+                        Disks.cachedOrphanNames = names;
+                        Disks.cachedOrphans = names.length;
+                        if (names.length === 0)
+                            return;
+                        const shown = names.slice(0, 25).join(", ");
+                        const extra = names.length > 25 ? Tr.tr(" … and %1 more").arg(names.length - 25) : "";
+                        confirmDialog.ask({
+                            header: Tr.tr("Remove %1 unused packages?").arg(names.length),
+                            body: Tr.tr("Packages to remove: %1%2").arg(shown).arg(extra),
+                            warning: Tr.tr("Dependencies that only these packages needed are removed too."),
+                            confirmLabel: Tr.tr("Remove"),
+                            onConfirm: () => Admin.run("remove-orphans", [], Tr.tr("Remove unused packages"), () => root.refresh(false))
+                        });
+                    }
+                }
             }
         }
 
@@ -372,7 +403,7 @@ done
                 onConfirm: () => Admin.exec(["flatpak", "uninstall", "--unused", "--assumeyes"], what, ok => {
                     if (ok)
                         Toaster.toast(Tr.tr("Unused Flatpak runtimes removed"), "", "layers_clear");
-                    root.refresh();
+                    root.refresh(false);
                 })
             })
         }
@@ -393,7 +424,7 @@ done
                 onConfirm: () => Admin.run("clear-coredumps", [], what, ok => {
                     if (ok)
                         Toaster.toast(Tr.tr("Crash dumps cleared"), "", "bug_report");
-                    root.refresh();
+                    root.refresh(false);
                 })
             })
         }
@@ -406,7 +437,7 @@ done
             text: what
             subtext: busy ? Tr.tr("Trimming…") : Tr.tr("%1 of logs; keeps the last two weeks").arg(Disks.human(root.sizes.journal ?? 0))
             disabled: busy
-            onClicked: Admin.run("journal-vacuum", ["2weeks"], what, () => root.refresh())
+            onClicked: Admin.run("journal-vacuum", ["2weeks"], what, () => root.refresh(false))
         }
 
         ConfirmDialog {

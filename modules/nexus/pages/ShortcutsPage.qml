@@ -332,11 +332,15 @@ PageBase {
 
         const list = Object.entries(vars).filter(([k, v]) => v.length > 0 || fromFiles[k]?.length > 0).map(([k, v]) => {
             const label = labelFor(k);
-            const editable = v.length <= 1 && (v[0] ?? fromFiles[k]?.[0] ?? "").includes("+") || v.length === 0;
             const rawList = v.filter(x => x && x.trim());
+            // Turned off ("", from Replace) is judged by its default; editable =
+            // one combination that isn't just modifiers (those prefix 1-0)
+            const base = rawList[0] ?? fromFiles[k]?.[0] ?? "";
+            const modsOnly = base.split(/[+\s]+/).filter(x => x).every(x => /^(super|alt|ctrl|control|shift|mod\d?|super_[lr]|alt_[lr]|ctrl_[lr]|shift_[lr])$/i.test(x));
+            const editable = rawList.length <= 1 && (fromFiles[k]?.length ?? 0) <= 1 && !!base && !modsOnly;
             let reason = "";
             if (!editable) {
-                if (rawList.length > 1)
+                if (!modsOnly)
                     reason = Tr.tr("Multiple key combinations — edit in hypr-vars.lua");
                 else
                     reason = Tr.tr("Modifier prefix — hold together with number keys 1–0");

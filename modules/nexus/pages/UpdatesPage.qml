@@ -25,6 +25,8 @@ PageBase {
     // per-item skipped map applies only to AUR and Flatpak.
     property bool includeRepo: true
     property var skipped: ({})
+    // AUR updates whose recipe was opened with Review (asked about otherwise)
+    property var reviewedAur: ({})
     property bool showAllRepo
     property var news: []
     property var pacnew: []
@@ -101,9 +103,23 @@ PageBase {
     function updateChosen(): void {
         const aur = Packages.aur.filter(u => !skipped[`aur:${u.name}`]).map(u => u.name);
         const flat = Packages.flatpak.filter(u => !skipped[`flatpak:${u.appId}`]).map(u => u.appId);
-        Packages.update(root.includeRepo, aur, flat, () => {
-            root.includeRepo = true;
-            root.skipped = {};
+        const run = () => Packages.update(root.includeRepo, aur, flat, () => {
+                root.includeRepo = true;
+                root.skipped = {};
+                root.reviewedAur = ({});
+            });
+        // AUR recipes run code on this computer as they build: the ones not
+        // looked at with Review are named and asked about first
+        const unreviewed = aur.filter(n => !root.reviewedAur[n]);
+        if (unreviewed.length === 0) {
+            run();
+            return;
+        }
+        confirmDialog.ask({
+            header: Tr.tr("Build without reviewing?"),
+            body: Tr.tr("Not reviewed yet: %1. AUR recipes are written by other users and run on this computer while they build. Use Review next to each to read its recipe first.").arg(unreviewed.join(", ")),
+            confirmLabel: Tr.tr("Update anyway"),
+            onConfirm: run
         });
     }
 
@@ -141,12 +157,17 @@ PageBase {
             visible: Packages.restart.length > 0
             icon: "power_settings_new"
             text: Tr.tr("Restart now…")
-            subtext: Tr.tr("Asks to confirm before rebooting")
+            // Never in the middle of an update or another system change
+            disabled: Packages.updating || Admin.jobs.length > 0
+            subtext: disabled ? Tr.tr("After the running update or change has finished") : Tr.tr("Asks to confirm before rebooting")
             onClicked: confirmDialog.ask({
                 header: Tr.tr("Restart computer?"),
                 body: Tr.tr("Your computer will restart to finish applying updates. Make sure any open work is saved."),
                 confirmLabel: Tr.tr("Restart"),
-                onConfirm: () => Quickshell.execDetached(["systemctl", "reboot"])
+                onConfirm: () => {
+                    if (!Packages.updating && Admin.jobs.length === 0)
+                        Quickshell.execDetached(["systemctl", "reboot"]);
+                }
             })
         }
 
@@ -444,7 +465,21 @@ PageBase {
                     visible: root.pacnewOpen?.kind !== "replaced"
                     text: root.pacnewOpen?.kind === "pacsave" ? Tr.tr("Delete it") : Tr.tr("Keep mine")
                     type: root.pacnewOpen?.kind === "pacsave" ? TextButton.Tonal : TextButton.Filled
-                    onClicked: Admin.run("pacnew", [root.pacnewOpen?.path, "keep-old"], Tr.tr("Keep your %1").arg(root.pacnewOpen?.original), () => root.loadExtras())
+                    onClicked: {
+                        const path = root.pacnewOpen?.path;
+                        const original = root.pacnewOpen?.original;
+                        if (root.pacnewOpen?.kind !== "pacsave") {
+                            Admin.run("pacnew", [path, "keep-old"], Tr.tr("Keep your %1").arg(original), () => root.loadExtras());
+                            return;
+                        }
+                        // Deleting the saved copy can't be undone: asked first
+                        confirmDialog.ask({
+                            header: Tr.tr("Delete the saved copy?"),
+                            body: Tr.tr("%1 is your old version of %2, kept when its package was removed or replaced. Deleting it can't be undone.").arg(path).arg(original),
+                            confirmLabel: Tr.tr("Delete"),
+                            onConfirm: () => Admin.run("pacnew", [path, "keep-old"], Tr.tr("Delete the saved copy of %1").arg(original), () => root.loadExtras())
+                        });
+                    }
                 }
 
                 TextButton {
@@ -620,10 +655,15 @@ PageBase {
                 checked: !root.skipped[root.key(u)]
                 disabled: Packages.updating
                 onToggled: on => root.toggle(u, on)
-                onActionClicked: aurDialog.openFor({
-                    source: "aur",
-                    name: modelData.name
-                }, Tr.trCtx("Close", "button"), null)
+                onActionClicked: {
+                    root.reviewedAur = Object.assign({}, root.reviewedAur, {
+                        [modelData.name]: true
+                    });
+                    aurDialog.openFor({
+                        source: "aur",
+                        name: modelData.name
+                    }, Tr.trCtx("Close", "button"), null);
+                }
             }
         }
 

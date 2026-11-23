@@ -3,6 +3,8 @@ import Quickshell
 import Quickshell.Bluetooth
 
 QtObject {
+    id: state
+
     property ShellScreen screen
     property bool isWindow
     property bool animatingContainer
@@ -18,7 +20,7 @@ QtObject {
     property int historyIdx: 0
     property bool _navigatingHistory: false
     property bool _inGoTo: false
-    readonly property bool canGoBack: subPageIdxStack.length > 0 || historyIdx > 0
+    readonly property bool canGoBack: searchOpen || subPageIdxStack.length > 0 || historyIdx > 0
     readonly property bool canGoForward: historyIdx < history.length - 1
     // A setting picked from the search: the page at depth `depth` of the open
     // page scrolls to the row labelled `text` (in `section`) and flashes it
@@ -104,9 +106,11 @@ QtObject {
         if (entry) {
             const path = (entry.path ?? []).slice();
             if (entry.tab) {
+                PageRegistry.pendingTabFor = state; // first: the change handlers check it
                 PageRegistry.pendingTab = entry.tab;
                 PageRegistry.pendingTabAt = Date.now();
             } else {
+                PageRegistry.pendingTabFor = state;
                 PageRegistry.pendingTab = "";
                 PageRegistry.pendingTabAt = 0;
             }
@@ -123,6 +127,7 @@ QtObject {
             currentPageIdx = entry.page;
             subPageIdxStack = path;
         } else {
+            PageRegistry.pendingTabFor = state;
             PageRegistry.pendingTab = "";
             PageRegistry.pendingTabAt = 0;
             highlight = null;
@@ -139,17 +144,6 @@ QtObject {
         _navigatingHistory = false;
     }
 
-    function startAt(entry: var): void {
-        history = [{
-            page: entry.page,
-            path: (entry.path ?? []).slice()
-        }];
-        historyIdx = 0;
-        _navigatingHistory = true;
-        goTo(entry);
-        _navigatingHistory = false;
-    }
-
     function openSubPage(idx: int): void {
         subPageIdxStack.push(idx);
         subPageOpened(idx);
@@ -161,7 +155,19 @@ QtObject {
     // "back" itself first: a function returning true when it did
     property var backHandler: null
 
-    // The mouse's back button and header back button: step back through history
+    // A sub-page's own back arrow: one level up (not a history step)
+    function up(): void {
+        if (backHandler && backHandler())
+            return;
+        if (searchOpen) {
+            searchOpen = false;
+            return;
+        }
+        if (subPageIdxStack.length > 0)
+            closeSubPage();
+    }
+
+    // The mouse's back button and the window's back button: step back through history
     function back(): void {
         if (backHandler && backHandler())
             return;
@@ -189,6 +195,27 @@ QtObject {
         backHandler = null;
         subPageClosed();
         subPageIdxStack.pop();
+        if (!_navigatingHistory && !_inGoTo)
+            _syncAfterClose();
+    }
+
+    // A sub-page closed by the page itself (the arrow, "Forget", a device that
+    // went away): history follows, and the steps forward are dropped (they may
+    // lead to something that no longer exists)
+    function _syncAfterClose(): void {
+        const page = currentPageIdx;
+        const p = Array.from(subPageIdxStack);
+        const same = e => e && e.page === page && e.path.length === p.length && e.path.every((v, i) => v === p[i]);
+        const next = history.slice(0, historyIdx + 1);
+        if (next.length > 1 && same(next[next.length - 2]))
+            next.pop();
+        else
+            next[next.length - 1] = {
+                page,
+                path: p
+            };
+        history = next;
+        historyIdx = next.length - 1;
     }
 
     // Open a search result: a page (entry.path empty, no label) or a setting
@@ -197,6 +224,7 @@ QtObject {
         const path = entry.path ?? [];
         // A tab of a page (a former page id): the page's tabs pick it up (PartTabs)
         if (entry.tab) {
+            PageRegistry.pendingTabFor = state;
             PageRegistry.pendingTab = entry.tab;
             PageRegistry.pendingTabAt = Date.now();
         }

@@ -80,21 +80,45 @@ PageBase {
         }));
     }
 
-    function flushFixed(): void {
+    // The chosen speeds stay shown (pendingFixed) until the saved settings say
+    // the same (onConfChanged), so the stepper doesn't jump back meanwhile.
+    // leaving: the page is going away (no callback into it)
+    function flushFixed(leaving: bool): void {
         const queued = pendingFixed;
         const keys = Object.keys(queued);
         if (keys.length === 0)
             return;
-        pendingFixed = ({});
         const fans = JSON.parse(JSON.stringify(conf));
         for (const id of keys)
             fans[id] = {
                 mode: "fixed",
                 percent: queued[id]
             };
-        Admin.exec(["pkexec", Admin.helper, "fans-apply"], root.what, () => root.load(), JSON.stringify({
+        Admin.exec(["pkexec", Admin.helper, "fans-apply"], root.what, leaving ? null : ok => {
+            if (!ok) {
+                // Not saved: show what is set again (unless changed since)
+                const left = Object.assign({}, root.pendingFixed);
+                for (const id of keys)
+                    if (left[id] === queued[id])
+                        delete left[id];
+                root.pendingFixed = left;
+            }
+            root.load();
+        }, JSON.stringify({
             fans
         }));
+    }
+
+    onConfChanged: {
+        const left = Object.assign({}, pendingFixed);
+        let changed = false;
+        for (const id of Object.keys(left))
+            if (conf[id]?.mode === "fixed" && conf[id]?.percent === left[id]) {
+                delete left[id];
+                changed = true;
+            }
+        if (changed)
+            pendingFixed = left;
     }
 
     // The preset a curve matches, else "custom"
@@ -113,6 +137,11 @@ PageBase {
     title: Tr.tr("Fans")
 
     Component.onCompleted: load()
+    // A speed chosen just before leaving the page is still saved
+    Component.onDestruction: {
+        if (fixedDebounce.running)
+            flushFixed(true);
+    }
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -124,7 +153,7 @@ PageBase {
             id: fixedDebounce
 
             interval: 600
-            onTriggered: root.flushFixed()
+            onTriggered: root.flushFixed(false)
         }
 
         Timer {

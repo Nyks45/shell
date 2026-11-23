@@ -31,20 +31,28 @@ PageBase {
         };
     }
 
-    readonly property var allApps: {
+    // The apps that sent notifications, as a string: it only changes when an
+    // app is new (not on every notification), so the list below isn't rebuilt
+    readonly property string appsKey: {
         const apps = Object.assign({}, NotifRules.seen);
         for (const n of Notifs.list)
             if (n.appName && !(n.appName in apps))
                 apps[n.appName] = n.appIcon ?? "";
-        return Object.entries(apps).map(([app, savedIcon]) => {
-            const info = resolveApp(app, savedIcon);
-            return {
-                app,
-                title: info.title,
-                icon: info.icon
-            };
-        }).sort((a, b) => a.title.localeCompare(b.title));
+        return JSON.stringify(Object.entries(apps).sort((a, b) => a[0].localeCompare(b[0])));
     }
+    // Resolved names/icons by app (+ saved icon): looked up once per app. Filled
+    // in place, which doesn't notify, so filling it re-runs no bindings
+    property var _resolved: ({})
+
+    readonly property var allApps: JSON.parse(appsKey).map(([app, savedIcon]) => {
+        const k = `${app}\n${savedIcon}`;
+        const info = _resolved[k] ?? (_resolved[k] = resolveApp(app, savedIcon));
+        return {
+            app,
+            title: info.title,
+            icon: info.icon
+        };
+    }).sort((a, b) => a.title.localeCompare(b.title))
 
     readonly property var filteredApps: {
         const q = appQuery.trim().toLowerCase();

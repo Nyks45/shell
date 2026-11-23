@@ -114,11 +114,11 @@ PageBase {
                     t.layers = 0.3;
                     b.shellSize = 12;
                     b.shellPasses = 4;
-                } else {
-                    if (root.frostedPanels) {
-                        t.base = 0.85;
-                        t.layers = 0.4;
-                    }
+                } else if (root.frostedPanels) {
+                    // Leaving Deep glass: undo what it set. The panel blur goes back
+                    // only here, so a 12/4 the person chose themselves stays
+                    t.base = 0.85;
+                    t.layers = 0.4;
                     if (b.shellSize === 12 && b.shellPasses === 4) {
                         b.shellSize = 0;
                         b.shellPasses = 0;

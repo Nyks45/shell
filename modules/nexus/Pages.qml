@@ -14,9 +14,8 @@ Item {
     property Item currentItem
     property bool initialized: false
 
-    // Each load's number: pages are created asynchronously, and switching
-    // quickly started several; one that finished after a newer one was asked
-    // for attached too, and the pages piled up over each other
+    // Each load's number. Pages are created synchronously (during the fade-out);
+    // this only guards a page that switches page while it's being created
     property int loadToken
 
     function start(): void {

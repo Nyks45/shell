@@ -60,11 +60,7 @@ PageBase {
             onToggled: {
                 const want = checked;
                 checked = Qt.binding(() => root.ntp);
-                setProc.actionTitle = want ? Tr.tr("Automatic time turned on") : Tr.tr("Automatic time turned off");
-                setProc.failTitle = Tr.tr("Couldn't change automatic time");
-                setProc.actionDetail = "";
-                setProc.actionIcon = "schedule";
-                setProc.exec(["timedatectl", "set-ntp", want ? "true" : "false"]);
+                setProc.queue(["timedatectl", "set-ntp", want ? "true" : "false"], want ? Tr.tr("Automatic time turned on") : Tr.tr("Automatic time turned off"), Tr.tr("Couldn't change automatic time"), "", "schedule");
             }
         }
 
@@ -105,11 +101,7 @@ PageBase {
             onToggled: {
                 const want = checked;
                 checked = Qt.binding(() => root.localRtc);
-                setProc.actionTitle = Tr.tr("Hardware clock updated");
-                setProc.failTitle = Tr.tr("Couldn't update hardware clock");
-                setProc.actionDetail = want ? Tr.tr("Local time (Windows dual-boot)") : Tr.tr("UTC (recommended)");
-                setProc.actionIcon = "schedule";
-                setProc.exec(["timedatectl", "set-local-rtc", want ? "1" : "0"]);
+                setProc.queue(["timedatectl", "set-local-rtc", want ? "1" : "0"], Tr.tr("Hardware clock updated"), Tr.tr("Couldn't update hardware clock"), want ? Tr.tr("Local time (Windows dual-boot)") : Tr.tr("UTC (recommended)"), "schedule");
             }
         }
 
@@ -122,11 +114,7 @@ PageBase {
             onPicked: tz => {
                 if (!tz || tz === root.timezone)
                     return;
-                setProc.actionTitle = Tr.tr("Time zone updated");
-                setProc.failTitle = Tr.tr("Couldn't change time zone");
-                setProc.actionDetail = tz.replace(/_/g, " ");
-                setProc.actionIcon = "public";
-                setProc.exec(["timedatectl", "set-timezone", tz]);
+                setProc.queue(["timedatectl", "set-timezone", tz], Tr.tr("Time zone updated"), Tr.tr("Couldn't change time zone"), tz.replace(/_/g, " "), "public");
             }
         }
 
@@ -181,26 +169,51 @@ PageBase {
             }
         }
 
-        // Changes (polkit asks for the password); report success or failure cleanly
+        // Changes (polkit asks for the password), one at a time: a second
+        // change while the first one's password prompt is open waits its turn
+        // instead of stopping the first (exec() ends a running process).
+        // Each reports its own success or failure.
         Process {
             id: setProc
 
-            property string actionTitle
-            property string failTitle
-            property string actionDetail
-            property string actionIcon: "schedule"
+            property var current: null
+            property var waiting: []
+
+            function queue(command: var, actionTitle: string, failTitle: string, actionDetail: string, actionIcon: string): void {
+                waiting = [...waiting, {
+                        command,
+                        actionTitle,
+                        failTitle,
+                        actionDetail,
+                        actionIcon
+                    }];
+                if (!running && !current)
+                    next();
+            }
+
+            function next(): void {
+                if (waiting.length === 0) {
+                    current = null;
+                    return;
+                }
+                current = waiting[0];
+                waiting = waiting.slice(1);
+                exec(current.command);
+            }
 
             stderr: StdioCollector {
                 id: setErr
             }
             onExited: (code, status) => {
+                const job = current ?? {};
                 root.refresh();
                 if (code === 0) {
-                    Toaster.toast(actionTitle || Tr.tr("Saved"), actionDetail, actionIcon);
+                    Toaster.toast(job.actionTitle || Tr.tr("Saved"), job.actionDetail ?? "", job.actionIcon || "schedule");
                 } else {
                     const errLine = setErr.text.trim().split("\n").find(l => l.trim().length > 0) ?? "";
-                    Toaster.toast(failTitle || Tr.tr("Change failed"), errLine || Tr.tr("The change was cancelled or refused."), "error");
+                    Toaster.toast(job.failTitle || Tr.tr("Change failed"), errLine || Tr.tr("The change was cancelled or refused."), "error");
                 }
+                Qt.callLater(next);
             }
         }
     }

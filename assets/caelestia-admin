@@ -612,8 +612,10 @@ def refind_lines():
     return open(REFIND_CONF).read().split("\n")
 
 
-def refind_write(lines):
-    """refind.conf, checked (braces balance) and atomic, the previous one kept."""
+def refind_write(lines, backup=True):
+    """refind.conf, checked (braces balance) and atomic, the previous one kept
+    (backup=False for automatic updates, so the backup stays the one from
+    before the person's last own change)."""
     text = "\n".join(lines)
     depth = 0
     for line in lines:
@@ -623,8 +625,9 @@ def refind_write(lines):
             raise Refused("refusing to write an unbalanced refind.conf")
     if depth:
         raise Refused("refusing to write an unbalanced refind.conf")
-    if not DRY:
-        run("cp", "-a", REFIND_CONF, REFIND_CONF + ".caelestia-prev")
+    if backup and not DRY:
+        # Plain cp: the backup's date is when it was taken (shown in Settings)
+        run("cp", REFIND_CONF, REFIND_CONF + ".caelestia-prev")
     write_file(REFIND_CONF, text)
     if not DRY:
         boot_export()
@@ -814,6 +817,27 @@ def act_boot_background(args):
 OPTION = re.compile(r"^[A-Za-z0-9_.,=:/@+-]+$")
 
 
+def block_end(lines, start):
+    """Index of the closing brace of the block opening at line START, or None."""
+    depth = 0
+    for j in range(start, len(lines)):
+        bare = "" if lines[j].strip().startswith("#") else lines[j].strip()
+        depth += bare.endswith("{") - (bare == "}")
+        if depth == 0:
+            return j
+    return None
+
+
+def entry_own_lines(lines, start, end):
+    """Indexes of an entry's own setting lines (not comments, not inside its submenus)."""
+    depth = 0
+    for k in range(start, end + 1):
+        bare = "" if lines[k].strip().startswith("#") else lines[k].strip()
+        if depth == 1 and bare and not bare.endswith("{") and bare != "}":
+            yield k
+        depth += bare.endswith("{") - (bare == "}")
+
+
 def find_linux_entry(lines):
     """(name, start, end) of the active Linux menuentry (prefers CachyOS with a kernel,
     then any active entry loading vmlinuz, then any active entry with root= options)."""
@@ -825,11 +849,11 @@ def find_linux_entry(lines):
             i += 1
             continue
         name = m.group(1).strip()
-        blk = entry_block(lines, name)
-        if not blk:
+        # By position, not name: two entries may share a name
+        a, b = i, block_end(lines, i)
+        if b is None:
             i += 1
             continue
-        a, b = blk
         disabled = False
         hidden_by_settings = False
         has_vmlinuz = False
@@ -882,11 +906,9 @@ def act_boot_options(args):
     if found is None:
         raise Refused("no active Linux entry in refind.conf")
     name, entry, end = found
-    for i in range(entry + 1, end):
+    for i in entry_own_lines(lines, entry, end):
         bare = lines[i].strip()
-        if bare.startswith(("submenuentry", "#")):
-            break
-        if bare.startswith("options"):
+        if re.match(r"^options\s", bare):
             validate_linux_options(args, bare)
             lines[i] = '    options  "' + " ".join(args) + '"'
             refind_write(lines)
@@ -916,15 +938,13 @@ def act_boot_kernels(args):
     name, entry, end = found
     main = None
     at = None
-    for i in range(entry + 1, end):
+    for i in entry_own_lines(lines, entry, end):
         bare = lines[i].strip()
         m = re.match(r"^loader\s+/?vmlinuz-(\S+)", bare)
         if m:
             main = m.group(1)
-        if bare.startswith("options"):
+        if re.match(r"^options\s", bare):
             at = i + 1
-        if bare.startswith(("submenuentry", "#")):
-            break
     if at is None:
         raise Refused(f"no options line in the {name} entry")
     kernels = sorted(f[len("vmlinuz-"):] for f in os.listdir("/boot") if f.startswith("vmlinuz-"))
@@ -936,7 +956,7 @@ def act_boot_kernels(args):
     if block:
         lines[at:at] = [KERN_BEGIN, *block, KERN_END]
     print("Kernels in the boot menu: " + ", ".join([main or "?"] + [k for k in kernels if k != main]), flush=True)
-    refind_write(lines)
+    refind_write(lines, backup=False)
 
 
 def act_boot_restore(args):
@@ -1089,6 +1109,8 @@ def act_boot_apply(args):
         if new and new != name:
             if not re.fullmatch(r"[A-Za-z0-9 ._()+-]{1,40}", new):
                 raise Refused("a name: letters, numbers, spaces, . _ ( ) + -")
+            if entry_block(lines, new) or new in renames.values():
+                raise Refused(f"another boot menu entry is already called {new!r}")
             i, _ = entry_block(lines, name)
             lines[i] = re.sub(r'menuentry\s+"?[^"{]+?"?\s*\{', f'menuentry "{new}" {{', lines[i])
             renames[name] = new
@@ -1129,20 +1151,18 @@ def act_boot_apply(args):
     if d.get("options"):
         opts = d["options"]
         found = find_linux_entry(lines)
-        if found:
-            _, i, j = found
-            for k in range(i + 1, j):
-                bare = lines[k].strip()
-                if bare.startswith(("submenuentry", "#")):
-                    break
-                if bare.startswith("options"):
-                    validate_linux_options(opts, bare)
-                    lines[k] = '    options  "' + " ".join(opts) + '"'
-                    break
-            else:
-                validate_linux_options(opts, "")
+        if not found:
+            raise Refused("no active Linux entry in refind.conf")
+        name, i, j = found
+        for k in entry_own_lines(lines, i, j):
+            bare = lines[k].strip()
+            if re.match(r"^options\s", bare):
+                validate_linux_options(opts, bare)
+                lines[k] = '    options  "' + " ".join(opts) + '"'
+                break
         else:
-            validate_linux_options(opts, "")
+            # Said, not skipped: a change that isn't written must not look applied
+            raise Refused(f"no options line in the {name} entry")
     refind_write(lines)
 
 

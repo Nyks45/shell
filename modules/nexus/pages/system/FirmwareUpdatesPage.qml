@@ -26,7 +26,21 @@ PageBase {
     readonly property bool needsReboot: root.data?.needsReboot === true || updatedOnce
     readonly property string errorMsg: root.data?.error ?? ""
     readonly property string updateAllWhat: Tr.tr("Install firmware updates")
-    readonly property bool busy: Admin.jobs.some(j => j.what.toLowerCase().includes("firmware"))
+    // This page's own jobs, by their exact names (not a word in the translated
+    // text, which isn't there in other languages)
+    readonly property var updateWhats: [updateAllWhat, ...updates.map(u => rowWhat(u.name))]
+    readonly property bool busy: Admin.jobs.some(j => updateWhats.includes(j.what))
+
+    function rowWhat(name: string): string {
+        return Tr.tr("Update firmware for %1").arg(name);
+    }
+
+    // "Restart to finish" only when fwupdmgr says an installed update needs it
+    // (exit 2 "nothing to do" and updates done at once count as success too)
+    function noteUpdate(ok: bool, out: string): void {
+        if (ok && /(requires?|needs?) a (reboot|restart)|(reboot|restart) (is )?(required|needed)/i.test(out))
+            updatedOnce = true;
+    }
 
     function load(refresh: bool): void {
         if (proc.running)
@@ -134,9 +148,8 @@ PageBase {
                 header: Tr.tr("Install all firmware updates?"),
                 body: Tr.tr("Installs %1 pending firmware update(s). Keep power connected and wait for completion before turning off your computer.").arg(root.updates.length),
                 confirmLabel: Tr.trCtx("Install", "button"),
-                onConfirm: () => Admin.run("fwupd-update", [], root.updateAllWhat, ok => {
-                    if (ok)
-                        root.updatedOnce = true;
+                onConfirm: () => Admin.run("fwupd-update", [], root.updateAllWhat, (ok, out) => {
+                    root.noteUpdate(ok, out);
                     root.load(false);
                 })
             })
@@ -154,7 +167,7 @@ PageBase {
                 id: upd
 
                 required property var modelData
-                readonly property string what: Tr.tr("Update firmware for %1").arg(modelData.name)
+                readonly property string what: root.rowWhat(modelData.name)
                 readonly property bool rowBusy: Admin.jobs.some(j => j.what === what)
 
                 Layout.fillWidth: true
@@ -208,9 +221,8 @@ PageBase {
                                 header: Tr.tr("Update %1?").arg(upd.modelData.name),
                                 body: Tr.tr("Update firmware from %1 to %2? Keep power connected until it finishes.").arg(upd.modelData.currentVersion || "?").arg(upd.modelData.newVersion),
                                 confirmLabel: Tr.tr("Update"),
-                                onConfirm: () => Admin.run("fwupd-update", [upd.modelData.id], upd.what, ok => {
-                                    if (ok)
-                                        root.updatedOnce = true;
+                                onConfirm: () => Admin.run("fwupd-update", [upd.modelData.id], upd.what, (ok, out) => {
+                                    root.noteUpdate(ok, out);
                                     root.load(false);
                                 })
                             })

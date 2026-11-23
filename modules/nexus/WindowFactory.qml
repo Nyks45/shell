@@ -18,14 +18,16 @@ Singleton {
         if (!activeWindow)
             return;
         activeWindow.visible = true;
+        // The shell's own window (Quickshell's class), not any app's "Settings"
         const titleStr = Tr.tr("Settings");
-        const tl = Hypr.toplevels.values.find(t => (t.lastIpcObject?.title ?? t.title) === titleStr);
-        if (tl && Hypr.usingLua) {
-            const sel = `address:0x${tl.address}`;
+        const tl = Hypr.toplevels.values.find(t => (t.lastIpcObject?.title ?? t.title) === titleStr && /quickshell/i.test(t.lastIpcObject?.class ?? ""));
+        if (!tl)
+            return; // just shown: it gets focus as it maps
+        const sel = `address:0x${tl.address}`;
+        if (Hypr.usingLua)
             Hypr.extras.message(`eval local hf = hl.plugin and hl.plugin.hyprflow; if hf and hf.activate then hf.activate("${sel}") else hl.dispatch(hl.dsp.focus({ window = "${sel}" })) end`);
-        } else {
-            Hypr.dispatch(Hypr.usingLua ? 'hl.dsp.focus({ window = "title:^Settings$" })' : 'focuswindow title:^Settings$');
-        }
+        else
+            Hypr.dispatch(`focuswindow ${sel}`);
     }
 
     function create(parent: Item, props: var): void {
@@ -50,8 +52,7 @@ Singleton {
     function createAt(pageId: string, path: var): void {
         const page = PageRegistry.find(pageId);
         const tab = PageRegistry.aliases[pageId] ? pageId : "";
-        PageRegistry.pendingTab = tab;
-        PageRegistry.pendingTabAt = Date.now();
+        // The tab goes with the entry (the window's NexusState sets it for itself)
         create(null, page < 0 ? {} : {
             startEntry: {
                 page,

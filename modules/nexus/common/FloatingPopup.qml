@@ -74,7 +74,8 @@ MouseArea {
 
     opacity: expanded ? 1 : 0
     visible: opacity > 0 && parent !== attachTo
-    layer.enabled: opacity < 1
+    // Only while fading (as Menu): not a hidden layer per closed popup
+    layer.enabled: opacity > 0 && opacity < 1
 
     Behavior on opacity {
         Anim {
@@ -85,8 +86,9 @@ MouseArea {
     TransformWatcher {
         id: watcher
 
-        a: root.parent
-        b: root.attachTo
+        // Watched only while shown (as Menu)
+        a: root.visible ? root.parent : null
+        b: root.visible ? root.attachTo : null
     }
 
     Elevation {

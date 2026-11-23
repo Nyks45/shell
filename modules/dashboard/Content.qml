@@ -279,17 +279,24 @@ Item {
                     readonly property int targetH: Math.round((scr?.height ?? 1080) * Tokens.sizes.nexus.heightMult)
                     readonly property int targetW: Math.round(targetH * Tokens.sizes.nexus.ratio)
 
-                    function takeRequestedEntry(): var {
+                    // The page the dashboard was asked to show (no side effects: used in a binding)
+                    function requestedEntry(): var {
                         const id = root.screenState.dashboardSettingsPage;
                         if (!id)
                             return null;
-                        root.screenState.dashboardSettingsPage = "";
                         const t = PageRegistry.target(id);
                         return {
                             page: Math.max(0, t.page),
                             path: [],
                             tab: t.tab
                         };
+                    }
+
+                    function takeRequestedEntry(): var {
+                        const entry = requestedEntry();
+                        if (entry)
+                            root.screenState.dashboardSettingsPage = "";
+                        return entry;
                     }
 
                     radius: Tokens.rounding.extraLarge
@@ -301,9 +308,15 @@ Item {
                         id: nexusInner
 
                         anchors.fill: parent
-                        initialEntry: settingsClip.takeRequestedEntry()
+                        initialEntry: settingsClip.requestedEntry()
                         nState.screen: settingsClip.scr
                         onClose: root.screenState.dashboard = false
+                        // Read once when loading (Nexus.onCompleted); cleared after
+                        // that, so the same page can be asked for again later
+                        Component.onCompleted: Qt.callLater(() => {
+                            if (root.screenState.dashboardSettingsPage)
+                                root.screenState.dashboardSettingsPage = "";
+                        })
                     }
 
                     Connections {

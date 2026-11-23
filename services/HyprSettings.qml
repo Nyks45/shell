@@ -186,16 +186,26 @@ Singleton {
         });
     }
 
+    // Each monitor changed while the countdown runs keeps its own "before" in
+    // displayUndo.monitors (name -> settings, null = from the config files), so
+    // a revert puts every one of them back, not only the first
     function changeMonitorWithRevert(name: string, nextSettings: var): void {
+        const prev = saved.monitors?.[name] ? JSON.parse(JSON.stringify(saved.monitors[name])) : null;
         if (!displayUndo) {
-            const prev = saved.monitors?.[name] ? JSON.parse(JSON.stringify(saved.monitors[name])) : null;
             displayUndo = {
                 name,
                 settings: prev,
+                monitors: {
+                    [name]: prev
+                },
                 deadline: Date.now() + 15000
             };
         } else {
+            const monitors = Object.assign({}, undoMonitors(displayUndo));
+            if (!(name in monitors))
+                monitors[name] = prev;
             displayUndo = Object.assign({}, displayUndo, {
+                monitors,
                 deadline: Date.now() + 15000
             });
         }
@@ -220,11 +230,26 @@ Singleton {
         displayCountdown = 0;
         displayUndoTimer.stop();
         displayUndoFile.setText("");
-        if (u.settings)
-            setMonitor(u.name, u.settings);
-        else
-            forgetMonitor(u.name);
-        displayReverted(u.name);
+        const before = undoMonitors(u);
+        const monitors = Object.assign({}, saved.monitors ?? {});
+        for (const [name, settings] of Object.entries(before)) {
+            if (settings)
+                monitors[name] = settings;
+            else
+                delete monitors[name];
+        }
+        update({
+            monitors
+        });
+        for (const name of Object.keys(before))
+            displayReverted(name);
+    }
+
+    // The monitors an undo puts back (an undo saved before it had .monitors: its one)
+    function undoMonitors(u: var): var {
+        return u.monitors ?? {
+            [u.name]: u.settings ?? null
+        };
     }
 
     function resumePendingDisplayUndo(): void {

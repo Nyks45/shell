@@ -211,7 +211,7 @@ ColumnLayout {
                     type: IconButton.Text
                     isRound: true
                     inactiveOnColour: Colours.palette.m3onSurfaceVariant
-                    onClicked: root.nState.back()
+                    onClicked: root.nState.up()
                 }
             }
 

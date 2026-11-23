@@ -25,10 +25,23 @@ PageBase {
 
     title: Tr.tr("Bluetooth & devices")
 
-    onVisibleChanged: if (!visible && adapter?.discoverable)
-        adapter.discoverable = false
-    Component.onDestruction: if (adapter?.discoverable)
-        adapter.discoverable = false
+    // Pairable was turned on here with Discoverable: off again with it (unless
+    // the pairing page is scanning, which needs it)
+    property bool madePairable: false
+
+    function stopDiscoverable(): void {
+        if (!adapter)
+            return;
+        if (adapter.discoverable)
+            adapter.discoverable = false;
+        if (madePairable && !adapter.discovering)
+            adapter.pairable = false;
+        madePairable = false;
+    }
+
+    onVisibleChanged: if (!visible)
+        stopDiscoverable()
+    Component.onDestruction: stopDiscoverable()
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -192,11 +205,17 @@ PageBase {
             disabled: !root.btEnabled
             checked: root.adapter?.discoverable ?? false
             onToggled: {
-                if (root.adapter) {
-                    if (checked)
-                        root.adapter.pairable = true;
-                    root.adapter.discoverable = checked;
+                if (!root.adapter)
+                    return;
+                if (!checked) {
+                    root.stopDiscoverable();
+                    return;
                 }
+                if (!root.adapter.pairable) {
+                    root.adapter.pairable = true;
+                    root.madePairable = true;
+                }
+                root.adapter.discoverable = true;
             }
 
             Behavior on opacity {

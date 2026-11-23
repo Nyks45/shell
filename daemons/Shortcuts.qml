@@ -170,6 +170,44 @@ Scope {
             WindowFactory.createAt(page, subs[sub] ?? []);
         }
 
+        // Where the Settings window is (for scripts and tests): page, sub-page
+        // path, history position and the back/forward state
+        function state(): string {
+            const s = WindowFactory.activeWindow?.visible ? WindowFactory.activeWindow.nexusItem.nState : null;
+            if (!s)
+                return "{}";
+            return JSON.stringify({
+                page: s.currentPageIdx,
+                path: Array.from(s.subPageIdxStack),
+                historyIdx: s.historyIdx,
+                history: s.history,
+                canGoBack: s.canGoBack,
+                canGoForward: s.canGoForward,
+                searchOpen: s.searchOpen
+            });
+        }
+
+        // The window's navigation, as its buttons and pages do it
+        function back(): void {
+            WindowFactory.activeWindow?.nexusItem.nState.back();
+        }
+
+        function forward(): void {
+            WindowFactory.activeWindow?.nexusItem.nState.forward();
+        }
+
+        function up(): void {
+            WindowFactory.activeWindow?.nexusItem.nState.up();
+        }
+
+        function openSub(idx: int): void {
+            WindowFactory.activeWindow?.nexusItem.nState.openSubPage(idx);
+        }
+
+        function closeSub(): void {
+            WindowFactory.activeWindow?.nexusItem.nState.closeSubPage();
+        }
+
         target: "nexus"
     }
 

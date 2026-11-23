@@ -33,11 +33,14 @@ PageBase {
         HyprSettings.setWindowRules(next);
     }
 
-    function addRule(cls: string): void {
-        const escaped = cls.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // A picked app (AppPickerDialog item): its exact class, or, when the class
+    // is only guessed from the desktop id, any case and the id's last part
+    function addRule(item: var): void {
+        const esc = c => c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const names = [item.wmClass || item.id, item.classAlt].filter(x => x).map(esc);
         const index = rules.length;
         HyprSettings.setWindowRules([...rules, {
-                class: `^(${escaped})$`,
+                class: `${item.classGuessed ? "(?i)" : ""}^(${names.join("|")})$`,
                 float: true
             }]);
         openRule = index; // the new one, open to edit
@@ -81,7 +84,7 @@ PageBase {
                 header: Tr.tr("Add an app rule"),
                 includeRunning: true,
                 allowCustom: true,
-                onPicked: item => root.addRule(item.wmClass || item.id)
+                onPicked: item => root.addRule(item)
             })
         }
 

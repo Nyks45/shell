@@ -417,7 +417,28 @@ PageBase {
             readonly property string what: Tr.tr("Resize or move the partition")
             readonly property real mib: 1048576
             readonly property bool canResize: !root.p?.crypto && root.fs?.type !== "swap"
-            readonly property int minMiB: canResize ? Math.min(root.spanTotalMiB, Math.max(16, Math.ceil(((root.fs?.used ?? 0) * 1.05) / mib))) : root.curSizeMiB
+            readonly property string fsType: root.fs?.type ?? ""
+            // What the helper (udisks) would refuse, refused here already, so a
+            // batch doesn't stop halfway: XFS/F2FS/exFAT don't shrink, only Btrfs
+            // shrinks while mounted, NTFS/FAT only grow unmounted
+            readonly property bool canShrink: canResize && !["xfs", "f2fs", "exfat"].includes(fsType) && (!root.mounted || fsType === "btrfs")
+            readonly property bool canGrow: canResize && fsType !== "exfat" && (!root.mounted || ["ext2", "ext3", "ext4", "btrfs", "xfs"].includes(fsType))
+            readonly property bool usedKnown: (root.fs?.used ?? -1) >= 0
+            readonly property int minMiB: canShrink ? Math.min(root.spanTotalMiB, Math.max(16, Math.ceil(((root.fs?.used ?? 0) * 1.05) / mib))) : root.curSizeMiB
+            // Why its size is fixed here, said up front (the editor won't go past it)
+            readonly property string limitText: {
+                const fs = fsType.toUpperCase();
+                if (!canResize)
+                    return "";
+                if (!canShrink && !canGrow)
+                    return root.mounted ? Tr.tr("%1 can't change size while mounted: unmount it first.").arg(fs) : Tr.tr("%1 can't change size here.").arg(fs);
+                if (!canShrink)
+                    return root.mounted && !["xfs", "f2fs", "exfat"].includes(fsType) ? Tr.tr("%1 can only grow while mounted: unmount it to shrink it.").arg(fs) : Tr.tr("%1 can grow but not shrink.").arg(fs);
+                if (!canGrow && root.growRoom > 0)
+                    return Tr.tr("%1 can't grow while mounted: unmount it first.").arg(fs);
+                return "";
+            }
+            readonly property string sizeProblem: sizeMiB > root.curSizeMiB && !canGrow ? Tr.tr("%1 can't grow while mounted: unmount it first.").arg(fsType.toUpperCase()) : sizeMiB < root.curSizeMiB && !canShrink ? (root.mounted && !["xfs", "f2fs", "exfat"].includes(fsType) ? Tr.tr("%1 can't shrink while mounted: unmount it first.").arg(fsType.toUpperCase()) : Tr.tr("%1 can't be made smaller.").arg(fsType.toUpperCase())) : ""
             property int beforeMiB: 0
             property int sizeMiB: 1
 
@@ -427,10 +448,10 @@ PageBase {
             openHeight: Math.min(root.flickable.height * 0.94, 460)
             icon: "open_in_full"
             label: Tr.tr("Resize or move")
-            subtext: !canResize && root.spanTotalMiB <= root.curSizeMiB ? "" : (root.growRoom > 0 || root.freeBeforeSize > 0 ? Tr.tr("Drag or type sizes to adjust space before, size, or space after") : Tr.tr("Shrink to free space"))
+            subtext: limitText && !canShrink && !(canGrow && root.growRoom > 0) && root.freeBeforeSize <= 0 ? limitText : !canResize && root.spanTotalMiB <= root.curSizeMiB ? "" : (root.growRoom > 0 || root.freeBeforeSize > 0 ? Tr.tr("Drag or type sizes to adjust space before, size, or space after") : Tr.tr("Shrink to free space"))
             header: Tr.tr("Resize or move %1").arg(root.pname)
             acceptLabel: Tr.trCtx("Add to pending", "button")
-            acceptAllowed: (beforeMiB !== root.curBeforeMiB || sizeMiB !== root.curSizeMiB) && !(root.mounted && beforeMiB !== root.curBeforeMiB) && !Disks.applyingPending && !Disks.busy(what)
+            acceptAllowed: (beforeMiB !== root.curBeforeMiB || sizeMiB !== root.curSizeMiB) && !(root.mounted && beforeMiB !== root.curBeforeMiB) && !sizeProblem && !Disks.applyingPending
             onOpenChanged: if (open) {
                 beforeMiB = root.curBeforeMiB;
                 sizeMiB = root.curSizeMiB;
@@ -471,6 +492,24 @@ PageBase {
 
                         StyledText {
                             Layout.fillWidth: true
+                            visible: !!reshape.sizeProblem
+                            text: reshape.sizeProblem
+                            color: Colours.palette.m3error
+                            font: Tokens.font.body.small
+                            wrapMode: Text.WordWrap
+                        }
+
+                        StyledText {
+                            Layout.fillWidth: true
+                            visible: reshape.canShrink && !reshape.usedKnown && root.fs?.isFilesystem && reshape.sizeMiB < root.curSizeMiB
+                            text: Tr.tr("It isn't mounted, so how much it holds is unknown: a size smaller than its files is refused when the changes are applied. Mount it once to see it.")
+                            color: Colours.palette.m3onSurfaceVariant
+                            font: Tokens.font.body.small
+                            wrapMode: Text.WordWrap
+                        }
+
+                        StyledText {
+                            Layout.fillWidth: true
                             visible: root.mounted && reshape.beforeMiB !== root.curBeforeMiB
                             text: Tr.tr("Unmount this partition first before moving its start offset.")
                             color: Colours.palette.m3error
@@ -480,7 +519,7 @@ PageBase {
 
                         StyledText {
                             Layout.fillWidth: true
-                            text: root.freeBeforeSize <= 0 && root.growRoom <= 0 ? Tr.tr("No free space beside this partition — it can only shrink. Back up important files first.") : Tr.tr("Back up important files first: moving copies partition data and a power cut can lose data.")
+                            text: reshape.limitText ? reshape.limitText + " " + Tr.tr("Back up important files first.") : root.freeBeforeSize <= 0 && root.growRoom <= 0 ? Tr.tr("No free space beside this partition — it can only shrink. Back up important files first.") : Tr.tr("Back up important files first: moving copies partition data and a power cut can lose data.")
                             color: Colours.palette.m3onSurfaceVariant
                             font: Tokens.font.body.small
                             wrapMode: Text.WordWrap
@@ -489,9 +528,11 @@ PageBase {
                 }
             }
             onAccepted: {
-                const newOffset = root.spanStart + beforeMiB * mib;
-                const availAfterOffset = (root.freeBeforeSize + root.p.size + root.growRoom) - beforeMiB * mib;
-                const newSize = beforeMiB === root.curBeforeMiB && sizeMiB === Math.floor(root.p.size / mib) ? root.p.size : Math.min(availAfterOffset, sizeMiB * mib);
+                // Unchanged parts stay exact: whole-MiB rounding must not turn a
+                // resize into a move (unaligned start) or a move into a shrink
+                const newOffset = beforeMiB === root.curBeforeMiB ? root.p.offset : root.spanStart + beforeMiB * mib;
+                const spanEnd = root.spanStart + root.freeBeforeSize + root.p.size + root.growRoom;
+                const newSize = sizeMiB === root.curSizeMiB ? root.p.size : Math.min(spanEnd - newOffset, sizeMiB * mib);
                 const actions = [];
                 if (newOffset !== root.p.offset)
                     actions.push(Tr.tr("move %1").arg(root.pname));
@@ -615,6 +656,7 @@ PageBase {
             message: root.mounted ? Tr.tr("Unmount it first.") : Tr.tr("The partition and all its files are deleted (%1). Its space becomes free space.").arg(Disks.human(root.p?.size ?? 0))
             confirmText: root.p?.device.replace("/dev/", "") ?? ""
             acceptLabel: Tr.trCtx("Add to pending", "button")
+            acceptAllowed: typed === confirmText && !root.mounted && !Disks.applyingPending
             onAccepted: {
                 Disks.queueChange({
                     type: "delete",

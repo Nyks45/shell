@@ -82,54 +82,57 @@ SYNONYMS = {
 EXCLUDE_LABELS = {"Unknown program", "Copy these lines", "Boot", "Name", "Add", "Save", "Cancel"}
 EXCLUDE_SECTIONS = {"Add a game", "Entries"}
 
-# List-built / dynamic rows and key tabs that Repeaters don't statically declare
+# List-built / dynamic rows and key tabs that Repeaters don't statically declare:
+# (page id, tab, subtext, label, keywords, section). The label and section are
+# the row's real text and the section header above it (the search highlights
+# the row by them; section "" = anywhere on the page, e.g. a tab's own button).
+# One that matches a generated entry only adds its keywords to it.
 EXTRA_ENTRIES = [
-    # Wallpaper & style / Windows tab shortcuts
-    ("wallpaper", "colours", "Wallpaper & style", "Colours", "colour scheme dark light theme palette accent dynamic", "Colours"),
-    ("wallpaper", "effects", "Wallpaper & style", "Effects", "transparency opacity roundness blur frosted glass", "Effects"),
-    ("wallpaper", "desktop", "Wallpaper & style", "Desktop", "desktop icons widgets nebula audio visualiser bars", "Desktop"),
-    ("wallpaper", "lockscreen", "Wallpaper & style", "Lock screen", "lockscreen wallpaper logo notifications power buttons fingerprint face howdy", "Lock screen"),
+    # Wallpaper & style / Windows tabs (their tab buttons)
+    ("wallpaper", "colours", "Wallpaper & style", "Colours", "colour scheme dark light theme palette accent dynamic", ""),
+    ("wallpaper", "effects", "Wallpaper & style", "Effects", "transparency opacity roundness blur frosted glass", ""),
+    ("wallpaper", "desktop", "Wallpaper & style", "Desktop", "desktop icons widgets nebula audio visualiser bars", ""),
+    ("wallpaper", "lockscreen", "Wallpaper & style", "Lock screen", "lockscreen wallpaper logo notifications power buttons fingerprint face howdy", ""),
     ("windows", "titlebars", "Windows", "Title bars", "window title bar font blur buttons hover double middle click", "Title bars"),
-    ("windows", "apprules", "Windows", "App rules", "window rules float centre pin workspace opacity tearing", "App rules"),
-    # Workspaces & shortcuts -> Shortcuts
-    ("workspaces", "shortcuts", "Shortcuts", "Close window", "Super+Q window close kill", "Shortcut"),
-    ("workspaces", "shortcuts", "Shortcuts", "Open terminal", "terminal foot kitty alacritty shortcut", "Shortcut"),
-    ("workspaces", "shortcuts", "Shortcuts", "App launcher", "launcher dmenu rofi shortcut", "Shortcut"),
-    ("workspaces", "shortcuts", "Shortcuts", "Lock screen", "lock session suspend shortcut", "Shortcut"),
-    ("workspaces", "shortcuts", "Shortcuts", "Take a screenshot", "screenshot capture snip print shortcut", "Shortcut"),
-    ("workspaces", "shortcuts", "Shortcuts", "Switch workspace", "workspace focus move shortcut", "Shortcut"),
-    ("workspaces", "shortcuts", "Shortcuts", "Custom keyboard shortcuts", "hotkey keybind shortcut bind", "Your own shortcuts"),
+    ("windows", "apprules", "Windows", "App rules", "window rules float centre pin workspace opacity tearing", ""),
+    # Workspaces & shortcuts -> Shortcuts (rows built from the key variables)
+    ("workspaces", "shortcuts", "Shortcuts", "Close window", "Super+Q window close kill shortcut", "Windows"),
+    ("workspaces", "shortcuts", "Shortcuts", "Terminal", "terminal foot kitty alacritty open shortcut", "Apps"),
+    ("workspaces", "shortcuts", "Shortcuts", "Launcher", "app launcher dmenu rofi shortcut", "Desktop & shell"),
+    ("workspaces", "shortcuts", "Shortcuts", "Lock", "lock screen session shortcut", "Desktop & shell"),
+    ("workspaces", "shortcuts", "Shortcuts", "Screenshot", "screenshot capture snip print shortcut", "Screenshots & media"),
+    ("workspaces", "shortcuts", "Shortcuts", "Next workspace", "switch workspace focus move shortcut", "Workspaces"),
+    ("workspaces", "shortcuts", "Shortcuts", "Add a shortcut", "custom keyboard shortcuts hotkey keybind bind", "Your own shortcuts"),
     # Gaming tabs & generated options
-    ("gaming", "gamemode", "Gaming", "GameMode", "gamemode performance cpu governor", "Overview"),
-    ("gaming", "gpu", "Gaming", "NVIDIA Reflex", "reflex low latency nvidia game options", "Graphics"),
-    ("gaming", "gpu", "Gaming", "DLSS", "dlss frame generation upscaling nvidia", "Graphics"),
-    ("gaming", "gpu", "Gaming", "HDR in games", "hdr dxvk gamescope", "Graphics"),
-    ("gaming", "gpu", "Gaming", "NTSync", "ntsync fsync esync wine proton", "Graphics"),
-    ("gaming", "gpu", "Gaming", "FSR / upscaling", "fsr gamescope upscaling sharp", "Graphics"),
-    ("gaming", "overlay", "Gaming", "MangoHud overlay", "mangohud fps overlay hud metrics", "Overlay"),
-    ("gaming", "proton", "Gaming", "Proton versions (GE-Proton)", "proton wine compatibility ge-proton", "Compatibility"),
-    ("gaming", "gpu", "Gaming", "Graphics card (NVIDIA)", "gpu nvidia power limit clocks", "Graphics"),
-    # Recovery & boot
-    ("recovery", "", "Recovery & boot", "Boot menu", "refind bootloader dual boot menu", "Recovery & boot"),
-    ("recovery", "", "Recovery & boot", "Quiet start", "boot kernel quiet refind", "Recovery & boot"),
-    ("recovery", "", "Recovery & boot", "Splash screen", "plymouth boot splash animation", "Recovery & boot"),
-    ("recovery", "", "Recovery & boot", "Starts by default", "default boot os windows cachyos", "Recovery & boot"),
-    ("recovery", "", "Recovery & boot", "Secure Boot", "sbctl uefi keys signed", "Recovery & boot"),
-    ("recovery", "", "Recovery & boot", "UEFI boot order", "efibootmgr boot priority", "Recovery & boot"),
-    ("recovery", "", "Recovery & boot", "Restore previous boot menu", "boot backup undo refind", "Recovery & boot"),
-    # Advanced tabs & dynamic service rows
-    ("advanced", "systemd", "Advanced", "System services", "systemd service unit daemon start stop", "Services"),
-    ("advanced", "systemd", "Advanced", "Scheduled tasks", "systemd timer timers cron schedule", "Services"),
-    ("advanced", "logs", "Advanced", "System logs", "journalctl log logs error warnings crash coredump", "Logs"),
-    ("advanced", "kernels", "Advanced", "Kernels", "linux kernel cachyos lts headers", "Kernels"),
-    ("advanced", "scheduler", "Advanced", "CPU scheduler (scx)", "sched-ext scx_lavd bpfland ananicy gaming scheduler cpu", "Performance"),
-    ("advanced", "plugins", "Advanced", "Hyprland plugins", "hyprpm plugin hyprflow hyprscroller", "Plugins"),
+    ("gaming", "gamemode", "Gaming", "Game mode", "gamemode performance cpu governor", "Game mode"),
+    ("gaming", "gpu", "Gaming", "NVIDIA Reflex", "reflex low latency nvidia game options", "NVIDIA"),
+    ("gaming", "gpu", "Gaming", "Newest DLSS", "dlss frame generation upscaling nvidia", "NVIDIA"),
+    ("gaming", "gpu", "Gaming", "HDR", "hdr in games dxvk gamescope", "Proton"),
+    ("gaming", "gpu", "Gaming", "NTSync", "ntsync fsync esync wine proton", "Proton"),
+    ("gaming", "gpu", "Gaming", "Sharpening strength", "fsr gamescope upscaling sharp", "Game options"),
+    ("gaming", "gpu", "Gaming", "Graphics", "graphics card gpu nvidia power limit clocks", ""),
+    ("gaming", "overlay", "Gaming", "Overlay", "mangohud fps overlay hud metrics", ""),
+    ("gaming", "proton", "Gaming", "Compatibility", "proton versions ge-proton wine compatibility", ""),
+    # Recovery & boot (the boot menu itself: the page's own keywords)
+    ("recovery", "", "Recovery & boot", "Quiet start", "boot kernel quiet refind", "Linux start options"),
+    ("recovery", "", "Recovery & boot", "Splash screen", "plymouth boot splash animation", "Linux start options"),
+    ("recovery", "", "Recovery & boot", "Starts by default", "default boot os windows cachyos", "Starting"),
+    ("recovery", "", "Recovery & boot", "Secure Boot", "sbctl uefi keys signed", "Firmware"),
+    ("recovery", "", "Recovery & boot", "UEFI boot order", "efibootmgr boot priority", "Firmware"),
+    ("recovery", "", "Recovery & boot", "Restore previous boot menu", "boot backup undo refind", "Linux start options"),
+    # Advanced tabs (their tab buttons) & dynamic service rows
+    ("advanced", "systemd", "Advanced", "Services", "system services systemd service unit daemon start stop", ""),
+    ("advanced", "systemd", "Advanced", "Scheduled tasks", "systemd timer timers cron schedule", ""),
+    ("advanced", "logs", "Advanced", "Logs", "system logs journalctl log error warnings crash coredump", ""),
+    ("advanced", "kernels", "Advanced", "Kernels", "linux kernel cachyos lts headers", ""),
+    ("advanced", "scheduler", "Advanced", "The kernel's own (EEVDF)", "cpu scheduler scx sched-ext scx_lavd bpfland ananicy gaming", "CPU scheduler"),
+    ("advanced", "plugins", "Advanced", "Hyprland plugins", "hyprpm plugin hyprflow hyprscroller", ""),
     # Storage & Account
-    ("storage", "backups", "Storage", "Snapshots", "backup backups snapper btrfs restore", "Snapshots"),
-    ("storage", "backups", "Storage", "Home folder snapshots", "home partition backup snapper", "Snapshots"),
+    ("storage", "backups", "Storage", "Snapshots", "backup backups snapper btrfs restore", ""),
+    ("storage", "backups", "Storage", "Home folder isn't included in system snapshots", "home folder snapshots partition backup snapper", "Home folder"),
     ("account", "", "Asks for your password when you save", "Full name", "real name display name profile", "Profile"),
     ("account", "", "How it shows up on networks and Bluetooth", "Computer name", "hostname device name pc name", "This computer"),
-    ("account", "", "Account", "Groups and permissions", "groups access audio video input storage network", "Your access"),
+    ("account", "", "Account", "Hardware and system groups", "groups permissions access audio video input storage network", "Your access"),
 ]
 
 TR = re.compile(r'Tr\.(tr|trCtx)\("((?:[^"\\]|\\.)*)"(?:\s*,\s*"((?:[^"\\]|\\.)*)")?')
@@ -369,22 +372,67 @@ def main() -> int:
                 e["keywords"] = SYNONYMS.get(e["label"], "")
                 out.append(e)
 
+    # The tabs each page answers to: its TabPart keys/altKeys (in its own file
+    # and the pages embedded in it) and the former page ids aliased to it
+    tab_keys = {}
+    page_text = {}
+    for pi, comps in enumerate(pages):
+        keys = set()
+        f = page_file(comps[0]) if comps else None
+        files = [f] if f else []
+        if f:
+            files += [ef for ef in (page_file(e) for e in EMBEDDED.findall(f.read_text())) if ef]
+        for ff in files:
+            t = ff.read_text()
+            keys.update(re.findall(r'^\s*key:\s*"([^"]+)"', t, re.M))
+            for alts in re.findall(r'^\s*altKeys:\s*\[([^\]]*)\]', t, re.M):
+                keys.update(re.findall(r'"([^"]+)"', alts))
+        tab_keys[pi] = keys
+        # Its text (sub-pages too): an extra entry's label must be in it
+        page_text[pi] = "".join(ff.read_text() for ff in files) + "".join(
+            sf.read_text() for sf in (page_file(c) for c in comps[1:]) if sf)
+    reg = (NEXUS / "PageRegistry.qml").read_text()
+    for alias, target in re.findall(r'^\s*"?([A-Za-z]+)"?:\s*"([a-z]+)",?$', reg[reg.index("aliases:"):], re.M):
+        if target in id_map:
+            tab_keys[id_map[target]].add(alias)
+
     for page_id, tab, sub, label, keywords, section in EXTRA_ENTRIES:
-        if page_id in id_map:
-            out.append({
-                "label": label,
-                "ctx": "",
-                "sub": sub,
-                "section": section,
-                "page": id_map[page_id],
-                "path": [],
-                "trail": [],
-                "tab": tab,
-                "keywords": keywords,
-            })
+        if page_id not in id_map:
+            print(f"warning: extra entry {label!r}: no page {page_id!r}", file=sys.stderr)
+            continue
+        pi = id_map[page_id]
+        if tab and tab not in tab_keys.get(pi, set()):
+            print(f"warning: extra entry {label!r}: {page_id} has no tab {tab!r}", file=sys.stderr)
+        # (Shortcut rows are named from the key variables at run time: not checked)
+        if tab != "shortcuts" and f'"{label}"' not in page_text.get(pi, ""):
+            print(f"warning: extra entry {label!r}: no such text on the {page_id} page", file=sys.stderr)
+        # Already found on the page: only its keywords are added
+        same = next((e for e in out if e["page"] == pi and e["path"] == [] and e.get("tab", "") == tab and e["label"] == label), None)
+        if same:
+            same["keywords"] = " ".join(x for x in (same.get("keywords", ""), keywords) if x)
+            continue
+        out.append({
+            "label": label,
+            "ctx": "",
+            "sub": sub,
+            "section": section,
+            "page": id_map[page_id],
+            "path": [],
+            "trail": [],
+            "tab": tab,
+            "keywords": keywords,
+        })
 
     # Same label twice on one page (e.g. a "Muted" for output and input): keep both,
-    # they read differently with their sections
+    # they read differently with their sections; the very same entry only once
+    seen = set()
+    unique = []
+    for e in out:
+        k = (e["page"], tuple(e["path"]), e.get("tab", ""), e["label"], e["section"])
+        if k not in seen:
+            seen.add(k)
+            unique.append(e)
+    out = unique
     body = json.dumps(out, indent=4, ensure_ascii=False)
     body = "\n".join("    " + l for l in body.splitlines()).lstrip()
     OUT.write_text(f"""pragma Singleton

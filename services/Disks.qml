@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
 import qs.utils
@@ -29,6 +30,8 @@ Singleton {
 
     // Cached storage sizes from StoragePage (avoid multi-second `du` on every visit)
     property var cachedFolders: ({})
+    // When the home folders were last measured (Settings › Storage › Clean up)
+    property double cachedFoldersAt: 0
     property var cachedSizes: ({})
     property int cachedOrphans: -1
     property list<string> cachedOrphanNames: []
@@ -89,6 +92,7 @@ Singleton {
                 next.pop();
             } else {
                 next[next.length - 1] = Object.assign({}, op, {
+                    id: prev.id, // the queue tells its entries apart by id
                     oldOffset: prev.oldOffset,
                     oldSize: prev.oldSize
                 });
@@ -103,6 +107,18 @@ Singleton {
             entry.partId = entry.id;
         next.push(entry);
         pendingChanges = next;
+    }
+
+    // Pending changes of a drive that was unplugged: dropped (nothing shows
+    // them any more, and the drive may come back changed)
+    function dropGoneDrives(): void {
+        if (applyingPending || pendingChanges.length === 0)
+            return;
+        const gone = pendingChanges.filter(op => !drive(op.driveId));
+        if (gone.length === 0)
+            return;
+        pendingChanges = pendingChanges.filter(op => !!drive(op.driveId));
+        Toaster.toast(Tr.tr("Pending disk changes dropped"), Tr.trN("%n change for a drive that was disconnected", "%n changes for a drive that was disconnected", gone.length), "usb_off");
     }
 
     function undoPending(driveId = ""): void {
@@ -297,6 +313,26 @@ Singleton {
         next(true);
     }
 
+    // Is the disk still as it was when OP was queued? (the drive may have been
+    // unplugged or changed by another program since.) EXPECTED: partitions this
+    // batch already changed, { partId: { offset, size } }
+    function queuedProblem(op: var, expected: var): string {
+        if (!drive(op.driveId))
+            return Tr.tr("The drive isn't connected any more");
+        if (op.type === "create")
+            return "";
+        const b = block(op.partId);
+        const cur = expected[op.partId] ?? (b ? {
+            offset: b.offset,
+            size: b.size
+        } : null);
+        if (!cur)
+            return Tr.tr("The partition isn't there any more");
+        if (op.type === "reshape" && (cur.offset !== op.oldOffset || cur.size !== op.oldSize))
+            return Tr.tr("The partition changed since this was planned");
+        return "";
+    }
+
     function applyPending(driveId: string, done: var): void {
         if (applyingPending)
             return;
@@ -308,6 +344,7 @@ Singleton {
         }
         applyingPending = true;
         let idx = 0;
+        const expected = {};
         const step = () => {
             if (idx >= queue.length) {
                 applyingPending = false;
@@ -318,6 +355,15 @@ Singleton {
             }
             const op = queue[idx++];
             applyProgressText = op.summary;
+            const problem = queuedProblem(op, expected);
+            if (problem) {
+                applyingPending = false;
+                applyProgressText = "";
+                Toaster.toast(Tr.tr("Stopped before: %1").arg(op.summary), Tr.tr("%1. Undo or clear the pending changes and plan them again.").arg(problem), "error");
+                if (typeof done === "function")
+                    done(false);
+                return;
+            }
             executeOp(op, ok => {
                 if (!ok) {
                     applyingPending = false;
@@ -326,7 +372,12 @@ Singleton {
                         done(false);
                     return;
                 }
-                pendingChanges = pendingChanges.filter(x => x !== op && x.id !== op.id);
+                if (op.type === "reshape")
+                    expected[op.partId] = {
+                        offset: op.offset,
+                        size: op.size
+                    };
+                pendingChanges = pendingChanges.filter(x => x !== op && !(op.id && x.id === op.id));
                 step();
             });
         };
@@ -523,6 +574,7 @@ Singleton {
                     root.drives = snap.drives ?? [];
                     root.jobs = snap.jobs ?? [];
                     root.loaded = true;
+                    root.dropGoneDrives();
                 } catch (e) {
                     console.warn("Disks: bad snapshot", e);
                 }

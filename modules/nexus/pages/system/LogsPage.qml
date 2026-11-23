@@ -293,10 +293,11 @@ PageBase {
 
         RowButton {
             Layout.fillWidth: true
-            visible: root.entries.length > root.limit
+            // Counted on the lines the list shows (the firewall filter may hide some)
+            visible: root.filteredEntries.length > root.limit
             icon: "expand_more"
-            text: Tr.tr("Show %1 more lines").arg(Math.min(80, root.entries.length - root.limit))
-            subtext: Tr.tr("Showing %1 of %2 lines").arg(root.limit).arg(root.entries.length)
+            text: Tr.tr("Show %1 more lines").arg(Math.min(80, root.filteredEntries.length - root.limit))
+            subtext: Tr.tr("Showing %1 of %2 lines").arg(root.limit).arg(root.filteredEntries.length)
             onClicked: root.limit += 80
         }
 

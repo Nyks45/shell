@@ -108,7 +108,9 @@ PageBase {
             actionText: busy ? "" : Tr.tr("Install")
             onAction: {
                 installError = "";
-                Admin.exec(["sh", "-c", 'dir="$HOME/dotfiles/pkg-private/linux-wallpaperengine-nyks-git"; [ -f "$dir/PKGBUILD" ] || { echo "Fork package recipe not found at ~/dotfiles/pkg-private/linux-wallpaperengine-nyks-git/PKGBUILD."; exit 1; }; cd "$dir" && PACMAN_AUTH=pkexec makepkg -si --noconfirm'], what, (ok, out, cancelled) => {
+                // Built in a copy under ~/.cache: makepkg leaves src/, pkg/ and the
+                // package next to the recipe, which would land in the dotfiles repo
+                Admin.exec(["sh", "-c", 'dir="$HOME/dotfiles/pkg-private/linux-wallpaperengine-nyks-git"; [ -f "$dir/PKGBUILD" ] || { echo "Fork package recipe not found at ~/dotfiles/pkg-private/linux-wallpaperengine-nyks-git/PKGBUILD."; exit 1; }; build="${XDG_CACHE_HOME:-$HOME/.cache}/caelestia/renderer-build"; mkdir -p "$build" && cp "$dir/PKGBUILD" "$build/" && cd "$build" && PACMAN_AUTH=pkexec makepkg -si --noconfirm'], what, (ok, out, cancelled) => {
                     if (!ok && !cancelled)
                         installError = (out.trim().split("\n").pop() ?? Tr.tr("Build failed")).slice(0, 140);
                     LiveWallpaper.refresh();
