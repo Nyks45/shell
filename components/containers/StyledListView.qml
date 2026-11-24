@@ -6,6 +6,10 @@ ListView {
 
     property bool doneFakeFlick
 
+    ViewTransitionCullFix {
+        view: root
+    }
+
     maximumFlickVelocity: 3000
 
     rebound: Transition {

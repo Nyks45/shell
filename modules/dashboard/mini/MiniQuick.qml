@@ -9,6 +9,7 @@ import Caelestia.Config
 import Caelestia.I18n
 import Caelestia.State
 import qs.components
+import qs.components.containers
 import qs.components.controls
 import qs.services
 import qs.modules.nexus
@@ -682,6 +683,10 @@ Item {
                             Anim {
                                 property: "y"
                             }
+                        }
+
+                        ViewTransitionCullFix {
+                            view: list
                         }
 
                         delegate: StyledRect {

@@ -8,6 +8,7 @@ import Caelestia.I18n
 import Caelestia.Models
 import Caelestia.Multimedia
 import qs.components
+import qs.components.containers
 import qs.components.controls
 import qs.components.effects
 import qs.components.filedialog
@@ -105,6 +106,10 @@ Item {
 
         StyledScrollBar.vertical: StyledScrollBar {
             flickable: view
+        }
+
+        ViewTransitionCullFix {
+            view: view
         }
 
         model: FileSystemModel {
