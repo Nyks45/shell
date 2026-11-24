@@ -49,7 +49,7 @@ PageBase {
     function protonLabel(g: var): string {
         if (g.proton === null || g.proton === undefined)
             return "";
-        const l = Games.launchers[g.launcher];
+        const l = Games.launchers[g.settingsLauncher || g.launcher];
         const c = (l?.choices ?? []).find(x => x[0] === g.proton);
         if (g.proton)
             return c ? c[1] : g.proton.split("/").pop();
@@ -83,7 +83,8 @@ PageBase {
 
         Flow {
             Layout.fillWidth: true
-            Layout.bottomMargin: Tokens.spacing.extraSmall
+            Layout.topMargin: Tokens.spacing.extraSmall
+            Layout.bottomMargin: Tokens.spacing.small
             spacing: Tokens.spacing.small
 
             Repeater {
@@ -213,7 +214,15 @@ PageBase {
                             Layout.fillWidth: true
                             readonly property int own: Object.keys(row.modelData.env).length + (row.modelData.mangohud ? 1 : 0) + (row.modelData.perf ? 1 : 0)
 
-                            text: [row.modelData.shortcut ? Tr.tr("Steam (added)") : Games.launcherNames[row.modelData.launcher], root.protonLabel(row.modelData), row.modelData.state === "updating" ? Tr.tr("downloading or updating") : row.modelData.state === "hidden" ? Tr.tr("hidden in Faugus") : "", Games.hasPending(row.modelData.key) ? Tr.tr("changes not saved yet") : "", own ? (own === 1 ? Tr.tr("1 own setting") : Tr.tr("%1 own settings").arg(own)) : ""].filter(s => s).join(" · ")
+                            text: [
+                                row.modelData.viaLauncher
+                                    ? Tr.tr("%1 (via %2)").arg(Games.launcherNames[row.modelData.launcher] ?? row.modelData.launcher).arg(Games.launcherNames[row.modelData.viaLauncher] ?? row.modelData.viaLauncher)
+                                    : row.modelData.shortcut ? Tr.tr("Steam (added)") : Games.launcherNames[row.modelData.launcher],
+                                root.protonLabel(row.modelData),
+                                row.modelData.state === "updating" ? Tr.tr("downloading or updating") : row.modelData.state === "hidden" ? Tr.tr("hidden in Faugus") : "",
+                                Games.hasPending(row.modelData.key) ? Tr.tr("changes not saved yet") : "",
+                                own ? (own === 1 ? Tr.tr("1 own setting") : Tr.tr("%1 own settings").arg(own)) : ""
+                            ].filter(s => s).join(" · ")
                             color: Colours.palette.m3outline
                             font: Tokens.font.label.small
                             elide: Text.ElideRight

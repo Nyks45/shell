@@ -46,7 +46,9 @@ QtObject {
     property string appIcon
     property string appName
     property string image
+    property string caelestiaIcon: ""
     property var hints // Hints are not persisted across restarts
+    readonly property string materialIcon: caelestiaIcon || String(hints?.["x-caelestia-icon"] ?? "") || Icons.getNotifIcon(summary, urgency)
     property real expireTimeout: GlobalConfig.notifs.defaultExpireTimeout
     property int urgency: NotificationUrgency.Normal
     property bool resident
@@ -175,6 +177,7 @@ QtObject {
 
         function onHintsChanged(): void {
             notif.hints = notif.notification.hints;
+            notif.caelestiaIcon = String(notif.notification.hints?.["x-caelestia-icon"] ?? "") || notif.caelestiaIcon;
         }
 
         target: notif.notification
@@ -238,6 +241,7 @@ QtObject {
         maybeTriggerDummyImageLoader();
         expireTimeout = notification.expireTimeout;
         hints = notification.hints;
+        caelestiaIcon = String(notification.hints?.["x-caelestia-icon"] ?? "") || caelestiaIcon;
         urgency = notification.urgency;
         resident = notification.resident;
         hasActionIcons = notification.hasActionIcons;

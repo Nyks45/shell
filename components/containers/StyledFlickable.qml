@@ -60,10 +60,14 @@ Flickable {
             } else if (event.angleDelta.y !== 0) {
                 const v = root.maximumFlickVelocity / 4;
                 const a = Math.max(1, root.flickDeceleration);
-                const notch = v * v / (2 * a);
+                const notch = Math.round(v * v / (2 * a));
                 // From where a running glide is heading, so quick notches add up
                 const from = wheelAnim.running ? root.wheelTarget : root.contentY;
-                root.wheelTarget = root.clampY(from - event.angleDelta.y / 120 * notch);
+                const minY = originY - topMargin;
+                const maxY = Math.max(minY, originY + contentHeight + bottomMargin - height);
+                const rawTarget = root.clampY(from - event.angleDelta.y / 120 * notch);
+                // Keep final resting scroll position integer-aligned so card seams never land on .5px
+                root.wheelTarget = (rawTarget <= minY || rawTarget >= maxY) ? rawTarget : Math.round(rawTarget);
                 wheelAnim.to = root.wheelTarget;
                 wheelAnim.duration = Math.round(v / a * 1000);
                 wheelAnim.restart();

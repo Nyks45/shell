@@ -181,6 +181,7 @@ Singleton {
                     appIcon: n.appIcon,
                     appName: n.appName,
                     image: n.image,
+                    caelestiaIcon: n.caelestiaIcon,
                     expireTimeout: n.expireTimeout,
                     urgency: n.urgency,
                     resident: n.resident,

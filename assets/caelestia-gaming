@@ -1184,12 +1184,16 @@ def lutris_games():
         env = system.get("env") or {}
         cover = next((c for c in (os.path.join(LUTRIS_DATA, "coverart", f"{slug}.jpg"),
                                   os.path.join(LUTRIS_DATA, "banners", f"{slug}.jpg")) if os.path.exists(c)), "")
+        game_sec = cfg.get("game") or {}
+        exe_raw = str(game_sec.get("exe", "") or "")
+        exe_full = exe_raw if (not exe_raw or os.path.isabs(exe_raw) or not directory) else os.path.join(directory, exe_raw)
         games.append({"key": f"lutris:{gid}", "launcher": "lutris", "id": str(gid), "title": name, "cover": cover,
                       "runner": runner or "", "proton": (cfg.get("wine") or {}).get("version", "") if runner == "wine" else None,
                       "env": {k: str(v) for k, v in env.items() if k in ENV_KEYS},
                       "otherEnv": [f"{k}={v}" for k, v in env.items() if k not in ENV_KEYS],
                       "mangohud": bool(system.get("mangohud")), "perf": system.get("prefix_command") == PERF,
-                      "args": str((cfg.get("game") or {}).get("args", "") or ""),
+                      "args": str(game_sec.get("args", "") or ""),
+                      "_exe": exe_full, "_targetAppid": str(game_sec.get("appid", "") or ""),
                       "lastPlayed": int(lastplayed or 0), "state": "installed", "path": directory or "",
                       "play": ["lutris", f"lutris:rungameid/{gid}"], "removable": True})
     return games, info
@@ -1480,6 +1484,134 @@ def heroic_set(app, req):
 LAUNCHERS = {"steam": (steam_games, steam_set), "lutris": (lutris_games, lutris_set),
              "faugus": (faugus_games, faugus_set), "heroic": (heroic_games, heroic_set)}
 
+GENERIC_EXES = {
+    "lutris", "steam", "heroic", "faugus-launcher", "xdg-open", "flatpak", "wine", "wine64",
+    "proton", "umu-run", "env", "bash", "sh", "python", "python3", "upc.exe", "ubisoftconnect.exe",
+    "eadesktop.exe", "battlenet.exe", "battle.net.exe", "epicgameslauncher.exe", "galaxyclient.exe",
+    "rockstarlauncher.exe", "explorer.exe", "cmd.exe"
+}
+EXE_EXT = re.compile(r"\.(exe|x86_64|sh|appimage|bat|msi)$", re.I)
+
+
+def _delegation_target(g):
+    """Return another launcher's game key referenced by g, or ''."""
+    hay = " ".join(str(x or "") for x in (g.get("path"), g.get("launchOptions"), g.get("args"), g.get("_exe")))
+    if g["launcher"] == "steam":
+        m = re.search(r"lutris:rungameid/(\d+)", hay)
+        if m:
+            return f"lutris:{m.group(1)}"
+        m = re.search(r"heroic://launch\?[^\s\"']*appName=([A-Za-z0-9_.-]+)", hay)
+        if m:
+            return f"heroic:{m.group(1)}"
+        m = re.search(r"\bfaugus-launcher\b[^\n]*?--game\s+([^\s\"']+)", hay)
+        if m:
+            return f"faugus:{m.group(1)}"
+    else:
+        if g.get("_targetAppid") and g.get("runner") == "steam":
+            return f"steam:{g['_targetAppid']}"
+        m = re.search(r"steam://rungameid/(\d+)", hay)
+        if m:
+            return f"steam:{m.group(1)}"
+    return ""
+
+
+def _exe_identity(g):
+    """Normalized executable path for direct exe deduplication (never folds generic runners/dirs)."""
+    cand = g.get("_exe") or g.get("path") or ""
+    if not cand:
+        return ""
+    p = os.path.expanduser(str(cand).strip().strip('"'))
+    if not os.path.isfile(p):
+        return ""
+    base = os.path.basename(p).lower()
+    if base in GENERIC_EXES or not EXE_EXT.search(base):
+        return ""
+    try:
+        return os.path.realpath(p).lower()
+    except OSError:
+        return p.lower()
+
+
+def _priority(g):
+    if g["launcher"] == "steam" and not g.get("shortcut"):
+        return (4, g.get("lastPlayed", 0))
+    if g["launcher"] == "steam":
+        return (3, g.get("lastPlayed", 0))
+    return ({"lutris": 2, "heroic": 1, "faugus": 0}.get(g["launcher"], 0), g.get("lastPlayed", 0))
+
+
+def _merge_delegated(wrapper, target):
+    """Keep wrapper identity (Steam) while inheriting real runtime/config from delegated runner."""
+    merged = dict(wrapper)
+    merged["cover"] = wrapper.get("cover") or target.get("cover", "")
+    merged["proton"] = target.get("proton")
+    merged["env"] = dict(target.get("env") or wrapper.get("env") or {})
+    merged["otherEnv"] = list(target.get("otherEnv") or wrapper.get("otherEnv") or [])
+    merged["mangohud"] = bool(target.get("mangohud") or wrapper.get("mangohud"))
+    merged["perf"] = target.get("perf") if target.get("perf") is not None else wrapper.get("perf")
+    if target.get("args"):
+        merged["args"] = target["args"]
+    if target.get("path"):
+        merged["path"] = target["path"]
+    if target.get("size", 0) > merged.get("size", 0):
+        merged["size"] = target["size"]
+    merged["lastPlayed"] = max(wrapper.get("lastPlayed", 0), target.get("lastPlayed", 0))
+    merged["settingsKey"] = target.get("settingsKey") or target["key"]
+    merged["settingsLauncher"] = target.get("settingsLauncher") or target["launcher"]
+    merged["viaLauncher"] = target.get("viaLauncher") or target["launcher"]
+    return merged
+
+
+def _strip_internal(g):
+    g.pop("_exe", None)
+    g.pop("_targetAppid", None)
+    return g
+
+
+def deduplicate_games(games):
+    """Deduplicate cross-launcher delegates and same-exe entries; Steam always wins."""
+    by_key = {g["key"]: dict(g) for g in games}
+    removed = set()
+
+    # Pass 1: explicit cross-launcher delegation (Steam shortcut -> Lutris/Heroic/Faugus, or reverse)
+    for k in list(by_key):
+        if k in removed or k not in by_key:
+            continue
+        g = by_key[k]
+        tgt_key = _delegation_target(g)
+        if not tgt_key or tgt_key not in by_key or tgt_key == k or tgt_key in removed:
+            continue
+        tgt = by_key[tgt_key]
+        if _priority(g) >= _priority(tgt):
+            by_key[k] = _merge_delegated(g, tgt)
+            removed.add(tgt_key)
+        else:
+            # e.g. Lutris entry pointing to a native Steam game: Steam wins, fill cover if missing
+            tgt["cover"] = tgt.get("cover") or g.get("cover", "")
+            tgt["lastPlayed"] = max(tgt.get("lastPlayed", 0), g.get("lastPlayed", 0))
+            removed.add(k)
+
+    # Pass 2: same resolved non-generic executable file (Steam native/shortcut wins)
+    by_exe = {}
+    for k, g in by_key.items():
+        if k in removed:
+            continue
+        eid = _exe_identity(g)
+        if eid:
+            by_exe.setdefault(eid, []).append(k)
+    for eid, keys in by_exe.items():
+        if len(keys) < 2:
+            continue
+        keys.sort(key=lambda k: _priority(by_key[k]), reverse=True)
+        winner = by_key[keys[0]]
+        for loser_key in keys[1:]:
+            loser = by_key[loser_key]
+            winner["cover"] = winner.get("cover") or loser.get("cover", "")
+            winner["lastPlayed"] = max(winner.get("lastPlayed", 0), loser.get("lastPlayed", 0))
+            removed.add(loser_key)
+
+    return [_strip_internal(g) for k, g in by_key.items() if k not in removed]
+
 
 def c_library(args):
     games, launchers = [], {}
@@ -1490,6 +1622,7 @@ def c_library(args):
             g, info = [], {"installed": False, "error": str(e)}
         games += g
         launchers[name] = info
+    games = deduplicate_games(games)
     games.sort(key=lambda g: (-g.get("lastPlayed", 0), g["title"].lower()))
     out({"games": games, "launchers": launchers, "stamp": stamp()})
 
@@ -1516,11 +1649,12 @@ def c_library_stamp(args):
 
 def c_game_set(args):
     req = json.load(sys.stdin)
-    launcher, _, gid = str(req.get("key", "")).partition(":")
+    target_key = str(req.get("settingsKey") or req.get("key") or "")
+    launcher, _, gid = target_key.partition(":")
     if launcher not in LAUNCHERS or not gid:
         sys.exit("unknown game")
     LAUNCHERS[launcher][1](gid, req)
-    print(f"Saved {req['key']}", flush=True)
+    print(f"Saved {target_key}", flush=True)
 
 
 def c_game_add(args):
@@ -1804,7 +1938,8 @@ def game_env(g, key):
 def mfg_override(g, name, add):
     """Add NAME=n,b to (or take it off) the game's Wine DLL overrides. Returns whether it changed."""
     base = name[:-4].lower()
-    launcher, _, gid = g["key"].partition(":")
+    target_key = g.get("settingsKey") or g["key"]
+    launcher, _, gid = target_key.partition(":")
     if launcher == "lutris":
         yaml = lutris_yaml()
         con = sqlite3.connect(os.path.join(LUTRIS_DATA, "pga.db"), timeout=5)
@@ -1874,7 +2009,7 @@ def library_games():
             games += read()[0]
         except Exception:
             pass
-    return games
+    return deduplicate_games(games)
 
 
 def c_mfg(args):
@@ -1882,10 +2017,11 @@ def c_mfg(args):
     rows = []
     for g in library_games():
         info = mfg_scan(g)
-        inst = s["games"].get(g["key"])
+        inst = s["games"].get(g["key"]) or (s["games"].get(g["settingsKey"]) if g.get("settingsKey") else None)
         if not info and not inst:
             continue
-        rows.append({"key": g["key"], "title": g["title"], "launcher": g["launcher"],
+        rows.append({"key": g["key"], "settingsKey": g.get("settingsKey", g["key"]),
+                     "title": g["title"], "launcher": g.get("settingsLauncher") or g["launcher"],
                      "fgVersion": (info or {}).get("fgVersion", ""),
                      "exeDir": (inst or {}).get("dir") or (info or {}).get("exeDir", ""),
                      "anticheat": (info or {}).get("anticheat", []),
@@ -1952,13 +2088,14 @@ def c_mfg_fetch(args):
 def c_mfg_set(args):
     key, on = args[0], args[1] == "on"
     s = mfg_state()
-    g = next((x for x in library_games() if x["key"] == key), None)
+    g = next((x for x in library_games() if x["key"] == key or x.get("settingsKey") == key), None)
     if not g:
         sys.exit("unknown game")
-    if g["launcher"] in ("steam", "faugus", "heroic") and running({"steam": "steam", "heroic": "heroic"}.get(g["launcher"], "")) \
-            or (g["launcher"] == "faugus" and faugus_running()):
-        sys.exit(f"close {g['launcher'].capitalize()} first (it rewrites its settings when it quits)")
-    inst = s["games"].get(key)
+    eff_launcher = g.get("settingsLauncher") or g["launcher"]
+    if eff_launcher in ("steam", "faugus", "heroic") and running({"steam": "steam", "heroic": "heroic"}.get(eff_launcher, "")) \
+            or (eff_launcher == "faugus" and faugus_running()):
+        sys.exit(f"close {eff_launcher.capitalize()} first (it rewrites its settings when it quits)")
+    inst = s["games"].get(key) or (s["games"].get(g["settingsKey"]) if g.get("settingsKey") else None)
     if on:
         dll = mfg_dll(s)
         if not dll:

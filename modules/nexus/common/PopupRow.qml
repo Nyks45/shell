@@ -23,7 +23,7 @@ ConnectedRect {
     readonly property alias popup: floating
 
     Layout.fillWidth: true
-    implicitHeight: navLayout.implicitHeight + navLayout.anchors.margins * 2
+    implicitHeight: Math.ceil(navLayout.implicitHeight) + navLayout.anchors.margins * 2
 
     StateLayer {
         id: stateLayer

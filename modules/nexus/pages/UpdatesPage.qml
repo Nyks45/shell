@@ -220,6 +220,7 @@ PageBase {
         RowLayout {
             Layout.fillWidth: true
             Layout.topMargin: Tokens.spacing.small
+            Layout.bottomMargin: Tokens.spacing.extraSmall
             visible: Packages.total > 1 && !Packages.updating
             spacing: Tokens.spacing.small
 
@@ -351,17 +352,7 @@ PageBase {
         SectionHeader {
             visible: root.pacnew.length > 0
             text: Tr.tr("Configuration changes waiting")
-        }
-
-        StyledText {
-            Layout.fillWidth: true
-            Layout.leftMargin: Tokens.padding.small
-            Layout.bottomMargin: Tokens.spacing.small
-            visible: root.pacnew.length > 0
-            text: Tr.tr("An update brought a new version of these files but kept yours (you may have changed it). Look at the difference, then keep the new one or yours.")
-            wrapMode: Text.WordWrap
-            color: Colours.palette.m3outline
-            font: Tokens.font.label.small
+            subtext: Tr.tr("An update brought a new version of these files but kept yours (you may have changed it). Look at the difference, then keep the new one or yours.")
         }
 
         // The files (sibling rows), then the opened one's difference and choices
@@ -625,17 +616,7 @@ PageBase {
 
         SectionHeader {
             text: `${section.title} (${section.items.length})`
-        }
-
-        StyledText {
-            Layout.fillWidth: true
-            Layout.leftMargin: Tokens.padding.small
-            Layout.bottomMargin: Tokens.spacing.small
-            visible: !!section.note
-            text: section.note
-            wrapMode: Text.WordWrap
-            color: Colours.palette.m3outline
-            font: Tokens.font.label.small
+            subtext: section.note
         }
 
         Repeater {

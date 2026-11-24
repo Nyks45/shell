@@ -65,7 +65,7 @@ Item {
 
     Layout.fillWidth: true
     Layout.topMargin: !root.headlessModal && root.groupStart && !Rows.isAtTop(root) ? Math.max(0, Tokens.spacing.largeIncreased - root.gap) : 0
-    implicitHeight: openButton.implicitHeight
+    implicitHeight: Math.ceil(openButton.implicitHeight)
     z: open || transitioning ? 2 : 0
 
     BlobGroup {
@@ -78,12 +78,31 @@ Item {
         }
     }
 
-    Rectangle {
-        visible: !root.first && !root.open && !root.transitioning && root.gap > 0
-        y: -root.gap
+    // Closed card background clipped inside flat seam edges (same seam-free pattern
+    // as ConnectedRect); BlobRect takes over only when opening or open.
+    Item {
+        id: closedBgClip
+
+        readonly property bool bridgeAbove: !root.first && root.gap > 0
+
+        z: 0
+        clip: true
+        visible: !root.headlessModal && !root.open && !root.transitioning
+        x: 0
+        y: bridgeAbove ? -root.gap : 0
         width: root.width
-        height: root.gap
-        color: Colours.tPalette.m3surfaceContainer
+        height: root.height + (bridgeAbove ? root.gap : 0)
+
+        StyledRect {
+            anchors.fill: parent
+            anchors.topMargin: !root.first ? -2 : 0
+            anchors.bottomMargin: !root.last ? -2 : 0
+            color: Colours.tPalette.m3surfaceContainer
+            topLeftRadius: root.first ? Tokens.rounding.extraLarge : 0
+            topRightRadius: root.first ? Tokens.rounding.extraLarge : 0
+            bottomLeftRadius: root.last ? Tokens.rounding.extraLarge : 0
+            bottomRightRadius: root.last ? Tokens.rounding.extraLarge : 0
+        }
     }
 
     MouseArea {
@@ -212,6 +231,7 @@ Item {
         BlobRect {
             id: dialogBg
 
+            visible: root.headlessModal || root.open || root.transitioning
             anchors.fill: parent
 
             deformScale: !root.headlessModal && (root.open || root.transitioning) ? 0.00005 : 0
@@ -237,7 +257,7 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             height: Math.min(implicitHeight, parent.height) // Clamp to parent height due to overshoot anim
-            color: "transparent"
+            fillColour: "transparent"
 
             first: root.first
             last: root.last

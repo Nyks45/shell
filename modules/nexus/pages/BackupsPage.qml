@@ -33,6 +33,10 @@ PageBase {
     property var settings: ({})
     property string newDescription
     property string snapFilter: "all" // "all", "manual", "hourly"
+    property string cleanupAgePreset: "7d" // "24h", "3d", "7d", "14d", "30d", "custom"
+    property int cleanupCustomDays: 14
+    property string cleanupScope: "all" // "all", "hourly", "manual"
+    property string pendingSnapperToast: ""
     property int limitHourly: 5
     property int limitDaily: 7
     property int limitWeekly: 4
@@ -150,12 +154,72 @@ if code in (0, 24):
 fail(last_msg or "rsync exited with code %d" % code, code)
 `
 
+    readonly property real cleanupAgeMs: {
+        if (cleanupAgePreset === "24h")
+            return 86400000;
+        if (cleanupAgePreset === "3d")
+            return 3 * 86400000;
+        if (cleanupAgePreset === "7d")
+            return 7 * 86400000;
+        if (cleanupAgePreset === "14d")
+            return 14 * 86400000;
+        if (cleanupAgePreset === "30d")
+            return 30 * 86400000;
+        return Math.max(1, cleanupCustomDays) * 86400000;
+    }
+
+    readonly property string cleanupAgeLabel: {
+        if (cleanupAgePreset === "24h")
+            return Tr.tr("24 hours");
+        if (cleanupAgePreset === "3d")
+            return Tr.trN("%n day", "%n days", 3);
+        if (cleanupAgePreset === "7d")
+            return Tr.trN("%n day", "%n days", 7);
+        if (cleanupAgePreset === "14d")
+            return Tr.trN("%n day", "%n days", 14);
+        if (cleanupAgePreset === "30d")
+            return Tr.trN("%n day", "%n days", 30);
+        const days = Math.max(1, cleanupCustomDays);
+        return Tr.trN("%n day", "%n days", days);
+    }
+
+    readonly property var cleanupCandidates: {
+        const list = snapshots ?? [];
+        if (list.length === 0)
+            return [];
+        let newestNum = -1;
+        for (const s of list) {
+            const n = Number(s.number);
+            if (n > newestNum)
+                newestNum = n;
+        }
+        const cutoffMs = Date.now() - cleanupAgeMs;
+        return list.filter(s => {
+            const n = Number(s.number);
+            if (!n || n === 0 || s.active === true || s["default"] === true || n === newestNum)
+                return false;
+            if (cleanupScope === "hourly" && s.cleanup !== "timeline")
+                return false;
+            if (cleanupScope === "manual" && s.cleanup === "timeline")
+                return false;
+            const ts = parseSnapDateMs(s.date);
+            return !isNaN(ts) && ts < cutoffMs;
+        });
+    }
+
     readonly property var filteredSnapshots: {
         if (snapFilter === "hourly")
             return snapshots.filter(s => s.cleanup === "timeline");
         if (snapFilter === "manual")
             return snapshots.filter(s => s.cleanup !== "timeline");
         return snapshots;
+    }
+
+    function parseSnapDateMs(dateStr: string): real {
+        const m = String(dateStr ?? "").trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+        if (!m)
+            return NaN;
+        return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10), parseInt(m[4], 10), parseInt(m[5], 10), parseInt(m[6] ?? "0", 10)).getTime();
     }
 
     function snapDisplayTitle(snap: var): string {
@@ -342,9 +406,13 @@ subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
                 id: snapperErr
             }
             onExited: (code, status) => {
+                const toastMsg = root.pendingSnapperToast;
+                root.pendingSnapperToast = "";
                 if (code !== 0) {
                     const errLine = snapperErr.text.trim().split("\n").find(l => l.trim().length > 0) ?? "";
                     Toaster.toast(Tr.tr("Snapshot action failed"), errLine || Tr.tr("snapper exited with code %1").arg(code), "error");
+                } else if (toastMsg) {
+                    Toaster.toast(toastMsg, "", "delete_sweep");
                 }
                 root.refresh();
             }
@@ -472,8 +540,9 @@ subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
             Layout.fillWidth: true
             Layout.bottomMargin: Tokens.spacing.medium
             visible: root.bootedSnapshot
-            color: Colours.palette.m3secondaryContainer
-            implicitHeight: bootedSnapRow.implicitHeight + Tokens.padding.large * 2
+            standalone: true
+            fillColour: Colours.palette.m3secondaryContainer
+            implicitHeight: Math.ceil(bootedSnapRow.implicitHeight) + Tokens.padding.large * 2
 
             RowLayout {
                 id: bootedSnapRow
@@ -535,6 +604,7 @@ subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
 
         Flow {
             Layout.fillWidth: true
+            Layout.topMargin: root.bootedSnapshot ? Tokens.spacing.small : 0
             Layout.bottomMargin: Tokens.spacing.small
             visible: root.hasSnapper && root.configs.length > 1
             spacing: Tokens.spacing.small
@@ -676,12 +746,155 @@ subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
         }
 
         SectionHeader {
+            visible: root.allowed && root.snapshots.length > 0
+            text: Tr.tr("Clean up snapshots")
+        }
+
+        SelectRow {
+            id: cleanupAgeRow
+
+            visible: root.allowed && root.snapshots.length > 0
+            label: Tr.tr("Delete snapshots earlier than")
+            menuItems: [age24hOpt, age3dOpt, age7dOpt, age14dOpt, age30dOpt, ageCustomOpt]
+            active: Array.from(menuItems).find(i => i.key === root.cleanupAgePreset) ?? age7dOpt
+            onSelected: item => root.cleanupAgePreset = item.key
+
+            MenuItem {
+                id: age24hOpt
+
+                readonly property string key: "24h"
+
+                text: Tr.tr("24 hours")
+            }
+
+            MenuItem {
+                id: age3dOpt
+
+                readonly property string key: "3d"
+
+                text: Tr.tr("3 days")
+            }
+
+            MenuItem {
+                id: age7dOpt
+
+                readonly property string key: "7d"
+
+                text: Tr.tr("7 days")
+            }
+
+            MenuItem {
+                id: age14dOpt
+
+                readonly property string key: "14d"
+
+                text: Tr.tr("14 days")
+            }
+
+            MenuItem {
+                id: age30dOpt
+
+                readonly property string key: "30d"
+
+                text: Tr.tr("30 days")
+            }
+
+            MenuItem {
+                id: ageCustomOpt
+
+                readonly property string key: "custom"
+
+                text: Tr.tr("Custom…")
+            }
+        }
+
+        StepperRow {
+            visible: root.allowed && root.snapshots.length > 0 && root.cleanupAgePreset === "custom"
+            label: Tr.tr("Older than (days)")
+            from: 1
+            to: 365
+            value: root.cleanupCustomDays
+            onMoved: v => root.cleanupCustomDays = Math.max(1, Math.round(v))
+        }
+
+        SelectRow {
+            id: cleanupScopeRow
+
+            visible: root.allowed && root.snapshots.length > 0
+            label: Tr.tr("Which snapshots")
+            menuItems: [scopeAllOpt, scopeHourlyOpt, scopeManualOpt]
+            active: Array.from(menuItems).find(i => i.key === root.cleanupScope) ?? scopeAllOpt
+            onSelected: item => root.cleanupScope = item.key
+
+            MenuItem {
+                id: scopeAllOpt
+
+                readonly property string key: "all"
+
+                text: Tr.tr("All snapshots")
+            }
+
+            MenuItem {
+                id: scopeHourlyOpt
+
+                readonly property string key: "hourly"
+
+                text: Tr.tr("Hourly only")
+            }
+
+            MenuItem {
+                id: scopeManualOpt
+
+                readonly property string key: "manual"
+
+                text: Tr.tr("Manual & updates")
+            }
+        }
+
+        RowButton {
+            visible: root.allowed && root.snapshots.length > 0
+            icon: "delete_sweep"
+            text: root.cleanupCandidates.length > 0
+                ? Tr.trN("Delete %n old snapshot…", "Delete %n old snapshots…", root.cleanupCandidates.length)
+                : Tr.tr("No snapshots earlier than %1").arg(root.cleanupAgeLabel)
+            subtext: root.cleanupCandidates.length > 0
+                ? Tr.tr("Earlier than %1 · Keeps the active, default, and newest snapshots").arg(root.cleanupAgeLabel)
+                : Tr.tr("Always keeps the active, default, and newest snapshots")
+            disabled: snapperProc.running || root.cleanupCandidates.length === 0
+            onClicked: {
+                const nums = root.cleanupCandidates.map(s => Number(s.number)).sort((a, b) => a - b);
+                const firstNum = nums[0];
+                const lastNum = nums[nums.length - 1];
+                const cfgObj = root.configs.find(c => c.config === root.config);
+                const cfgName = cfgObj ? root.configLabel(cfgObj) : root.config;
+                const rangeText = firstNum === lastNum ? `#${firstNum}` : `#${firstNum}–#${lastNum}`;
+                cleanupDialog.ask({
+                    header: Tr.trN("Delete %n old snapshot?", "Delete %n old snapshots?", nums.length),
+                    body: Tr.tr("Permanently deletes %1 snapshot(s) in %2 (%3) earlier than %4. The active, default, and newest snapshots are preserved.").arg(nums.length).arg(cfgName).arg(rangeText).arg(root.cleanupAgeLabel),
+                    confirmLabel: Tr.trCtx("Delete", "button"),
+                    icon: "delete_sweep",
+                    onConfirm: () => {
+                        root.pendingSnapperToast = Tr.trN("Deleted %n old snapshot", "Deleted %n old snapshots", nums.length);
+                        root.snapper(["delete", "--sync", ...nums.map(n => String(n))]);
+                    }
+                });
+            }
+        }
+
+        ConfirmDialog {
+            id: cleanupDialog
+
+            hostFlickable: root.flickable
+        }
+
+        SectionHeader {
             visible: root.allowed
             text: Tr.tr("Snapshots (%1)").arg(root.filteredSnapshots.length)
         }
 
         Flow {
             Layout.fillWidth: true
+            Layout.topMargin: Tokens.spacing.small
             Layout.bottomMargin: Tokens.spacing.small
             visible: root.allowed && root.snapshots.length > 0
             spacing: Tokens.spacing.small
@@ -723,7 +936,7 @@ subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
                 required property int index
 
                 Layout.fillWidth: true
-                implicitHeight: snapLayout.implicitHeight + Tokens.padding.medium * 2
+                implicitHeight: Math.ceil(snapLayout.implicitHeight) + Tokens.padding.medium * 2
 
                 // Opens it: what changed since, restoring files, its files
                 StateLayer {

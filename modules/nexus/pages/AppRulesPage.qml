@@ -56,16 +56,7 @@ PageBase {
 
         SectionHeader {
             text: Tr.tr("App rules")
-        }
-
-        StyledText {
-            Layout.fillWidth: true
-            Layout.leftMargin: Tokens.padding.small
-            Layout.bottomMargin: Tokens.spacing.small
-            text: Tr.tr("How an app's windows open: floating, centred, on a workspace, see-through, keeping the screen awake.")
-            color: Colours.palette.m3outline
-            font: Tokens.font.label.small
-            wrapMode: Text.WordWrap
+            subtext: Tr.tr("How an app's windows open: floating, centred, on a workspace, see-through, keeping the screen awake.")
         }
 
         Repeater {

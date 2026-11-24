@@ -323,6 +323,7 @@ PageBase {
 
         Flow {
             Layout.fillWidth: true
+            Layout.topMargin: Tokens.spacing.extraSmall
             Layout.bottomMargin: Tokens.spacing.small
             visible: !!root.draft
             spacing: Tokens.spacing.small
@@ -390,17 +391,7 @@ PageBase {
         SectionHeader {
             visible: !!root.draft
             text: Tr.tr("Entries")
-        }
-
-        StyledText {
-            Layout.fillWidth: true
-            Layout.leftMargin: Tokens.padding.small
-            Layout.bottomMargin: Tokens.spacing.small
-            visible: !!root.draft
-            text: Tr.tr("Click an icon in the preview or an entry here to change its icon, name and place.")
-            wrapMode: Text.WordWrap
-            color: Colours.palette.m3outline
-            font: Tokens.font.label.small
+            subtext: Tr.tr("Click an icon in the preview or an entry here to change its icon, name and place.")
         }
 
         // The entries (sibling rows), then the editor of the chosen one
@@ -721,6 +712,7 @@ PageBase {
 
         Flow {
             Layout.fillWidth: true
+            Layout.bottomMargin: Tokens.spacing.small
             visible: !!root.draft
             spacing: Tokens.spacing.small
 

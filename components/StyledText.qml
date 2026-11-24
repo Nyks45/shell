@@ -8,6 +8,7 @@ Text {
     id: root
 
     property bool animate: false
+    property bool animateColor: true
 
     renderType: Text.NativeRendering
     textFormat: Text.PlainText
@@ -15,6 +16,7 @@ Text {
     font: Tokens.font.body.small
 
     Behavior on color {
+        enabled: root.animateColor
         CAnim {}
     }
 

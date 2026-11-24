@@ -30,7 +30,7 @@ ConnectedRect {
     signal resetClicked
 
     Layout.fillWidth: true
-    implicitHeight: rowLayout.implicitHeight + Tokens.padding.medium * 2
+    implicitHeight: Math.ceil(rowLayout.implicitHeight) + Tokens.padding.medium * 2
 
     RowLayout {
         id: rowLayout

@@ -132,6 +132,7 @@ PageBase {
 
         Flow {
             Layout.fillWidth: true
+            Layout.topMargin: Tokens.spacing.extraSmall
             Layout.bottomMargin: Tokens.spacing.small
             spacing: Tokens.spacing.small
 

@@ -34,7 +34,7 @@ ItemList {
 
         anchors.left: root.list.contentItem.left
         anchors.right: root.list.contentItem.right
-        implicitHeight: deviceLayout.implicitHeight + deviceLayout.anchors.margins * 2
+        implicitHeight: Math.ceil(deviceLayout.implicitHeight) + deviceLayout.anchors.margins * 2
 
         StateLayer {
             radius: 0

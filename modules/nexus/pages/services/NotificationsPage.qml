@@ -22,6 +22,12 @@ PageBase {
 
     function resolveApp(appName: string, savedIcon: string): var {
         const lower = (appName ?? "").toLowerCase();
+        if (lower === "caelestia") {
+            return {
+                title: "Caelestia",
+                icon: Quickshell.iconPath("preferences-desktop-notification", "preferences-system")
+            };
+        }
         let entry = DesktopEntries.heuristicLookup(appName);
         if (!entry && lower)
             entry = [...DesktopEntries.applications.values].find(a => a.id.toLowerCase() === lower || a.name.toLowerCase() === lower) ?? null;
@@ -295,16 +301,7 @@ PageBase {
         // Per app (NotifRules): above Shell messages so app controls are easy to find
         SectionHeader {
             text: Tr.tr("Apps")
-        }
-
-        StyledText {
-            Layout.fillWidth: true
-            Layout.leftMargin: Tokens.padding.small
-            Layout.bottomMargin: Tokens.spacing.small
-            text: root.allApps.length === 0 ? Tr.tr("Apps show up here once they've sent a notification.") : Tr.tr("Quiet: kept in the notification list, without a popup. Off: not shown at all.")
-            color: Colours.palette.m3outline
-            font: Tokens.font.label.small
-            wrapMode: Text.WordWrap
+            subtext: root.allApps.length === 0 ? Tr.tr("Apps show up here once they've sent a notification.") : Tr.tr("Quiet: kept in the notification list, without a popup. Off: not shown at all.")
         }
 
         SearchBar {

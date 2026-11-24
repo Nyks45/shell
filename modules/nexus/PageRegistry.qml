@@ -71,7 +71,7 @@ QtObject {
             label: Tr.tr("Network"),
             icon: "wifi",
             description: Tr.tr("Wi-Fi, ethernet, VPN, ad blocker"),
-            keywords: "internet wifi wireless ethernet vpn wireguard cloudflare warp tailscale netbird ip dns network adblock adblocker ad blocker adguard tracker doh dot filter query log blocklist"
+            keywords: "internet wifi wireless ethernet vpn wireguard cloudflare warp tailscale netbird ip dns network adblock adblocker ad blocker adguard tracker doh dot filter query log blocklist split tunnel app routing per-app bypass"
         },
         {
             id: "wallpaper",

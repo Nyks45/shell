@@ -54,7 +54,7 @@ ItemList {
 
         anchors.left: root.list.contentItem.left
         anchors.right: root.list.contentItem.right
-        implicitHeight: networkLayout.implicitHeight + networkLayout.anchors.margins * 2
+        implicitHeight: Math.ceil(networkLayout.implicitHeight) + networkLayout.anchors.margins * 2
         radius: 0
         topLeftRadius: index === 0 ? (root?.topLeftRadius ?? 0) : 0
         topRightRadius: index === 0 ? (root?.topRightRadius ?? 0) : 0

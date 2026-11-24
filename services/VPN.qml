@@ -6,6 +6,7 @@ import Quickshell.Io
 import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
+import qs.utils
 
 Singleton {
     id: root
@@ -48,6 +49,18 @@ Singleton {
     property var cliInstalled: ({})
     property var serviceStates: ({})
     property bool availabilityChecked: false
+
+    // Per-app VPN split tunneling state (driven by caelestia-vpn-split).
+    property string splitMode: "all" // "all", "include", "exclude"
+    property var splitApps: []
+    property bool splitActive: false
+    property bool splitServiceActive: false
+    property string splitVpnIface: ""
+    property string splitUplinkIface: ""
+    property int splitMatchedPids: 0
+    property var splitRunningByApp: ({})
+    property bool splitLoaded: false
+    property bool splitBusy: false
 
     // To track whether connect/disconnect/status procs actually ran
     property bool connectExited
@@ -671,6 +684,7 @@ Singleton {
                 applySelectedProvider(id);
             });
         }
+        Qt.callLater(() => root.refreshSplit());
     }
 
     onStatusChanged: {
@@ -709,10 +723,32 @@ Singleton {
         }
     }
 
+    function refreshSplit(): void {
+        splitStatusProc.running = false;
+        splitStatusProc.running = true;
+    }
+
+    function applySplit(mode: string, apps: var, done: var): void {
+        splitBusy = true;
+        const payload = JSON.stringify({
+            mode: mode || "all",
+            apps: apps ?? []
+        });
+        Admin.exec(["pkexec", Admin.helper, "vpn-split", "apply"], Tr.tr("Update VPN app routing"), (ok, out, cancelled) => {
+            splitBusy = false;
+            refreshSplit();
+            if (ok)
+                Toaster.toast(Tr.tr("VPN app routing updated"), "", "alt_route");
+            if (typeof done === "function")
+                done(ok, out, cancelled);
+        }, payload);
+    }
+
     Component.onCompleted: {
         root.ensureProviderIds();
         root.ensureSelection();
         root.refreshAvailability();
+        root.refreshSplit();
         if (root.selectedProvider.length > 0) {
             root.autoConnectPending = GlobalConfig.utilities.vpn.enabled;
             statusCheckTimer.start();
@@ -1149,6 +1185,28 @@ Singleton {
                     if (server)
                         root.serverLocation = server;
                 }
+            }
+        }
+    }
+
+    Process {
+        id: splitStatusProc
+
+        command: [`${Paths.libdir}/caelestia-vpn-split`, "status"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text);
+                    root.splitMode = d.mode || "all";
+                    root.splitApps = Array.isArray(d.apps) ? d.apps : [];
+                    root.splitActive = !!d.active;
+                    root.splitServiceActive = !!d.serviceActive;
+                    root.splitVpnIface = d.vpnIface || "";
+                    root.splitUplinkIface = d.uplinkIface || "";
+                    root.splitMatchedPids = Number(d.matchedPids) || 0;
+                    root.splitRunningByApp = d.runningByApp ?? ({});
+                } catch (e) {}
+                root.splitLoaded = true;
             }
         }
     }

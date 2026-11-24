@@ -30,9 +30,47 @@ PageBase {
     property bool encrypted
     property var encryptedTargets: []
     property bool flatpakInstalled
+    property bool portalAvailable
     property var permissions: []
     property var videoStreams: []
+    property bool micExpanded: false
+    property bool camExpanded: false
     property bool checked
+
+    readonly property var micPermissions: (permissions ?? []).filter(p => (p.table === "devices" && p.id === "microphone") || p.table === "microphone")
+    readonly property var camPermissions: (permissions ?? []).filter(p => (p.table === "devices" && p.id === "camera") || ["camera", "webcam", "screenshot", "screencast", "remote-desktop"].includes(p.table))
+    readonly property var otherPermissions: (permissions ?? []).filter(p => !micPermissions.includes(p) && !camPermissions.includes(p))
+
+    function isPermAllowed(perm: var): bool {
+        const vals = Array.isArray(perm?.values) ? perm.values : String(perm?.permissions ?? "").split(",").map(s => s.trim());
+        return vals.some(v => v === "yes" || v === "allow" || v === "true");
+    }
+
+    function setPortalPermission(perm: var, allow: bool): void {
+        const objId = perm.id || perm.object || "";
+        if (!perm.table || !objId)
+            return;
+        portalProc.actionKind = "set";
+        portalProc.command = [`${Paths.libdir}/caelestia-system`, "portal-permission-set", perm.table, objId, perm.app ?? "", allow ? "yes" : "no"];
+        portalProc.running = true;
+    }
+
+    function revokePortalPermission(perm: var): void {
+        const objId = perm.id || perm.object || "";
+        if (!perm.table || !objId)
+            return;
+        portalProc.actionKind = "delete";
+        portalProc.command = [`${Paths.libdir}/caelestia-system`, "portal-permission-delete", perm.table, objId, perm.app ?? ""];
+        portalProc.running = true;
+    }
+
+    function disconnectVideoStream(stream: var): void {
+        if (!stream?.id)
+            return;
+        portalProc.actionKind = "disconnect";
+        portalProc.command = [`${Paths.libdir}/caelestia-system`, "video-disconnect", String(stream.id)];
+        portalProc.running = true;
+    }
 
     function refresh(): void {
         secProc.running = false;
@@ -70,6 +108,7 @@ PageBase {
                         root.encrypted = !!d.encrypted;
                         root.encryptedTargets = d.encryptedTargets ?? [];
                         root.flatpakInstalled = !!d.flatpakInstalled;
+                        root.portalAvailable = !!d.portalAvailable;
                         root.permissions = d.permissions ?? [];
                     } catch (e) {}
                     root.firewallPending = false;
@@ -90,7 +129,7 @@ PageBase {
         Process {
             id: videoProc
 
-            command: ["python3", "-I", "-c", "import json, subprocess\ntry:\n nodes = json.loads(subprocess.check_output(['pw-dump'], text=True))\nexcept Exception:\n nodes = []\napps = []\nfor n in nodes:\n if not isinstance(n, dict) or n.get('type') != 'PipeWire:Interface:Node': continue\n info = n.get('info') or {}\n if info.get('state') != 'running': continue\n p = info.get('props') or {}\n mc = str(p.get('media.class') or '')\n if 'Video' in mc and ('Stream' in mc or 'Source' in mc):\n  apps.append(str(p.get('application.name') or p.get('node.description') or p.get('node.name') or 'Video'))\nprint(json.dumps(sorted(set(apps))))"]
+            command: [`${Paths.libdir}/caelestia-system`, "video-streams"]
             stdout: StdioCollector {
                 onStreamFinished: {
                     try {
@@ -103,11 +142,29 @@ PageBase {
         }
 
         Process {
-            id: flatpakRevokeProc
+            id: portalProc
 
+            property string actionKind: ""
+            property string errText: ""
+
+            onRunningChanged: {
+                if (running)
+                    errText = "";
+            }
+            stderr: StdioCollector {
+                onStreamFinished: portalProc.errText = text.trim()
+            }
             onExited: code => {
-                if (code === 0)
-                    Toaster.toast(Tr.tr("Permission revoked"), "", "shield");
+                if (code === 0) {
+                    if (actionKind === "set")
+                        Toaster.toast(Tr.tr("Permission updated"), "", "shield");
+                    else if (actionKind === "disconnect")
+                        Toaster.toast(Tr.tr("Stream disconnected"), "", "videocam_off");
+                    else
+                        Toaster.toast(Tr.tr("Permission revoked"), "", "shield");
+                } else {
+                    Toaster.toast(Tr.tr("Action failed"), errText || Tr.tr("Helper exited with code %1").arg(code), "error");
+                }
                 root.refresh();
             }
         }
@@ -211,41 +268,87 @@ PageBase {
             text: Tr.tr("Camera, microphone & screen sharing")
         }
 
-        InfoRow {
-            icon: Audio.microphoneStreams.length > 0 ? "mic" : "mic_none"
-            label: Tr.tr("Microphone in use")
-            value: Audio.microphoneStreams.length > 0 ? Tr.trN("%n app", "%n apps", Audio.microphoneStreams.length) : Tr.tr("Idle")
-            subtext: Audio.microphoneStreams.length > 0 ? Audio.microphoneStreams.map(s => Audio.getStreamName(s)).join(", ") : Tr.tr("No apps are currently using the microphone")
+        RowButton {
+            readonly property string activeList: Audio.microphoneStreams.map(s => Audio.getStreamName(s)).join(", ")
+
+            icon: Audio.sourceMuted ? "mic_off" : Audio.microphoneStreams.length > 0 ? "mic" : "mic_none"
+            text: Tr.tr("Microphone")
+            subtext: Audio.microphoneStreams.length > 0
+                ? Tr.tr("%1 (%2)").arg(Tr.trN("%n active app", "%n active apps", Audio.microphoneStreams.length)).arg(activeList)
+                : Audio.sourceMuted
+                    ? Tr.tr("Muted · Click to control microphone and app permissions")
+                    : (root.micPermissions.length > 0
+                        ? Tr.trN("Idle · %n stored app permission", "Idle · %n stored app permissions", root.micPermissions.length)
+                        : Tr.tr("Idle · Click to control microphone and app permissions"))
+            trailingIcon: root.micExpanded ? "expand_less" : "expand_more"
+            onClicked: root.micExpanded = !root.micExpanded
         }
 
-        InfoRow {
-            icon: root.videoStreams.length > 0 ? "videocam" : "videocam_off"
-            label: Tr.tr("Camera & screen capture")
-            value: root.videoStreams.length > 0 ? Tr.trN("%n app", "%n apps", root.videoStreams.length) : Tr.tr("Idle")
-            subtext: root.videoStreams.length > 0 ? root.videoStreams.join(", ") : Tr.tr("No active PipeWire camera or screen-capture streams")
-        }
-
-        InfoRow {
-            visible: root.flatpakInstalled && root.permissions.length === 0
-            icon: "admin_panel_settings"
-            label: Tr.tr("Flatpak portal permissions")
-            value: Tr.tr("None stored")
-            subtext: Tr.tr("Granted camera, microphone, screenshot or background permissions appear here when Flatpak apps store them")
+        ToggleRow {
+            visible: root.micExpanded
+            text: Tr.tr("Default microphone enabled")
+            subtext: Audio.source ? (Audio.sourceMuted ? Tr.tr("Muted · %1").arg(Audio.friendlyDeviceName(Audio.source)) : Audio.friendlyDeviceName(Audio.source)) : Tr.tr("No microphone input device detected")
+            checked: !Audio.sourceMuted
+            disabled: !Audio.source?.ready
+            onToggled: if (Audio.source?.ready)
+                Audio.source.audio.muted = !checked
         }
 
         Repeater {
-            model: root.flatpakInstalled ? root.permissions : []
+            model: root.micExpanded ? Audio.microphoneStreams : []
+
+            ToggleRow {
+                id: micStreamRow
+
+                required property var modelData
+
+                text: Audio.getStreamName(micStreamRow.modelData)
+                subtext: Audio.getStreamMuted(micStreamRow.modelData) ? Tr.tr("Muted live stream") : Tr.tr("Currently recording audio")
+                checked: !Audio.getStreamMuted(micStreamRow.modelData)
+                onToggled: Audio.setStreamMuted(micStreamRow.modelData, !checked)
+            }
+        }
+
+        Repeater {
+            model: root.micExpanded ? root.micPermissions : []
+
+            PermissionEntryRow {}
+        }
+
+        InfoRow {
+            visible: root.micExpanded && Audio.microphoneStreams.length === 0 && root.micPermissions.length === 0
+            icon: "mic_none"
+            label: Tr.tr("No active mic apps or stored portal permissions")
+            subtext: Tr.tr("Apps using your microphone live or granted via XDG portal appear here")
+        }
+
+        RowButton {
+            readonly property string activeApps: root.videoStreams.map(s => s.app).join(", ")
+
+            icon: root.videoStreams.length > 0 ? "videocam" : "videocam_off"
+            text: Tr.tr("Camera & screen capture")
+            subtext: root.videoStreams.length > 0
+                ? Tr.tr("%1 (%2)").arg(Tr.trN("%n active stream", "%n active streams", root.videoStreams.length)).arg(activeApps)
+                : (root.camPermissions.length > 0
+                    ? Tr.trN("Idle · %n stored app permission", "Idle · %n stored app permissions", root.camPermissions.length)
+                    : Tr.tr("Idle · Click to inspect active streams and app permissions"))
+            trailingIcon: root.camExpanded ? "expand_less" : "expand_more"
+            onClicked: root.camExpanded = !root.camExpanded
+        }
+
+        Repeater {
+            model: root.camExpanded ? root.videoStreams : []
 
             ConnectedRect {
-                id: permRow
+                id: videoRow
 
                 required property var modelData
 
                 Layout.fillWidth: true
-                implicitHeight: permLayout.implicitHeight + Tokens.padding.medium * 2
+                implicitHeight: Math.ceil(videoLayout.implicitHeight) + Tokens.padding.medium * 2
 
                 RowLayout {
-                    id: permLayout
+                    id: videoLayout
 
                     anchors.left: parent.left
                     anchors.right: parent.right
@@ -255,8 +358,8 @@ PageBase {
                     spacing: Tokens.spacing.small
 
                     MaterialIcon {
-                        text: "admin_panel_settings"
-                        color: Colours.palette.m3onSurfaceVariant
+                        text: videoRow.modelData.kind === "screen" ? "screen_share" : "videocam"
+                        color: Colours.palette.m3primary
                         fontStyle: Tokens.font.icon.medium
                     }
 
@@ -266,14 +369,14 @@ PageBase {
 
                         StyledText {
                             Layout.fillWidth: true
-                            text: `${permRow.modelData.app || Tr.tr("Global")} · ${permRow.modelData.table}/${permRow.modelData.id || permRow.modelData.object || "?"}`
+                            text: videoRow.modelData.app || Tr.tr("Video stream")
                             font: Tokens.font.body.small
                             elide: Text.ElideRight
                         }
 
                         StyledText {
                             Layout.fillWidth: true
-                            text: permRow.modelData.permissions
+                            text: `${videoRow.modelData.kind === "screen" ? Tr.tr("Screen capture") : Tr.tr("Camera")} · ${videoRow.modelData.name || videoRow.modelData.mediaClass}`
                             color: Colours.palette.m3outline
                             font: Tokens.font.label.small
                             elide: Text.ElideRight
@@ -281,38 +384,56 @@ PageBase {
                     }
 
                     TextButton {
-                        // flatpak's JSON names the column "object" (the helper may pass it as id)
-                        readonly property string objectId: permRow.modelData.id || permRow.modelData.object || ""
-
-                        text: Tr.tr("Revoke")
-                        type: TextButton.Text
-                        // Without the object, permission-remove would get "" (wrong entry)
-                        disabled: flatpakRevokeProc.running || !objectId
-                        onClicked: {
-                            const args = ["permission-remove", permRow.modelData.table, objectId];
-                            if (permRow.modelData.app)
-                                args.push(permRow.modelData.app);
-                            flatpakRevokeProc.command = ["flatpak", ...args];
-                            flatpakRevokeProc.running = true;
-                        }
+                        text: Tr.tr("Disconnect")
+                        type: TextButton.Tonal
+                        disabled: portalProc.running
+                        onClicked: root.disconnectVideoStream(videoRow.modelData)
                     }
                 }
             }
         }
 
+        Repeater {
+            model: root.camExpanded ? root.camPermissions : []
+
+            PermissionEntryRow {}
+        }
+
+        InfoRow {
+            visible: root.camExpanded && root.videoStreams.length === 0 && root.camPermissions.length === 0
+            icon: "videocam_off"
+            label: Tr.tr("No active camera or screen capture")
+            subtext: Tr.tr("Active PipeWire video streams and stored portal permissions appear here")
+        }
+
+        InfoRow {
+            visible: (root.portalAvailable || root.flatpakInstalled) && root.permissions.length === 0
+            icon: "admin_panel_settings"
+            label: Tr.tr("App portal permissions")
+            value: Tr.tr("None stored")
+            subtext: Tr.tr("Granted camera, microphone, screenshot or background permissions appear here when apps store them")
+        }
+
+        Repeater {
+            model: root.otherPermissions
+
+            PermissionEntryRow {}
+        }
+
         RowButton {
-            visible: root.flatpakInstalled && root.permissions.length > 0
+            visible: root.permissions.length > 0
             icon: "reset_wrench"
-            text: Tr.tr("Reset all Flatpak permissions…")
-            subtext: Tr.tr("Revokes all stored Flatpak portal permissions across every app")
-            disabled: flatpakRevokeProc.running
+            text: Tr.tr("Reset all stored permissions…")
+            subtext: Tr.tr("Revokes all stored XDG portal and Flatpak app permissions")
+            disabled: portalProc.running
             onClicked: confirmDialog.ask({
-                header: Tr.tr("Reset all Flatpak permissions?"),
-                body: Tr.tr("All %1 stored Flatpak portal permission entries will be cleared. Apps will ask again when needed.").arg(root.permissions.length),
+                header: Tr.tr("Reset all stored permissions?"),
+                body: Tr.tr("All %1 stored app permission entries will be cleared. Apps will ask again when needed.").arg(root.permissions.length),
                 confirmLabel: Tr.tr("Reset all"),
                 onConfirm: () => {
-                    flatpakRevokeProc.command = ["flatpak", "permission-reset", "--all"];
-                    flatpakRevokeProc.running = true;
+                    portalProc.actionKind = "reset";
+                    portalProc.command = [`${Paths.libdir}/caelestia-system`, "portal-permission-reset"];
+                    portalProc.running = true;
                 }
             })
         }
@@ -393,6 +514,68 @@ PageBase {
             id: confirmDialog
 
             hostFlickable: root.flickable
+        }
+    }
+
+    component PermissionEntryRow: ConnectedRect {
+        id: permRow
+
+        required property var modelData
+        readonly property string objectId: modelData.id || modelData.object || ""
+        readonly property bool allowed: root.isPermAllowed(modelData)
+
+        Layout.fillWidth: true
+        implicitHeight: Math.ceil(permLayout.implicitHeight) + Tokens.padding.medium * 2
+
+        RowLayout {
+            id: permLayout
+
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: Tokens.padding.largeIncreased
+            anchors.rightMargin: Tokens.padding.largeIncreased
+            spacing: Tokens.spacing.small
+
+            MaterialIcon {
+                text: "admin_panel_settings"
+                color: permRow.allowed ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
+                fontStyle: Tokens.font.icon.medium
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 0
+
+                StyledText {
+                    Layout.fillWidth: true
+                    text: `${permRow.modelData.app || Tr.tr("Desktop / Host")} · ${permRow.modelData.table}/${permRow.objectId || "?"}`
+                    font: Tokens.font.body.small
+                    elide: Text.ElideRight
+                }
+
+                StyledText {
+                    Layout.fillWidth: true
+                    text: permRow.modelData.permissions || Tr.tr("Ask")
+                    color: Colours.palette.m3outline
+                    font: Tokens.font.label.small
+                    elide: Text.ElideRight
+                }
+            }
+
+            TextButton {
+                text: permRow.allowed ? Tr.tr("Block") : Tr.tr("Allow")
+                type: TextButton.Tonal
+                disabled: portalProc.running || !permRow.objectId
+                onClicked: root.setPortalPermission(permRow.modelData, !permRow.allowed)
+            }
+
+            TextButton {
+                text: Tr.tr("Revoke")
+                type: TextButton.Text
+                disabled: portalProc.running || !permRow.objectId
+                onClicked: root.revokePortalPermission(permRow.modelData)
+            }
         }
     }
 }

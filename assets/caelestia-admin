@@ -1917,6 +1917,88 @@ def act_adblock_service(args):
         run("systemctl", action, "caelestia-adblock.service")
 
 
+VPN_SPLIT_CONF = "/etc/caelestia/vpn-split.json"
+VPN_SPLIT_UNIT = "/etc/systemd/system/caelestia-vpn-split.service"
+VPN_SPLIT_BIN = "/usr/lib/caelestia/caelestia-vpn-split"
+VPN_SPLIT_BIN_RE = re.compile(r"^[A-Za-z0-9._+@:-]{1,128}$")
+
+
+def act_vpn_split(args):
+    """vpn-split apply|off: configure per-app VPN split tunneling."""
+    need(args, 1, "vpn-split apply|off")
+    sub = args[0]
+    if sub not in ("apply", "off"):
+        raise Refused("usage: vpn-split apply|off")
+
+    if sub == "off":
+        cfg = {"mode": "all", "apps": []}
+    else:
+        raw = sys.stdin.read(262144)
+        try:
+            data = json.loads(raw) if raw.strip() else {}
+        except ValueError as e:
+            raise Refused(f"invalid JSON payload: {e}") from e
+        if not isinstance(data, dict):
+            raise Refused("payload must be a JSON object")
+        mode = data.get("mode")
+        if mode not in ("all", "include", "exclude"):
+            raise Refused("mode must be one of: all, include, exclude")
+        raw_apps = data.get("apps")
+        if raw_apps is None:
+            raw_apps = []
+        if not isinstance(raw_apps, list) or len(raw_apps) > 200:
+            raise Refused("apps must be a list of at most 200 items")
+        clean_apps = []
+        for item in raw_apps:
+            if not isinstance(item, dict):
+                raise Refused("each app entry must be an object")
+            aid = str(item.get("id") or "").strip()[:256]
+            name = str(item.get("name") or "").replace("\n", " ").strip()[:256]
+            icon = str(item.get("icon") or "").replace("\n", " ").strip()[:256]
+            raw_bins = item.get("binaries")
+            if not isinstance(raw_bins, list) or not (1 <= len(raw_bins) <= 32):
+                raise Refused("each app entry requires 1..32 binaries")
+            bins = []
+            for b in raw_bins:
+                bs = str(b).strip()
+                if not VPN_SPLIT_BIN_RE.match(bs):
+                    raise Refused(f"invalid binary name: {bs!r}")
+                if bs not in bins:
+                    bins.append(bs)
+            if not aid:
+                aid = bins[0]
+            if not name:
+                name = aid
+            clean_apps.append({"id": aid, "name": name, "icon": icon, "binaries": bins})
+        cfg = {"mode": mode, "apps": clean_apps}
+
+    write_file(VPN_SPLIT_CONF, json.dumps(cfg, indent=2) + "\n")
+
+    if cfg["mode"] == "all" or not cfg["apps"]:
+        run("systemctl", "disable", "--now", "caelestia-vpn-split.service", check=False)
+        if DRY or os.path.exists(VPN_SPLIT_BIN):
+            run(VPN_SPLIT_BIN, "cleanup", check=False)
+        return
+
+    write_file(
+        VPN_SPLIT_UNIT,
+        "[Unit]\n"
+        "Description=Caelestia settings: per-app VPN split tunneling\n"
+        "After=network.target\n\n"
+        "[Service]\n"
+        "Type=simple\n"
+        f"ExecStart={VPN_SPLIT_BIN} daemon\n"
+        f"ExecStopPost=-{VPN_SPLIT_BIN} cleanup\n"
+        "Restart=on-failure\n"
+        "RestartSec=2\n\n"
+        "[Install]\n"
+        "WantedBy=multi-user.target\n",
+    )
+    run("systemctl", "daemon-reload")
+    run("systemctl", "enable", "caelestia-vpn-split.service")
+    run("systemctl", "restart", "caelestia-vpn-split.service")
+
+
 def act_vpn_tailscale_operator(args):
     """vpn-tailscale-operator: allow the calling user to run tailscale up/down without sudo."""
     need(args, 0, "vpn-tailscale-operator")
@@ -1980,6 +2062,7 @@ ACTIONS = {
     "adblock-routing": act_adblock_routing,
     "adblock-service": act_adblock_service,
     "vpn-tailscale-operator": act_vpn_tailscale_operator,
+    "vpn-split": act_vpn_split,
 }
 
 

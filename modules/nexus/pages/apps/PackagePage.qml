@@ -145,6 +145,7 @@ PageBase {
         // Actions
         Flow {
             Layout.fillWidth: true
+            Layout.topMargin: Tokens.spacing.medium
             Layout.bottomMargin: Tokens.spacing.large
             visible: !!root.info
             spacing: Tokens.spacing.small

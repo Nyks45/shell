@@ -44,7 +44,7 @@ ColumnLayout {
             required property int index
 
             Layout.fillWidth: true
-            implicitHeight: entryRow.implicitHeight + Tokens.padding.small * 2
+            implicitHeight: Math.ceil(entryRow.implicitHeight) + Tokens.padding.small * 2
 
             RowLayout {
                 id: entryRow
@@ -77,7 +77,7 @@ ColumnLayout {
     // Adding one: a full-width field (the commands and patterns are long)
     ConnectedRect {
         Layout.fillWidth: true
-        implicitHeight: addRow.implicitHeight + Tokens.padding.small * 2
+        implicitHeight: Math.ceil(addRow.implicitHeight) + Tokens.padding.small * 2
 
         RowLayout {
             id: addRow

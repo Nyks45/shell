@@ -78,7 +78,7 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Brightness: this monitor doesn't answer over DDC/CI",
+            "label": "Brightness of external monitors needs ddcutil",
             "ctx": "",
             "sub": "Installing…",
             "section": "Brightness & colour",
@@ -674,6 +674,39 @@ QtObject {
             "ctx": "",
             "sub": "Of your home folder (/home), as it is right now",
             "section": "Make a snapshot",
+            "tab": "backups",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Delete snapshots earlier than",
+            "ctx": "",
+            "sub": "",
+            "section": "Clean up snapshots",
+            "tab": "backups",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Older than (days)",
+            "ctx": "",
+            "sub": "",
+            "section": "Clean up snapshots",
+            "tab": "backups",
+            "page": 4,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Which snapshots",
+            "ctx": "",
+            "sub": "",
+            "section": "Clean up snapshots",
             "tab": "backups",
             "page": 4,
             "path": [],
@@ -1493,6 +1526,17 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "App routing",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "opens": 8,
+            "page": 8,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Add provider",
             "ctx": "",
             "sub": "",
@@ -1725,6 +1769,62 @@ QtObject {
             ],
             "trail": [
                 "Overview"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Which apps use the VPN",
+            "ctx": "",
+            "sub": "",
+            "section": "Routing mode",
+            "page": 8,
+            "path": [
+                8
+            ],
+            "trail": [
+                "App routing"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Discard changes",
+            "ctx": "",
+            "sub": "",
+            "section": "Routing mode",
+            "page": 8,
+            "path": [
+                8
+            ],
+            "trail": [
+                "App routing"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Add app",
+            "ctx": "",
+            "sub": "Choose an installed or open app, or enter a binary name",
+            "section": "Apps using the VPN",
+            "page": 8,
+            "path": [
+                8
+            ],
+            "trail": [
+                "App routing"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Reset to all apps",
+            "ctx": "",
+            "sub": "Turn off per-app routing and route all traffic normally",
+            "section": "Apps using the VPN",
+            "page": 8,
+            "path": [
+                8
+            ],
+            "trail": [
+                "App routing"
             ],
             "keywords": ""
         },
@@ -4906,7 +5006,7 @@ QtObject {
         {
             "label": "Keyboard layouts",
             "ctx": "",
-            "sub": "Input languages and layout switching in Devices › Mouse & keyboard",
+            "sub": "Input languages and layout switching in Devices › Keyboard & mouse",
             "section": "Language",
             "tab": "language",
             "page": 17,
@@ -5139,9 +5239,19 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Microphone in use",
+            "label": "Microphone",
             "ctx": "",
-            "sub": "No apps are currently recording audio",
+            "sub": "",
+            "section": "Camera, microphone & screen sharing",
+            "page": 19,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Default microphone enabled",
+            "ctx": "",
+            "sub": "",
             "section": "Camera, microphone & screen sharing",
             "page": 19,
             "path": [],
@@ -5151,7 +5261,7 @@ QtObject {
         {
             "label": "Camera & screen capture",
             "ctx": "",
-            "sub": "No active PipeWire camera or screen-capture streams",
+            "sub": "",
             "section": "Camera, microphone & screen sharing",
             "page": 19,
             "path": [],
@@ -5159,9 +5269,9 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Flatpak portal permissions",
+            "label": "App portal permissions",
             "ctx": "",
-            "sub": "Granted camera, microphone, screenshot or background permissions appear here when Flatpak apps store them",
+            "sub": "Granted camera, microphone, screenshot or background permissions appear here when apps store them",
             "section": "Camera, microphone & screen sharing",
             "page": 19,
             "path": [],

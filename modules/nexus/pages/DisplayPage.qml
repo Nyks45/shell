@@ -211,8 +211,9 @@ PageBase {
             Layout.fillWidth: true
             Layout.bottomMargin: Tokens.spacing.large
             visible: HyprSettings.displayUndo !== null
-            implicitHeight: keepLayout.implicitHeight + Tokens.padding.large * 2
-            color: Colours.palette.m3secondaryContainer
+            standalone: true
+            implicitHeight: Math.ceil(keepLayout.implicitHeight) + Tokens.padding.large * 2
+            fillColour: Colours.palette.m3secondaryContainer
 
             RowLayout {
                 id: keepLayout

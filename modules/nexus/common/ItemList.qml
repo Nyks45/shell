@@ -19,8 +19,7 @@ ConnectedRect {
     readonly property alias list: list
 
     Layout.fillWidth: true
-    implicitHeight: (showList && list.count > 0 ? list.contentHeight : placeholder.implicitHeight + Tokens.padding.extraLarge * 2) + extraHeight
-    color: Colours.tPalette.m3surfaceContainer
+    implicitHeight: Math.ceil((showList && list.count > 0 ? list.contentHeight : placeholder.implicitHeight + Tokens.padding.extraLarge * 2) + extraHeight)
 
     Behavior on implicitHeight {
         Anim {}

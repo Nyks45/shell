@@ -40,5 +40,6 @@ ButtonBase {
         anchors.centerIn: parent
         color: root.onColour
         font: root.font
+        animateColor: false
     }
 }

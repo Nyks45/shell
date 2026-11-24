@@ -107,7 +107,7 @@ ColumnLayout {
 
         const y = row.mapToItem(ownFlickable.contentItem, 0, 0).y;
         const maxY = Math.max(0, ownFlickable.contentHeight - ownFlickable.height + ownFlickable.bottomMargin);
-        scrollAnim.to = Math.max(-ownFlickable.topMargin, Math.min(maxY, y - ownFlickable.height / 3));
+        scrollAnim.to = Math.round(Math.max(-ownFlickable.topMargin, Math.min(maxY, y - ownFlickable.height / 3)));
         scrollAnim.restart();
         flashComp.createObject(row);
     }
@@ -235,11 +235,12 @@ ColumnLayout {
         topMargin: Tokens.padding.large
         bottomMargin: Tokens.padding.extraLarge
 
-        contentHeight: root.contentChild?.implicitHeight ?? 0
+        contentHeight: Math.ceil(root.contentChild?.implicitHeight ?? 0)
         contentItem.children: root.embedded ? [] : [root.contentChild]
 
         TapHandler {
-            gesturePolicy: TapHandler.ReleaseWithinBounds
+            gesturePolicy: TapHandler.DragThreshold
+            grabPermissions: PointerHandler.ApprovesTakeOverByAnything
             onTapped: ownFlickable.focus = true
         }
     }
@@ -248,7 +249,7 @@ ColumnLayout {
     Item {
         visible: root.embedded
         Layout.fillWidth: true
-        implicitHeight: root.contentChild?.implicitHeight ?? 0
+        implicitHeight: Math.ceil(root.contentChild?.implicitHeight ?? 0)
         children: root.embedded ? [root.contentChild] : []
     }
 }

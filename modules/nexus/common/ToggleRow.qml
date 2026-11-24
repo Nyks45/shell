@@ -23,8 +23,8 @@ StyledSwitch {
     verticalPadding: Tokens.padding.medium
     font: Tokens.font.body.small
 
-    implicitWidth: implicitContentWidth + implicitIndicatorWidth + horizontalPadding * 2
-    implicitHeight: Math.max(implicitContentHeight, implicitIndicatorHeight) + verticalPadding * 2
+    implicitWidth: Math.ceil(implicitContentWidth + implicitIndicatorWidth) + horizontalPadding * 2
+    implicitHeight: Math.ceil(Math.max(implicitContentHeight, implicitIndicatorHeight)) + verticalPadding * 2
     cLayer: 2
 
     indicator.anchors.verticalCenter: verticalCenter

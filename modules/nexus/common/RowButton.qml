@@ -22,7 +22,7 @@ ConnectedRect {
     signal clicked(event: MouseEvent)
 
     Layout.fillWidth: true
-    implicitHeight: row.implicitHeight + Tokens.padding.medium * 2
+    implicitHeight: Math.ceil(row.implicitHeight) + Tokens.padding.medium * 2
 
     StateLayer {
         id: stateLayer

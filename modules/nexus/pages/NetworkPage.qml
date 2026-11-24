@@ -15,6 +15,10 @@ PageBase {
 
     title: Tr.tr("Network")
 
+    Component.onCompleted: VPN.refreshSplit()
+    onVisibleChanged: if (visible)
+        VPN.refreshSplit()
+
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
@@ -426,6 +430,18 @@ PageBase {
             subtext: Tr.tr("Finish authentication in your browser, then return here.")
             actionText: Tr.tr("Open login page")
             onAction: Qt.openUrlExternally(VPN.status.authUrl)
+        }
+
+        // Per-app VPN split tunneling
+        NavRow {
+            icon: "alt_route"
+            text: Tr.tr("App routing")
+            subtext: VPN.splitMode === "include"
+                ? Tr.trN("Only %n app uses the VPN", "Only %n apps use the VPN", VPN.splitApps.length)
+                : VPN.splitMode === "exclude"
+                    ? Tr.trN("%n app bypasses the VPN", "%n apps bypass the VPN", VPN.splitApps.length)
+                    : Tr.tr("All apps use the VPN")
+            onClicked: root.nState.openSubPage(8)
         }
 
         // Add provider

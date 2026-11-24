@@ -21,7 +21,7 @@ ConnectedRect {
     signal actionClicked
 
     Layout.fillWidth: true
-    implicitHeight: row.implicitHeight + Tokens.padding.medium * 2
+    implicitHeight: Math.ceil(row.implicitHeight) + Tokens.padding.medium * 2
     opacity: disabled ? 0.5 : 1
 
     StateLayer {

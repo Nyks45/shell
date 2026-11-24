@@ -41,7 +41,7 @@ ColumnLayout {
             readonly property DesktopEntry desktopEntry: DesktopEntries.byId(modelData) ?? DesktopEntries.heuristicLookup(modelData)
 
             Layout.fillWidth: true
-            implicitHeight: entryRow.implicitHeight + Tokens.padding.small * 2
+            implicitHeight: Math.ceil(entryRow.implicitHeight) + Tokens.padding.small * 2
 
             RowLayout {
                 id: entryRow

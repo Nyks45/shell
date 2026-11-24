@@ -26,6 +26,31 @@ MouseArea {
     readonly property bool active: expanded || opacity > 0
     readonly property bool inDrawer: !!(QsWindow.window as ContentWindow)
     readonly property alias item: contentLoader.item
+    property bool _menuCounted: false
+    property var _menuWin: null
+
+    function syncDrawerMenuCount(open: bool): void {
+        const want = open && root.inDrawer;
+        if (want === root._menuCounted)
+            return;
+        if (want) {
+            const cw = QsWindow.window as ContentWindow;
+            if (cw) {
+                root._menuWin = cw;
+                root._menuCounted = true;
+                cw.openMenus++;
+            }
+        } else {
+            root._menuCounted = false;
+            if (root._menuWin) {
+                root._menuWin.openMenus = Math.max(0, root._menuWin.openMenus - 1);
+                root._menuWin = null;
+            }
+        }
+    }
+
+    Component.onDestruction: syncDrawerMenuCount(false)
+    onExpandedChanged: syncDrawerMenuCount(expanded)
 
     parent: {
         if (root.keepAsChild)

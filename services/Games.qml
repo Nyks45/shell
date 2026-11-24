@@ -86,7 +86,9 @@ Singleton {
         // Its launcher is open and would write its old settings back when it quits: the change
         // waits (shown already) and is made as soon as the launcher is closed
         const g = find(key);
-        if (g && blocked(g.launcher)) {
+        const effKey = g?.settingsKey || key;
+        const effLauncher = g?.settingsLauncher || g?.launcher || key.split(":")[0];
+        if (g && blocked(effLauncher)) {
             const p = Object.assign({}, pending);
             const merged = Object.assign({}, p[key] ?? {}, change);
             if (change.env)
@@ -97,7 +99,7 @@ Singleton {
             return;
         }
         Admin.exec([helper, "game-set"], what, () => root.load(), JSON.stringify(Object.assign({
-            key
+            key: effKey
         }, change)));
     }
 
@@ -170,7 +172,10 @@ Singleton {
     property var restartAfter: []
 
     function waitingFor(launcher: string): bool {
-        return queued.some(q => q.launcher === launcher) || Object.keys(pending).some(k => k.startsWith(`${launcher}:`));
+        return queued.some(q => q.launcher === launcher) || Object.keys(pending).some(k => {
+            const g = find(k);
+            return (g?.settingsLauncher || g?.launcher || k.split(":")[0]) === launcher;
+        });
     }
 
     // "Save now": close the launcher (Steam: its own clean shutdown), make the waiting changes,
@@ -198,14 +203,16 @@ Singleton {
                 }
                 continue;
             }
-            if (blocked(g.launcher))
+            const effKey = g.settingsKey || key;
+            const effLauncher = g.settingsLauncher || g.launcher;
+            if (blocked(effLauncher))
                 continue;
             const change = p[key];
             delete p[key];
             changed = true;
             saved.push(key);
             Admin.exec([helper, "game-set"], Tr.tr("Change %1's settings").arg(g.title), () => root.load(), JSON.stringify(Object.assign({
-                key
+                key: effKey
             }, change)));
         }
         const waiting = [];

@@ -35,7 +35,7 @@ ConnectedRect {
     }
 
     Layout.fillWidth: true
-    implicitHeight: rowLayout.implicitHeight + Tokens.padding.medium + Math.max(0, Tokens.padding.large - input.verticalPadding) * 2
+    implicitHeight: Math.ceil(rowLayout.implicitHeight + Tokens.padding.medium + Math.max(0, Tokens.padding.large - input.verticalPadding) * 2)
 
     RowLayout {
         id: rowLayout

@@ -22,17 +22,18 @@ PageBase {
     id: root
 
     readonly property var game: Games.find(nState.selectedGame ?? "")
-    readonly property var launcher: game ? Games.launchers[game.launcher] ?? {} : {}
+    readonly property string effLauncher: game ? (game.settingsLauncher || game.launcher) : ""
+    readonly property var launcher: effLauncher ? Games.launchers[effLauncher] ?? {} : {}
     // Its settings as they will be (changes made while its launcher is open wait for it to close)
     readonly property var shown: Games.withPending(game)
-    readonly property bool blocked: !!game && Games.blocked(game.launcher)
+    readonly property bool blocked: !!game && Games.blocked(effLauncher)
     readonly property bool waiting: !!game && Games.hasPending(game.key)
     readonly property string what: Tr.tr("Change %1's settings").arg(game?.title ?? "")
     readonly property bool busy: Admin.jobs.some(j => j.what === root.what)
     readonly property bool canChange: !!game && !busy
     readonly property bool justSaved: !!game && Games.savedKeys.includes(game.key)
-    readonly property bool restarting: !!game && Games.restartAfter.includes(game.launcher)
-    readonly property string launcherName: Games.launcherNames[game?.launcher] ?? ""
+    readonly property bool restarting: !!game && Games.restartAfter.includes(effLauncher)
+    readonly property string launcherName: Games.launcherNames[effLauncher] ?? ""
     readonly property var choices: launcher.choices ?? []
 
     function change(c: var): void {
@@ -145,7 +146,7 @@ PageBase {
     function readLog(path): void {
         if (!game)
             return;
-        root.logProc.command = [Games.helper, "game-log", game.key, ...(path ? [path] : [])];
+        root.logProc.command = [Games.helper, "game-log", game.settingsKey || game.key, ...(path ? [path] : [])];
         root.logProc.running = true;
     }
 
@@ -239,7 +240,7 @@ PageBase {
 
                 StyledText {
                     Layout.fillWidth: true
-                    text: [root.game?.shortcut ? Tr.tr("In Steam (added there as a non-Steam game)") : Tr.tr("In %1").arg(Games.launcherNames[root.game?.launcher] ?? ""), root.size(root.game?.size ?? 0), root.game?.state === "updating" ? Tr.tr("downloading or updating") : ""].filter(s => s).join(" · ")
+                    text: [root.game?.viaLauncher ? Tr.tr("In %1 · settings stored in %2").arg(Games.launcherNames[root.game?.launcher] ?? "").arg(Games.launcherNames[root.game?.viaLauncher] ?? "") : root.game?.shortcut ? Tr.tr("In Steam (added there as a non-Steam game)") : Tr.tr("In %1").arg(Games.launcherNames[root.game?.launcher] ?? ""), root.size(root.game?.size ?? 0), root.game?.state === "updating" ? Tr.tr("downloading or updating") : ""].filter(s => s).join(" · ")
                     color: Colours.palette.m3onSurfaceVariant
                     font: Tokens.font.body.small
                 }
@@ -268,7 +269,7 @@ PageBase {
                         visible: !!root.game?.path
                         text: Tr.tr("Open folder")
                         type: TextButton.Tonal
-                        onClicked: Quickshell.execDetached(["xdg-open", root.game.launcher === "faugus" || root.game.launcher === "lutris" && root.game.path.endsWith(".exe") ? root.game.path.replace(/\/[^/]*$/, "") : root.game.path])
+                        onClicked: Quickshell.execDetached(["xdg-open", root.effLauncher === "faugus" || root.effLauncher === "lutris" && root.game.path.endsWith(".exe") ? root.game.path.replace(/\/[^/]*$/, "") : root.game.path])
                     }
                 }
             }
@@ -317,7 +318,7 @@ PageBase {
                 }
 
                 TextButton {
-                    visible: root.waiting && root.blocked && root.game?.launcher === "steam" && !root.restarting
+                    visible: root.waiting && root.blocked && root.effLauncher === "steam" && !root.restarting
                     text: Tr.tr("Save now")
                     type: TextButton.Filled
                     onClicked: Games.saveNow("steam")
@@ -329,7 +330,7 @@ PageBase {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
             Layout.bottomMargin: Tokens.spacing.small
-            visible: root.waiting && root.blocked && root.game?.launcher === "steam" && !root.restarting
+            visible: root.waiting && root.blocked && root.effLauncher === "steam" && !root.restarting
             // TRANSLATORS: explains the Save now button
             text: Tr.tr("Save now closes Steam (and a game running from it), saves, and starts Steam again.")
             wrapMode: Text.WordWrap
@@ -345,6 +346,8 @@ PageBase {
 
         Flow {
             Layout.fillWidth: true
+            Layout.topMargin: Tokens.spacing.extraSmall
+            Layout.bottomMargin: Tokens.spacing.small
             visible: !!root.game && root.game.proton !== null && root.game.proton !== undefined
             spacing: Tokens.spacing.small
 
@@ -682,14 +685,14 @@ PageBase {
         TextFieldRow {
             id: wrappersRow
 
-            visible: !!root.game && root.game.launcher !== "lutris"
+            visible: !!root.game && root.effLauncher !== "lutris"
             enabled: root.canChange
             label: Tr.tr("Custom wrapper command")
             subtext: Tr.tr("Commands run before the game, with their own arguments; separate several with ;")
             placeholderText: Tr.tr("e.g. gamescope -W 2560 -H 1440 -- ; prime-run")
             errorText: root.wrappersError
             // Heroic keeps each wrapper apart ("exe args"); Steam and Faugus one line of words
-            value: (root.shown?.wrappers ?? []).join(root.game?.launcher === "heroic" ? " ; " : " ")
+            value: (root.shown?.wrappers ?? []).join(root.effLauncher === "heroic" ? " ; " : " ")
             onValueEdited: {
                 root.wrappersError = "";
                 wrappersRow.field.isError = false;

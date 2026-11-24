@@ -62,18 +62,10 @@ PageBase {
 
         SectionHeader {
             text: Tr.tr("Game options")
-        }
-
-        StyledText {
-            Layout.fillWidth: true
-            Layout.leftMargin: Tokens.padding.small
-            Layout.bottomMargin: Tokens.spacing.small
             // Honest about where a change reaches before the next login: apps the
             // shell starts carry the shell's own (older) environment
-            text: root.changed ? Tr.tr("Saved to %1. Apps started with a keyboard shortcut use it right away; apps started from the launcher or taskbar, and launchers already open, after the next login.").arg(Paths.shortenHome(root.env?.file ?? "")) : Tr.tr("Written to %1 and used by everything from the next login on (apps started with a keyboard shortcut get a change right away).").arg(Paths.shortenHome(root.env?.file ?? ""))
-            wrapMode: Text.WordWrap
-            color: root.changed ? Colours.palette.m3primary : Colours.palette.m3outline
-            font: Tokens.font.label.small
+            subtext: root.changed ? Tr.tr("Saved to %1. Apps started with a keyboard shortcut use it right away; apps started from the launcher or taskbar, and launchers already open, after the next login.").arg(Paths.shortenHome(root.env?.file ?? "")) : Tr.tr("Written to %1 and used by everything from the next login on (apps started with a keyboard shortcut get a change right away).").arg(Paths.shortenHome(root.env?.file ?? ""))
+            subtextColour: root.changed ? Colours.palette.m3primary : Colours.palette.m3outline
         }
 
         SectionHeader {
@@ -106,20 +98,12 @@ PageBase {
 
         SectionHeader {
             text: Tr.tr("Shader cache")
-        }
-
-        StyledText {
-            Layout.fillWidth: true
-            Layout.leftMargin: Tokens.padding.small
-            Layout.bottomMargin: Tokens.spacing.small
-            text: Tr.tr("Compiled shaders kept between runs: less stutter")
-            color: Colours.palette.m3outline
-            font: Tokens.font.label.small
-            wrapMode: Text.WordWrap
+            subtext: Tr.tr("Compiled shaders kept between runs: less stutter")
         }
 
         Flow {
             Layout.fillWidth: true
+            Layout.topMargin: Tokens.spacing.extraSmall
             Layout.bottomMargin: Tokens.spacing.small
             spacing: Tokens.spacing.small
 

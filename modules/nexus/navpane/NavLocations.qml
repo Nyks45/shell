@@ -119,9 +119,14 @@ VerticalFadeFlickable {
     topMargin: Tokens.padding.small
     bottomMargin: Tokens.padding.large
     contentHeight: content.implicitHeight
+    onVisibleChanged: if (visible) {
+        cancelFlick();
+        contentY = clampY(contentY);
+    }
 
     TapHandler {
-        gesturePolicy: TapHandler.ReleaseWithinBounds
+        gesturePolicy: TapHandler.DragThreshold
+        grabPermissions: PointerHandler.ApprovesTakeOverByAnything
         onTapped: root.focus = true
     }
 

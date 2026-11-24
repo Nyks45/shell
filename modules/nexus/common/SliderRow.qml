@@ -23,7 +23,7 @@ ConnectedRect {
     signal iconClicked
 
     Layout.fillWidth: true
-    implicitHeight: rowLayout.implicitHeight + rowLayout.anchors.margins + rowLayout.anchors.topMargin
+    implicitHeight: Math.ceil(rowLayout.implicitHeight) + rowLayout.anchors.margins + rowLayout.anchors.topMargin
 
     RowLayout {
         id: rowLayout

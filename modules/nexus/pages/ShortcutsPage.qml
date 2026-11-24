@@ -511,6 +511,8 @@ PageBase {
 
         RowLayout {
             Layout.fillWidth: true
+            Layout.topMargin: Tokens.spacing.small
+            Layout.bottomMargin: Tokens.spacing.small
             spacing: Tokens.spacing.small
 
             TextButton {

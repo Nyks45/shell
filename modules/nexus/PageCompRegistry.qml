@@ -91,7 +91,8 @@ QtObject {
             "network/AddVpnPage.qml",
             "network/AllNetworksPage.qml",
             "network/SavedNetworksPage.qml",
-            "network/AdBlockerPage.qml"
+            "network/AdBlockerPage.qml",
+            "network/VpnAppsPage.qml"
         ],
         // 9: Wallpaper & style
         [

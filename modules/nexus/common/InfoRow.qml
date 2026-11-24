@@ -18,7 +18,7 @@ ConnectedRect {
     property Component leadingComponent: icon ? iconComp : null
 
     Layout.fillWidth: true
-    implicitHeight: rowLayout.implicitHeight + rowLayout.anchors.margins * 2
+    implicitHeight: Math.ceil(rowLayout.implicitHeight) + rowLayout.anchors.margins * 2
 
     Component {
         id: iconComp

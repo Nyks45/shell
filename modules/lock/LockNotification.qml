@@ -7,7 +7,9 @@ Item {
     property string name: ""
     property int count: 1
     property string summary: ""
-    property string icon: ""
+    property string photo: ""
+    property string appIcon: ""
+    property string glyph: ""
     property real morph: 0
     property real unit: 1
 
@@ -24,6 +26,58 @@ Item {
     readonly property color toneText: [LockTheme.colors.textOnSecondary, LockTheme.colors.textOnTertiary, LockTheme.colors.textOnPrimary][tone]
     readonly property string initial: name.length > 0 ? name.charAt(0).toUpperCase() : "?"
 
+    component NotifBadge: Item {
+        id: badgeRoot
+
+        readonly property bool hasPhoto: root.photo !== ""
+        readonly property bool hasAppIcon: !hasPhoto && root.appIcon !== "" && appImg.status === Image.Ready
+        readonly property bool imageReady: (hasPhoto && photoArt.hasImage) || hasAppIcon
+
+        MaterialShape {
+            anchors.fill: parent
+            visible: !badgeRoot.hasPhoto
+            shape: MaterialShape.Cookie6Sided
+            color: badgeRoot.hasAppIcon ? LockTheme.colors.surfaceContainerHighest : root.toneFill
+        }
+
+        ShapedArt {
+            id: photoArt
+
+            anchors.fill: parent
+            visible: badgeRoot.hasPhoto
+            shape: MaterialShape.Cookie6Sided
+            color: root.toneFill
+            source: root.photo
+            sourceSize: Qt.size(Math.ceil(width * 2), Math.ceil(height * 2))
+        }
+
+        Image {
+            id: appImg
+
+            anchors.centerIn: parent
+            visible: !badgeRoot.hasPhoto && root.appIcon !== "" && status === Image.Ready
+            width: parent.width * 0.58
+            height: width
+            source: !badgeRoot.hasPhoto ? root.appIcon : ""
+            sourceSize: Qt.size(Math.ceil(width * 2), Math.ceil(height * 2))
+            fillMode: Image.PreserveAspectFit
+            smooth: true
+            asynchronous: true
+            cache: false
+        }
+
+        Text {
+            anchors.centerIn: parent
+            visible: !badgeRoot.imageReady
+            text: root.glyph || root.initial
+            font.family: root.glyph ? LockTheme.font.icons : LockTheme.font.family
+            font.pixelSize: parent.height * (root.glyph ? 0.52 : 0.5)
+            font.weight: Font.DemiBold
+            font.variableAxes: root.glyph ? ({ FILL: 1, GRAD: 0, opsz: 24 }) : ({})
+            color: root.toneText
+        }
+    }
+
     Item {
         anchors.fill: parent
         opacity: root.idleFade
@@ -38,26 +92,10 @@ Item {
             radius: width / 2
             color: Qt.alpha(LockTheme.colors.secondaryContainer, LockTheme.lock.surfaceTint)
 
-            ShapedArt {
-                id: idleArt
-
+            NotifBadge {
                 anchors.centerIn: parent
                 width: parent.width * 0.6
                 height: width
-                shape: MaterialShape.Cookie6Sided
-                color: root.toneFill
-                source: root.icon
-                sourceSize: Qt.size(width * 2, height * 2)
-
-                Text {
-                    anchors.centerIn: parent
-                    visible: !idleArt.hasImage
-                    text: root.initial
-                    font.family: LockTheme.font.family
-                    font.pixelSize: parent.height * 0.5
-                    font.weight: Font.DemiBold
-                    color: root.toneText
-                }
             }
         }
 
@@ -108,27 +146,13 @@ Item {
             light: 0
         }
 
-        ShapedArt {
+        NotifBadge {
             id: art
 
             x: parent.height * 0.16
             anchors.verticalCenter: parent.verticalCenter
             width: parent.height * 0.68
             height: width
-            shape: MaterialShape.Cookie6Sided
-            color: root.toneFill
-            source: root.icon
-            sourceSize: Qt.size(width * 2, height * 2)
-
-            Text {
-                anchors.centerIn: parent
-                visible: !art.hasImage
-                text: root.initial
-                font.family: LockTheme.font.family
-                font.pixelSize: parent.height * 0.5
-                font.weight: Font.DemiBold
-                color: root.toneText
-            }
         }
 
         Column {

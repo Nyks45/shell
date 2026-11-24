@@ -290,7 +290,7 @@ Item {
                         spacing: Tokens.spacing.small
 
                         MaterialIcon {
-                            text: nrow.modelData.hints?.["x-caelestia-icon"] || "notifications"
+                            text: nrow.modelData.materialIcon || "notifications"
                             color: Colours.palette.m3primary
                             fontStyle: Tokens.font.icon.small
                         }

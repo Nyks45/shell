@@ -146,39 +146,50 @@ ColumnLayout {
         // Enter opens the first result, Escape clears the search
         onAccepted: (resultsLoader.item as SearchResults)?.openFirst()
         Keys.onEscapePressed: text = ""
-
-        Binding {
-            target: root.nState
-            property: "searchOpen"
-            value: searchField.text.trim().length > 0
+        onTextChanged: {
+            root.nState.searchText = text;
+            root.nState.searchOpen = text.trim().length > 0;
         }
 
-        Binding {
+        Connections {
+            function onSearchOpenChanged(): void {
+                if (!root.nState.searchOpen) {
+                    if (searchField.text.length > 0)
+                        searchField.text = "";
+                    if (searchField.activeFocus)
+                        searchField.focus = false;
+                }
+            }
+
             target: root.nState
-            property: "searchText"
-            value: searchField.text
         }
     }
 
-    NavLocations {
+    Item {
         Layout.fillWidth: true
         Layout.fillHeight: true
-        Layout.topMargin: -topMargin
-        Layout.bottomMargin: -bottomMargin
-        visible: !root.nState.searchOpen
-        nState: root.nState
-    }
 
-    Loader {
-        id: resultsLoader
-
-        Layout.fillWidth: true
-        Layout.fillHeight: true
-        active: root.nState.searchOpen
-        visible: active
-
-        sourceComponent: SearchResults {
+        NavLocations {
+            anchors.fill: parent
+            anchors.topMargin: -topMargin
+            anchors.bottomMargin: -bottomMargin
+            visible: !root.nState.searchOpen
+            enabled: visible
             nState: root.nState
+        }
+
+        Loader {
+            id: resultsLoader
+
+            anchors.fill: parent
+            z: 1
+            active: root.nState.searchOpen
+            visible: active
+            enabled: active
+
+            sourceComponent: SearchResults {
+                nState: root.nState
+            }
         }
     }
 }

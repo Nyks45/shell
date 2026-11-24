@@ -36,9 +36,12 @@ QtObject {
             property Item topCol
             readonly property var _st: ({
                 disposed: false,
-                pending: false
+                pending: false,
+                computing: false,
+                dirty: true,
+                map: ({})
             })
-            property var info: ({})
+            property int rev: 0
             readonly property var _unsubs: []
             readonly property var _bumpFn: () => tracker.bump()
 
@@ -51,22 +54,33 @@ QtObject {
                 }
             }
 
-            function recompute(): void {
-                if (_st.disposed || !topCol)
+            function recompute(notify = true): void {
+                if (_st.disposed || _st.computing || !topCol)
                     return;
-                clearWatchers();
-                info = rows.computeColumn(topCol, _bumpFn, _unsubs);
+                _st.computing = true;
+                try {
+                    clearWatchers();
+                    _st.map = rows.computeColumn(topCol, _bumpFn, _unsubs);
+                    _st.dirty = false;
+                } finally {
+                    _st.computing = false;
+                }
+                if (notify)
+                    rev++;
             }
 
             function bump(): void {
-                if (_st.disposed || _st.pending)
+                if (_st.disposed)
+                    return;
+                _st.dirty = true;
+                if (_st.pending)
                     return;
                 _st.pending = true;
                 Qt.callLater(() => {
                     if (!tracker || tracker._st.disposed)
                         return;
                     tracker._st.pending = false;
-                    tracker.recompute();
+                    tracker.recompute(true);
                 });
             }
 
@@ -170,6 +184,7 @@ QtObject {
                 topCol: topCol
             });
             _trackers.push(t);
+            t.recompute(false);
             t.bump();
         }
         return t;
@@ -194,9 +209,9 @@ QtObject {
             });
             return true;
         }
-        if (k.delegate !== undefined && k.model !== undefined)
+        if (k instanceof Repeater)
             return false;
-        if (k.sourceComponent !== undefined || k.source !== undefined) {
+        if (k instanceof Loader) {
             watch(k, k.itemChanged, bumpFn, unsubs);
             return k.item ? visit(k.item, curGap, entries, bumpFn, unsubs) : false;
         }
@@ -264,7 +279,10 @@ QtObject {
         if (!t || !t._st || t._st.disposed)
             return null;
         _trackerByRowId[id] = t;
-        return t.info ? (t.info[id] ?? null) : null;
+        if (!t._st.computing && row.visible && (t._st.dirty || t._st.map[id] === undefined))
+            t.recompute(false);
+        void t.rev;
+        return t._st.map[id] ?? null;
     }
 
     // Nearest visible item next to `row` in its column chain (crossing nested columns)

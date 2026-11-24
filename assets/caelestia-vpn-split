@@ -1,0 +1,530 @@
+#!/usr/bin/python3 -I
+"""Caelestia settings: per-app VPN split tunneling (cgroup v2 + nftables + policy routing).
+
+    caelestia-vpn-split status
+    caelestia-vpn-split daemon
+    caelestia-vpn-split cleanup
+    caelestia-vpn-split --dry-run [--mode include|exclude] [--apps bin1,bin2]
+
+Supports Cloudflare WARP (fwmark 0x10000), WireGuard (fwmark 0xca6c), Tailscale,
+NetBird, and NetworkManager VPNs without interfering with local/LAN traffic or
+system daemons (root, systemd-resolved, etc.).
+"""
+
+import json
+import os
+import re
+import signal
+import subprocess
+import sys
+import time
+
+CONF_PATH = "/etc/caelestia/vpn-split.json"
+SERVICE_NAME = "caelestia-vpn-split.service"
+CGROUP_NAME = "caelestia-vpn-split"
+CGROUP_DIR = f"/sys/fs/cgroup/{CGROUP_NAME}"
+CGROUP_PROCS = f"{CGROUP_DIR}/cgroup.procs"
+NFT_TABLE = "caelestia_vpn_split"
+FWMARK = "0xca01"
+ROUTE_TABLE = "51822"
+RULE_PREF = "89"
+
+VPN_IFACE_PREFIXES = (
+    "CloudflareWARP",
+    "wg",
+    "tun",
+    "tap",
+    "tailscale",
+    "wt",
+    "proton",
+    "mullvad",
+    "nordlynx",
+    "ppp",
+)
+INTERPRETER_BINS = ("env", "bash", "sh", "dash", "zsh", "python", "python3", "node", "nodejs", "java", "umu-run", "flatpak")
+BIN_RE = re.compile(r"^[A-Za-z0-9._+@:-]{1,128}$")
+IFACE_RE = re.compile(r"^[A-Za-z0-9._:@-]{1,32}$")
+
+_running = True
+_orig_cgroups = {}
+
+
+def load_config():
+    cfg = {"mode": "all", "apps": []}
+    if not os.path.exists(CONF_PATH):
+        return cfg, 0.0
+    try:
+        st = os.stat(CONF_PATH)
+        with open(CONF_PATH) as f:
+            raw = json.load(f)
+        if isinstance(raw, dict):
+            mode = raw.get("mode")
+            if mode in ("all", "include", "exclude"):
+                cfg["mode"] = mode
+            apps = []
+            for item in raw.get("apps") or []:
+                if not isinstance(item, dict):
+                    continue
+                bins = [str(b).strip() for b in (item.get("binaries") or []) if BIN_RE.match(str(b).strip())]
+                if not bins:
+                    continue
+                apps.append({
+                    "id": str(item.get("id") or bins[0]),
+                    "name": str(item.get("name") or bins[0]),
+                    "icon": str(item.get("icon") or ""),
+                    "binaries": bins,
+                })
+            cfg["apps"] = apps
+        return cfg, st.st_mtime
+    except (OSError, ValueError):
+        return cfg, 0.0
+
+
+def is_vpn_iface_name(name):
+    if not name or name == "lo":
+        return False
+    return any(name.startswith(p) for p in VPN_IFACE_PREFIXES)
+
+
+def _run_json(cmd):
+    p = subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    if p.returncode != 0 or not p.stdout.strip():
+        return []
+    try:
+        data = json.loads(p.stdout)
+        return data if isinstance(data, list) else []
+    except ValueError:
+        return []
+
+
+def detect_vpn_iface():
+    links = _run_json(["ip", "-j", "link", "show", "up"])
+    for link in links:
+        name = str(link.get("ifname") or "")
+        if is_vpn_iface_name(name) and IFACE_RE.match(name):
+            return name
+    return ""
+
+
+def detect_uplink():
+    """Return (v4_iface, v4_gw, v6_iface, v6_gw)."""
+    v4_iface, v4_gw = "", ""
+    for args in (["ip", "-j", "-4", "route", "show", "table", "main"],
+                 ["ip", "-j", "-4", "route", "show", "table", "all"]):
+        routes = _run_json(args)
+        candidates = []
+        for r in routes:
+            if r.get("dst") != "default":
+                continue
+            dev = str(r.get("dev") or "")
+            gw = str(r.get("gateway") or "")
+            if not dev or not gw or not IFACE_RE.match(dev) or dev == "lo" or is_vpn_iface_name(dev):
+                continue
+            metric = int(r.get("metric") or 0)
+            candidates.append((metric, dev, gw))
+        if candidates:
+            candidates.sort()
+            _, v4_iface, v4_gw = candidates[0]
+            break
+
+    v6_iface, v6_gw = "", ""
+    routes6 = _run_json(["ip", "-j", "-6", "route", "show", "table", "main"])
+    cand6 = []
+    for r in routes6:
+        if r.get("dst") != "default":
+            continue
+        dev = str(r.get("dev") or "")
+        gw = str(r.get("gateway") or "")
+        if not dev or not gw or not IFACE_RE.match(dev) or dev == "lo" or is_vpn_iface_name(dev):
+            continue
+        cand6.append((int(r.get("metric") or 0), dev, gw))
+    if cand6:
+        cand6.sort()
+        _, v6_iface, v6_gw = cand6[0]
+
+    return v4_iface, v4_gw, v6_iface, v6_gw
+
+
+def _pid_binary_tokens(pid):
+    tokens = set()
+    try:
+        st = os.stat(f"/proc/{pid}")
+    except OSError:
+        return None, tokens
+    if st.st_uid < 1000:
+        return st.st_uid, tokens
+
+    try:
+        exe = os.readlink(f"/proc/{pid}/exe")
+        if exe.endswith(" (deleted)"):
+            exe = exe[:-10]
+        base = os.path.basename(exe).lower()
+        if base:
+            tokens.add(base)
+    except OSError:
+        pass
+
+    try:
+        with open(f"/proc/{pid}/comm", "r", errors="replace") as f:
+            comm = f.read().strip().lower()
+            if comm:
+                tokens.add(comm)
+    except OSError:
+        pass
+
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            raw = f.read()
+        if raw:
+            parts = [x.decode(errors="replace") for x in raw.split(b"\x00") if x]
+            if parts:
+                b0 = os.path.basename(parts[0]).lower()
+                if b0:
+                    tokens.add(b0)
+                if any(b0 == x or b0.startswith(x + ".") for x in INTERPRETER_BINS) or "electron" in b0 or b0.startswith("wine"):
+                    for arg in parts[1:5]:
+                        if arg and not arg.startswith("-") and "=" not in arg[:32]:
+                            b1 = os.path.basename(arg.rstrip("/")).lower()
+                            if b1:
+                                tokens.add(b1)
+                            break
+    except OSError:
+        pass
+
+    return st.st_uid, tokens
+
+
+def scan_matching_pids(apps):
+    """Return (matched_pid_to_app_ids, app_id_to_count)."""
+    bin_to_apps = {}
+    counts = {}
+    for app in apps:
+        aid = app["id"]
+        counts[aid] = 0
+        for b in app["binaries"]:
+            bin_to_apps.setdefault(b.lower(), set()).add(aid)
+
+    matched = {}
+    if not bin_to_apps:
+        return matched, counts
+
+    try:
+        entries = os.listdir("/proc")
+    except OSError:
+        return matched, counts
+
+    for name in entries:
+        if not name.isdigit():
+            continue
+        pid = int(name)
+        uid, toks = _pid_binary_tokens(pid)
+        if uid is None or uid < 1000 or not toks:
+            continue
+        hit_apps = set()
+        for t in toks:
+            if t in bin_to_apps:
+                hit_apps.update(bin_to_apps[t])
+        if hit_apps:
+            matched[pid] = hit_apps
+            for aid in hit_apps:
+                counts[aid] += 1
+    return matched, counts
+
+
+def build_nft_ruleset(mode, v4_iface, v6_iface=""):
+    if mode == "include":
+        mode_rules = (
+            "        meta skuid 0-999 return\n"
+            "        meta mark & 0x10000 == 0x10000 return\n"
+            "        meta mark & 0xca6c == 0xca6c return\n"
+            f'        socket cgroupv2 level 1 "{CGROUP_NAME}" return\n'
+            f"        meta mark set {FWMARK}\n"
+        )
+    else:
+        mode_rules = (
+            f'        socket cgroupv2 level 1 "{CGROUP_NAME}" meta mark set {FWMARK}\n'
+        )
+
+    nat_rules = ""
+    if v4_iface:
+        nat_rules += f'        oifname "{v4_iface}" meta mark {FWMARK} masquerade\n'
+    if v6_iface and v6_iface != v4_iface:
+        nat_rules += f'        oifname "{v6_iface}" meta mark {FWMARK} masquerade\n'
+
+    return (
+        f"table inet {NFT_TABLE} {{\n"
+        "    chain output {\n"
+        "        type route hook output priority mangle; policy accept;\n"
+        "        ip daddr { 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 224.0.0.0/4 } return\n"
+        "        ip6 daddr { ::1, fc00::/7, fe80::/10, ff00::/8 } return\n"
+        f"{mode_rules}"
+        "    }\n"
+        "    chain postrouting {\n"
+        "        type nat hook postrouting priority srcnat; policy accept;\n"
+        f"{nat_rules}"
+        "    }\n"
+        "}\n"
+    )
+
+
+def _read_pid_cgroup_rel(pid):
+    try:
+        with open(f"/proc/{pid}/cgroup", "r") as f:
+            for line in f:
+                if line.startswith("0::"):
+                    return line[3:].strip().lstrip("/")
+    except OSError:
+        pass
+    return ""
+
+
+def _restore_pid_cgroup(pid):
+    rel = _orig_cgroups.pop(pid, "")
+    candidates = []
+    if rel and rel != CGROUP_NAME:
+        candidates.append(f"/sys/fs/cgroup/{rel}/cgroup.procs")
+    try:
+        uid = os.stat(f"/proc/{pid}").st_uid
+        candidates.append(f"/sys/fs/cgroup/user.slice/user-{uid}.slice/cgroup.procs")
+    except OSError:
+        pass
+    candidates.append("/sys/fs/cgroup/user.slice/cgroup.procs")
+    candidates.append("/sys/fs/cgroup/cgroup.procs")
+    for path in candidates:
+        if os.path.exists(path):
+            try:
+                with open(path, "w") as f:
+                    f.write(str(pid))
+                return True
+            except OSError:
+                continue
+    return False
+
+
+def _sync_cgroup(matched_pids):
+    os.makedirs(CGROUP_DIR, exist_ok=True)
+    current = set()
+    try:
+        with open(CGROUP_PROCS, "r") as f:
+            for line in f:
+                s = line.strip()
+                if s.isdigit():
+                    current.add(int(s))
+    except OSError:
+        pass
+
+    target = set(matched_pids.keys())
+    for pid in current - target:
+        _restore_pid_cgroup(pid)
+
+    for pid in target - current:
+        rel = _read_pid_cgroup_rel(pid)
+        if rel and rel != CGROUP_NAME:
+            _orig_cgroups[pid] = rel
+        try:
+            with open(CGROUP_PROCS, "w") as f:
+                f.write(str(pid))
+        except OSError:
+            _orig_cgroups.pop(pid, None)
+
+
+def _clear_net_rules(dry=False):
+    cmds = [
+        ["nft", "delete", "table", "inet", NFT_TABLE],
+        ["ip", "-4", "rule", "del", "pref", RULE_PREF],
+        ["ip", "-6", "rule", "del", "pref", RULE_PREF],
+        ["ip", "-4", "route", "flush", "table", ROUTE_TABLE],
+        ["ip", "-6", "route", "flush", "table", ROUTE_TABLE],
+    ]
+    for cmd in cmds:
+        if dry:
+            print("$ " + " ".join(cmd))
+        else:
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def cleanup():
+    _clear_net_rules(dry=False)
+    if os.path.exists(CGROUP_PROCS):
+        try:
+            with open(CGROUP_PROCS, "r") as f:
+                pids = [int(line.strip()) for line in f if line.strip().isdigit()]
+            for pid in pids:
+                _restore_pid_cgroup(pid)
+        except OSError:
+            pass
+    _orig_cgroups.clear()
+    if os.path.isdir(CGROUP_DIR):
+        try:
+            os.rmdir(CGROUP_DIR)
+        except OSError:
+            pass
+
+
+def apply_net_rules(mode, v4_iface, v4_gw, v6_iface, v6_gw, dry=False):
+    if not v4_iface or not v4_gw:
+        if not dry:
+            _clear_net_rules(dry=False)
+        return False
+
+    ruleset = build_nft_ruleset(mode, v4_iface, v6_iface)
+    cmds = [
+        ["ip", "-4", "route", "flush", "table", ROUTE_TABLE],
+        ["ip", "-4", "route", "replace", "default", "via", v4_gw, "dev", v4_iface, "table", ROUTE_TABLE],
+        ["ip", "-4", "rule", "del", "pref", RULE_PREF],
+        ["ip", "-4", "rule", "add", "pref", RULE_PREF, "fwmark", FWMARK, "lookup", ROUTE_TABLE],
+    ]
+    if v6_iface and v6_gw:
+        cmds += [
+            ["ip", "-6", "route", "flush", "table", ROUTE_TABLE],
+            ["ip", "-6", "route", "replace", "default", "via", v6_gw, "dev", v6_iface, "table", ROUTE_TABLE],
+            ["ip", "-6", "rule", "del", "pref", RULE_PREF],
+            ["ip", "-6", "rule", "add", "pref", RULE_PREF, "fwmark", FWMARK, "lookup", ROUTE_TABLE],
+        ]
+
+    if dry:
+        print(f"# mode={mode} uplink={v4_iface} via {v4_gw}" + (f" (v6: {v6_iface} via {v6_gw})" if v6_iface and v6_gw else ""))
+        print("$ nft -f - <<'EOF'")
+        print(ruleset, end="")
+        print("EOF")
+        for c in cmds:
+            print("$ " + " ".join(c))
+        return True
+
+    for c in cmds:
+        ignore_err = ("del" in c or "flush" in c)
+        p = subprocess.run(c, text=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        if p.returncode != 0 and not ignore_err:
+            print(f"caelestia-vpn-split: {' '.join(c)}: {p.stderr.strip()}", file=sys.stderr)
+            return False
+
+    subprocess.run(["nft", "delete", "table", "inet", NFT_TABLE], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    p = subprocess.run(["nft", "-f", "-"], input=ruleset, text=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    if p.returncode != 0:
+        print(f"caelestia-vpn-split: nft apply failed: {p.stderr.strip()}", file=sys.stderr)
+        return False
+    return True
+
+
+def cmd_status():
+    cfg, _ = load_config()
+    vpn_iface = detect_vpn_iface()
+    v4_iface, v4_gw, _, _ = detect_uplink()
+    svc_active = subprocess.run(
+        ["systemctl", "is-active", "--quiet", SERVICE_NAME],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    ).returncode == 0
+    rule_out = subprocess.run(
+        ["ip", "-4", "rule", "show"], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+    ).stdout
+    rule_present = any(line.startswith(f"{RULE_PREF}:") and FWMARK in line for line in rule_out.splitlines())
+    matched, counts = scan_matching_pids(cfg["apps"])
+    print(json.dumps({
+        "mode": cfg["mode"],
+        "apps": cfg["apps"],
+        "serviceActive": svc_active,
+        "active": bool(svc_active and rule_present and vpn_iface and cfg["mode"] != "all" and cfg["apps"]),
+        "vpnIface": vpn_iface,
+        "uplinkIface": v4_iface,
+        "uplinkGw": v4_gw,
+        "matchedPids": len(matched),
+        "runningByApp": counts,
+    }))
+    return 0
+
+
+def cmd_daemon():
+    def stop_handler(*_):
+        global _running
+        _running = False
+
+    signal.signal(signal.SIGTERM, stop_handler)
+    signal.signal(signal.SIGINT, stop_handler)
+
+    last_sig = None
+    os.makedirs(CGROUP_DIR, exist_ok=True)
+    try:
+        while _running:
+            cfg, mtime = load_config()
+            if cfg["mode"] == "all" or not cfg["apps"]:
+                cleanup()
+                return 0
+
+            matched, _ = scan_matching_pids(cfg["apps"])
+            _sync_cgroup(matched)
+
+            vpn_iface = detect_vpn_iface()
+            v4_iface, v4_gw, v6_iface, v6_gw = detect_uplink()
+            if vpn_iface and v4_iface and v4_gw:
+                sig = (cfg["mode"], mtime, vpn_iface, v4_iface, v4_gw, v6_iface, v6_gw)
+                if sig != last_sig:
+                    if apply_net_rules(cfg["mode"], v4_iface, v4_gw, v6_iface, v6_gw, dry=False):
+                        last_sig = sig
+            elif last_sig is not None:
+                _clear_net_rules(dry=False)
+                last_sig = None
+
+            for _ in range(20):
+                if not _running:
+                    break
+                time.sleep(0.1)
+    finally:
+        cleanup()
+    return 0
+
+
+def cmd_dry_run(argv):
+    mode = None
+    bins_arg = None
+    i = 0
+    while i < len(argv):
+        if argv[i] == "--mode" and i + 1 < len(argv):
+            mode = argv[i + 1]
+            i += 2
+        elif argv[i] == "--apps" and i + 1 < len(argv):
+            bins_arg = [x.strip() for x in argv[i + 1].split(",") if BIN_RE.match(x.strip())]
+            i += 2
+        else:
+            i += 1
+
+    cfg, _ = load_config()
+    if mode in ("include", "exclude", "all"):
+        cfg["mode"] = mode
+    if bins_arg is not None:
+        cfg["apps"] = [{"id": b, "name": b, "icon": "", "binaries": [b]} for b in bins_arg]
+
+    vpn_iface = detect_vpn_iface()
+    v4_iface, v4_gw, v6_iface, v6_gw = detect_uplink()
+    matched, counts = scan_matching_pids(cfg["apps"])
+    print(f"# vpnIface={vpn_iface or 'none'} uplink={v4_iface or 'none'} gw={v4_gw or 'none'} matchedPids={len(matched)}")
+    if cfg["mode"] == "all" or not cfg["apps"]:
+        _clear_net_rules(dry=True)
+    else:
+        apply_net_rules(
+            cfg["mode"],
+            v4_iface or "eth0",
+            v4_gw or "192.168.1.1",
+            v6_iface,
+            v6_gw,
+            dry=True,
+        )
+    return 0
+
+
+def main(argv):
+    if "--dry-run" in argv:
+        rest = [a for a in argv if a != "--dry-run"]
+        return cmd_dry_run(rest)
+    if not argv or argv[0] == "status":
+        return cmd_status()
+    if argv[0] == "daemon":
+        return cmd_daemon()
+    if argv[0] == "cleanup":
+        cleanup()
+        return 0
+    print(__doc__, file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

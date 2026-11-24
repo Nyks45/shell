@@ -64,19 +64,21 @@ Item {
     }
 
     TapHandler {
-        gesturePolicy: TapHandler.ReleaseWithinBounds
+        gesturePolicy: TapHandler.DragThreshold
+        grabPermissions: PointerHandler.ApprovesTakeOverByAnything
         onTapped: root.focus = true
     }
 
     // The mouse's back / forward buttons and Alt+Left / Alt+Right
+    // Deferred via Qt.callLater so Back never tears down SearchResults mid-delivery.
     TapHandler {
         acceptedButtons: Qt.BackButton
-        onTapped: root.nState.back()
+        onTapped: Qt.callLater(() => root.nState.back())
     }
 
     TapHandler {
         acceptedButtons: Qt.ForwardButton
-        onTapped: root.nState.forward()
+        onTapped: Qt.callLater(() => root.nState.forward())
     }
 
     Shortcut {

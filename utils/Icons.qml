@@ -97,6 +97,16 @@ Singleton {
     ]
 
     readonly property var notifIconRules: [
+        [["audio input", "microphone", "mic muted", "mic unmuted"], "mic"],
+        [["audio output", "speaker", "headphone", "volume"], "volume_up"],
+        [["do not disturb"], "do_not_disturb_on"],
+        [["copied", "clipboard"], "content_copy"],
+        [["vpn"], "vpn_key"],
+        [["wi-fi", "wifi", "ethernet", "network"], "wifi"],
+        [["bluetooth"], "bluetooth"],
+        [["brightness"], "brightness_6"],
+        [["wallpaper"], "wallpaper"],
+        [["snapshot", "backup", "rollback"], "backup"],
         [["reboot"], "restart_alt"],
         [["recording"], "screen_record"],
         [["battery"], "power"],
@@ -104,7 +114,7 @@ Singleton {
         [["welcome"], "waving_hand"],
         [["time", "a break"], "schedule"],
         [["installed"], "download"],
-        [["update"], "update"],
+        [["update"], "system_update"],
         [["unable to"], "deployed_code_alert"],
         [["profile"], "person"],
         [["file"], "folder_copy"]
@@ -140,11 +150,13 @@ Singleton {
         return "";
     }
 
-    function getAppIcon(name: string, fallback: string): string {
+    function getAppIcon(name: string, fallback: var): string {
         const icon = DesktopEntries.heuristicLookup(name)?.icon;
-        if (fallback !== "undefined")
-            return Quickshell.iconPath(icon, fallback);
-        return Quickshell.iconPath(icon);
+        if (fallback === true || fallback === "")
+            return icon ? Quickshell.iconPath(icon, true) : "";
+        if (fallback !== undefined)
+            return icon ? Quickshell.iconPath(icon, fallback) : Quickshell.iconPath(fallback);
+        return icon ? Quickshell.iconPath(icon) : "";
     }
 
     function getAppCategoryIcon(name: string, fallback: string): string {

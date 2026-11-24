@@ -78,14 +78,11 @@ StyledRect {
         color: root.internalChecked ? root.activeOnColour : root.inactiveOnColour
         disabled: root.disabled
         onClicked: {
-            if (root.isToggle)
+            if (root.isToggle && !root.followChecked)
                 root.internalChecked = !root.internalChecked;
             root.clicked();
             if (root.isToggle && root.followChecked)
-                Qt.callLater(() => {
-                    if (root)
-                        root.internalChecked = root.checked;
-                });
+                root.internalChecked = root.checked;
         }
     }
 

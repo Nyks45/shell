@@ -34,7 +34,7 @@ ConnectedRect {
         popup.expanded = false
 
     Layout.fillWidth: true
-    implicitHeight: headerRow.implicitHeight + Tokens.padding.medium * 2
+    implicitHeight: Math.ceil(headerRow.implicitHeight) + Tokens.padding.medium * 2
 
     FontMetrics {
         id: entryMetrics

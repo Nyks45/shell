@@ -37,7 +37,7 @@ ColumnLayout {
 
     ConnectedRect {
         Layout.fillWidth: true
-        implicitHeight: ethHeaderLayout.implicitHeight + Tokens.padding.medium * 2
+        implicitHeight: Math.ceil(ethHeaderLayout.implicitHeight) + Tokens.padding.medium * 2
 
         RowLayout {
             id: ethHeaderLayout
@@ -96,7 +96,7 @@ ColumnLayout {
             readonly property var details: ethRow.isConnected ? Nmcli.ethernetDeviceDetails : null
 
             Layout.fillWidth: true
-            implicitHeight: ethLayout.implicitHeight + Tokens.padding.medium * 2
+            implicitHeight: Math.ceil(ethLayout.implicitHeight) + Tokens.padding.medium * 2
 
             // Tap opens the detail page for this interface.
             StateLayer {

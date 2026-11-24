@@ -21,6 +21,11 @@ users, read as JSON for the settings app (runs as the user).
     caelestia-system storage-overview        byte totals by category (apps, games, caches, logs, snapshots)
     caelestia-system locales                 system language, regional format, enabled & available locales
     caelestia-system security-status         firewall, Secure Boot / sbctl, TPM, LUKS, portal permissions
+    caelestia-system portal-permission-set   TABLE ID APP VALUE (set XDG portal permission)
+    caelestia-system portal-permission-delete TABLE ID [APP] (revoke stored portal permission)
+    caelestia-system portal-permission-reset clear stored XDG portal / Flatpak permissions
+    caelestia-system video-streams           active PipeWire camera & screen-capture streams
+    caelestia-system video-disconnect ID     disconnect an active PipeWire video/screen stream node
 
 Changes go through AccountsService, which asks polkit (the shell's prompt);
 starting/stopping services is plain systemctl (polkit too); group
@@ -879,8 +884,13 @@ def c_security_status(args):
 
     fsroot, booted_snapshot = booted_from_snapshot()
 
+    portal_perms, portal_available = portal_list_permissions()
+    perms_by_key = {}
+    for row in portal_perms:
+        key = (row["table"], row["id"], row["app"])
+        perms_by_key[key] = row
+
     flatpak_installed = os.path.exists("/usr/bin/flatpak")
-    perms = []
     if flatpak_installed:
         raw_p = subprocess.run(["flatpak", "permissions", "-j"], text=True,
                                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.strip()
@@ -892,16 +902,26 @@ def c_security_status(args):
                         if not isinstance(row, dict):
                             continue
                         p_val = row.get("permissions")
-                        p_text = ", ".join(str(x) for x in p_val) if isinstance(p_val, list) else str(p_val or "")
-                        perms.append({
-                            "table": str(row.get("table") or ""),
-                            # flatpak's JSON calls this column "object" (older output: "id")
-                            "id": str(row.get("object") or row.get("id") or ""),
-                            "app": str(row.get("app") or row.get("app-id") or ""),
-                            "permissions": p_text,
-                        })
+                        vals = [str(x) for x in p_val] if isinstance(p_val, list) else ([str(p_val)] if p_val else [])
+                        p_text = ", ".join(vals)
+                        tbl = str(row.get("table") or "")
+                        oid = str(row.get("object") or row.get("id") or "")
+                        app = str(row.get("app") or row.get("app-id") or "")
+                        key = (tbl, oid, app)
+                        if key not in perms_by_key:
+                            perms_by_key[key] = {
+                                "table": tbl,
+                                "id": oid,
+                                "app": app,
+                                "permissions": p_text,
+                                "values": vals,
+                                "source": "flatpak",
+                            }
+                        else:
+                            perms_by_key[key]["flatpak"] = True
             except ValueError:
                 pass
+    perms = sorted(perms_by_key.values(), key=lambda r: (r["app"] or "~", r["table"], r["id"]))
 
     print(json.dumps({
         "firewall": fw,
@@ -916,8 +936,183 @@ def c_security_status(args):
         "bootedSnapshot": booted_snapshot,
         "rollbackBlocker": rollback_blocker(),
         "flatpakInstalled": flatpak_installed,
+        "portalAvailable": portal_available,
         "permissions": perms,
     }))
+
+
+PORTAL_DEST = "org.freedesktop.impl.portal.PermissionStore"
+PORTAL_PATH = "/org/freedesktop/impl/portal/PermissionStore"
+PORTAL_IFACE = "org.freedesktop.impl.portal.PermissionStore"
+PORTAL_TABLES = (
+    "devices",
+    "camera",
+    "microphone",
+    "screenshot",
+    "screencast",
+    "remote-desktop",
+    "background",
+    "location",
+    "notifications",
+    "inhibit",
+    "usb",
+    "webcam",
+)
+
+
+def _portal_bus():
+    return Gio.bus_get_sync(Gio.BusType.SESSION, None)
+
+
+def portal_list_permissions():
+    rows = []
+    available = False
+    try:
+        bus = _portal_bus()
+        for table in PORTAL_TABLES:
+            res = bus.call_sync(
+                PORTAL_DEST, PORTAL_PATH, PORTAL_IFACE, "List",
+                GLib.Variant("(s)", (table,)), GLib.VariantType("(as)"),
+                Gio.DBusCallFlags.NONE, 1500, None,
+            )
+            available = True
+            for obj_id in (res.unpack()[0] or []):
+                try:
+                    lk = bus.call_sync(
+                        PORTAL_DEST, PORTAL_PATH, PORTAL_IFACE, "Lookup",
+                        GLib.Variant("(ss)", (table, obj_id)), GLib.VariantType("(a{sas}v)"),
+                        Gio.DBusCallFlags.NONE, 1500, None,
+                    )
+                except GLib.Error:
+                    continue
+                perms_map = lk.unpack()[0] or {}
+                for app_id, p_list in sorted(perms_map.items()):
+                    vals = [str(x) for x in (p_list or [])]
+                    rows.append({
+                        "table": str(table),
+                        "id": str(obj_id),
+                        "app": str(app_id),
+                        "permissions": ", ".join(vals),
+                        "values": vals,
+                        "source": "portal",
+                    })
+    except (GLib.Error, OSError):
+        pass
+    return rows, available
+
+
+def c_portal_permission_set(args):
+    if len(args) != 4:
+        raise IndexError("portal-permission-set requires 4 args")
+    table, obj_id, app, value = args[0], args[1], args[2], args[3]
+    if not table or not obj_id or not value:
+        print("table, id, and value must be non-empty", file=sys.stderr)
+        return 2
+    bus = _portal_bus()
+    bus.call_sync(
+        PORTAL_DEST, PORTAL_PATH, PORTAL_IFACE, "SetPermission",
+        GLib.Variant("(sbssas)", (table, True, obj_id, app, [value])), None,
+        Gio.DBusCallFlags.NONE, 2000, None,
+    )
+    print(json.dumps({"ok": True}))
+
+
+def c_portal_permission_delete(args):
+    if len(args) < 2:
+        raise IndexError("portal-permission-delete requires at least 2 args")
+    table, obj_id = args[0], args[1]
+    if not table or not obj_id:
+        print("table and id must be non-empty", file=sys.stderr)
+        return 2
+    bus = _portal_bus()
+    if len(args) >= 3:
+        bus.call_sync(
+            PORTAL_DEST, PORTAL_PATH, PORTAL_IFACE, "DeletePermission",
+            GLib.Variant("(sss)", (table, obj_id, args[2])), None,
+            Gio.DBusCallFlags.NONE, 2000, None,
+        )
+    else:
+        bus.call_sync(
+            PORTAL_DEST, PORTAL_PATH, PORTAL_IFACE, "Delete",
+            GLib.Variant("(ss)", (table, obj_id)), None,
+            Gio.DBusCallFlags.NONE, 2000, None,
+        )
+    print(json.dumps({"ok": True}))
+
+
+def c_portal_permission_reset(args):
+    bus = _portal_bus()
+    rows, _ = portal_list_permissions()
+    for row in rows:
+        try:
+            bus.call_sync(
+                PORTAL_DEST, PORTAL_PATH, PORTAL_IFACE, "DeletePermission",
+                GLib.Variant("(sss)", (row["table"], row["id"], row["app"])), None,
+                Gio.DBusCallFlags.NONE, 2000, None,
+            )
+        except GLib.Error:
+            pass
+    if os.path.exists("/usr/bin/flatpak"):
+        subprocess.run(["flatpak", "permission-reset", "--all"], check=False,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    print(json.dumps({"ok": True}))
+
+
+def c_video_streams(args):
+    raw = sh("pw-dump")
+    out = []
+    seen = set()
+    try:
+        nodes = json.loads(raw) if raw.strip() else []
+    except ValueError:
+        nodes = []
+    for n in nodes:
+        if not isinstance(n, dict) or n.get("type") != "PipeWire:Interface:Node":
+            continue
+        info = n.get("info") or {}
+        if info.get("state") != "running":
+            continue
+        p = info.get("props") or {}
+        mc = str(p.get("media.class") or "")
+        role = str(p.get("media.role") or "")
+        if not (("Video" in mc and ("Stream" in mc or "Source" in mc)) or role in ("Camera", "Screen")):
+            continue
+        nid = n.get("id")
+        if not isinstance(nid, int) or nid in seen:
+            continue
+        seen.add(nid)
+        app = str(p.get("application.name") or p.get("application.process.binary") or p.get("node.description") or p.get("node.name") or "Video")
+        name = str(p.get("node.description") or p.get("node.name") or "")
+        node_name_l = (mc + " " + name + " " + role).lower()
+        kind = "screen" if any(k in node_name_l for k in ("screen", "screencast", "desktop", "monitor", "window", "xdg-desktop-portal")) else "camera"
+        out.append({
+            "id": nid,
+            "app": app,
+            "name": name,
+            "mediaClass": mc,
+            "kind": kind,
+        })
+    out.sort(key=lambda r: (r["app"].lower(), r["id"]))
+    print(json.dumps(out))
+
+
+def c_video_disconnect(args):
+    if len(args) != 1:
+        raise IndexError("video-disconnect requires node id")
+    try:
+        nid = int(args[0])
+    except ValueError:
+        print("invalid PipeWire node id", file=sys.stderr)
+        return 2
+    if nid <= 0:
+        print("invalid PipeWire node id", file=sys.stderr)
+        return 2
+    proc = subprocess.run(["pw-cli", "destroy", str(nid)], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if proc.returncode != 0:
+        err = (proc.stderr or proc.stdout or f"pw-cli exited with {proc.returncode}").strip()
+        print(err, file=sys.stderr)
+        return proc.returncode
+    print(json.dumps({"ok": True}))
 
 
 COMMANDS = {"units": c_units, "unit": c_unit, "timers": c_timers, "logs": c_logs, "boots": c_boots,
@@ -925,6 +1120,11 @@ COMMANDS = {"units": c_units, "unit": c_unit, "timers": c_timers, "logs": c_logs
             "user-delete": c_user_delete, "user-type": c_user_type, "user-password": c_user_password,
             "boot": c_boot, "kernels": c_kernels, "firmware": c_firmware, "fwupd": c_fwupd,
             "storage-overview": c_storage_overview, "locales": c_locales, "security-status": c_security_status,
+            "portal-permission-set": c_portal_permission_set,
+            "portal-permission-delete": c_portal_permission_delete,
+            "portal-permission-reset": c_portal_permission_reset,
+            "video-streams": c_video_streams,
+            "video-disconnect": c_video_disconnect,
             "rollback-status": c_rollback_status}
 
 

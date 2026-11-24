@@ -26,8 +26,8 @@ ConnectedRect {
     Layout.fillWidth: true
     Layout.topMargin: standalone && prevItem && prevItem.isSectionHeader !== true ? Math.max(0, Tokens.spacing.largeIncreased - root.gap) : 0
     Layout.bottomMargin: standalone && nextItem && nextItem.isGroupRow === true && nextItem.groupStart !== true ? Math.max(0, Tokens.spacing.largeIncreased - root.gap) : 0
-    implicitHeight: layout.implicitHeight + Tokens.padding.medium * 2
-    color: root.neutral ? Colours.tPalette.m3surfaceContainer : Colours.palette.m3tertiaryContainer
+    implicitHeight: Math.ceil(layout.implicitHeight) + Tokens.padding.medium * 2
+    fillColour: root.neutral ? Colours.tPalette.m3surfaceContainer : Colours.palette.m3tertiaryContainer
 
     RowLayout {
         id: layout

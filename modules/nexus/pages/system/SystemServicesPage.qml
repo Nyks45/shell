@@ -140,6 +140,7 @@ PageBase {
         Flow {
             Layout.fillWidth: true
             visible: root.tab !== "timers"
+            Layout.bottomMargin: Tokens.spacing.small
             spacing: Tokens.spacing.extraSmall
 
             Repeater {

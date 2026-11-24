@@ -52,14 +52,27 @@ FocusScope {
         for (const n of Notifs.notClosed) {
             const name = n.appName || "Notification";
             if (!groups.has(name)) {
-                const iconUrl = n.image
-                    ? Qt.resolvedUrl(n.image).toString()
-                    : (n.appIcon ? Quickshell.iconPath(n.appIcon, "") : Icons.getAppIcon(name, ""));
+                const isCaelestia = name.toLowerCase() === "caelestia";
+                const hasExplicitGlyph = Boolean(n.caelestiaIcon || n.hints?.["x-caelestia-icon"]);
+                const img = n.image || "";
+                const photoUrl = (img && !img.startsWith("image://icon/")) ? Qt.resolvedUrl(img).toString() : "";
+                let appIconUrl = "";
+                if (!photoUrl && !isCaelestia && !hasExplicitGlyph) {
+                    if (img && img.startsWith("image://icon/"))
+                        appIconUrl = img;
+                    else if (n.appIcon)
+                        appIconUrl = Quickshell.iconPath(n.appIcon, true);
+                    else
+                        appIconUrl = Icons.getAppIcon(name, true);
+                }
+                const glyph = (!photoUrl && !appIconUrl) ? String(n.materialIcon || "") : "";
                 groups.set(name, {
                     name: name,
                     count: 1,
                     summary: n.summary || "",
-                    icon: iconUrl || ""
+                    photo: photoUrl,
+                    appIcon: appIconUrl,
+                    glyph: glyph
                 });
             } else {
                 const g = groups.get(name);
@@ -555,7 +568,9 @@ FocusScope {
             required property string name
             required property int count
             required property string summary
-            required property string icon
+            required property string photo
+            required property string appIcon
+            required property string glyph
 
             centerX: root.cx
             centerY: root.cy
@@ -584,7 +599,9 @@ FocusScope {
                 name: note.name
                 count: note.count
                 summary: note.summary
-                icon: note.icon
+                photo: note.photo
+                appIcon: note.appIcon
+                glyph: note.glyph
                 unit: root.unit
                 morph: root.settle(120 + note.index * 60)
             }

@@ -23,8 +23,9 @@ PageBase {
     property string browserId
     property string editorId
     property bool allowRegexPatterns: false
-    // Defaults by file type (xdg-mime): first type -> desktop entry id
+    // Defaults by file type (xdg-mime) and matching desktop entry ids per role/group
     property var mimeDefaults: ({})
+    property var mimeHandlers: ({})
     readonly property var mimeGroups: ({
             images: ["image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp", "image/svg+xml", "image/tiff", "image/avif", "image/heic", "image/x-icon"],
             video: ["video/mp4", "video/x-matroska", "video/webm", "video/quicktime", "video/x-msvideo", "video/mpeg", "video/ogg", "video/x-flv"],
@@ -34,6 +35,72 @@ PageBase {
             email: ["x-scheme-handler/mailto"]
         })
     readonly property list<string> textTypes: ["text/plain", "text/markdown", "text/x-csrc", "text/x-chdr", "text/x-c++src", "text/x-c++hdr", "text/x-python", "text/x-shellscript", "application/x-shellscript", "application/json", "application/xml", "application/toml", "text/x-lua", "application/x-yaml", "text/x-log"]
+    readonly property string _desktopScanPy: `import configparser, glob, json, os, re, subprocess
+groups = {
+    "images": {"image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp", "image/svg+xml", "image/tiff", "image/avif", "image/heic", "image/x-icon"},
+    "video": {"video/mp4", "video/x-matroska", "video/webm", "video/quicktime", "video/x-msvideo", "video/mpeg", "video/ogg", "video/x-flv"},
+    "music": {"audio/mpeg", "audio/flac", "audio/ogg", "audio/x-wav", "audio/wav", "audio/mp4", "audio/aac", "audio/opus", "audio/x-vorbis+ogg"},
+    "pdf": {"application/pdf"},
+    "archives": {"application/zip", "application/x-tar", "application/x-7z-compressed", "application/vnd.rar", "application/x-rar", "application/gzip", "application/x-compressed-tar", "application/x-xz-compressed-tar", "application/zstd", "application/x-bzip2"},
+    "email": {"x-scheme-handler/mailto"},
+}
+first_mime = {k: sorted(v)[0] for k, v in groups.items()}
+first_mime.update({"images": "image/png", "video": "video/mp4", "music": "audio/mpeg", "pdf": "application/pdf", "archives": "application/zip", "email": "x-scheme-handler/mailto"})
+defaults = {}
+for k, mt in first_mime.items():
+    r = subprocess.run(["xdg-mime", "query", "default", mt], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    defaults[k] = r.stdout.strip()
+app_dirs = [
+    os.path.expanduser("~/.local/share/applications"),
+    os.path.expanduser("~/.local/share/flatpak/exports/share/applications"),
+    "/usr/local/share/applications",
+    "/usr/share/applications",
+    "/var/lib/flatpak/exports/share/applications",
+]
+seen = {}
+for d in app_dirs:
+    if not os.path.isdir(d):
+        continue
+    for f in sorted(glob.glob(os.path.join(d, "*.desktop"))):
+        did = os.path.basename(f)[:-8]
+        if did not in seen:
+            seen[did] = f
+handlers = {k: [] for k in list(groups.keys()) + ["browser", "editor", "files", "terminal", "mixer", "playback"]}
+mixer_re = re.compile(r"(pavucontrol|easyeffects|qpwgraph|helvum|pulsemixer|alsamixer|kmix|veromix|mixertui|volume|mixer)", re.I)
+cam_re = re.compile(r"(qv4l2|qvidcap)", re.I)
+for did, path in seen.items():
+    cp = configparser.ConfigParser(interpolation=None)
+    try:
+        cp.read(path, encoding="utf-8")
+    except Exception:
+        continue
+    if "Desktop Entry" not in cp:
+        continue
+    sec = cp["Desktop Entry"]
+    if sec.get("Type", "Application") != "Application":
+        continue
+    if sec.get("Hidden", "").lower() == "true" or sec.get("NoDisplay", "").lower() == "true":
+        continue
+    mimes = {m.strip().lower() for m in sec.get("MimeType", "").split(";") if m.strip()}
+    cats = {c.strip() for c in sec.get("Categories", "").split(";") if c.strip()}
+    name = sec.get("Name", "")
+    for gk, gm in groups.items():
+        if (mimes & gm) or (gk == "email" and "Email" in cats) or (gk == "archives" and "Archiving" in cats):
+            handlers[gk].append(did)
+    if (mimes & {"x-scheme-handler/http", "x-scheme-handler/https", "text/html"}) or ("WebBrowser" in cats):
+        handlers["browser"].append(did)
+    if (mimes & {"text/plain", "text/markdown"}) or ("TextEditor" in cats):
+        handlers["editor"].append(did)
+    if ("inode/directory" in mimes) or ("FileManager" in cats):
+        handlers["files"].append(did)
+    if "TerminalEmulator" in cats:
+        handlers["terminal"].append(did)
+    if ("Mixer" in cats or mixer_re.search(did) or mixer_re.search(name)) and not cam_re.search(did):
+        handlers["mixer"].append(did)
+    if ("Player" in cats or (("AudioVideo" in cats or "Audio" in cats or "Video" in cats) and (mimes & (groups["video"] | groups["music"])))) and not cam_re.search(did):
+        handlers["playback"].append(did)
+print(json.dumps({"defaults": defaults, "handlers": handlers}))
+`
 
     // A desktop entry's command for the config (no %u-style placeholders)
     function commandOf(app: var): string {
@@ -84,6 +151,7 @@ PageBase {
             icon: "terminal"
             label: Tr.trCtx("Terminal", "default app category")
             category: "TerminalEmulator"
+            handlerKey: "terminal"
             status: root.friendlyCommandName(GlobalConfig.general.apps.terminal)
             currentCommand: GlobalConfig.general.apps.terminal
             onSelected: app => GlobalConfig.general.apps.terminal = app.command
@@ -92,7 +160,7 @@ PageBase {
         DefaultRow {
             icon: "volume_up"
             label: Tr.trCtx("Sound mixer", "default app category")
-            category: "Audio"
+            handlerKey: "mixer"
             builtInApp: ({
                 id: "",
                 name: Tr.tr("Caelestia Sound Mixer (built in)"),
@@ -109,6 +177,7 @@ PageBase {
             icon: "play_circle"
             label: Tr.trCtx("Media playback", "default app category")
             category: "Player"
+            handlerKey: "playback"
             status: root.friendlyCommandName(GlobalConfig.general.apps.playback)
             currentCommand: GlobalConfig.general.apps.playback
             onSelected: app => GlobalConfig.general.apps.playback = app.command
@@ -118,6 +187,7 @@ PageBase {
             icon: "folder"
             label: Tr.trCtx("File manager", "default app category")
             category: "FileManager"
+            handlerKey: "files"
             status: root.friendlyCommandName(GlobalConfig.general.apps.explorer)
             currentCommand: GlobalConfig.general.apps.explorer
             onSelected: app => GlobalConfig.general.apps.explorer = app.command
@@ -127,6 +197,7 @@ PageBase {
             icon: "language"
             label: Tr.trCtx("Web browser", "default app category")
             category: "WebBrowser"
+            handlerKey: "browser"
             status: root.browserId ? root.nameOf(root.browserId) : Tr.tr("Not set")
             currentId: root.browserId
             onSelected: app => {
@@ -140,6 +211,7 @@ PageBase {
             icon: "edit_note"
             label: Tr.trCtx("Text editor", "default app category")
             category: "TextEditor"
+            handlerKey: "editor"
             status: root.editorId ? root.nameOf(root.editorId) : Tr.tr("Not set")
             currentId: root.editorId
             onSelected: app => {
@@ -158,58 +230,50 @@ PageBase {
             icon: "image"
             label: Tr.trCtx("Images", "default app category")
             group: "images"
-            category: "Graphics"
         }
 
         DefaultRow {
             icon: "movie"
             label: Tr.trCtx("Videos", "default app category")
             group: "video"
-            category: "Video"
         }
 
         DefaultRow {
             icon: "music_note"
             label: Tr.trCtx("Music", "default app category")
             group: "music"
-            category: "Audio"
         }
 
         DefaultRow {
             icon: "picture_as_pdf"
             label: Tr.trCtx("PDF documents", "default app category")
             group: "pdf"
-            category: "Office"
         }
 
         DefaultRow {
             icon: "folder_zip"
             label: Tr.trCtx("Archives", "default app category")
             group: "archives"
-            category: "Archiving"
         }
 
         DefaultRow {
             icon: "mail"
             label: Tr.trCtx("Email", "default app category")
             group: "email"
-            category: "Email"
         }
 
         Process {
             id: mimeProc
 
             running: true
-            command: ["sh", "-c", Object.entries(root.mimeGroups).map(([g, types]) => `echo "${g}=$(xdg-mime query default ${types[0]})"`).join("; ")]
+            command: ["python3", "-I", "-c", root._desktopScanPy]
             stdout: StdioCollector {
                 onStreamFinished: {
-                    const out = {};
-                    for (const line of text.split("\n")) {
-                        const i = line.indexOf("=");
-                        if (i > 0)
-                            out[line.slice(0, i)] = line.slice(i + 1).trim();
-                    }
-                    root.mimeDefaults = out;
+                    try {
+                        const data = JSON.parse(text);
+                        root.mimeDefaults = data.defaults ?? {};
+                        root.mimeHandlers = data.handlers ?? {};
+                    } catch (e) {}
                 }
             }
         }
@@ -301,20 +365,38 @@ PageBase {
 
         // Only apps of this kind (a desktop file category), when there are any
         property string category
+        // Key into root.mimeHandlers (defaults to group)
+        property string handlerKey: group
 
         property var currentCommand: []
         property var builtInApp: null
         property string currentId: group ? (root.mimeDefaults[group] ?? "") : ""
         property string query
+        property bool showAllApps: false
 
+        readonly property var allVisibleApps: [...DesktopEntries.applications.values].filter(a => !a.noDisplay).sort((a, b) => a.name.localeCompare(b.name))
         readonly property var allApps: {
             if (!popup.active)
                 return [];
-            const all = [...DesktopEntries.applications.values];
-            const ofKind = category ? all.filter(a => a.categories.includes(category)) : [];
-            const apps = ofKind.length > 0 ? ofKind : all;
+            const all = allVisibleApps;
+            let apps;
+            if (showAllApps) {
+                apps = all;
+            } else {
+                const key = handlerKey || group;
+                const scanned = key && Array.isArray(root.mimeHandlers[key]) ? new Set(root.mimeHandlers[key]) : null;
+                apps = all.filter(a => {
+                    if (isCurrent(a))
+                        return true;
+                    if (scanned && scanned.has(a.id))
+                        return true;
+                    if (category && (a.categories ?? []).includes(category))
+                        return true;
+                    return false;
+                });
+            }
             const favourited = new Set(apps.filter(a => !!a.id && Strings.testRegexList(GlobalConfig.launcher.favouriteApps, a.id)));
-            const sorted = apps.sort((a, b) => (favourited.has(b) - favourited.has(a)) || a.name.localeCompare(b.name));
+            const sorted = [...apps].sort((a, b) => (favourited.has(b) - favourited.has(a)) || a.name.localeCompare(b.name));
             return builtInApp ? [builtInApp, ...sorted] : sorted;
         }
         readonly property bool showSearch: allApps.length > 8
@@ -328,6 +410,7 @@ PageBase {
         }
         readonly property real rowH: Math.ceil(Math.max(itemMetrics.height, 20)) + Tokens.padding.small * 2
         readonly property real searchH: Math.ceil(itemMetrics.height) + Tokens.padding.small * 2
+        readonly property real footerH: Math.ceil(toggleMetrics.height) + Tokens.padding.extraSmall * 2
         readonly property real listH: filteredApps.length > 0 ? Math.min(240, filteredApps.length * rowH + Math.max(0, filteredApps.length - 1) * 2) : 48
 
         function isCurrent(app: var): bool {
@@ -370,8 +453,10 @@ PageBase {
 
         Connections {
             function onActiveChanged(): void {
-                if (!row.popup.active)
+                if (!row.popup.active) {
                     row.query = "";
+                    row.showAllApps = false;
+                }
             }
 
             target: row.popup
@@ -388,14 +473,20 @@ PageBase {
         }
         popupWidth: showSearch
             ? 256
-            : Math.round(CUtils.clamp(allApps.reduce((m, a) => Math.max(m, (a.name ?? "").length), 0) * itemMetrics.averageCharacterWidth + 20 + Tokens.spacing.small + Tokens.padding.medium * 2 + 28, 176, 260))
-        popupHeight: (showSearch ? (searchH + Tokens.spacing.small) : 0) + listH
-        maxPopupHeight: showSearch ? 280 : 256
+            : Math.round(CUtils.clamp(allApps.reduce((m, a) => Math.max(m, (a.name ?? "").length), 0) * itemMetrics.averageCharacterWidth + 20 + Tokens.spacing.small + Tokens.padding.medium * 2 + 28, 196, 260))
+        popupHeight: (showSearch ? (searchH + Tokens.spacing.small) : 0) + listH + Tokens.spacing.extraSmall + footerH
+        maxPopupHeight: showSearch ? 320 : 296
 
         FontMetrics {
             id: itemMetrics
 
             font: Tokens.font.body.small
+        }
+
+        FontMetrics {
+            id: toggleMetrics
+
+            font: Tokens.font.label.medium
         }
 
         popupContent: Component {
@@ -513,9 +604,22 @@ PageBase {
                     StyledText {
                         anchors.centerIn: parent
                         visible: row.filteredApps.length === 0
-                        text: Tr.tr("No apps match")
+                        text: row.showAllApps ? Tr.tr("No apps match") : Tr.tr("No matching apps")
                         color: Colours.palette.m3outline
                         font: Tokens.font.body.small
+                    }
+                }
+
+                TextButton {
+                    Layout.alignment: Qt.AlignHCenter
+                    horizontalPadding: Tokens.padding.small
+                    verticalPadding: Tokens.padding.extraSmall
+                    font: Tokens.font.label.medium
+                    type: TextButton.Text
+                    text: row.showAllApps ? Tr.tr("Show matching apps only") : Tr.tr("Show all apps (%1)").arg(row.allVisibleApps.length)
+                    onClicked: {
+                        row.query = "";
+                        row.showAllApps = !row.showAllApps;
                     }
                 }
             }

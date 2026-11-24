@@ -816,7 +816,7 @@ Item {
                                     MaterialIcon {
                                         anchors.centerIn: parent
                                         visible: appImg.status !== Image.Ready
-                                        text: "notifications"
+                                        text: card.modelData.materialIcon || "notifications"
                                         color: Colours.palette.m3onSecondaryContainer
                                         fontStyle: Tokens.font.icon.small
                                     }
