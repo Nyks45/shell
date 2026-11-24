@@ -128,8 +128,8 @@ PageBase {
             font: Tokens.font.body.medium
             horizontalPadding: Tokens.padding.largeIncreased
             checked: VPN.connected
-            // Connectable as long as there's a provider and we're not mid-switch.
-            disabled: VPN.connecting || VPN.disconnecting || VPN.providers.length === 0
+            // Connectable as long as there's an installed provider and we're not mid-switch.
+            disabled: VPN.connecting || VPN.disconnecting || VPN.providers.length === 0 || VPN.activeCliMissing
             onToggled: VPN.toggle()
 
             Timer {
@@ -142,6 +142,17 @@ PageBase {
                     if (VPN.connected)
                         VPN.refreshStats();
                 }
+            }
+
+            Connections {
+                function onVisibleChanged(): void {
+                    if (root.visible) {
+                        VPN.refreshAvailability();
+                        AdBlocker.refresh();
+                    }
+                }
+
+                target: root
             }
         }
 
@@ -219,8 +230,16 @@ PageBase {
                                 switch (VPN.status.state) {
                                 case "connected":
                                     return [Tr.trCtx("Connected", "vpn state"), VPN.serverLocation, (VPN.bytesIn && VPN.bytesOut) ? `↓ ${VPN.bytesIn}  ↑ ${VPN.bytesOut}` : ""].filter(s => s).join(" • ");
+                                case "connecting":
+                                    return Tr.tr("Connecting...");
                                 case "needs-auth":
                                     return VPN.status.reason ? Tr.trMarked(VPN.status.reason) : Tr.tr("Authentication required");
+                                case "needs-operator":
+                                    return VPN.status.reason ? Tr.trMarked(VPN.status.reason) : Tr.tr("Operator permission needed");
+                                case "service-stopped":
+                                    return VPN.status.reason ? Tr.trMarked(VPN.status.reason) : Tr.tr("Service not running");
+                                case "missing-cli":
+                                    return VPN.status.reason ? Tr.trMarked(VPN.status.reason) : Tr.tr("VPN client not installed");
                                 case "error":
                                     return VPN.status.reason ? Tr.trMarked(VPN.status.reason) : Tr.tr("An error occurred");
                                 default:
@@ -234,6 +253,9 @@ PageBase {
                                 case "connected":
                                     return Colours.palette.m3primary;
                                 case "needs-auth":
+                                case "needs-operator":
+                                case "service-stopped":
+                                case "missing-cli":
                                 case "error":
                                     return Colours.palette.m3error;
                                 default:
@@ -247,7 +269,13 @@ PageBase {
                     }
 
                     Item {
+                        id: providerDetailBox
+
+                        readonly property string displayIface: (provider.isSelected ? VPN.activeDevice : "") || provider.modelData.interface
+
                         Layout.rightMargin: Tokens.spacing.small
+                        Layout.preferredWidth: implicitWidth
+                        Layout.preferredHeight: implicitHeight
                         opacity: provider.isConnected && root?.cappedWidth > Tokens.sizes.nexus.networkShowVpnDetailWidth ? 1 : 0
                         visible: opacity > 0
 
@@ -267,6 +295,7 @@ PageBase {
                             spacing: Tokens.spacing.large
 
                             ColumnLayout {
+                                visible: providerDetailBox.displayIface.length > 0
                                 spacing: 0
 
                                 StyledText {
@@ -280,7 +309,7 @@ PageBase {
 
                                 StyledText {
                                     Layout.alignment: Qt.AlignRight
-                                    text: provider.modelData.interface
+                                    text: providerDetailBox.displayIface
                                     color: Colours.palette.m3outline
                                     font: Tokens.font.label.small
                                     elide: Text.ElideRight
@@ -330,16 +359,10 @@ PageBase {
                         type: TextButton.Tonal
                         disabled: VPN.connecting || VPN.disconnecting
                         onClicked: {
-                            if (provider.isConnected) {
+                            if (provider.isConnected)
                                 VPN.disconnect();
-                            } else if (provider.isSelected) {
-                                VPN.connect();
-                            } else if (VPN.connected) {
-                                VPN.setActiveProvider(provider.index);
-                            } else {
-                                VPN.applySelectedProvider(provider.modelData.id);
-                                VPN.connect();
-                            }
+                            else
+                                VPN.connectProvider(provider.modelData.id);
                         }
                     }
 
@@ -357,6 +380,54 @@ PageBase {
             }
         }
 
+        RequirementRow {
+            visible: VPN.selected !== null && VPN.activeCliMissing && VPN.active.pkgName.length > 0
+            icon: "extension_off"
+            text: Tr.tr("%1 isn't installed").arg(VPN.active.pkgLabel || VPN.active.displayName)
+            subtext: Tr.tr("Install %1 so Settings can connect this VPN.").arg(VPN.active.pkgName)
+            actionText: Packages.busy[`${VPN.active.pkgSource}:${VPN.active.pkgName}`] ? "" : Tr.tr("Install")
+            onAction: Packages.install({
+                source: VPN.active.pkgSource,
+                name: VPN.active.pkgName
+            }, () => {
+                VPN.refreshAvailability();
+                VPN.checkStatus();
+            })
+        }
+
+        RequirementRow {
+            visible: VPN.selected !== null && !VPN.activeCliMissing && (VPN.activeServiceStopped || VPN.status.state === "service-stopped") && VPN.activeServiceUnit.length > 0
+            icon: "play_circle"
+            text: Tr.tr("%1 service isn't running").arg(VPN.active.displayName)
+            subtext: Tr.tr("Start and enable %1 so Settings can connect this VPN.").arg(VPN.activeServiceUnit)
+            actionText: Admin.busy ? "" : Tr.tr("Start service")
+            onAction: Admin.exec(["systemctl", "enable", "--now", VPN.activeServiceUnit], Tr.tr("Start %1 service").arg(VPN.active.displayName), () => {
+                VPN.refreshAvailability();
+                VPN.checkStatus();
+            })
+        }
+
+        RequirementRow {
+            visible: VPN.selected !== null && VPN.status.state === "needs-operator"
+            icon: "admin_panel_settings"
+            text: Tr.tr("Allow your user to control Tailscale")
+            subtext: Tr.tr("Tailscale requires operator permission before Settings can connect without sudo.")
+            actionText: Admin.busy ? "" : Tr.tr("Allow my user")
+            onAction: Admin.run("vpn-tailscale-operator", [], Tr.tr("Allow Tailscale control"), ok => {
+                if (ok)
+                    VPN.connect();
+            })
+        }
+
+        RequirementRow {
+            visible: VPN.selected !== null && VPN.status.state === "needs-auth" && VPN.status.authUrl.length > 0
+            icon: "open_in_new"
+            text: Tr.tr("Sign in to %1").arg(VPN.active.displayName)
+            subtext: Tr.tr("Finish authentication in your browser, then return here.")
+            actionText: Tr.tr("Open login page")
+            onAction: Qt.openUrlExternally(VPN.status.authUrl)
+        }
+
         // Add provider
         RowButton {
             icon: "add"
@@ -365,6 +436,43 @@ PageBase {
                 root.nState.editingVpnIndex = -1;
                 root.nState.openSubPage(4); // Add/edit provider sub-page
             }
+        }
+
+        // ---- Ad blocker ------------------------------------------------------
+        SectionHeader {
+            text: Tr.tr("Ad blocker")
+        }
+
+        ToggleRow {
+            visible: AdBlocker.installed && AdBlocker.configured
+            text: Tr.tr("System-wide ad blocker")
+            subtext: {
+                if (AdBlocker.active)
+                    return Tr.tr("Blocking ads & trackers · %1 blocked (%2%)").arg(AdBlocker.formatCompactCount(AdBlocker.stats.numBlockedFiltering ?? 0)).arg((AdBlocker.stats.blockedPercent ?? 0).toFixed(1));
+                if (AdBlocker.paused)
+                    return Tr.tr("Paused · %1 remaining").arg(AdBlocker.formatPauseCountdown(AdBlocker.pauseRemainingSec));
+                return Tr.tr("Off: using your normal network DNS");
+            }
+            checked: AdBlocker.active
+            disabled: AdBlocker.busy
+            onToggled: AdBlocker.setEnabled(checked)
+        }
+
+        NavRow {
+            icon: "shield"
+            text: Tr.tr("Ad blocker & DNS")
+            subtext: {
+                if (!AdBlocker.loaded)
+                    return Tr.tr("Checking AdGuard Home status…");
+                if (!AdBlocker.installed || !AdBlocker.configured)
+                    return Tr.tr("Set up AdGuard-powered system-wide blocking");
+                if (AdBlocker.active)
+                    return Tr.tr("%1 rules · Query log, filters & encrypted DNS").arg(AdBlocker.formatCompactCount(AdBlocker.totalEnabledRules));
+                if (AdBlocker.paused)
+                    return Tr.tr("Paused (%1 left) · Filters, query log & DNS").arg(AdBlocker.formatPauseCountdown(AdBlocker.pauseRemainingSec));
+                return Tr.tr("Query log, filter lists, custom rules & encrypted DNS");
+            }
+            onClicked: root.nState.openSubPage(7) // Ad blocker sub-page
         }
     }
 }

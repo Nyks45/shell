@@ -38,10 +38,21 @@ Singleton {
 
     // Tracks an in-flight provider switch (by id) that must wait for disconnect.
     property string pendingSwitchProvider: ""
+    property bool pendingConnectAfterSelect: false
 
-    // To track whether connect/disconnect procs actually ran
+    // Tracks on-demand registration (e.g. Cloudflare WARP TOS registration).
+    property bool connectAfterRegister: false
+    property bool registerAttempted: false
+
+    // CLI binary & systemd daemon availability (plain JS objects; avoid Map in QML).
+    property var cliInstalled: ({})
+    property var serviceStates: ({})
+    property bool availabilityChecked: false
+
+    // To track whether connect/disconnect/status procs actually ran
     property bool connectExited
     property bool disconnectExited
+    property bool statusExited
 
     // For auto connect on init from config
     property bool autoConnectPending
@@ -71,12 +82,21 @@ Singleton {
             statusCmd: resolve(adapter ? adapter.statusCmd : null) || ["ip", "link", "show"],
             parse: (adapter ? adapter.parse : null) ? (out => adapter.parse(out, iface)) : (out => root.parseInterfaceStatus(out, iface)),
             service: adapter ? adapter.service : `${name}d`,
+            cliBin: adapter ? adapter.cliBin : "",
+            pkgName: adapter ? adapter.pkgName : "",
+            pkgSource: adapter ? adapter.pkgSource : "repo",
+            pkgLabel: adapter ? adapter.pkgLabel : "",
             connectHint: adapter ? adapter.connectHint : null,
             registerCmd: adapter ? adapter.registerCmd : null,
             serverCmd: adapter ? adapter.serverCmd : null,
             parseServer: adapter ? adapter.parseServer : null
         };
     }
+
+    readonly property bool activeCliMissing: availabilityChecked && active.cliBin.length > 0 && !isInstalled(active.name)
+    readonly property bool activeServiceStopped: availabilityChecked && !activeCliMissing && active.service.length > 0 && active.service !== "NetworkManager" && serviceStates[active.service] !== undefined && serviceStates[active.service] !== "active"
+    readonly property string activeServiceUnit: active.service
+    readonly property string activeDevice: (status.device && status.device.length > 0) ? status.device : active.interface
 
     // Kept as thin readouts for the UI.
     readonly property string providerName: active.name
@@ -164,6 +184,34 @@ Singleton {
         }
     }
 
+    function adapterFor(typeId: string): var {
+        return adapters.find(a => a.name === typeId) ?? null;
+    }
+
+    function isInstalled(typeId: string): bool {
+        if (!availabilityChecked)
+            return true;
+        const adapter = adapterFor(typeId);
+        if (!adapter || !adapter.cliBin)
+            return true;
+        return cliInstalled[adapter.cliBin] === true;
+    }
+
+    function isServiceActive(typeId: string): bool {
+        if (!availabilityChecked)
+            return true;
+        const adapter = adapterFor(typeId);
+        if (!adapter || !adapter.service)
+            return true;
+        const st = serviceStates[adapter.service];
+        return st === undefined || st === "active";
+    }
+
+    function refreshAvailability(): void {
+        availProc.running = false;
+        availProc.running = true;
+    }
+
     function applySelectedProvider(id: string): void {
         GlobalConfig.utilities.vpn.selectedProvider = id;
     }
@@ -180,13 +228,45 @@ Singleton {
             GlobalConfig.utilities.vpn.selectedProvider = next;
     }
 
+    function connectProvider(id: string): void {
+        if (!id)
+            return;
+        if (id === root.selectedProvider) {
+            root.connect();
+        } else if (root.connected) {
+            root.pendingSwitchProvider = id;
+            root.disconnect();
+        } else {
+            root.pendingConnectAfterSelect = true;
+            applySelectedProvider(id);
+        }
+    }
+
     function connect(): void {
+        if (activeCliMissing) {
+            reportConnectFailure(Tr.tr("%1 is not installed").arg(active.displayName), "missing-cli");
+            return;
+        }
+        if (activeServiceStopped || status.state === "service-stopped") {
+            reportConnectFailure(Tr.tr("%1 service is not running").arg(active.displayName), "service-stopped");
+            return;
+        }
+        if (status.state === "needs-auth" && active.registerCmd && !registerProc.running) {
+            connectAfterRegister = true;
+            connectPending = true;
+            registerAttempted = true;
+            registerProc.errText = "";
+            registerProc.exec(active.registerCmd);
+            return;
+        }
         if (status.state === "needs-auth" && status.authUrl) {
-            emitStatusToast(status);
+            emitStatusToast(status, status.state);
             return;
         }
         if (!connected && !connecting) {
             connectPending = true;
+            connectProc.errText = "";
+            connectProc.outText = "";
             connectProc.exec(active.connectCmd);
         }
     }
@@ -202,9 +282,16 @@ Singleton {
         connected ? disconnect() : connect();
     }
 
-    function reportConnectFailure(reason: string): void {
+    function reportConnectFailure(reason: string, nextState = "error"): void {
         connectPending = false;
         connected = false;
+        status = {
+            connected: false,
+            state: nextState,
+            reason: reason,
+            authUrl: "",
+            server: ""
+        };
         connectedChanged(); // Force bindings to reeval (mainly for switches)
         if (GlobalConfig.utilities.toasts.vpnChanged)
             Toaster.toast(Tr.tr("VPN connection failed"), reason, "vpn_key_alert");
@@ -218,9 +305,25 @@ Singleton {
     }
 
     function checkStatus(): void {
-        if (root.selectedProvider.length > 0) {
-            statusProc.running = true;
+        if (root.selectedProvider.length === 0)
+            return;
+        if (root.activeCliMissing) {
+            updateStatus({
+                connected: false,
+                state: "missing-cli",
+                reason: Tr.mark("%1 is not installed", [root.active.displayName]),
+                authUrl: "",
+                server: ""
+            });
+            return;
         }
+        if (statusProc.running)
+            return;
+        statusProc.outText = "";
+        statusProc.errText = "";
+        statusProc.exitCode = 0;
+        statusProc.pending = 3;
+        statusProc.running = true;
     }
 
     // Refresh live In/Out byte counters, tunnel latency and - for providers
@@ -228,14 +331,14 @@ Singleton {
     function refreshStats(): void {
         if (!connected)
             return;
-        const iface = active.interface;
-        if (iface.length > 0) {
-            statsProc.command = ["sh", "-c", `cat /sys/class/net/${iface}/statistics/rx_bytes /sys/class/net/${iface}/statistics/tx_bytes 2>/dev/null`];
+        const dev = activeDevice;
+        if (dev.length > 0) {
+            statsProc.command = ["sh", "-c", 'cat "/sys/class/net/$1/statistics/rx_bytes" "/sys/class/net/$1/statistics/tx_bytes" 2>/dev/null', "_", dev];
             statsProc.running = true;
             // Measure latency over the tunnel by binding the ping to the VPN
             // interface (-I), so the result reflects the VPN path, not the LAN.
             if (!pingProc.running) {
-                pingProc.command = ["sh", "-c", `ping -c1 -W2 -I ${iface} 1.1.1.1 2>/dev/null || ping -c1 -W2 1.1.1.1 2>/dev/null`];
+                pingProc.command = ["sh", "-c", 'ping -c1 -W2 -I "$1" 1.1.1.1 2>/dev/null || ping -c1 -W2 1.1.1.1 2>/dev/null', "_", dev];
                 pingProc.running = true;
             }
         }
@@ -339,6 +442,9 @@ Singleton {
     }
 
     function parseWarpStatus(output: string): var {
+        if (!output || output.trim().length === 0)
+            return null;
+
         const status = {
             connected: false,
             state: "disconnected",
@@ -347,13 +453,17 @@ Singleton {
             server: ""
         };
 
-        // Order matters: "Disconnected" contains the substring "Connected",
-        // so the disconnected/registration cases must be checked first. Recent
-        // warp-cli prints lines like "Status update: Connected" /
-        // "Status update: Disconnected\nReason: ...".
-        if (output.includes("Registration Missing") || output.includes("registration") || output.includes("register") || output.includes("Unable to connect")) {
+        // Check daemon-down first ("Unable to connect to the CloudflareWARP daemon").
+        if (output.includes("Unable to connect to the CloudflareWARP") || output.includes("daemon is not running") || output.includes("warp-svc")) {
+            status.state = "service-stopped";
+            status.reason = Tr.mark("Cloudflare WARP service is not running");
+        } else if (output.includes("Registration Missing") || output.includes("Missing registration") || output.includes("registration") || output.includes("register")) {
             status.state = "needs-auth";
             status.reason = Tr.mark("WARP registration required");
+        } else if (output.includes("Unable")) {
+            const m = output.match(/Reason:\s*(.+)/);
+            status.state = "error";
+            status.reason = m ? m[1].trim() : Tr.mark("WARP connection unable");
         } else if (output.includes("Disconnected")) {
             status.state = "disconnected";
         } else if (output.includes("Connecting")) {
@@ -415,6 +525,7 @@ Singleton {
             if (fields[0] === connName && (fields[3] === "activated" || fields[3] === "activating")) {
                 status.connected = fields[3] === "activated";
                 status.state = status.connected ? "connected" : "connecting";
+                status.device = fields[2] || "";
                 break;
             }
         }
@@ -422,15 +533,21 @@ Singleton {
     }
 
     function parseWarpServer(output: string): string {
-        // Look for an endpoint hint in the tunnel stats output. WARP shows an
-        // "Endpoint" line with the server IP.
-        const lines = output.split("\n");
-        for (const line of lines) {
-            const m = line.match(/Endpoint[^\d]*([\d.]+)/i);
-            if (m)
-                return m[1];
+        let colo = "";
+        let endpoint = "";
+        for (const line of output.split("\n")) {
+            if (!colo) {
+                const cm = line.match(/Colo:\s*([A-Za-z0-9_-]+)/i);
+                if (cm)
+                    colo = cm[1];
+            }
+            if (!endpoint) {
+                const em = line.match(/Endpoints?:\s*([^\s,]+)/i);
+                if (em)
+                    endpoint = em[1];
+            }
         }
-        return "";
+        return colo || endpoint;
     }
 
     function extractAuthUrl(text: string): string {
@@ -449,6 +566,8 @@ Singleton {
     }
 
     function updateStatus(newStatus: var): void {
+        if (!newStatus)
+            return;
         const oldState = status.state;
         if (newStatus.state === "needs-auth" && !newStatus.authUrl && status.authUrl) {
             newStatus.authUrl = status.authUrl;
@@ -456,6 +575,8 @@ Singleton {
 
         status = newStatus;
         root.connected = newStatus.connected;
+        if (newStatus.state === "connected")
+            root.registerAttempted = false;
 
         // A fresh status is authoritative; drop any in-flight connect/disconnect wait.
         root.connectPending = false;
@@ -467,8 +588,11 @@ Singleton {
             root.serverLocation = newStatus.server;
 
         if (oldState !== newStatus.state) {
-            emitStatusToast(newStatus);
+            emitStatusToast(newStatus, oldState);
         }
+
+        if (newStatus.state === "connecting")
+            statusCheckTimer.restart();
 
         // Auto connect if config was enabled on init
         if (root.autoConnectPending) {
@@ -478,7 +602,7 @@ Singleton {
         }
     }
 
-    function emitStatusToast(statusObj: var): void {
+    function emitStatusToast(statusObj: var, oldState: string): void {
         if (!GlobalConfig.utilities.toasts.vpnChanged)
             return;
 
@@ -489,14 +613,23 @@ Singleton {
             Toaster.toast(Tr.tr("VPN connected"), Tr.tr("Connected to %1").arg(displayName), "vpn_key");
             break;
         case "disconnected":
-            Toaster.toast(Tr.tr("VPN disconnected"), Tr.tr("Disconnected from %1").arg(displayName), "vpn_key_off");
+            if (oldState === "connected" || oldState === "connecting")
+                Toaster.toast(Tr.tr("VPN disconnected"), Tr.tr("Disconnected from %1").arg(displayName), "vpn_key_off");
             break;
         case "needs-auth":
-            const authMsg = statusObj.reason ? Tr.trMarked(statusObj.reason) : Tr.tr("Authentication required");
-            Toaster.toast(Tr.tr("VPN authentication required"), Tr.trCtx("%1: %2", "vpn name and reason").arg(displayName).arg(authMsg), "vpn_lock");
-            break;
+            {
+                const authMsg = statusObj.reason ? Tr.trMarked(statusObj.reason) : Tr.tr("Authentication required");
+                Toaster.toast(Tr.tr("VPN authentication required"), Tr.trCtx("%1: %2", "vpn name and reason").arg(displayName).arg(authMsg), "vpn_lock");
+                break;
+            }
+        case "service-stopped":
+            {
+                const svcMsg = statusObj.reason ? Tr.trMarked(statusObj.reason) : Tr.tr("Service not running");
+                Toaster.toast(Tr.tr("VPN service stopped"), Tr.trCtx("%1: %2", "vpn name and reason").arg(displayName).arg(svcMsg), "error");
+                break;
+            }
         case "error":
-            if (status.state === "connected" || status.state === "connecting" || status.state === "needs-auth") {
+            if (oldState === "connected" || oldState === "connecting" || oldState === "needs-auth" || root.connectPending) {
                 const errMsg = statusObj.reason ? Tr.trMarked(statusObj.reason) : Tr.tr("Unknown error");
                 Toaster.toast(Tr.tr("VPN error"), Tr.trCtx("%1: %2", "vpn name and reason").arg(displayName).arg(errMsg), "error");
             }
@@ -517,6 +650,7 @@ Singleton {
         if (connected) {
             if (connectedSince === 0)
                 connectedSince = Date.now();
+            Qt.callLater(() => root.refreshStats());
         } else {
             connectedSince = 0;
             bytesIn = "";
@@ -533,16 +667,19 @@ Singleton {
             const id = pendingSwitchProvider;
             pendingSwitchProvider = "";
             Qt.callLater(() => {
+                root.pendingConnectAfterSelect = true;
                 applySelectedProvider(id);
-                root.connect();
             });
         }
     }
 
     onStatusChanged: {
-        // Providers that can self-register (WARP) do so on demand.
-        if (status.state === "needs-auth" && active.registerCmd)
+        // Providers that can self-register (WARP) do so on demand (once per selection/cycle).
+        if (status.state === "needs-auth" && active.registerCmd && !registerProc.running && !registerAttempted) {
+            registerAttempted = true;
+            registerProc.errText = "";
             registerProc.exec(active.registerCmd);
+        }
     }
 
     onProvidersChanged: root.ensureSelection()
@@ -558,16 +695,24 @@ Singleton {
         root.connected = false;
         root.connectPending = false;
         root.disconnectPending = false;
+        root.connectAfterRegister = false;
+        root.registerAttempted = false;
         root.serverLocation = "";
         root.bytesIn = "";
         root.bytesOut = "";
         root.pingMs = -1;
-        statusCheckTimer.start();
+        if (root.pendingConnectAfterSelect) {
+            root.pendingConnectAfterSelect = false;
+            Qt.callLater(() => root.connect());
+        } else {
+            statusCheckTimer.start();
+        }
     }
 
     Component.onCompleted: {
         root.ensureProviderIds();
         root.ensureSelection();
+        root.refreshAvailability();
         if (root.selectedProvider.length > 0) {
             root.autoConnectPending = GlobalConfig.utilities.vpn.enabled;
             statusCheckTimer.start();
@@ -586,10 +731,19 @@ Singleton {
         // No daemon and no CLI status; the interface comes from config and the
         // generic interface-presence check reports the state.
         display: iface => iface
+        cliBin: "wg-quick"
+        pkgName: "wireguard-tools"
+        pkgSource: "repo"
+        pkgLabel: "WireGuard"
         connectCmd: iface => ["pkexec", "wg-quick", "up", iface]
         disconnectCmd: iface => ["pkexec", "wg-quick", "down", iface]
-        // TRANSLATORS: %1 = a shell command, leave it untranslated
-        connectHint: error => error.includes("Unknown device type") || error.includes("Protocol not supported") ? Tr.mark("WireGuard module not loaded. Run: %1", ["sudo modprobe wireguard"]) : ""
+        connectHint: error => {
+            if (error.includes("Unknown device type") || error.includes("Protocol not supported"))
+                return Tr.mark("WireGuard module not loaded. Run: %1", ["sudo modprobe wireguard"]);
+            if (error.includes("does not exist") || error.includes("No such file"))
+                return Tr.mark("Config file not found in /etc/wireguard — import a .conf file or create it first");
+            return "";
+        }
     }
 
     Adapter {
@@ -598,6 +752,10 @@ Singleton {
         name: "nm"
         display: iface => iface
         service: "NetworkManager"
+        cliBin: "nmcli"
+        pkgName: "networkmanager"
+        pkgSource: "repo"
+        pkgLabel: "NetworkManager"
         connectCmd: iface => ["nmcli", "connection", "up", iface]
         disconnectCmd: iface => ["nmcli", "connection", "down", iface]
         statusCmd: ["nmcli", "-t", "-f", "NAME,TYPE,DEVICE,STATE", "connection", "show", "--active"]
@@ -608,16 +766,27 @@ Singleton {
         id: warpAdapter
 
         name: "warp"
-        display: "Warp"
+        display: "Cloudflare WARP"
         iface: "CloudflareWARP"
         service: "warp-svc"
-        connectCmd: ["warp-cli", "connect"]
-        disconnectCmd: ["warp-cli", "disconnect"]
-        statusCmd: ["warp-cli", "status"]
+        cliBin: "warp-cli"
+        pkgName: "cloudflare-warp-bin"
+        pkgSource: "repo"
+        pkgLabel: "Cloudflare WARP"
+        connectCmd: ["warp-cli", "--accept-tos", "connect"]
+        disconnectCmd: ["warp-cli", "--accept-tos", "disconnect"]
+        statusCmd: ["warp-cli", "--accept-tos", "status"]
         parse: out => root.parseWarpStatus(out)
-        registerCmd: ["warp-cli", "registration", "new"]
-        serverCmd: ["warp-cli", "tunnel", "stats"]
+        registerCmd: ["warp-cli", "--accept-tos", "registration", "new"]
+        serverCmd: ["warp-cli", "--accept-tos", "tunnel", "stats"]
         parseServer: out => root.parseWarpServer(out)
+        connectHint: error => {
+            if (error.includes("Unable to connect to the CloudflareWARP") || error.includes("daemon is not running"))
+                return Tr.mark("Cloudflare WARP service is not running");
+            if (error.includes("Registration Missing") || error.includes("Missing registration"))
+                return Tr.mark("WARP registration required");
+            return "";
+        }
     }
 
     Adapter {
@@ -627,6 +796,10 @@ Singleton {
         display: "NetBird"
         iface: "wt0"
         service: "netbird"
+        cliBin: "netbird"
+        pkgName: "netbird"
+        pkgSource: "aur"
+        pkgLabel: "NetBird"
         connectCmd: ["netbird", "up", "--no-browser"]
         disconnectCmd: ["netbird", "down"]
         statusCmd: ["netbird", "status", "--json"]
@@ -640,6 +813,10 @@ Singleton {
         display: "Tailscale"
         iface: "tailscale0"
         service: "tailscaled"
+        cliBin: "tailscale"
+        pkgName: "tailscale"
+        pkgSource: "repo"
+        pkgLabel: "Tailscale"
         connectCmd: ["tailscale", "up"]
         disconnectCmd: ["tailscale", "down"]
         statusCmd: ["tailscale", "status", "--json"]
@@ -649,6 +826,24 @@ Singleton {
     }
 
     // ── Generic engine ──────────────────────────────────────────────────────
+
+    Process {
+        id: availProc
+
+        command: ["sh", "-c", 'python3 -I -c "import json, shutil, subprocess\nbins = {b: bool(shutil.which(b)) for b in (\'wg-quick\', \'nmcli\', \'warp-cli\', \'tailscale\', \'netbird\')}\nsvcs = {s: subprocess.run([\'systemctl\', \'is-active\', s], text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.strip() or \'inactive\' for s in (\'warp-svc\', \'tailscaled\', \'netbird\')}\nprint(json.dumps({\'bins\': bins, \'services\': svcs}))"']
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const d = JSON.parse(text);
+                    root.cliInstalled = d.bins ?? ({});
+                    root.serviceStates = d.services ?? ({});
+                    root.availabilityChecked = true;
+                    if (root.selectedProvider.length > 0 && !statusProc.running)
+                        statusCheckTimer.restart();
+                } catch (e) {}
+            }
+        }
+    }
 
     Process {
         id: nmMonitor
@@ -663,6 +858,42 @@ Singleton {
     Process {
         id: statusProc
 
+        property string outText: ""
+        property string errText: ""
+        property int exitCode: 0
+        property int pending: 0
+
+        function settle(): void {
+            if (--pending > 0)
+                return;
+            const out = outText;
+            const err = errText;
+            const combined = `${out}\n${err}`;
+            const daemonDown = combined.includes("doesn't appear to be running") || combined.includes("failed to connect") || combined.includes("daemon is not running") || combined.includes("Unable to connect to the CloudflareWARP") || (combined.includes("not running") && root.active.service);
+            if (daemonDown && root.active.service) {
+                root.updateStatus({
+                    connected: false,
+                    state: "service-stopped",
+                    reason: Tr.mark("%1 service is not running", [root.active.displayName]),
+                    authUrl: "",
+                    server: ""
+                });
+                return;
+            }
+            const parsed = root.active.parse(out);
+            if (parsed) {
+                root.updateStatus(parsed);
+            } else if (err.trim().length > 0) {
+                root.updateStatus({
+                    connected: false,
+                    state: "error",
+                    reason: err.trim().split("\n")[0],
+                    authUrl: "",
+                    server: ""
+                });
+            }
+        }
+
         command: root.active.statusCmd
         // qmllint disable incompatible-type
         environment: ({
@@ -670,28 +901,38 @@ Singleton {
                 LANG: "C.UTF-8",
                 LC_ALL: "C.UTF-8"
             })
+        onRunningChanged: {
+            if (running) {
+                root.statusExited = false;
+                return;
+            }
+            if (!root.statusExited && pending > 0) {
+                pending = 0;
+                root.refreshAvailability();
+                root.updateStatus({
+                    connected: false,
+                    state: root.active.cliBin ? "missing-cli" : "error",
+                    reason: Tr.mark("%1 is not installed", [root.active.displayName]),
+                    authUrl: "",
+                    server: ""
+                });
+            }
+        }
+        onExited: code => {
+            root.statusExited = true;
+            exitCode = code;
+            settle();
+        }
         stdout: StdioCollector {
             onStreamFinished: {
-                const newStatus = root.active.parse(text);
-                root.updateStatus(newStatus);
+                statusProc.outText = text;
+                statusProc.settle();
             }
         }
         stderr: StdioCollector {
             onStreamFinished: {
-                if (text.trim().length === 0)
-                    return;
-
-                const daemonDown = text.includes("doesn't appear to be running") || text.includes("failed to connect") || text.includes("daemon is not running") || (text.includes("not running") && root.active.service);
-                if (daemonDown && root.active.service) {
-                    root.updateStatus({
-                        connected: false,
-                        state: "disconnected",
-                        // TRANSLATORS: %1 = a shell command, leave it untranslated
-                        reason: Tr.mark("Service not running (run: %1)", [`sudo systemctl start ${root.active.service}`]),
-                        authUrl: "",
-                        server: ""
-                    });
-                }
+                statusProc.errText = text;
+                statusProc.settle();
             }
         }
     }
@@ -699,67 +940,87 @@ Singleton {
     Process {
         id: connectProc
 
+        property string outText: ""
+        property string errText: ""
+        property int exitCode: -1
+
         onRunningChanged: {
             if (running) {
                 root.connectExited = false;
+                errText = "";
+                outText = "";
                 return;
             }
 
             if (!root.connectExited) {
                 console.warn(lc, `Failed to start connect command '${command.join(" ")}'`);
-                root.reportConnectFailure(Tr.tr("Could not start %1. Is it installed?").arg(root.active.displayName));
+                root.refreshAvailability();
+                root.reportConnectFailure(Tr.tr("Could not start %1. Is it installed?").arg(root.active.displayName), root.active.cliBin ? "missing-cli" : "error");
             }
         }
 
-        onExited: exitCode => {
+        onExited: code => {
             root.connectExited = true;
+            exitCode = code;
 
-            // Deferred so an auth URL parsed from the output wins the race.
+            // Deferred so SplitParser delivers trailing lines on stdout/stderr before settling.
             Qt.callLater(() => {
-                if (root.status.state === "needs-auth")
-                    return;
-
-                if (exitCode !== 0) {
-                    console.warn(lc, `Connect command '${command.join(" ")}' failed with exit code`, exitCode);
-                    root.reportConnectFailure(Tr.tr("Could not connect to %1").arg(root.active.displayName));
-                    return;
-                }
-
-                statusCheckTimer.start();
-            });
-        }
-        stdout: SplitParser {
-            onRead: data => {
-                const authUrl = root.extractAuthUrl(data);
-                if (authUrl) {
-                    root.updateStatus(root.createAuthStatus(authUrl));
-                }
-            }
-        }
-        stderr: StdioCollector {
-            onStreamFinished: {
-                const error = text.trim();
-
-                // Let the provider turn a known failure into an actionable hint.
-                const hint = root.active.connectHint ? root.active.connectHint(error) : "";
+                const combined = `${outText}\n${errText}`.trim();
+                const hint = root.active.connectHint ? root.active.connectHint(combined) : "";
                 if (hint) {
+                    const isTsOp = root.active.name === "tailscale" && (combined.includes("Access denied") || combined.includes("checkprefs access denied"));
+                    const nextState = isTsOp ? "needs-operator" : ((combined.includes("Registration Missing") || combined.includes("Missing registration")) ? "needs-auth" : ((combined.includes("daemon") || combined.includes("Unable to connect to the CloudflareWARP")) ? "service-stopped" : "error"));
+                    root.connectPending = false;
+                    root.connected = false;
                     root.updateStatus({
                         connected: false,
-                        state: "disconnected",
-                        reason: hint,
+                        state: nextState,
+                        reason: isTsOp ? Tr.mark("Permission needed for your user to control Tailscale") : hint,
                         authUrl: "",
                         server: ""
                     });
                     return;
                 }
 
-                const authUrl = root.extractAuthUrl(error);
-
+                const authUrl = root.extractAuthUrl(combined);
                 if (authUrl) {
                     root.updateStatus(root.createAuthStatus(authUrl));
-                } else if (error.includes("already exists")) {
+                    return;
+                }
+                if (combined.includes("already exists")) {
                     root.connectPending = false;
                     root.connected = true;
+                    return;
+                }
+
+                if (root.status.state === "needs-auth" || root.status.state === "service-stopped" || root.status.state === "needs-operator")
+                    return;
+
+                if (exitCode !== 0) {
+                    console.warn(lc, `Connect command '${command.join(" ")}' failed with exit code`, exitCode, combined);
+                    const lines = combined ? combined.split("\n").map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith("[#]")) : [];
+                    root.reportConnectFailure(lines[0] || Tr.tr("Could not connect to %1").arg(root.active.displayName));
+                    return;
+                }
+
+                statusCheckTimer.restart();
+            });
+        }
+        stdout: SplitParser {
+            onRead: data => {
+                connectProc.outText += data + "\n";
+                const authUrl = root.extractAuthUrl(data);
+                if (authUrl) {
+                    root.updateStatus(root.createAuthStatus(authUrl));
+                }
+            }
+        }
+        stderr: SplitParser {
+            onRead: data => {
+                connectProc.errText += data + "\n";
+                const authUrl = root.extractAuthUrl(data);
+                if (authUrl) {
+                    root.updateStatus(root.createAuthStatus(authUrl));
                 }
             }
         }
@@ -797,9 +1058,52 @@ Singleton {
     Process {
         id: registerProc
 
-        onExited: exitCode => {
+        property string errText: ""
+        property int exitCode: -1
+        property int pending: 0
+
+        function settle(): void {
+            if (--pending > 0)
+                return;
             if (exitCode === 0) {
-                statusCheckTimer.start();
+                if (root.connectAfterRegister) {
+                    root.connectAfterRegister = false;
+                    root.connectPending = true;
+                    connectProc.exec(root.active.connectCmd);
+                } else {
+                    statusCheckTimer.restart();
+                }
+            } else {
+                const wantConnect = root.connectAfterRegister;
+                root.connectAfterRegister = false;
+                const msg = errText.trim().split("\n")[0] || Tr.tr("Could not register %1").arg(root.active.displayName);
+                if (wantConnect)
+                    root.reportConnectFailure(msg);
+                else
+                    root.updateStatus({
+                        connected: false,
+                        state: "error",
+                        reason: msg,
+                        authUrl: "",
+                        server: ""
+                    });
+            }
+        }
+
+        onRunningChanged: {
+            if (running) {
+                errText = "";
+                pending = 2;
+            }
+        }
+        onExited: code => {
+            exitCode = code;
+            settle();
+        }
+        stderr: StdioCollector {
+            onStreamFinished: {
+                registerProc.errText = text;
+                registerProc.settle();
             }
         }
     }
@@ -852,7 +1156,7 @@ Singleton {
     Timer {
         id: statusCheckTimer
 
-        interval: 500
+        interval: 600
         onTriggered: root.checkStatus()
     }
 
@@ -873,6 +1177,10 @@ Singleton {
         // Systemd unit behind the provider's CLI; used for the "service not
         // running" hint. Empty = daemonless.
         property string service
+        property string cliBin
+        property string pkgName
+        property string pkgSource: "repo"
+        property string pkgLabel
         property var connectCmd
         property var disconnectCmd
         property var statusCmd

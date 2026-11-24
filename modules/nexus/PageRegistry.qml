@@ -70,8 +70,8 @@ QtObject {
             id: "network",
             label: Tr.tr("Network"),
             icon: "wifi",
-            description: Tr.tr("Wi-Fi, ethernet, VPN"),
-            keywords: "internet wifi wireless ethernet vpn wireguard ip dns network"
+            description: Tr.tr("Wi-Fi, ethernet, VPN, ad blocker"),
+            keywords: "internet wifi wireless ethernet vpn wireguard cloudflare warp tailscale netbird ip dns network adblock adblocker ad blocker adguard tracker doh dot filter query log blocklist"
         },
         {
             id: "wallpaper",
@@ -208,7 +208,10 @@ QtObject {
             gpu: "gaming",
             games: "gaming",
             proton: "gaming",
-            overlay: "gaming"
+            overlay: "gaming",
+            adblock: "network",
+            adblocker: "network",
+            dns: "network"
         })
 
     // A tab to show when a page opens at a former id (createAt "updates" ->

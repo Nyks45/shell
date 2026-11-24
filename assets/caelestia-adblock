@@ -1,0 +1,738 @@
+#!/usr/bin/python3 -I
+"""Caelestia settings: headless AdGuard Home controller and status collector.
+
+Reads system credentials from /etc/caelestia-adblock/api-token (0640 root:wheel)
+and queries the loopback AdGuard Home REST API (127.0.0.1:3053). Emits clean JSON
+to stdout for services/AdBlocker.qml. Supports CAELESTIA_ADBLOCK_MOCK=1 for
+sandbox UI tests without modifying host DNS.
+"""
+
+import argparse
+import base64
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+
+API_BASE = "http://127.0.0.1:3053"
+TOKEN_FILE = "/etc/caelestia-adblock/api-token"
+CONF_FILE = "/etc/caelestia-adblock/AdGuardHome.yaml"
+NM_DROPIN = "/etc/NetworkManager/conf.d/zz-caelestia-adblock.conf"
+RESOLVED_DROPIN = "/etc/systemd/resolved.conf.d/zz-caelestia-adblock.conf"
+MOCK_FILE = "/tmp/caelestia-adblock-mock.json"
+
+CURATED_SERVICES = [
+    {"id": "tiktok", "name": "TikTok"},
+    {"id": "instagram", "name": "Instagram"},
+    {"id": "facebook", "name": "Facebook"},
+    {"id": "youtube", "name": "YouTube"},
+    {"id": "reddit", "name": "Reddit"},
+    {"id": "twitch", "name": "Twitch"},
+    {"id": "discord", "name": "Discord"},
+    {"id": "steam", "name": "Steam"},
+    {"id": "snapchat", "name": "Snapchat"},
+    {"id": "twitter", "name": "X (Twitter)"},
+    {"id": "spotify", "name": "Spotify"},
+    {"id": "netflix", "name": "Netflix"},
+    {"id": "telegram", "name": "Telegram"},
+    {"id": "whatsapp", "name": "WhatsApp"},
+    {"id": "roblox", "name": "Roblox"},
+    {"id": "epic_games", "name": "Epic Games"},
+    {"id": "amazon_streaming", "name": "Prime Video"},
+    {"id": "openai", "name": "ChatGPT / OpenAI"},
+]
+
+
+def is_mock():
+    return os.environ.get("CAELESTIA_ADBLOCK_MOCK", "") in ("1", "true", "yes")
+
+
+def _default_mock_state():
+    now_ms = int(time.time() * 1000)
+    return {
+        "installed": True,
+        "configured": True,
+        "serviceActive": True,
+        "dnsRouted": True,
+        "protectionEnabled": True,
+        "pauseUntilMs": 0,
+        "version": "v1.0.0",
+        "warpActive": False,
+        "stats": {
+            "numDnsQueries": 14820,
+            "numBlockedFiltering": 3412,
+            "blockedPercent": 23.0,
+            "avgProcessingMs": 3.4,
+            "numReplacedSafebrowsing": 4,
+            "numReplacedParental": 0,
+            "topBlockedDomains": [
+                {"domain": "pagead2.googlesyndication.com", "count": 642},
+                {"domain": "graph.instagram.com", "count": 489},
+                {"domain": "telemetry.mozilla.org", "count": 318},
+                {"domain": "app-measurement.com", "count": 274},
+                {"domain": "doubleclick.net", "count": 231},
+                {"domain": "adservice.google.com", "count": 195},
+            ],
+            "topQueriedDomains": [
+                {"domain": "github.com", "count": 512},
+                {"domain": "cloudflare.com", "count": 401},
+                {"domain": "archlinux.org", "count": 287},
+            ],
+            "dnsQueriesSeries": [180, 120, 95, 70, 65, 90, 210, 460, 720, 890, 950, 1020, 980, 870, 910, 1100, 1240, 1180, 960, 820, 690, 540, 410, 260],
+            "blockedSeries": [41, 28, 19, 14, 12, 18, 52, 110, 168, 215, 224, 241, 220, 198, 205, 264, 290, 275, 222, 186, 154, 121, 88, 57],
+        },
+        "filters": [
+            {
+                "id": 1,
+                "name": "AdGuard DNS filter",
+                "url": "https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt",
+                "rulesCount": 78420,
+                "enabled": True,
+                "lastUpdated": "2026-11-24T10:00:00Z",
+            },
+            {
+                "id": 2,
+                "name": "HaGeZi's Normal Blocklist",
+                "url": "https://adguardteam.github.io/HostlistsRegistry/assets/filter_34.txt",
+                "rulesCount": 145120,
+                "enabled": True,
+                "lastUpdated": "2026-11-24T10:00:00Z",
+            },
+        ],
+        "userRules": [
+            "||ads.example.com^",
+            "@@||analytics.trusted.dev^",
+        ],
+        "safeBrowsing": True,
+        "safeSearch": False,
+        "parental": False,
+        "blockedServices": ["tiktok"],
+        "availableServices": CURATED_SERVICES,
+        "upstreamDns": [
+            "https://dns.cloudflare.com/dns-query",
+            "https://dns.quad9.net/dns-query",
+        ],
+        "bootstrapDns": ["1.1.1.1", "9.9.9.9"],
+        "dnssecEnabled": True,
+        "blockingMode": "default",
+        "queryLog": [
+            {"time": now_ms - 4000, "domain": "doubleclick.net", "type": "HTTPS", "blocked": True, "reason": "Blocked by filter list", "rule": "||doubleclick.net^", "filterId": 1, "elapsedMs": 0.4, "answer": "0.0.0.0"},
+            {"time": now_ms - 9000, "domain": "api.github.com", "type": "A", "blocked": False, "reason": "Allowed", "rule": "", "filterId": 0, "elapsedMs": 8.2, "answer": "140.82.121.6"},
+            {"time": now_ms - 14000, "domain": "pagead2.googlesyndication.com", "type": "A", "blocked": True, "reason": "Blocked by filter list", "rule": "||googlesyndication.com^", "filterId": 1, "elapsedMs": 0.3, "answer": "0.0.0.0"},
+            {"time": now_ms - 21000, "domain": "telemetry.mozilla.org", "type": "AAAA", "blocked": True, "reason": "Blocked by filter list", "rule": "||telemetry.mozilla.org^", "filterId": 2, "elapsedMs": 0.5, "answer": "::"},
+            {"time": now_ms - 29000, "domain": "archlinux.org", "type": "A", "blocked": False, "reason": "Allowed", "rule": "", "filterId": 0, "elapsedMs": 6.7, "answer": "95.217.163.246"},
+            {"time": now_ms - 38000, "domain": "analytics.trusted.dev", "type": "A", "blocked": False, "reason": "Allowed by custom rule", "rule": "@@||analytics.trusted.dev^", "filterId": 0, "elapsedMs": 7.1, "answer": "104.21.14.8"},
+        ],
+    }
+
+
+def _load_mock():
+    if os.path.exists(MOCK_FILE):
+        try:
+            with open(MOCK_FILE) as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+    data = _default_mock_state()
+    _save_mock(data)
+    return data
+
+
+def _save_mock(data):
+    tmp = f"{MOCK_FILE}.tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f, indent=2)
+    os.replace(tmp, MOCK_FILE)
+
+
+def _mock_status(data):
+    now_ms = int(time.time() * 1000)
+    pause_until = int(data.get("pauseUntilMs") or 0)
+    if not data.get("protectionEnabled") and pause_until > 0 and pause_until <= now_ms:
+        data["protectionEnabled"] = True
+        data["pauseUntilMs"] = 0
+        _save_mock(data)
+    rem_ms = max(0, pause_until - now_ms) if (not data.get("protectionEnabled") and pause_until > 0) else 0
+    return {
+        "installed": bool(data.get("installed", True)),
+        "configured": bool(data.get("configured", True)),
+        "serviceActive": bool(data.get("serviceActive", True)),
+        "dnsRouted": bool(data.get("dnsRouted", True)),
+        "protectionEnabled": bool(data.get("protectionEnabled", True)),
+        "pauseRemainingMs": rem_ms,
+        "version": data.get("version", "v1.0.0"),
+        "warpActive": bool(data.get("warpActive", False)),
+        "stats": data.get("stats", {}),
+        "filters": data.get("filters", []),
+        "userRules": data.get("userRules", []),
+        "safeBrowsing": bool(data.get("safeBrowsing", False)),
+        "safeSearch": bool(data.get("safeSearch", False)),
+        "parental": bool(data.get("parental", False)),
+        "blockedServices": data.get("blockedServices", []),
+        "availableServices": data.get("availableServices", CURATED_SERVICES),
+        "upstreamDns": data.get("upstreamDns", []),
+        "bootstrapDns": data.get("bootstrapDns", []),
+        "dnssecEnabled": bool(data.get("dnssecEnabled", True)),
+        "blockingMode": data.get("blockingMode", "default"),
+    }
+
+
+def _find_adguard_bin():
+    for p in ("/usr/bin/adguardhome", "/usr/bin/AdGuardHome"):
+        if os.path.exists(p):
+            return p
+    return shutil.which("adguardhome") or shutil.which("AdGuardHome") or ""
+
+
+def _read_auth():
+    with open(TOKEN_FILE) as f:
+        creds = f.read().strip()
+    return "Basic " + base64.b64encode(creds.encode()).decode()
+
+
+def _api(method, path, payload=None, timeout=10.0):
+    data = None
+    headers = {"Authorization": _read_auth()}
+    if payload is not None:
+        data = json.dumps(payload).encode()
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(f"{API_BASE}{path}", data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read().decode("utf-8", errors="replace").strip()
+            if not raw:
+                return {}
+            try:
+                return json.loads(raw)
+            except ValueError:
+                return {"text": raw}
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace").strip()
+        raise RuntimeError(f"AdGuard API {method} {path} failed ({e.code}): {body or e.reason}")
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Cannot reach AdGuard Home API: {e.reason}")
+
+
+def _domain_from_rule(rule):
+    r = rule.strip()
+    if r.startswith("@@||") and r.endswith("^"):
+        return r[4:-1]
+    if r.startswith("||") and r.endswith("^"):
+        return r[2:-1]
+    return ""
+
+
+def _normalize_domain(raw):
+    d = raw.strip().lower()
+    d = re.sub(r"^[a-z]+://", "", d)
+    d = d.split("/")[0].split(":")[0].strip(".")
+    if not d or len(d) > 253 or not re.fullmatch(r"[a-z0-9._-]+", d):
+        raise ValueError(f"Invalid domain: {raw!r}")
+    return d
+
+
+def _normalize_pairs(entries):
+    out = []
+    for item in entries or []:
+        if isinstance(item, dict):
+            for k, v in item.items():
+                out.append({"domain": str(k), "count": int(v)})
+    return out
+
+
+def _format_reason(reason):
+    mapping = {
+        "NotFilteredNotFound": "Allowed",
+        "NotFilteredWhiteList": "Allowed by filter rule",
+        "NotFilteredOK": "Allowed",
+        "FilteredBlackList": "Blocked by filter list",
+        "FilteredSafeBrowsing": "Blocked (malware / phishing)",
+        "FilteredParental": "Blocked (parental control)",
+        "FilteredInvalid": "Blocked (invalid)",
+        "FilteredSafeSearch": "Forced Safe Search",
+        "FilteredBlockedService": "Blocked service",
+        "Rewrite": "Custom rewrite",
+        "RewriteEtcHosts": "Hosts file",
+    }
+    return mapping.get(reason, reason or "Processed")
+
+
+def _safe_elapsed(val):
+    try:
+        return round(float(val), 2)
+    except Exception:
+        return 0.0
+
+
+def _collect_live_status():
+    installed = bool(_find_adguard_bin())
+    configured = os.path.exists(CONF_FILE) and os.path.exists(TOKEN_FILE)
+    service_active = subprocess.run(
+        ["systemctl", "is-active", "--quiet", "caelestia-adblock.service"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    ).returncode == 0
+    dns_routed = os.path.exists(NM_DROPIN) and os.path.exists(RESOLVED_DROPIN)
+    warp_active = os.path.exists("/sys/class/net/CloudflareWARP")
+
+    res = {
+        "installed": installed,
+        "configured": configured,
+        "serviceActive": service_active,
+        "dnsRouted": dns_routed,
+        "protectionEnabled": False,
+        "pauseRemainingMs": 0,
+        "version": "",
+        "warpActive": warp_active,
+        "stats": {
+            "numDnsQueries": 0,
+            "numBlockedFiltering": 0,
+            "blockedPercent": 0.0,
+            "avgProcessingMs": 0.0,
+            "numReplacedSafebrowsing": 0,
+            "numReplacedParental": 0,
+            "topBlockedDomains": [],
+            "topQueriedDomains": [],
+            "dnsQueriesSeries": [],
+            "blockedSeries": [],
+        },
+        "filters": [],
+        "userRules": [],
+        "safeBrowsing": False,
+        "safeSearch": False,
+        "parental": False,
+        "blockedServices": [],
+        "availableServices": CURATED_SERVICES,
+        "upstreamDns": [],
+        "bootstrapDns": [],
+        "dnssecEnabled": True,
+        "blockingMode": "default",
+    }
+    if not (configured and service_active):
+        return res
+
+    st = _api("GET", "/control/status")
+    res["protectionEnabled"] = bool(st.get("protection_enabled", False))
+    res["pauseRemainingMs"] = int(st.get("protection_disabled_duration") or 0)
+    res["version"] = str(st.get("version") or "")
+
+    stats = _api("GET", "/control/stats")
+    total = int(stats.get("num_dns_queries") or 0)
+    blocked = int(stats.get("num_blocked_filtering") or 0) + int(stats.get("num_replaced_safebrowsing") or 0) + int(stats.get("num_replaced_parental") or 0)
+    avg_raw = float(stats.get("avg_processing_time") or 0.0)
+    # AdGuard Home reports avg_processing_time in seconds as a float (e.g. 0.0021)
+    avg_ms = round(avg_raw * 1000.0, 1) if avg_raw < 10.0 else round(avg_raw, 1)
+    res["stats"] = {
+        "numDnsQueries": total,
+        "numBlockedFiltering": int(stats.get("num_blocked_filtering") or 0),
+        "blockedPercent": round((blocked * 100.0 / total), 1) if total > 0 else 0.0,
+        "avgProcessingMs": avg_ms,
+        "numReplacedSafebrowsing": int(stats.get("num_replaced_safebrowsing") or 0),
+        "numReplacedParental": int(stats.get("num_replaced_parental") or 0),
+        "topBlockedDomains": _normalize_pairs(stats.get("top_blocked_domains"))[:12],
+        "topQueriedDomains": _normalize_pairs(stats.get("top_queried_domains"))[:12],
+        "dnsQueriesSeries": list(stats.get("dns_queries") or []),
+        "blockedSeries": list(stats.get("blocked_filtering") or []),
+    }
+
+    filt = _api("GET", "/control/filtering/status")
+    res["filters"] = [
+        {
+            "id": int(f.get("id") or 0),
+            "name": str(f.get("name") or f.get("url") or ""),
+            "url": str(f.get("url") or ""),
+            "rulesCount": int(f.get("rules_count") or 0),
+            "enabled": bool(f.get("enabled", False)),
+            "lastUpdated": str(f.get("last_updated") or ""),
+        }
+        for f in (filt.get("filters") or [])
+    ]
+    res["userRules"] = [r for r in (filt.get("user_rules") or []) if isinstance(r, str)]
+
+    sb = _api("GET", "/control/safebrowsing/status")
+    res["safeBrowsing"] = bool(sb.get("enabled", False))
+    ss = _api("GET", "/control/safesearch/status")
+    res["safeSearch"] = bool(ss.get("enabled", False))
+    pr = _api("GET", "/control/parental/status")
+    res["parental"] = bool(pr.get("enabled", False))
+
+    bs_get = _api("GET", "/control/blocked_services/get")
+    res["blockedServices"] = list(bs_get.get("ids") or [])
+    try:
+        bs_all = _api("GET", "/control/blocked_services/all")
+        all_svcs = bs_all.get("blocked_services") or []
+        if all_svcs:
+            res["availableServices"] = [
+                {"id": str(s.get("id") or ""), "name": str(s.get("name") or s.get("id") or "")}
+                for s in all_svcs if s.get("id")
+            ]
+    except Exception:
+        pass
+
+    dns_info = _api("GET", "/control/dns_info")
+    res["upstreamDns"] = [u for u in (dns_info.get("upstream_dns") or []) if not str(u).startswith("[/warp-svc/]")]
+    res["bootstrapDns"] = list(dns_info.get("bootstrap_dns") or [])
+    res["dnssecEnabled"] = bool(dns_info.get("dnssec_enabled", False))
+    res["blockingMode"] = str(dns_info.get("blocking_mode") or "default")
+    return res
+
+
+def cmd_status(_args):
+    if is_mock():
+        return _mock_status(_load_mock())
+    return _collect_live_status()
+
+
+def cmd_querylog(args):
+    search = (args.search or "").strip()
+    flt = args.filter or "all"
+    limit = max(1, min(int(args.limit or 100), 500))
+    if is_mock():
+        data = _load_mock()
+        items = list(data.get("queryLog") or [])
+        if search:
+            q = search.lower()
+            items = [it for it in items if q in it.get("domain", "").lower() or q in it.get("reason", "").lower()]
+        if flt == "blocked":
+            items = [it for it in items if it.get("blocked")]
+        elif flt == "allowed":
+            items = [it for it in items if not it.get("blocked")]
+        return {"items": items[:limit]}
+
+    if not (os.path.exists(CONF_FILE) and os.path.exists(TOKEN_FILE)):
+        return {"items": []}
+
+    resp_status = "all"
+    if flt == "blocked":
+        resp_status = "filtered"
+    elif flt == "allowed":
+        resp_status = "processed"
+    qs = urllib.parse.urlencode({"limit": limit, "search": search, "response_status": resp_status})
+    raw = _api("GET", f"/control/querylog?{qs}")
+    out = []
+    for entry in raw.get("data") or []:
+        question = entry.get("question") or {}
+        domain = str(question.get("name") or "").rstrip(".")
+        qtype = str(question.get("type") or "")
+        reason = str(entry.get("reason") or "")
+        blocked = reason.startswith("Filtered")
+        rules = entry.get("rules") or []
+        rule_text = ""
+        filter_id = 0
+        if rules and isinstance(rules[0], dict):
+            rule_text = str(rules[0].get("text") or "")
+            filter_id = int(rules[0].get("filter_list_id") or 0)
+        elif entry.get("rule"):
+            rule_text = str(entry.get("rule") or "")
+            filter_id = int(entry.get("filterId") or 0)
+        answers = []
+        for a in entry.get("answer") or []:
+            if isinstance(a, dict) and a.get("value") is not None:
+                answers.append(str(a["value"]))
+        ts_str = str(entry.get("time") or "")
+        ts_ms = 0
+        if ts_str:
+            try:
+                from datetime import datetime
+                clean_ts = re.sub(r"\.\d+(?=[+-Z])", "", ts_str).replace("Z", "+00:00")
+                ts_ms = int(datetime.fromisoformat(clean_ts).timestamp() * 1000)
+            except Exception:
+                ts_ms = 0
+        out.append({
+            "time": ts_ms,
+            "domain": domain,
+            "type": qtype,
+            "blocked": blocked,
+            "reason": _format_reason(reason),
+            "rule": rule_text,
+            "filterId": filter_id,
+            "elapsedMs": _safe_elapsed(entry.get("elapsedMs")),
+            "answer": ", ".join(answers[:3]),
+        })
+    return {"items": out}
+
+
+def cmd_protection(args):
+    enabled = args.state == "on"
+    duration = int(args.duration_ms or 0)
+    if is_mock():
+        data = _load_mock()
+        data["protectionEnabled"] = enabled
+        data["pauseUntilMs"] = (int(time.time() * 1000) + duration) if (not enabled and duration > 0) else 0
+        _save_mock(data)
+        return _mock_status(data)
+    payload = {"enabled": enabled}
+    if not enabled and duration > 0:
+        payload["duration"] = duration
+    _api("POST", "/control/protection", payload)
+    return _collect_live_status()
+
+
+def cmd_filter_toggle(args):
+    url = args.url
+    name = args.name
+    enabled = args.state == "on"
+    if is_mock():
+        data = _load_mock()
+        for f in data["filters"]:
+            if f["url"] == url:
+                f["enabled"] = enabled
+                f["name"] = name or f["name"]
+        _save_mock(data)
+        return _mock_status(data)
+    _api("POST", "/control/filtering/set_url", {
+        "url": url,
+        "data": {"name": name or url, "url": url, "enabled": enabled},
+        "whitelist": False,
+    })
+    return _collect_live_status()
+
+
+def cmd_filter_add(args):
+    url = args.url.strip()
+    name = (args.name or url).strip()
+    if is_mock():
+        data = _load_mock()
+        if not any(f["url"] == url for f in data["filters"]):
+            next_id = max([f["id"] for f in data["filters"]] or [0]) + 1
+            data["filters"].append({
+                "id": next_id,
+                "name": name,
+                "url": url,
+                "rulesCount": 42000,
+                "enabled": True,
+                "lastUpdated": "2026-11-24T12:00:00Z",
+            })
+            _save_mock(data)
+        return _mock_status(data)
+    _api("POST", "/control/filtering/add_url", {"name": name, "url": url, "whitelist": False}, timeout=30.0)
+    return _collect_live_status()
+
+
+def cmd_filter_remove(args):
+    url = args.url
+    if is_mock():
+        data = _load_mock()
+        data["filters"] = [f for f in data["filters"] if f["url"] != url]
+        _save_mock(data)
+        return _mock_status(data)
+    _api("POST", "/control/filtering/remove_url", {"url": url, "whitelist": False})
+    return _collect_live_status()
+
+
+def cmd_filter_refresh(_args):
+    if is_mock():
+        return _mock_status(_load_mock())
+    _api("POST", "/control/filtering/refresh", {"whitelist": False}, timeout=45.0)
+    return _collect_live_status()
+
+
+def _apply_rules(rules):
+    clean = [str(r).strip() for r in rules if str(r).strip()]
+    if is_mock():
+        data = _load_mock()
+        data["userRules"] = clean
+        _save_mock(data)
+        return _mock_status(data)
+    _api("POST", "/control/filtering/set_rules", {"rules": clean})
+    return _collect_live_status()
+
+
+def cmd_rules_set(_args):
+    body = json.loads(sys.stdin.read() or "{}")
+    return _apply_rules(body.get("rules") or [])
+
+
+def cmd_quick_rule(args):
+    domain = _normalize_domain(args.domain)
+    mode = args.mode
+    if is_mock():
+        cur_rules = list(_load_mock().get("userRules") or [])
+    else:
+        filt = _api("GET", "/control/filtering/status")
+        cur_rules = [r for r in (filt.get("user_rules") or []) if isinstance(r, str)]
+    kept = [r for r in cur_rules if _domain_from_rule(r) != domain]
+    if mode == "block":
+        kept.append(f"||{domain}^")
+    elif mode == "allow":
+        kept.append(f"@@||{domain}^")
+    res = _apply_rules(kept)
+    if is_mock():
+        data = _load_mock()
+        for it in data.get("queryLog") or []:
+            if it.get("domain") == domain:
+                if mode == "block":
+                    it["blocked"] = True
+                    it["reason"] = "Blocked by custom rule"
+                    it["rule"] = f"||{domain}^"
+                elif mode == "allow":
+                    it["blocked"] = False
+                    it["reason"] = "Allowed by custom rule"
+                    it["rule"] = f"@@||{domain}^"
+        _save_mock(data)
+        return _mock_status(data)
+    return res
+
+
+def cmd_safety(args):
+    kind = args.kind
+    enabled = args.state == "on"
+    if is_mock():
+        data = _load_mock()
+        key = {"safebrowsing": "safeBrowsing", "parental": "parental", "safesearch": "safeSearch"}[kind]
+        data[key] = enabled
+        _save_mock(data)
+        return _mock_status(data)
+    if kind == "safesearch":
+        cur = _api("GET", "/control/safesearch/status")
+        cur["enabled"] = enabled
+        for engine in ("bing", "duckduckgo", "ecosia", "google", "pixabay", "yandex", "youtube"):
+            cur.setdefault(engine, True)
+        _api("PUT", "/control/safesearch/settings", cur)
+    else:
+        action = "enable" if enabled else "disable"
+        _api("POST", f"/control/{kind}/{action}")
+    return _collect_live_status()
+
+
+def cmd_blocked_services_set(_args):
+    body = json.loads(sys.stdin.read() or "{}")
+    ids = [str(x).strip() for x in (body.get("ids") or []) if str(x).strip()]
+    if is_mock():
+        data = _load_mock()
+        data["blockedServices"] = ids
+        _save_mock(data)
+        return _mock_status(data)
+    cur = _api("GET", "/control/blocked_services/get")
+    schedule = cur.get("schedule") or {"time_zone": "Local"}
+    _api("PUT", "/control/blocked_services/update", {"ids": ids, "schedule": schedule})
+    return _collect_live_status()
+
+
+def cmd_dns_set(_args):
+    body = json.loads(sys.stdin.read() or "{}")
+    upstreams = [str(x).strip() for x in (body.get("upstream_dns") or []) if str(x).strip() and not str(x).strip().startswith("[/warp-svc/]")]
+    if not upstreams:
+        raise ValueError("At least one upstream DNS server is required")
+    full_upstreams = ["[/warp-svc/]127.0.2.2"] + upstreams
+    bootstrap = [str(x).strip() for x in (body.get("bootstrap_dns") or ["1.1.1.1", "9.9.9.9"]) if str(x).strip()]
+    dnssec = bool(body.get("dnssec_enabled", True))
+    mode = str(body.get("blocking_mode") or "default")
+    if mode not in ("default", "nxdomain", "null_ip"):
+        raise ValueError(f"Unsupported blocking mode: {mode!r}")
+    if is_mock():
+        data = _load_mock()
+        data["upstreamDns"] = upstreams
+        data["bootstrapDns"] = bootstrap
+        data["dnssecEnabled"] = dnssec
+        data["blockingMode"] = mode
+        _save_mock(data)
+        return _mock_status(data)
+    _api("POST", "/control/dns_config", {
+        "upstream_dns": full_upstreams,
+        "bootstrap_dns": bootstrap,
+        "dnssec_enabled": dnssec,
+        "blocking_mode": mode,
+    })
+    return _collect_live_status()
+
+
+def cmd_stats_reset(_args):
+    if is_mock():
+        data = _load_mock()
+        data["stats"]["numDnsQueries"] = 0
+        data["stats"]["numBlockedFiltering"] = 0
+        data["stats"]["blockedPercent"] = 0.0
+        data["stats"]["topBlockedDomains"] = []
+        data["stats"]["topQueriedDomains"] = []
+        data["stats"]["dnsQueriesSeries"] = [0] * 24
+        data["stats"]["blockedSeries"] = [0] * 24
+        _save_mock(data)
+        return _mock_status(data)
+    _api("POST", "/control/stats_reset")
+    return _collect_live_status()
+
+
+def cmd_querylog_clear(_args):
+    if is_mock():
+        data = _load_mock()
+        data["queryLog"] = []
+        _save_mock(data)
+        return {"items": []}
+    _api("POST", "/control/querylog_clear")
+    return {"items": []}
+
+
+def build_parser():
+    p = argparse.ArgumentParser(description="Caelestia Ad Blocker helper")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    sub.add_parser("status").set_defaults(func=cmd_status)
+
+    ql = sub.add_parser("querylog")
+    ql.add_argument("--search", default="")
+    ql.add_argument("--filter", choices=["all", "blocked", "allowed"], default="all")
+    ql.add_argument("--limit", type=int, default=100)
+    ql.set_defaults(func=cmd_querylog)
+
+    pr = sub.add_parser("protection")
+    pr.add_argument("state", choices=["on", "off"])
+    pr.add_argument("duration_ms", nargs="?", type=int, default=0)
+    pr.set_defaults(func=cmd_protection)
+
+    ft = sub.add_parser("filter-toggle")
+    ft.add_argument("url")
+    ft.add_argument("name")
+    ft.add_argument("state", choices=["on", "off"])
+    ft.set_defaults(func=cmd_filter_toggle)
+
+    fa = sub.add_parser("filter-add")
+    fa.add_argument("url")
+    fa.add_argument("name", nargs="?", default="")
+    fa.set_defaults(func=cmd_filter_add)
+
+    fr = sub.add_parser("filter-remove")
+    fr.add_argument("url")
+    fr.set_defaults(func=cmd_filter_remove)
+
+    sub.add_parser("filter-refresh").set_defaults(func=cmd_filter_refresh)
+    sub.add_parser("rules-set").set_defaults(func=cmd_rules_set)
+
+    qr = sub.add_parser("quick-rule")
+    qr.add_argument("mode", choices=["block", "allow", "clear"])
+    qr.add_argument("domain")
+    qr.set_defaults(func=cmd_quick_rule)
+
+    sf = sub.add_parser("safety")
+    sf.add_argument("kind", choices=["safebrowsing", "parental", "safesearch"])
+    sf.add_argument("state", choices=["on", "off"])
+    sf.set_defaults(func=cmd_safety)
+
+    sub.add_parser("blocked-services-set").set_defaults(func=cmd_blocked_services_set)
+    sub.add_parser("dns-set").set_defaults(func=cmd_dns_set)
+    sub.add_parser("stats-reset").set_defaults(func=cmd_stats_reset)
+    sub.add_parser("querylog-clear").set_defaults(func=cmd_querylog_clear)
+    return p
+
+
+def main(argv):
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    try:
+        out = args.func(args)
+        print(json.dumps(out))
+        return 0
+    except Exception as e:
+        print(str(e), file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

@@ -21,6 +21,7 @@ PageBase {
     readonly property int editIndex: nState.editingVpnIndex
     readonly property bool editing: editIndex >= 0
     readonly property var existing: editing ? (VPN.providers[editIndex] ?? null) : null
+    readonly property var selectedAdapter: VPN.adapterFor(root.providerType)
     readonly property var builtInPresets: ({
             wireguard: "WireGuard",
             nm: "NetworkManager VPN",
@@ -38,6 +39,7 @@ PageBase {
     property bool importingConfig: false
     property bool missingOpenvpnPlugin: false
     property string lastImportFile: ""
+    property bool _switchToNmOnImport: false
 
     function splitCmd(arr: var): string {
         return arr?.join(" ") ?? "";
@@ -155,6 +157,7 @@ PageBase {
     isSubPage: true
 
     Component.onCompleted: {
+        VPN.refreshAvailability();
         if (existing) {
             const typeId = builtInPresets[existing.name] ? existing.name : "custom";
             nameField.text = existing.name;
@@ -234,6 +237,36 @@ PageBase {
             }
         }
 
+        RequirementRow {
+            readonly property string pkgName: root.selectedAdapter?.pkgName ?? ""
+            readonly property string pkgSource: root.selectedAdapter?.pkgSource ?? "repo"
+            readonly property string pkgLabel: root.selectedAdapter?.pkgLabel || (root.builtInPresets[root.providerType] ?? root.providerType)
+
+            visible: root.providerType !== "custom" && root.providerType !== "nm" && pkgName.length > 0 && !VPN.isInstalled(root.providerType)
+            Layout.bottomMargin: Tokens.spacing.small
+            icon: "extension_off"
+            text: Tr.tr("%1 isn't installed").arg(pkgLabel)
+            subtext: Tr.tr("Install %1 so Settings can connect this VPN.").arg(pkgName)
+            actionText: Packages.busy[`${pkgSource}:${pkgName}`] ? "" : Tr.tr("Install")
+            onAction: Packages.install({
+                source: pkgSource,
+                name: pkgName
+            }, () => VPN.refreshAvailability())
+        }
+
+        RequirementRow {
+            readonly property string svc: root.selectedAdapter?.service ?? ""
+
+            visible: root.providerType !== "custom" && root.providerType !== "nm" && VPN.isInstalled(root.providerType) && svc.length > 0 && svc !== "NetworkManager" && !VPN.isServiceActive(root.providerType)
+            Layout.bottomMargin: Tokens.spacing.small
+            neutral: true
+            icon: "play_circle"
+            text: Tr.tr("%1 service isn't running").arg(root.builtInPresets[root.providerType] ?? root.providerType)
+            subtext: Tr.tr("Start and enable %1 before connecting.").arg(svc)
+            actionText: Admin.busy ? "" : Tr.tr("Start service")
+            onAction: Admin.exec(["systemctl", "enable", "--now", svc], Tr.tr("Start %1 service").arg(root.builtInPresets[root.providerType] ?? root.providerType), () => VPN.refreshAvailability())
+        }
+
         StyledTextField {
             id: nameField
 
@@ -262,12 +295,27 @@ PageBase {
         }
 
         RowButton {
+            visible: root.providerType === "wireguard"
+            icon: "upload_file"
+            text: Tr.tr("Import WireGuard .conf file…")
+            subtext: root.importingConfig ? Tr.tr("Importing into NetworkManager…") : Tr.tr("Imports into NetworkManager so it connects without wg-quick or root prompts")
+            disabled: root.importingConfig
+            onClicked: {
+                root._switchToNmOnImport = true;
+                configFileDialog.open();
+            }
+        }
+
+        RowButton {
             visible: root.providerType === "nm"
             icon: "upload_file"
             text: Tr.tr("Import config file (.conf / .ovpn)…")
             subtext: root.importingConfig ? Tr.tr("Importing into NetworkManager…") : Tr.tr("An OpenVPN (.ovpn) or WireGuard (.conf) profile, kept off until you connect it")
             disabled: root.importingConfig
-            onClicked: configFileDialog.open()
+            onClicked: {
+                root._switchToNmOnImport = false;
+                configFileDialog.open();
+            }
         }
 
         RequirementRow {
@@ -502,8 +550,14 @@ PageBase {
                     const connName = m ? m[1] : fallbackName;
                     interfaceField.text = connName;
                     interfaceField.isError = false;
-                    if (!displayField.text.trim() || displayField.text.trim() === root.builtInPresets.nm)
+                    if (!displayField.text.trim() || displayField.text.trim() === root.builtInPresets.nm || displayField.text.trim() === root.builtInPresets.wireguard)
                         displayField.text = connName;
+                    if (root._switchToNmOnImport) {
+                        root._switchToNmOnImport = false;
+                        root.selectType("nm", false);
+                        interfaceField.text = connName;
+                        interfaceField.isError = false;
+                    }
                     // nmcli imports with autoconnect on: a full-tunnel profile would
                     // come up by itself right away; it connects only when asked
                     nmAutoProc.command = ["nmcli", "connection", "modify", uuid ? uuid[1] : connName, "connection.autoconnect", "no"];

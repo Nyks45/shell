@@ -77,6 +77,10 @@ SYNONYMS = {
     "Max volume": "volume limit boost",
     "Lyrics source": "lyrics backend lrclib netease",
     "Default media player": "mpris media player auto",
+    "System-wide ad blocker": "adblock adblocker adguard pihole tracker blocker dns",
+    "Ad blocker & DNS": "adblock adblocker adguard filter query log custom rules doh dot",
+    "Malware & phishing protection": "safebrowsing malware phishing adguard security",
+    "Upstream DNS provider": "doh dot doq encrypted dns cloudflare quad9 mullvad adguard",
 }
 
 EXCLUDE_LABELS = {"Unknown program", "Copy these lines", "Boot", "Name", "Add", "Save", "Cancel"}

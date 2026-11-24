@@ -1520,6 +1520,412 @@ def act_fans_apply(args):
         run("systemctl", "disable", "--now", "caelestia-fans.service", check=False)
 
 
+# --- ad blocker (AdGuard Home headless) -----------------------------------
+
+ADBLOCK_CONF_DIR = "/etc/caelestia-adblock"
+ADBLOCK_CONF = f"{ADBLOCK_CONF_DIR}/AdGuardHome.yaml"
+ADBLOCK_TOKEN = f"{ADBLOCK_CONF_DIR}/api-token"
+ADBLOCK_DATA_DIR = "/var/lib/caelestia-adblock"
+ADBLOCK_UNIT = "/etc/systemd/system/caelestia-adblock.service"
+ADBLOCK_FALLBACK_UNIT = "/etc/systemd/system/caelestia-adblock-fallback.service"
+ADBLOCK_NM_CONF = "/etc/NetworkManager/conf.d/zz-caelestia-adblock.conf"
+ADBLOCK_RESOLVED_CONF = "/etc/systemd/resolved.conf.d/zz-caelestia-adblock.conf"
+ADBLOCK_API = "http://127.0.0.1:3053"
+
+
+def _adblock_bin():
+    for candidate in ("/usr/bin/adguardhome", "/usr/bin/AdGuardHome"):
+        if os.path.exists(candidate):
+            return candidate
+    if DRY:
+        return "/usr/bin/adguardhome"
+    raise Refused("adguardhome package is not installed")
+
+
+def _adblock_write_secret(path, text, mode, gid=0):
+    print(f"$ write {path}", flush=True)
+    if DRY:
+        return
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".caelestia-new"
+    with open(tmp, "w") as f:
+        f.write(text)
+    os.chmod(tmp, mode)
+    os.chown(tmp, 0, gid)
+    os.replace(tmp, path)
+
+
+def _adblock_http_ready(url, auth_header=None, timeout_s=8.0):
+    if DRY:
+        return True
+    import time
+    import urllib.error
+    import urllib.request
+
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        req = urllib.request.Request(url)
+        if auth_header:
+            req.add_header("Authorization", auth_header)
+        try:
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                if 200 <= resp.status < 500:
+                    return True
+        except urllib.error.HTTPError as e:
+            if e.code in (200, 401):
+                return True
+        except Exception:
+            pass
+        time.sleep(0.2)
+    return False
+
+
+def _adblock_init_config(adguard_bin):
+    import grp
+    import secrets
+    import socket
+    import time
+    import urllib.request
+
+    wheel_gid = grp.getgrnam("wheel").gr_gid
+    password = secrets.token_hex(16)
+    token_line = f"caelestia:{password}\n"
+
+    if DRY:
+        bcrypt_hash = "$2a$10$dryrundryrundryrundryrundryrundryrundryrundryru"
+    else:
+        os.makedirs(ADBLOCK_CONF_DIR, mode=0o750, exist_ok=True)
+        os.chmod(ADBLOCK_CONF_DIR, 0o750)
+        os.chown(ADBLOCK_CONF_DIR, 0, wheel_gid)
+        os.makedirs(ADBLOCK_DATA_DIR, mode=0o700, exist_ok=True)
+        os.chmod(ADBLOCK_DATA_DIR, 0o700)
+        os.chown(ADBLOCK_DATA_DIR, 0, 0)
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("127.0.0.1", 0))
+            setup_port = s.getsockname()[1]
+
+        proc = subprocess.Popen(
+            [adguard_bin, "--no-check-update", "--web-addr", f"127.0.0.1:{setup_port}",
+             "-w", ADBLOCK_DATA_DIR, "-c", ADBLOCK_CONF],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+        )
+        try:
+            if not _adblock_http_ready(f"http://127.0.0.1:{setup_port}/control/install/get_addresses", timeout_s=8.0):
+                raise Refused("AdGuard Home setup endpoint did not become ready")
+            payload = json.dumps({
+                "web": {"ip": "127.0.0.1", "port": 3053, "status": "ok", "can_autofix": False},
+                "dns": {"ip": "127.0.0.55", "port": 53, "status": "ok", "can_autofix": False},
+                "username": "caelestia",
+                "password": password,
+            }).encode()
+            req = urllib.request.Request(
+                f"http://127.0.0.1:{setup_port}/control/install/configure",
+                data=payload, headers={"Content-Type": "application/json"}, method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=5.0) as resp:
+                resp.read()
+            time.sleep(0.5)
+        finally:
+            if proc.poll() is None:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait()
+
+        with open(ADBLOCK_CONF) as f:
+            raw_yaml = f.read()
+        m = re.search(r"^\s*password:\s*(\$2[aby]\$[^\s]+)", raw_yaml, re.M)
+        if not m:
+            raise Refused("Failed to read generated AdGuard Home password hash")
+        bcrypt_hash = m.group(1)
+
+    yaml_text = f"""http:
+  doh:
+    routes:
+      - GET /dns-query
+      - POST /dns-query
+      - GET /dns-query/{{ClientID}}
+      - POST /dns-query/{{ClientID}}
+    insecure_enabled: false
+  pprof:
+    port: 6060
+    enabled: false
+  address: 127.0.0.1:3053
+  session_ttl: 30d
+users:
+  - name: caelestia
+    password: {bcrypt_hash}
+auth_attempts: 50
+block_auth_min: 1
+http_proxy: ""
+language: ""
+theme: auto
+dns:
+  edns_client_subnet:
+    custom_ip: ""
+    enabled: false
+    use_custom: false
+  pending_requests:
+    enabled: true
+  ipset_file: ""
+  upstream_dns_file: ""
+  upstream_mode: load_balance
+  bind_hosts:
+    - 127.0.0.55
+  ratelimit_whitelist:
+    - 127.0.0.1
+    - "::1"
+  dns64_prefixes: []
+  private_networks: []
+  trusted_proxies:
+    - 127.0.0.0/8
+    - ::1/128
+  allowed_clients: []
+  blocked_hosts:
+    - version.bind
+    - id.server
+    - hostname.bind
+  bogus_nxdomain: []
+  bootstrap_dns:
+    - 1.1.1.1
+    - 9.9.9.9
+  disallowed_clients: []
+  fallback_dns: []
+  ipset: []
+  local_ptr_upstreams: []
+  upstream_dns:
+    - "[/warp-svc/]127.0.2.2"
+    - https://dns.cloudflare.com/dns-query
+    - https://dns.quad9.net/dns-query
+  cache_optimistic_answer_ttl: 30s
+  cache_optimistic_max_age: 12h
+  fastest_timeout: 1s
+  upstream_timeout: 10s
+  max_goroutines: 300
+  ratelimit_subnet_len_ipv4: 24
+  ratelimit_subnet_len_ipv6: 56
+  cache_ttl_max: 0
+  cache_ttl_min: 0
+  cache_size: 4194304
+  ratelimit: 0
+  port: 53
+  aaaa_disabled: false
+  anonymize_client_ip: false
+  bootstrap_prefer_ipv6: false
+  cache_enabled: true
+  cache_optimistic: false
+  enable_dnssec: true
+  handle_ddr: true
+  hostsfile_enabled: true
+  refuse_any: true
+  serve_http3: false
+  serve_plain_dns: true
+  use_dns64: false
+  use_http3_upstreams: false
+  use_private_ptr_resolvers: true
+querylog:
+  dir_path: ""
+  ignored: []
+  interval: 7d
+  size_memory: 2000
+  enabled: true
+  file_enabled: true
+  ignored_enabled: false
+statistics:
+  dir_path: ""
+  ignored: []
+  interval: 7d
+  enabled: true
+  ignored_enabled: false
+filters:
+  - enabled: true
+    url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt
+    name: AdGuard DNS filter
+    id: 1
+  - enabled: true
+    url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_34.txt
+    name: HaGeZi's Normal Blocklist
+    id: 2
+whitelist_filters: []
+user_rules: []
+dhcp:
+  enabled: false
+filtering:
+  blocking_ipv4: ""
+  blocking_ipv6: ""
+  blocked_services:
+    schedule:
+      time_zone: Local
+    ids: []
+  protection_disabled_until: null
+  safe_search:
+    enabled: false
+    bing: true
+    duckduckgo: true
+    ecosia: true
+    google: true
+    pixabay: true
+    yandex: true
+    youtube: true
+  blocking_mode: default
+  parental_block_host: family-block.dns.adguard.com
+  safebrowsing_block_host: standard-block.dns.adguard.com
+  rewrites: []
+  safe_fs_patterns:
+    - {ADBLOCK_DATA_DIR}/userfilters/*
+  max_http_size: 256MB
+  safebrowsing_cache_size: 1048576
+  safesearch_cache_size: 1048576
+  parental_cache_size: 1048576
+  cache_time: 30
+  filters_update_interval: 24
+  blocked_response_ttl: 10
+  filtering_enabled: true
+  rewrites_enabled: true
+  parental_enabled: false
+  safebrowsing_enabled: false
+  protection_enabled: true
+schema_version: 35
+"""
+    _adblock_write_secret(ADBLOCK_CONF, yaml_text, 0o600, 0)
+    _adblock_write_secret(ADBLOCK_TOKEN, token_line, 0o640, wheel_gid)
+
+
+def _adblock_write_units(adguard_bin):
+    write_file(
+        ADBLOCK_FALLBACK_UNIT,
+        "[Unit]\n"
+        "Description=Caelestia settings: restore DNS if ad blocker stops failing\n\n"
+        "[Service]\n"
+        "Type=oneshot\n"
+        f"ExecStart=/bin/rm -f {ADBLOCK_NM_CONF} {ADBLOCK_RESOLVED_CONF}\n"
+        "ExecStart=/usr/bin/nmcli general reload\n"
+        "ExecStart=/usr/bin/systemctl restart systemd-resolved\n"
+        "ExecStart=/usr/bin/nmcli general reload dns-full\n",
+    )
+    write_file(
+        ADBLOCK_UNIT,
+        "[Unit]\n"
+        "Description=Caelestia settings: headless DNS ad blocker (AdGuard Home)\n"
+        "After=network-online.target systemd-resolved.service\n"
+        "Wants=network-online.target\n"
+        "OnFailure=caelestia-adblock-fallback.service\n"
+        "StartLimitIntervalSec=30\n"
+        "StartLimitBurst=5\n\n"
+        "[Service]\n"
+        "Type=simple\n"
+        f"ExecStart={adguard_bin} --no-check-update -c {ADBLOCK_CONF} -w {ADBLOCK_DATA_DIR} -l syslog\n"
+        "Restart=on-failure\n"
+        "RestartSec=2\n\n"
+        "[Install]\n"
+        "WantedBy=multi-user.target\n",
+    )
+
+
+def _adblock_api_auth():
+    import base64
+    if DRY or not os.path.exists(ADBLOCK_TOKEN):
+        return None
+    with open(ADBLOCK_TOKEN) as f:
+        creds = f.read().strip()
+    return "Basic " + base64.b64encode(creds.encode()).decode()
+
+
+def _adblock_apply_routing(enable):
+    if enable:
+        if not os.path.exists(ADBLOCK_CONF) or not os.path.exists(ADBLOCK_UNIT):
+            raise Refused("ad blocker is not set up yet")
+        if subprocess.run(["systemctl", "is-active", "--quiet", "caelestia-adblock.service"]).returncode != 0:
+            run("systemctl", "start", "caelestia-adblock.service")
+        if not _adblock_http_ready(f"{ADBLOCK_API}/control/status", _adblock_api_auth(), timeout_s=8.0):
+            raise Refused("caelestia-adblock.service did not become ready")
+        write_file(
+            ADBLOCK_NM_CONF,
+            "# Managed by Caelestia Settings (Ad blocker). Do not edit by hand.\n"
+            "[main]\n"
+            "dns=none\n"
+            "systemd-resolved=false\n",
+        )
+        write_file(
+            ADBLOCK_RESOLVED_CONF,
+            "# Managed by Caelestia Settings (Ad blocker). Do not edit by hand.\n"
+            "[Resolve]\n"
+            "DNS=127.0.0.55\n"
+            "Domains=~.\n"
+            "FallbackDNS=\n",
+        )
+        run("nmcli", "general", "reload")
+        run("systemctl", "restart", "systemd-resolved")
+        if not DRY:
+            out = subprocess.run(
+                ["nmcli", "-t", "-f", "DEVICE,TYPE,STATE", "device", "status"],
+                text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            ).stdout
+            for line in out.splitlines():
+                parts = line.split(":")
+                if len(parts) >= 3 and parts[2] == "connected" and parts[1] in ("ethernet", "wifi", "bridge", "bond"):
+                    run("resolvectl", "revert", parts[0], check=False)
+    else:
+        for path in (ADBLOCK_NM_CONF, ADBLOCK_RESOLVED_CONF):
+            if os.path.exists(path):
+                run("rm", "-f", path)
+        run("nmcli", "general", "reload", check=False)
+        run("systemctl", "restart", "systemd-resolved", check=False)
+        run("nmcli", "general", "reload", "dns-full", check=False)
+
+
+def act_adblock_setup(args):
+    """adblock-setup [--reset]: configure headless AdGuard Home on loopback and route DNS."""
+    if args not in ([], ["--reset"]):
+        raise Refused("usage: adblock-setup [--reset]")
+    adguard_bin = _adblock_bin()
+    reset = args == ["--reset"]
+    if reset or not os.path.exists(ADBLOCK_CONF) or not os.path.exists(ADBLOCK_TOKEN):
+        if subprocess.run(["systemctl", "is-active", "--quiet", "caelestia-adblock.service"]).returncode == 0:
+            _adblock_apply_routing(False)
+            run("systemctl", "stop", "caelestia-adblock.service", check=False)
+        _adblock_init_config(adguard_bin)
+    _adblock_write_units(adguard_bin)
+    run("systemctl", "daemon-reload")
+    run("systemctl", "enable", "--now", "caelestia-adblock.service")
+    if not _adblock_http_ready(f"{ADBLOCK_API}/control/status", _adblock_api_auth(), timeout_s=8.0):
+        raise Refused("caelestia-adblock.service did not become ready")
+    _adblock_apply_routing(True)
+
+
+def act_adblock_routing(args):
+    """adblock-routing on|off: route system DNS through AdGuard Home or restore NetworkManager DNS."""
+    need(args, 1, "adblock-routing on|off")
+    if args[0] not in ("on", "off"):
+        raise Refused("usage: adblock-routing on|off")
+    _adblock_apply_routing(args[0] == "on")
+
+
+def act_adblock_service(args):
+    """adblock-service start|stop|restart: control caelestia-adblock.service safely."""
+    need(args, 1, "adblock-service start|stop|restart")
+    action = args[0]
+    if action not in ("start", "stop", "restart"):
+        raise Refused("usage: adblock-service start|stop|restart")
+    if action == "stop":
+        _adblock_apply_routing(False)
+        run("systemctl", "stop", "caelestia-adblock.service", check=False)
+    else:
+        run("systemctl", action, "caelestia-adblock.service")
+
+
+def act_vpn_tailscale_operator(args):
+    """vpn-tailscale-operator: allow the calling user to run tailscale up/down without sudo."""
+    need(args, 0, "vpn-tailscale-operator")
+    user = caller()
+    if not DRY and not os.path.exists("/usr/bin/tailscale"):
+        raise Refused("tailscale is not installed")
+    run("tailscale", "set", f"--operator={user}")
+
+
 ACTIONS = {
     "power-key": act_power_key,
     "install": act_install,
@@ -1570,6 +1976,10 @@ ACTIONS = {
     "set-locale": act_set_locale,
     "move-partition": act_move_partition,
     "group-member": act_group_member,
+    "adblock-setup": act_adblock_setup,
+    "adblock-routing": act_adblock_routing,
+    "adblock-service": act_adblock_service,
+    "vpn-tailscale-operator": act_vpn_tailscale_operator,
 }
 
 

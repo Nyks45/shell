@@ -146,6 +146,16 @@ PageBase {
         }
 
         NavRow {
+            icon: "shield"
+            text: Tr.tr("Ad blocker")
+            subtext: !AdBlocker.configured ? Tr.tr("Block ads, trackers & phishing system-wide · Manage in Network") : AdBlocker.active ? Tr.tr("Active · %1 blocked · Manage in Network").arg(AdBlocker.formatCompactCount(AdBlocker.stats.numBlockedFiltering ?? 0)) : AdBlocker.paused ? Tr.tr("Paused · %1 left · Manage in Network").arg(AdBlocker.formatPauseCountdown(AdBlocker.pauseRemainingSec)) : Tr.tr("Off · Manage in Network")
+            onClicked: root.nState.goTo({
+                page: PageRegistry.find("network"),
+                path: [7]
+            })
+        }
+
+        NavRow {
             icon: "lock"
             text: Tr.tr("Screen lock")
             subtext: Tr.tr("When the screen locks by itself, on Power & sleep")

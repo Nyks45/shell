@@ -1483,6 +1483,16 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Allow your user to control Tailscale",
+            "ctx": "",
+            "sub": "Tailscale requires operator permission before Settings can connect without sudo.",
+            "section": "",
+            "page": 8,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Add provider",
             "ctx": "",
             "sub": "",
@@ -1491,6 +1501,26 @@ QtObject {
             "path": [],
             "trail": [],
             "keywords": ""
+        },
+        {
+            "label": "System-wide ad blocker",
+            "ctx": "",
+            "sub": "",
+            "section": "Ad blocker",
+            "page": 8,
+            "path": [],
+            "trail": [],
+            "keywords": "adblock adblocker adguard pihole tracker blocker dns"
+        },
+        {
+            "label": "Ad blocker & DNS",
+            "ctx": "",
+            "sub": "",
+            "section": "Ad blocker",
+            "page": 8,
+            "path": [],
+            "trail": [],
+            "keywords": "adblock adblocker adguard filter query log custom rules doh dot"
         },
         {
             "label": "Hidden network",
@@ -1530,6 +1560,172 @@ QtObject {
                 5
             ],
             "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Overview",
+            "ctx": "",
+            "sub": "",
+            "section": "",
+            "page": 8,
+            "path": [
+                7
+            ],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "AdGuard Home isn't installed",
+            "ctx": "",
+            "sub": "Install AdGuard Home (8.7 MiB) so Settings can block ads and trackers across every app without running an external web UI.",
+            "section": "",
+            "page": 8,
+            "path": [
+                7
+            ],
+            "trail": [
+                "Overview"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Set up system-wide ad blocker",
+            "ctx": "",
+            "sub": "Runs a private local AdGuard Home resolver on loopback (127.0.0.55) with encrypted upstream DNS.",
+            "section": "",
+            "page": 8,
+            "path": [
+                7
+            ],
+            "trail": [
+                "Overview"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Cloudflare WARP is connected",
+            "ctx": "",
+            "sub": "System lookups stay filtered through AdGuard Home (with upstream DoH routed over WARP). Apps that read /etc/resolv.conf directly use WARP's resolver.",
+            "section": "",
+            "page": 8,
+            "path": [
+                7
+            ],
+            "trail": [
+                "Overview"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Reset statistics",
+            "ctx": "",
+            "sub": "Clear DNS query counters and top domain rankings",
+            "section": "Maintenance",
+            "page": 8,
+            "path": [
+                7
+            ],
+            "trail": [
+                "Overview"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Clear query log",
+            "ctx": "",
+            "sub": "Delete recorded recent DNS lookups",
+            "section": "Maintenance",
+            "page": 8,
+            "path": [
+                7
+            ],
+            "trail": [
+                "Overview"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Malware & phishing protection",
+            "ctx": "",
+            "sub": "Block known malicious, phishing, and scam domains via AdGuard Safe Browsing",
+            "section": "Safe protections",
+            "page": 8,
+            "path": [
+                7
+            ],
+            "trail": [
+                "Overview"
+            ],
+            "keywords": "safebrowsing malware phishing adguard security"
+        },
+        {
+            "label": "Safe Search",
+            "ctx": "",
+            "sub": "Enforce Safe Search across Google, Bing, DuckDuckGo, and YouTube",
+            "section": "Safe protections",
+            "page": 8,
+            "path": [
+                7
+            ],
+            "trail": [
+                "Overview"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Parental control",
+            "ctx": "",
+            "sub": "Block adult domains across all apps",
+            "section": "Safe protections",
+            "page": 8,
+            "path": [
+                7
+            ],
+            "trail": [
+                "Overview"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Upstream DNS provider",
+            "ctx": "",
+            "sub": "",
+            "section": "Encrypted upstream DNS",
+            "page": 8,
+            "path": [
+                7
+            ],
+            "trail": [
+                "Overview"
+            ],
+            "keywords": "doh dot doq encrypted dns cloudflare quad9 mullvad adguard"
+        },
+        {
+            "label": "DNSSEC validation",
+            "ctx": "",
+            "sub": "Verify cryptographic signatures on supported domains",
+            "section": "Encrypted upstream DNS",
+            "page": 8,
+            "path": [
+                7
+            ],
+            "trail": [
+                "Overview"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Blocking response mode",
+            "ctx": "",
+            "sub": "How blocked domains answer DNS lookups",
+            "section": "Encrypted upstream DNS",
+            "page": 8,
+            "path": [
+                7
+            ],
+            "trail": [
+                "Overview"
+            ],
             "keywords": ""
         },
         {
@@ -4886,6 +5082,16 @@ QtObject {
             "label": "Firewall",
             "ctx": "",
             "sub": "Applying…",
+            "section": "Security",
+            "page": 19,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
+            "label": "Ad blocker",
+            "ctx": "",
+            "sub": "Block ads, trackers & phishing system-wide · Manage in Network",
             "section": "Security",
             "page": 19,
             "path": [],
