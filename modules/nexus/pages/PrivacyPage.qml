@@ -127,8 +127,11 @@ PageBase {
                 root.firewallPending = true;
                 Admin.run("install", ["ufw"], what, ok => {
                     if (ok)
-                        Admin.run("firewall", ["on"], what, () => root.refresh());
-                    else
+                        Admin.run("firewall", ["on"], what, () => {
+                            if (root)
+                                root.refresh();
+                        });
+                    else if (root)
                         root.refresh();
                 });
             }
@@ -141,7 +144,10 @@ PageBase {
             checked: root.firewall === "active"
             onToggled: {
                 root.firewallPending = true;
-                Admin.run("firewall", [checked ? "on" : "off"], checked ? Tr.tr("Turn the firewall on") : Tr.tr("Turn the firewall off"), () => root.refresh());
+                Admin.run("firewall", [checked ? "on" : "off"], checked ? Tr.tr("Turn the firewall on") : Tr.tr("Turn the firewall off"), () => {
+                    if (root)
+                        root.refresh();
+                });
             }
         }
 
@@ -206,10 +212,10 @@ PageBase {
         }
 
         InfoRow {
-            icon: Audio.recordingStreams.length > 0 ? "mic" : "mic_none"
+            icon: Audio.microphoneStreams.length > 0 ? "mic" : "mic_none"
             label: Tr.tr("Microphone in use")
-            value: Audio.recordingStreams.length > 0 ? Tr.trN("%n app", "%n apps", Audio.recordingStreams.length) : Tr.tr("Idle")
-            subtext: Audio.recordingStreams.length > 0 ? Audio.recordingStreams.map(s => Audio.getStreamName(s)).join(", ") : Tr.tr("No apps are currently recording audio")
+            value: Audio.microphoneStreams.length > 0 ? Tr.trN("%n app", "%n apps", Audio.microphoneStreams.length) : Tr.tr("Idle")
+            subtext: Audio.microphoneStreams.length > 0 ? Audio.microphoneStreams.map(s => Audio.getStreamName(s)).join(", ") : Tr.tr("No apps are currently using the microphone")
         }
 
         InfoRow {

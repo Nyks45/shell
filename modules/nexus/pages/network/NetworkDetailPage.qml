@@ -41,10 +41,9 @@ PageBase {
         if (!root.ssid)
             return;
         Nmcli.getIpv4Config(root.ssid, cfg => {
-            if (!cfg)
+            if (!root || !cfg)
                 return;
             root.ipMethod = cfg.method; // "auto" | "auto-dns" | "manual"
-            methodSelect.active = cfg.method === "manual" ? manualItem : (cfg.method === "auto-dns" ? autoDnsItem : autoItem);
             addressField.text = cfg.address;
             gatewayField.text = cfg.gateway;
             dnsField.text = cfg.dns;
@@ -84,6 +83,8 @@ PageBase {
             gateway: gatewayField.text.trim(),
             dns: dnsField.text.trim()
         }, result => {
+            if (!root)
+                return;
             root.savingIp = false;
             if (!(result && result.success)) {
                 if (root.ipMethod === "manual")
@@ -283,6 +284,7 @@ PageBase {
             // TRANSLATORS: DHCP and DNS are protocol names, leave them untranslated
             fallbackText: Tr.tr("Automatic (DHCP)")
             fallbackIcon: "lan"
+            active: root.ipMethod === "manual" ? manualItem : (root.ipMethod === "auto-dns" ? autoDnsItem : autoItem)
 
             onSelected: item => {
                 root.ipMethod = item === manualItem ? "manual" : (item === autoDnsItem ? "auto-dns" : "auto");

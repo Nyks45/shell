@@ -74,7 +74,13 @@ echo "coredump=$(s /var/lib/systemd/coredump)"
 echo "journal=$(journalctl --disk-usage 2>/dev/null | grep -oE '[0-9.]+[KMGT]?' | head -1)"
 echo "orphans=$(pacman -Qdtq 2>/dev/null | wc -l)"
 echo "orphan_list=$(pacman -Qdtq 2>/dev/null | paste -sd ',' -)"
-command -v flatpak >/dev/null && echo "has_flatpak=1" || echo "has_flatpak=0"
+if command -v flatpak >/dev/null; then
+    echo "has_flatpak=1"
+    echo "flatpak_runtimes=$(flatpak list --runtime --columns=ref 2>/dev/null | wc -l)"
+else
+    echo "has_flatpak=0"
+    echo "flatpak_runtimes=0"
+fi
 `]
             stdout: StdioCollector {
                 onStreamFinished: {
@@ -328,7 +334,10 @@ done
             text: what
             subtext: busy ? Tr.tr("Cleaning…") : Tr.tr("%1 of downloaded packages; keeps the 3 newest versions of each").arg(Disks.human(root.sizes.pkg ?? 0))
             disabled: busy
-            onClicked: Admin.run("clean-package-cache", [], what, () => root.refresh(false))
+            onClicked: Admin.run("clean-package-cache", [], what, () => {
+                if (root)
+                    root.refresh(false);
+            })
         }
 
         RowButton {
@@ -380,7 +389,10 @@ done
                             body: Tr.tr("Packages to remove: %1%2").arg(shown).arg(extra),
                             warning: Tr.tr("Dependencies that only these packages needed are removed too."),
                             confirmLabel: Tr.tr("Remove"),
-                            onConfirm: () => Admin.run("remove-orphans", [], Tr.tr("Remove unused packages"), () => root.refresh(false))
+                            onConfirm: () => Admin.run("remove-orphans", [], Tr.tr("Remove unused packages"), () => {
+                                if (root)
+                                    root.refresh(false);
+                            })
                         });
                     }
                 }
@@ -390,12 +402,13 @@ done
         RowButton {
             readonly property string what: Tr.tr("Remove unused Flatpak runtimes")
             readonly property bool busy: Admin.jobs.some(j => j.what === what)
+            readonly property int runtimes: root.sizes.flatpak_runtimes ?? 0
 
             visible: (root.sizes.has_flatpak ?? 0) === 1
             icon: "layers_clear"
             text: what
-            subtext: busy ? Tr.tr("Removing…") : Tr.tr("Runtimes no installed Flatpak app uses any more")
-            disabled: busy
+            subtext: busy ? Tr.tr("Removing…") : runtimes === 0 ? Tr.tr("No Flatpak runtimes installed") : Tr.tr("Runtimes no installed Flatpak app uses any more")
+            disabled: busy || runtimes === 0
             onClicked: confirmDialog.ask({
                 header: Tr.tr("Remove unused Flatpak runtimes?"),
                 body: Tr.tr("Uninstalls old Flatpak runtimes and extensions no longer needed by any installed Flatpak app."),
@@ -403,7 +416,8 @@ done
                 onConfirm: () => Admin.exec(["flatpak", "uninstall", "--unused", "--assumeyes"], what, ok => {
                     if (ok)
                         Toaster.toast(Tr.tr("Unused Flatpak runtimes removed"), "", "layers_clear");
-                    root.refresh(false);
+                    if (root)
+                        root.refresh(false);
                 })
             })
         }
@@ -424,7 +438,8 @@ done
                 onConfirm: () => Admin.run("clear-coredumps", [], what, ok => {
                     if (ok)
                         Toaster.toast(Tr.tr("Crash dumps cleared"), "", "bug_report");
-                    root.refresh(false);
+                    if (root)
+                        root.refresh(false);
                 })
             })
         }
@@ -437,7 +452,10 @@ done
             text: what
             subtext: busy ? Tr.tr("Trimming…") : Tr.tr("%1 of logs; keeps the last two weeks").arg(Disks.human(root.sizes.journal ?? 0))
             disabled: busy
-            onClicked: Admin.run("journal-vacuum", ["2weeks"], what, () => root.refresh(false))
+            onClicked: Admin.run("journal-vacuum", ["2weeks"], what, () => {
+                if (root)
+                    root.refresh(false);
+            })
         }
 
         ConfirmDialog {

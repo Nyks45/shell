@@ -14,8 +14,8 @@ import qs.modules.nexus.common
 
 // The graphics card (nvidia-settings' job on Wayland): live readings, the
 // power limit (kept across restarts by a small boot service), persistence
-// mode, and what the driver is set up with. Fan control isn't possible on
-// Wayland with NVIDIA (nvidia-smi can't, nvidia-settings needs X): shown only.
+// mode, and what the driver is set up with. Fan curves are managed via NVML
+// in Devices › Fans.
 PageBase {
     id: root
 
@@ -57,7 +57,7 @@ PageBase {
             visible: !!root.gpu?.nvidia
             icon: "thermostat"
             label: Tr.tr("Temperature")
-            value: `${Math.round(root.gpu?.temperatureGpu ?? 0)} °C`
+            value: Units.formatSensorTemp(root.gpu?.temperatureGpu ?? 0)
         }
 
         InfoRow {
@@ -79,14 +79,14 @@ PageBase {
             visible: !!root.gpu?.nvidia
             icon: "memory"
             label: Tr.tr("Video memory")
-            value: `${((root.gpu?.memoryUsed ?? 0) / 1024).toFixed(1)} / ${((root.gpu?.memoryTotal ?? 0) / 1024).toFixed(0)} GB`
+            value: Units.formatKibUsage((root.gpu?.memoryUsed ?? 0) * 1024, (root.gpu?.memoryTotal ?? 0) * 1024)
         }
 
         NavRow {
             visible: !!root.gpu?.nvidia
             icon: "mode_fan"
             text: Tr.tr("Fan speed")
-            subtext: Tr.tr("%1% · Automatic on Wayland (system fan curves are in Devices › Fans)").arg(Math.round(root.gpu?.fanSpeed ?? 0))
+            subtext: Tr.tr("%1% · Adjust fan curves in Devices › Fans").arg(Math.round(root.gpu?.fanSpeed ?? 0))
             onClicked: root.nState.goTo({
                 page: PageRegistry.find("devices"),
                 tab: "fans",

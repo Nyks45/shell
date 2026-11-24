@@ -40,7 +40,7 @@ PageBase {
             onToggled: GlobalConfig.appearance.style.desktopWidgets = checked
         }
 
-        RowButton {
+        NavRow {
             Layout.fillWidth: true
             visible: GlobalConfig.appearance.style.desktopWidgets
             icon: "widgets"

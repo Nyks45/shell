@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell.Services.UPower
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import Quickshell.Bluetooth
 import Caelestia.Config
 import Caelestia.I18n
@@ -18,6 +19,8 @@ PageBase {
 
     readonly property BluetoothAdapter adapter: Bluetooth.defaultAdapter
     readonly property bool btEnabled: adapter?.enabled ?? false
+    property var mouseBatteries: ({})
+    property bool miceLoaded: false
     readonly property var upowerDevices: {
         const btNames = new Set(Bluetooth.devices.values.filter(b => b.connected && b.batteryAvailable && b.name).map(b => b.name.trim().toLowerCase()));
         return UPower.devices.values.filter(d => d.isPresent && !d.isLaptopBattery && d.type !== UPowerDeviceType.LinePower && d.type !== UPowerDeviceType.Ups && d.nativePath !== "" && !btNames.has((d.model ?? "").trim().toLowerCase()));
@@ -239,7 +242,9 @@ PageBase {
                 required property UPowerDevice modelData
                 required property int index
 
-                readonly property bool charging: [UPowerDeviceState.Charging, UPowerDeviceState.FullyCharged, UPowerDeviceState.PendingCharge].includes(modelData.state)
+                readonly property var hidpp: root.mouseBatteries[(modelData.model ?? "").trim().toLowerCase()] ?? null
+                readonly property bool charging: hidpp ? !!hidpp.charging : [UPowerDeviceState.Charging, UPowerDeviceState.FullyCharged, UPowerDeviceState.PendingCharge].includes(modelData.state)
+                readonly property int pct: hidpp ? Math.round(hidpp.battery) : Math.round(modelData.percentage * 100)
 
                 icon: {
                     switch (modelData.type) {
@@ -262,8 +267,34 @@ PageBase {
                 }
                 label: modelData.model || Tr.tr("Wireless device")
                 subtext: charging ? Tr.tr("Charging") : ""
-                value: `${Math.round(modelData.percentage * 100)}%`
-                iconColour: modelData.percentage <= 0.15 && !charging ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
+                value: !hidpp && !root.miceLoaded && modelData.state === UPowerDeviceState.Unknown && modelData.percentage <= 0.01 ? "…" : `${pct}%`
+                iconColour: pct <= 15 && !charging ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
+            }
+        }
+
+        Process {
+            running: true
+            command: [`${Paths.libdir}/caelestia-devices`, "mouse"]
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    try {
+                        const data = JSON.parse(text);
+                        const map = {};
+                        for (const m of (data.mice ?? [])) {
+                            if (m.name && m.battery !== null && m.battery !== undefined)
+                                map[m.name.trim().toLowerCase()] = {
+                                    battery: m.battery,
+                                    charging: !!m.charging
+                                };
+                        }
+                        root.mouseBatteries = map;
+                    } catch (e) {}
+                    root.miceLoaded = true;
+                }
+            }
+            onExited: code => {
+                if (code !== 0)
+                    root.miceLoaded = true;
             }
         }
     }

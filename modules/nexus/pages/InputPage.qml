@@ -30,8 +30,10 @@ PageBase {
 
     property bool hasTouchpad
     property list<string> cursorThemes
-    property string cursorTheme
-    property int cursorSize: 24
+    property string gsCursorTheme
+    property int gsCursorSize: 24
+    readonly property string cursorTheme: HyprSettings.varValue("cursorTheme", gsCursorTheme)
+    readonly property int cursorSize: HyprSettings.varValue("cursorSize", gsCursorSize)
 
     function layoutName(code: string): string {
         return allLayouts.find(l => l.code === code)?.name ?? code;
@@ -67,8 +69,8 @@ PageBase {
     }
 
     function setCursor(theme: string, size: int): void {
-        cursorTheme = theme;
-        cursorSize = size;
+        gsCursorTheme = theme;
+        gsCursorSize = size;
         HyprSettings.setVar("cursorTheme", theme);
         HyprSettings.setVar("cursorSize", size);
         // Now, not only at the next login
@@ -430,8 +432,8 @@ PageBase {
             stdout: StdioCollector {
                 onStreamFinished: {
                     const [theme, size] = text.split("\n");
-                    root.cursorTheme = HyprSettings.varValue("cursorTheme", (theme ?? "").replace(/'/g, ""));
-                    root.cursorSize = HyprSettings.varValue("cursorSize", parseInt(size) || 24);
+                    root.gsCursorTheme = (theme ?? "").trim().replace(/'/g, "");
+                    root.gsCursorSize = parseInt(size) || 24;
                 }
             }
         }

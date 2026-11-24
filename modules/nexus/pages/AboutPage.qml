@@ -28,8 +28,16 @@ PageBase {
         const [size, used] = (root.hw.disk ?? "").split(" ").map(Number);
         if (!size)
             return "";
-        const gb = b => b >= 1e12 ? `${(b / 1e12).toFixed(2)} TB` : `${Math.round(b / 1e9)} GB`;
-        return Tr.tr("%1 used of %2 (system drive)").arg(gb(used)).arg(gb(size));
+        return Tr.tr("%1 used of %2 (system drive)").arg(Units.formatBytes(used)).arg(Units.formatBytes(size));
+    }
+
+    function formattedMemory(): string {
+        if (!root.hw.mem)
+            return "";
+        const bytes = parseInt(root.hw.mem) * 1024;
+        const binary = Number(GlobalConfig.services.dataUnits) === DataUnit.Binary;
+        const val = (binary ? bytes / 1073741824 : bytes / 1e9).toFixed(1);
+        return Units.withDataUnit(val, binary ? "GiB" : "GB");
     }
 
     function copySystemInfo(): void {
@@ -42,7 +50,7 @@ PageBase {
             root.uptime ? `Uptime: ${root.uptime}` : "",
             root.hw.cpu ? `Processor: ${root.hw.cpu} (${root.hw.cores} threads)` : "",
             ...(root.hw.gpus ?? []).map((g, i) => `${i === 0 ? "Graphics" : "Graphics " + (i + 1)}: ${g}`),
-            root.hw.mem ? `Memory: ${(parseInt(root.hw.mem) / 1048576).toFixed(1)} GiB` : "",
+            root.formattedMemory() ? `Memory: ${root.formattedMemory()}` : "",
             root.formattedStorage() ? `Storage: ${root.formattedStorage()}` : "",
             `Shell: ${CUtils.version || "unknown"}`,
             root.cliVersion ? `Command-line tool: ${root.cliVersion}` : "",
@@ -109,7 +117,7 @@ echo "hypr=$(hyprctl version 2>/dev/null | head -n1 | awk '{print $2}')"
                             continue;
                         const k = line.slice(0, i), v = line.slice(i + 1).trim();
                         if (k === "gpu")
-                            hw.gpus.push(v.replace(/\s*\(rev [0-9a-f]+\)$/i, "").replace(/\s*\[[0-9a-f]{4}:[0-9a-f]{4}\]/gi, "").replace(/Advanced Micro Devices, Inc\.\s*\[AMD\/ATI\]\s*/g, "AMD ").replace(/^(NVIDIA|Advanced Micro Devices, Inc\.|Intel) Corporation\s+/, "$1 "));
+                            hw.gpus.push(v.replace(/\s*\(rev [0-9a-f]+\)$/i, "").replace(/\s*\[[0-9a-f]{4}:[0-9a-f]{4}\]/gi, "").replace(/Advanced Micro Devices, Inc\.\s*\[AMD\/ATI\]\s*/g, "AMD ").replace(/^(NVIDIA|Advanced Micro Devices, Inc\.|Intel) Corporation\s+/, "$1 ").replace(/^((?:NVIDIA|AMD|Intel)\s+)[^\[]+\[([^\]]+)\]/, "$1$2"));
                         else if (k === "up")
                             root.uptime = v;
                         else if (k === "hypr")
@@ -218,7 +226,7 @@ echo "hypr=$(hyprctl version 2>/dev/null | head -n1 | awk '{print $2}')"
 
         InfoRow {
             label: Tr.tr("Memory")
-            value: root.hw.mem ? `${(parseInt(root.hw.mem) / 1048576).toFixed(1)} GiB` : ""
+            value: root.formattedMemory()
         }
 
         InfoRow {

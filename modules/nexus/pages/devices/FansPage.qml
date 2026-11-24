@@ -181,14 +181,14 @@ PageBase {
             visible: root.info?.temps?.cpu !== null && root.info?.temps?.cpu !== undefined
             icon: "memory"
             label: Tr.tr("Processor")
-            value: `${Math.round(root.info?.temps?.cpu ?? 0)} °C`
+            value: Units.formatSensorTemp(root.info?.temps?.cpu ?? 0)
         }
 
         InfoRow {
             visible: root.info?.temps?.gpu !== null && root.info?.temps?.gpu !== undefined
             icon: "developer_board"
             label: Tr.tr("Graphics card")
-            value: `${Math.round(root.info?.temps?.gpu ?? 0)} °C`
+            value: Units.formatSensorTemp(root.info?.temps?.gpu ?? 0)
         }
 
         StyledText {

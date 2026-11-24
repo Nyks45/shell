@@ -45,7 +45,7 @@ PageBase {
     }
 
     function size(b: real): string {
-        return b > 1073741824 ? `${(b / 1073741824).toFixed(1)} GB` : `${Math.round(b / 1048576)} MB`;
+        return Units.formatBytes(b);
     }
 
     function install(tag: string, latest: bool): void {

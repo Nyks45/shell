@@ -179,7 +179,7 @@ ColumnLayout {
                             id: ethDns
 
                             label: Tr.tr("Primary DNS")
-                            value: ethRow.details?.dns?.[0] ?? ""
+                            value: AdBlocker.active ? Tr.tr("Ad blocker") : (ethRow.details?.dns?.[0] ?? "")
                         }
                     }
                 }

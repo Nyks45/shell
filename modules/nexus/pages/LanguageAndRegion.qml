@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
+import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
@@ -44,11 +45,14 @@ PageBase {
             return;
         Admin.run("set-locale", [nextLang, nextRegional], localeBusyWhat, ok => {
             if (ok) {
-                root.sysLang = nextLang;
-                root.sysRegional = nextRegional;
+                if (root) {
+                    root.sysLang = nextLang;
+                    root.sysRegional = nextRegional;
+                }
                 Toaster.toast(Tr.tr("Locale updated"), Tr.tr("Sign out and back in for all apps to use %1").arg(nextLang), "language");
             }
-            root.refreshLocales();
+            if (root)
+                root.refreshLocales();
         });
     }
 
@@ -191,7 +195,7 @@ PageBase {
         NavRow {
             icon: "keyboard"
             text: Tr.tr("Keyboard layouts")
-            subtext: Tr.tr("Input languages and layout switching in Devices › Mouse & keyboard")
+            subtext: Tr.tr("Input languages and layout switching in Devices › Keyboard & mouse")
             onClicked: root.nState.goTo({
                 page: PageRegistry.find("devices"),
                 tab: "input",

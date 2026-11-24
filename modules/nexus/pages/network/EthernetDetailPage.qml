@@ -15,7 +15,7 @@ import qs.modules.nexus.common
 PageBase {
     id: root
 
-    readonly property string ifaceName: nState.selectedEthernetInterface
+    readonly property string ifaceName: nState.selectedEthernetInterface || Nmcli.activeEthernet?.iface || Nmcli.ethernetDevices[0]?.iface || ""
     readonly property Nmcli.EthernetDevice device: Nmcli.ethernetDevices.find(d => d.iface === root.ifaceName) ?? null
     readonly property var details: Nmcli.ethernetDeviceDetails
     readonly property string connectionName: root.device?.connection ?? ""
@@ -38,11 +38,10 @@ PageBase {
         if (!root.connectionName)
             return;
         Nmcli.getIpv4Config(root.connectionName, cfg => {
-            if (!cfg)
+            if (!root || !cfg)
                 return;
             root.ipMethod = cfg.method;
             root.autoconnect = cfg.autoconnect ?? true;
-            methodSelect.active = cfg.method === "manual" ? manualItem : (cfg.method === "auto-dns" ? autoDnsItem : autoItem);
             addressField.text = cfg.address;
             gatewayField.text = cfg.gateway;
             dnsField.text = cfg.dns;
@@ -81,6 +80,8 @@ PageBase {
             gateway: gatewayField.text.trim(),
             dns: dnsField.text.trim()
         }, result => {
+            if (!root)
+                return;
             root.savingIp = false;
             if (!(result && result.success)) {
                 if (root.ipMethod === "manual")
@@ -101,9 +102,22 @@ PageBase {
     title: root.device?.connection || root.ifaceName || Tr.tr("Ethernet")
     isSubPage: true
 
+    onIfaceNameChanged: {
+        if (ifaceName) {
+            Nmcli.getEthernetDeviceDetails(ifaceName, () => {});
+            Nmcli.getEthernetSpeed(ifaceName);
+        }
+    }
+    onConnectionNameChanged: {
+        if (connectionName && !ipLoaded)
+            loadIpConfig();
+    }
+
     Component.onCompleted: {
-        Nmcli.getEthernetDeviceDetails(root.ifaceName, () => {});
-        Nmcli.getEthernetSpeed(root.ifaceName);
+        if (root.ifaceName) {
+            Nmcli.getEthernetDeviceDetails(root.ifaceName, () => {});
+            Nmcli.getEthernetSpeed(root.ifaceName);
+        }
         loadIpConfig();
     }
 
@@ -239,6 +253,7 @@ PageBase {
             label: Tr.tr("IP assignment")
             fallbackText: Tr.tr("Automatic (DHCP)")
             fallbackIcon: "lan"
+            active: root.ipMethod === "manual" ? manualItem : (root.ipMethod === "auto-dns" ? autoDnsItem : autoItem)
 
             menuItems: [autoItem, autoDnsItem, manualItem]
 

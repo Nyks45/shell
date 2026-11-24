@@ -19,6 +19,19 @@ Singleton {
     property list<PwNode> sources: []
     property list<PwNode> streams: []
     property list<PwNode> recordingStreams: []
+    readonly property var microphoneStreams: recordingStreams.filter(node => {
+        const cap = node.properties?.["stream.capture.sink"];
+        if (cap === "true" || cap === true)
+            return false;
+        const target = String(node.properties?.["target.object"] ?? "");
+        if (target.endsWith(".monitor"))
+            return false;
+        const serial = nodeKey(node);
+        const srcName = sourceOutputMeta[serial]?.sourceName ?? "";
+        if (srcName.endsWith(".monitor"))
+            return false;
+        return true;
+    })
     // [{ name, label, activeProfile, profiles: [{ name, description }] }]
     property var cards: []
     // Every sound card (including Off / single-profile cards) + per-node port & latency metadata

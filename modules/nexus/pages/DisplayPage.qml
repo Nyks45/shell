@@ -63,6 +63,7 @@ PageBase {
     // A laptop-style backlight (brightnessctl); external monitors go over DDC
     property bool hasBacklight
     property bool hasDdcutil: true
+    property bool hasI2cDev: true
 
     // This monitor's settings now, as hypr-settings keeps them
     function currentSettings(): var {
@@ -403,10 +404,10 @@ PageBase {
             property bool installed
 
             visible: !!root.monitor && !root.hasBacklight && !(bm?.isDdc || bm?.isAppleDisplay)
-            neutral: root.hasDdcutil
+            neutral: root.hasDdcutil && root.hasI2cDev
             icon: "brightness_6"
-            text: root.hasDdcutil ? Tr.tr("Brightness: this monitor doesn't answer over DDC/CI") : Tr.tr("Brightness of external monitors needs ddcutil")
-            subtext: installing ? Tr.tr("Installing…") : installed ? Tr.tr("Installed. Log out and back in once so it may use the monitor's cable.") : root.hasDdcutil ? Tr.tr("Turn DDC/CI on in the monitor's own menu, then open this page again. Some monitors and docks don't support it.") : Tr.tr("It sets the brightness over the display cable (DDC/CI). Installing it asks for your password.")
+            text: !root.hasDdcutil ? Tr.tr("Brightness of external monitors needs ddcutil") : !root.hasI2cDev ? Tr.tr("Brightness: i2c-dev kernel module isn't loaded") : Tr.tr("Brightness: this monitor doesn't answer over DDC/CI")
+            subtext: installing ? Tr.tr("Installing…") : installed ? Tr.tr("Installed. Log out and back in once so it may use the monitor's cable.") : !root.hasDdcutil ? Tr.tr("It sets the brightness over the display cable (DDC/CI). Installing it asks for your password.") : !root.hasI2cDev ? Tr.tr("ddcutil needs /dev/i2c-* devices from the i2c-dev kernel module to control external monitor brightness.") : Tr.tr("Turn DDC/CI on in the monitor's own menu, then open this page again. Some monitors and docks don't support it.")
             actionText: root.hasDdcutil || installing ? "" : Tr.tr("Install")
             // ddcutil talks to the monitor through /dev/i2c-*: the i2c group
             onAction: {
@@ -741,11 +742,12 @@ PageBase {
 
         Process {
             running: true
-            command: ["sh", "-c", "ls /sys/class/backlight 2>/dev/null | head -1; command -v ddcutil >/dev/null && echo @ddcutil"]
+            command: ["sh", "-c", "ls /sys/class/backlight 2>/dev/null | head -1; command -v ddcutil >/dev/null && echo @ddcutil; ls /dev/i2c-* >/dev/null 2>&1 && echo @i2cdev"]
             stdout: StdioCollector {
                 onStreamFinished: {
                     root.hasDdcutil = text.includes("@ddcutil");
-                    root.hasBacklight = text.replace("@ddcutil", "").trim().length > 0;
+                    root.hasI2cDev = text.includes("@i2cdev");
+                    root.hasBacklight = text.replace("@ddcutil", "").replace("@i2cdev", "").trim().length > 0;
                 }
             }
         }

@@ -36,8 +36,8 @@ PageBase {
     readonly property list<string> textTypes: ["text/plain", "text/markdown", "text/x-csrc", "text/x-chdr", "text/x-c++src", "text/x-c++hdr", "text/x-python", "text/x-shellscript", "application/x-shellscript", "application/json", "application/xml", "application/toml", "text/x-lua", "application/x-yaml", "text/x-log"]
 
     // A desktop entry's command for the config (no %u-style placeholders)
-    function commandOf(app: DesktopEntry): string {
-        return app.command.filter(a => !/^%[a-zA-Z]$/.test(a)).join(" ");
+    function commandOf(app: var): string {
+        return (app.command ?? []).filter(a => !/^%[a-zA-Z]$/.test(a)).join(" ");
     }
 
     function nameOf(id: string): string {
@@ -48,6 +48,8 @@ PageBase {
         if (!cmd || cmd.length === 0)
             return Tr.tr("Not set");
         const curStr = cmd.join(" ");
+        if (curStr.includes("audio openMixer"))
+            return Tr.tr("Caelestia Sound Mixer (built in)");
         const curBin = String(cmd[0] ?? "").split("/").pop();
         const all = [...DesktopEntries.applications.values];
         const visibleApps = all.filter(a => !a.noDisplay);
@@ -91,6 +93,13 @@ PageBase {
             icon: "volume_up"
             label: Tr.trCtx("Sound mixer", "default app category")
             category: "Audio"
+            builtInApp: ({
+                id: "",
+                name: Tr.tr("Caelestia Sound Mixer (built in)"),
+                genericName: "",
+                icon: "audio-volume-high",
+                command: ["qs", "-c", "caelestia", "ipc", "call", "audio", "openMixer"]
+            })
             status: root.friendlyCommandName(GlobalConfig.general.apps.audio)
             currentCommand: GlobalConfig.general.apps.audio
             onSelected: app => GlobalConfig.general.apps.audio = app.command
@@ -294,6 +303,7 @@ PageBase {
         property string category
 
         property var currentCommand: []
+        property var builtInApp: null
         property string currentId: group ? (root.mimeDefaults[group] ?? "") : ""
         property string query
 
@@ -303,8 +313,9 @@ PageBase {
             const all = [...DesktopEntries.applications.values];
             const ofKind = category ? all.filter(a => a.categories.includes(category)) : [];
             const apps = ofKind.length > 0 ? ofKind : all;
-            const favourited = new Set(apps.filter(a => Strings.testRegexList(GlobalConfig.launcher.favouriteApps, a.id)));
-            return apps.sort((a, b) => (favourited.has(b) - favourited.has(a)) || a.name.localeCompare(b.name));
+            const favourited = new Set(apps.filter(a => !!a.id && Strings.testRegexList(GlobalConfig.launcher.favouriteApps, a.id)));
+            const sorted = apps.sort((a, b) => (favourited.has(b) - favourited.has(a)) || a.name.localeCompare(b.name));
+            return builtInApp ? [builtInApp, ...sorted] : sorted;
         }
         readonly property bool showSearch: allApps.length > 8
         readonly property var filteredApps: {
@@ -319,26 +330,26 @@ PageBase {
         readonly property real searchH: Math.ceil(itemMetrics.height) + Tokens.padding.small * 2
         readonly property real listH: filteredApps.length > 0 ? Math.min(240, filteredApps.length * rowH + Math.max(0, filteredApps.length - 1) * 2) : 48
 
-        function isCurrent(app: DesktopEntry): bool {
+        function isCurrent(app: var): bool {
             if (currentId) {
                 const target = currentId.replace(/\.desktop$/, "");
-                if (app.id.replace(/\.desktop$/, "") === target)
+                if ((app.id ?? "").replace(/\.desktop$/, "") === target)
                     return true;
             }
             if (currentCommand && currentCommand.length > 0) {
                 const curStr = currentCommand.join(" ");
                 const appCmd = root.commandOf(app);
-                if (appCmd === curStr || app.command.join(" ") === curStr)
+                if (appCmd === curStr || (app.command ?? []).join(" ") === curStr)
                     return true;
                 const curBin = String(currentCommand[0] ?? "").split("/").pop();
-                const appBin = String(app.command[0] ?? "").split("/").pop();
-                if (curBin && appBin && curBin === appBin)
+                const appBin = String((app.command ?? [])[0] ?? "").split("/").pop();
+                if (curBin && appBin && curBin !== "qs" && curBin === appBin)
                     return true;
             }
             return false;
         }
 
-        signal selected(app: DesktopEntry)
+        signal selected(app: var)
 
         status: group ? (root.mimeDefaults[group] ? root.nameOf(root.mimeDefaults[group]) : Tr.tr("Not set")) : ""
         onSelected: app => {
@@ -444,7 +455,7 @@ PageBase {
                         delegate: StyledRect {
                             id: appItem
 
-                            required property DesktopEntry modelData
+                            required property var modelData
                             required property int index
                             readonly property bool current: row.isCurrent(modelData)
 
@@ -489,7 +500,7 @@ PageBase {
 
                                 MaterialIcon {
                                     Layout.alignment: Qt.AlignVCenter
-                                    visible: Strings.testRegexList(GlobalConfig.launcher.favouriteApps, appItem.modelData.id)
+                                    visible: !!appItem.modelData.id && Strings.testRegexList(GlobalConfig.launcher.favouriteApps, appItem.modelData.id)
                                     text: "favorite"
                                     fill: 1
                                     color: appItem.current ? Colours.palette.m3onSecondaryContainer : Colours.palette.m3primary

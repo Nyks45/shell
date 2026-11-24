@@ -128,7 +128,7 @@ PageBase {
             text: Tr.tr("Effects")
         }
 
-        RowButton {
+        NavRow {
             Layout.fillWidth: true
             icon: "blur_on"
             text: Tr.tr("Blur")
