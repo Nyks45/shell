@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import Quickshell.Widgets
 import Caelestia.Config
 import Caelestia.I18n
@@ -21,6 +22,52 @@ PageBase {
     id: root
 
     readonly property var monitors: Hypr.monitors.values.map(m => m.name)
+    property var recordingSources: []
+    property var discoveredMediaPlayers: []
+    readonly property var ignoredMediaPlayers: LiveWallpaper.setting("ignoredMediaPlayers", [])
+    readonly property var mediaPlayers: [...new Set([...discoveredMediaPlayers, ...ignoredMediaPlayers])].sort()
+
+    property Process recordingProbe: Process {
+        running: true
+        command: ["pactl", "-f", "json", "list", "sources"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const sources = [{ name: "", description: Tr.tr("Default output monitor") }];
+                try {
+                    for (const source of JSON.parse(text))
+                        if (source.name)
+                            sources.push({ name: source.name, description: source.description || source.name });
+                } catch (e) {}
+                root.recordingSources = sources;
+            }
+        }
+    }
+
+    property Process mediaProbe: Process {
+        running: true
+        command: ["busctl", "--user", "--no-legend", "list"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const prefix = "org.mpris.MediaPlayer2.";
+                root.discoveredMediaPlayers = text.split("\n").map(line => line.trim().split(/\s+/)[0])
+                    .filter(name => name.startsWith(prefix))
+                    .map(name => name.slice(prefix.length).replace(/\.instance\d+$/, ""));
+            }
+        }
+    }
+
+    component LightingQualityRow: SelectRow {
+        required property string settingsKey
+        menuItems: [
+            MenuItem { text: Tr.tr("Off"); value: "off" },
+            MenuItem { text: Tr.tr("Low"); value: "low" },
+            MenuItem { text: Tr.tr("Medium"); value: "medium" },
+            MenuItem { text: Tr.tr("High"); value: "high" },
+            MenuItem { text: Tr.tr("Ultra"); value: "ultra" }
+        ]
+        active: menuItems.find(i => i.value === LiveWallpaper.setting(settingsKey, "medium")) ?? null
+        onSelected: item => LiveWallpaper.set(settingsKey, item.value)
+    }
 
     // The app for a new rule. Rules match the window class as a lowercase
     // substring, so a class guessed from a reverse-DNS desktop id uses its last
@@ -52,7 +99,8 @@ PageBase {
         return ({
                 pause: Tr.tr("pause"),
                 mute: Tr.tr("mute"),
-                stop: Tr.tr("stop (free memory)")
+                stop: Tr.tr("stop (free memory)"),
+                run: Tr.tr("keep running")
             })[a] ?? a;
     }
 
@@ -71,7 +119,7 @@ PageBase {
         }
 
         SelectRow {
-            label: Tr.tr("Quality")
+            label: Tr.tr("Post-processing")
             subtext: Tr.tr("Bloom and lighting effects (Ultra enables HDR bloom)")
             menuItems: [
                 MenuItem {
@@ -89,6 +137,52 @@ PageBase {
             ]
             active: menuItems.find(i => i.value === LiveWallpaper.setting("postProcessing", "ultra")) ?? null
             onSelected: item => LiveWallpaper.set("postProcessing", item.value)
+        }
+
+        ToggleRow {
+            text: Tr.tr("HDR display output")
+            subtext: Tr.tr("Present Ultra HDR scenes in HDR on supported Wayland outputs")
+            enabled: LiveWallpaper.setting("postProcessing", "ultra") === "ultra"
+            checked: LiveWallpaper.setting("hdrOutput", false)
+            onToggled: LiveWallpaper.set("hdrOutput", checked)
+        }
+
+        ToggleRow {
+            text: Tr.tr("Reflections")
+            checked: LiveWallpaper.setting("reflections", true)
+            onToggled: LiveWallpaper.set("reflections", checked)
+        }
+
+        LightingQualityRow {
+            label: Tr.tr("Shadows")
+            settingsKey: "shadowQuality"
+        }
+
+        LightingQualityRow {
+            label: Tr.tr("Volumetric lighting")
+            settingsKey: "volumetricQuality"
+        }
+
+        SelectRow {
+            label: Tr.tr("Texture resolution")
+            menuItems: [
+                MenuItem { text: Tr.tr("Full"); value: "full" },
+                MenuItem { text: Tr.tr("Half"); value: "half" },
+                MenuItem { text: Tr.tr("Automatic"); value: "auto" }
+            ]
+            subtext: Tr.tr("Half uses smaller stored texture levels. Automatic follows the GPU texture limit.")
+            active: menuItems.find(i => i.value === LiveWallpaper.setting("textureResolution", "full")) ?? null
+            onSelected: item => LiveWallpaper.set("textureResolution", item.value)
+        }
+
+        SelectRow {
+            label: Tr.tr("Process priority")
+            menuItems: [
+                MenuItem { text: Tr.tr("Normal"); value: "normal" },
+                MenuItem { text: Tr.tr("Below normal"); value: "belowNormal" }
+            ]
+            active: menuItems.find(i => i.value === LiveWallpaper.setting("processPriority", "normal")) ?? null
+            onSelected: item => LiveWallpaper.set("processPriority", item.value)
         }
 
         SelectRow {
@@ -165,18 +259,49 @@ PageBase {
         }
 
         ToggleRow {
-            visible: !LiveWallpaper.setting("silent", true)
-            text: Tr.tr("Mute when any app plays audio (PipeWire)")
-            subtext: Tr.tr("Built-in renderer auto-mute for any sound stream")
-            checked: !LiveWallpaper.setting("noAutomute", false)
-            onToggled: LiveWallpaper.set("noAutomute", !checked)
-        }
-
-        ToggleRow {
             text: Tr.tr("React to music")
             subtext: Tr.tr("Audio visualisers in wallpapers follow what's playing")
             checked: LiveWallpaper.setting("audioProcessing", true)
             onToggled: LiveWallpaper.set("audioProcessing", checked)
+        }
+
+        SelectRow {
+            label: Tr.tr("Audio recording device")
+            enabled: LiveWallpaper.setting("audioProcessing", true)
+            menuItems: recordingItems.instances
+            active: menuItems.find(i => i.value === LiveWallpaper.setting("audioRecordingSource", "")) ?? null
+            fallbackText: LiveWallpaper.setting("audioRecordingSource", "") || Tr.tr("Default output monitor")
+            onSelected: item => LiveWallpaper.set("audioRecordingSource", item.value)
+
+            Variants {
+                id: recordingItems
+                model: root.recordingSources
+                MenuItem {
+                    required property var modelData
+                    text: modelData.description
+                    value: modelData.name
+                }
+            }
+        }
+
+        ToggleRow {
+            text: Tr.tr("Media integration")
+            subtext: Tr.tr("Share track information and album artwork with wallpapers")
+            checked: LiveWallpaper.setting("mediaIntegration", true)
+            onToggled: LiveWallpaper.set("mediaIntegration", checked)
+        }
+
+        Repeater {
+            model: LiveWallpaper.setting("mediaIntegration", true) ? root.mediaPlayers : []
+
+            ToggleRow {
+                required property string modelData
+                text: Tr.tr("Ignore %1").arg(modelData)
+                checked: root.ignoredMediaPlayers.includes(modelData)
+                onToggled: LiveWallpaper.set("ignoredMediaPlayers", checked
+                    ? [...root.ignoredMediaPlayers, modelData]
+                    : root.ignoredMediaPlayers.filter(player => player !== modelData))
+            }
         }
 
         SelectRow {
@@ -223,15 +348,15 @@ PageBase {
         }
 
         ToggleRow {
-            text: Tr.tr("Pause behind fullscreen apps")
-            subtext: Tr.tr("Games and videos get the GPU to themselves")
-            checked: LiveWallpaper.setting("pauseOnFullscreen", true)
-            onToggled: LiveWallpaper.set("pauseOnFullscreen", checked)
+            text: Tr.tr("Fullscreen rule only for focused apps")
+            visible: LiveWallpaper.playbackRules.fullscreen !== "run"
+            checked: LiveWallpaper.setting("pauseOnlyActive", false)
+            onToggled: LiveWallpaper.set("pauseOnlyActive", checked)
         }
 
         // Fullscreen apps that don't pause it
         AppListEditor {
-            visible: LiveWallpaper.setting("pauseOnFullscreen", true)
+            visible: LiveWallpaper.playbackRules.fullscreen !== "run"
             hostFlickable: root.flickable
             values: LiveWallpaper.setting("pauseIgnore", [])
             addLabel: Tr.tr("Add an app to ignore")
@@ -248,16 +373,27 @@ PageBase {
                 {
                     key: "focused",
                     text: Tr.tr("Another app is focused"),
-                    sub: Tr.tr("Any open window on the screen counts as focused — Pause here pauses whenever a window is active")
+                    sub: Tr.tr("Applies while an app window has focus")
                 },
                 {
                     key: "maximized",
                     text: Tr.tr("An app is maximized")
                 },
                 {
+                    key: "fullscreen",
+                    text: Tr.tr("An app is fullscreen")
+                },
+                {
                     key: "audio",
-                    text: Tr.tr("Media is playing"),
-                    sub: Tr.tr("Music or video players shown in media controls (can pause or stop as well as mute)")
+                    text: Tr.tr("Another app plays audio")
+                },
+                {
+                    key: "battery",
+                    text: Tr.tr("Running on battery")
+                },
+                {
+                    key: "displayAsleep",
+                    text: Tr.tr("Wallpaper displays are asleep")
                 }
             ]
 
@@ -486,7 +622,7 @@ PageBase {
                     RuleChoiceButton {
                         id: ruleAction
 
-                        options: [["pause", root.actionText("pause")], ["mute", root.actionText("mute")], ["stop", root.actionText("stop")]]
+                        options: [["pause", root.actionText("pause")], ["mute", root.actionText("mute")], ["stop", root.actionText("stop")], ["run", root.actionText("run")]]
                     }
 
                     Item {

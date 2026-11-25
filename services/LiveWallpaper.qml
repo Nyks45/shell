@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Services.UPower
 import Caelestia.Config
 import Caelestia.I18n
 import qs.utils
@@ -145,23 +146,40 @@ Singleton {
     readonly property var playbackRules: Object.assign({
         focused: "run",
         maximized: "run",
-        audio: "run"
+        audio: setting("noAutomute", false) ? "run" : "mute",
+        fullscreen: setting("pauseOnFullscreen", true) ? "pause" : "run",
+        battery: "run",
+        displayAsleep: "run"
     }, config.playbackRules ?? {})
     // [{ app: window class (part of it), when: running|focused|maximized|fullscreen|audio, action }]
     readonly property var appRules: config.appRules ?? []
-    readonly property bool hasActiveRules: playbackRules.focused !== "run" || playbackRules.maximized !== "run" || playbackRules.audio !== "run" || appRules.some(r => r.app && r.action && r.action !== "run")
+    readonly property bool shellFullscreenRule: config.playbackRules?.fullscreen !== undefined || appRules.length > 0
+    readonly property bool shellAudioRule: config.playbackRules?.audio !== undefined || appRules.some(r => r.when === "audio")
+    readonly property bool readsAudioRules: shellAudioRule && (playbackRules.audio !== "run" || appRules.some(r => r.when === "audio"))
+    readonly property bool hasActiveRules: playbackRules.focused !== "run" || playbackRules.maximized !== "run"
+        || readsAudioRules || (shellFullscreenRule && playbackRules.fullscreen !== "run")
+        || playbackRules.battery !== "run" || playbackRules.displayAsleep !== "run" || appRules.length > 0
+    property var audioRuleStreams: []
+    property bool wallpaperDisplaysAsleep
     // What the rules do right now, and why (shown on the settings page)
     property string ruleAction: "run"
     property string ruleReason
 
     function setPlaybackRule(key: string, action: string): void {
-        setQuiet("playbackRules", Object.assign({}, playbackRules, {
-            [key]: action
-        }));
+        const rules = Object.assign({}, config.playbackRules ?? {}, { [key]: action });
+        if ((key === "fullscreen" && !shellFullscreenRule) || (key === "audio" && !shellAudioRule))
+            set("playbackRules", rules);
+        else
+            setQuiet("playbackRules", rules);
     }
 
     function setAppRules(list: var): void {
-        setQuiet("appRules", list);
+        const nextFullscreen = config.playbackRules?.fullscreen !== undefined || list.length > 0;
+        const nextAudio = config.playbackRules?.audio !== undefined || list.some(r => r.when === "audio");
+        if (nextFullscreen !== shellFullscreenRule || nextAudio !== shellAudioRule)
+            set("appRules", list);
+        else
+            setQuiet("appRules", list);
     }
 
     // The frame cap applies to the whole renderer, so every wallpaper output must be covered.
@@ -193,7 +211,7 @@ Singleton {
         onExited: code => root.coverSupported = code === 0
     }
 
-    function evaluateRules(): void {
+    function evaluateRules(reapply: bool): void {
         const rank = {
             run: 0,
             mute: 1,
@@ -211,7 +229,7 @@ Singleton {
             const sz = o.size ?? [0, 0];
             return !!mon && sz[0] >= mon.width / mon.scale * 0.95 && sz[1] >= mon.height / mon.scale * 0.85;
         };
-        const playing = Players.list.filter(p => p.isPlaying);
+        const playing = audioRuleStreams;
         const active = Hypr.activeToplevel;
         const focused = !!active && wins.includes(active);
         let best = "run", why = "";
@@ -221,37 +239,57 @@ Singleton {
                 why = reason;
             }
         };
-        if (focused)
-            consider(playbackRules.focused, Tr.tr("an app is focused"));
-        if (wins.some(isMax))
-            consider(playbackRules.maximized, Tr.tr("an app is maximized"));
-        if (playing.length)
-            consider(playbackRules.audio, Tr.tr("%1 is playing").arg(playing[0].identity || Tr.tr("media")));
+        const overriddenWindows = new Set();
+        const overriddenStreams = new Set();
         for (const r of appRules) {
             const app = String(r.app ?? "").toLowerCase();
             if (!app)
                 continue;
             const all = Hypr.toplevels.values.filter(t => String(t.lastIpcObject?.class ?? "").toLowerCase().includes(app));
             const shown = all.filter(t => wins.includes(t));
-            const hit = r.when === "running" ? all.length > 0 : r.when === "focused" ? !!active && all.includes(active) : r.when === "maximized" ? shown.some(isMax) : r.when === "fullscreen" ? shown.some(t => t.lastIpcObject.fullscreen === 2) : r.when === "audio" ? playing.some(p => String(p.identity ?? "").toLowerCase().includes(app) || String(p.desktopEntry ?? "").toLowerCase().includes(app)) : false;
-            if (hit)
+            const matchingStreams = playing.filter(p => p.identity.toLowerCase().includes(app));
+            const matchingWindows = r.when === "running" ? all : r.when === "focused" ? all.filter(t => t === active) : r.when === "maximized" ? shown.filter(isMax) : r.when === "fullscreen" ? shown.filter(t => t.lastIpcObject.fullscreen === 2) : [];
+            if (matchingWindows.length || (r.when === "audio" && matchingStreams.length)) {
+                for (const window of matchingWindows)
+                    overriddenWindows.add(window);
+                for (const stream of matchingStreams)
+                    overriddenStreams.add(stream);
                 consider(r.action, Tr.tr("rule for %1").arg(r.app));
+            }
         }
+        if (focused && !overriddenWindows.has(active))
+            consider(playbackRules.focused, Tr.tr("an app is focused"));
+        if (wins.some(t => !overriddenWindows.has(t) && isMax(t)))
+            consider(playbackRules.maximized, Tr.tr("an app is maximized"));
+        if (shellFullscreenRule && wins.some(t => {
+            const appId = String(t.lastIpcObject.class ?? "").toLowerCase();
+            return t.lastIpcObject.fullscreen === 2 && !overriddenWindows.has(t)
+                && (!setting("pauseOnlyActive", false) || t === active)
+                && !setting("pauseIgnore", []).some(id => String(id).toLowerCase() === appId);
+        }))
+            consider(playbackRules.fullscreen, Tr.tr("an app is fullscreen"));
+        const playingApp = playing.find(p => !overriddenStreams.has(p));
+        if (shellAudioRule && playingApp)
+            consider(playbackRules.audio, Tr.tr("%1 is playing audio").arg(playingApp.name));
+        if (UPower.onBattery)
+            consider(playbackRules.battery, Tr.tr("running on battery"));
+        if (wallpaperDisplaysAsleep)
+            consider(playbackRules.displayAsleep, Tr.tr("wallpaper displays are asleep"));
         ruleReason = why;
         // Covered: only while it draws (a pause or stop rule has it not drawing at all; a covered
         // sent then would be undone the moment it's shown again)
         if (running && !paused && (best === "run" || best === "mute"))
             sendCover(screenCovered(wins));
-        if (best === ruleAction)
+        if (best === ruleAction && !reapply && best !== "mute")
             return;
         const prev = ruleAction;
         ruleAction = best;
         // Undo the old action, then do the new one
-        if (prev === "mute")
+        if (prev === "mute" && best !== "mute")
             muteRenderer(false);
-        if (prev === "pause" && !paused)
+        if (prev === "pause" && best !== "pause" && !paused)
             runScript("resume");
-        if (prev === "stop")
+        if (prev === "stop" && best !== "stop")
             restartTimer.restart();
         if (best === "mute")
             muteRenderer(true);
@@ -805,6 +843,8 @@ Singleton {
 
         interval: 150
         onTriggered: {
+            if (root.ruleAction === "stop")
+                return;
             if (startProc.running)
                 startProc.again = true;
             else
@@ -824,11 +864,12 @@ Singleton {
 
         command: ["sh", "-c", `s=$(command -v live-wallpaper || echo '${root.scriptBin}'); exec "$s" start`]
         onExited: {
-            if (again) {
+            if (again && root.ruleAction !== "stop") {
                 again = false;
                 running = true;
                 return;
             }
+            again = false;
             if (root.checkPending) {
                 root.checkPending = false;
                 checkTimer.restart();
@@ -872,10 +913,49 @@ Singleton {
         running: Object.keys(root.screens).length > 0 && (root.hasActiveRules || root.ruleAction !== "run" || root.coverSupported)
         repeat: true
         interval: 1000
-        onTriggered: root.evaluateRules()
+        onTriggered: {
+            if (root.readsAudioRules)
+                ruleAudioProc.running = true;
+            else
+                root.audioRuleStreams = [];
+            if (root.playbackRules.displayAsleep !== "run")
+                ruleDisplaysProc.running = true;
+            else
+                root.wallpaperDisplaysAsleep = false;
+            root.evaluateRules(false);
+        }
         onRunningChanged: if (!running) {
             root.ruleAction = "run";
             root.ruleReason = "";
+        }
+    }
+
+    Process {
+        id: ruleAudioProc
+        command: ["pactl", "-f", "json", "list", "sink-inputs"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    root.audioRuleStreams = JSON.parse(text).filter(s => !s.corked && !s.mute).map(s => {
+                        const props = s.properties ?? {};
+                        const name = props["application.name"] ?? Tr.tr("An app");
+                        return { name, identity: [name, props["application.process.binary"], props["application.id"]].join(" ") };
+                    }).filter(s => !s.identity.toLowerCase().includes("wallpaperengine"));
+                } catch (e) { root.audioRuleStreams = []; }
+            }
+        }
+    }
+
+    Process {
+        id: ruleDisplaysProc
+        command: ["hyprctl", "-j", "monitors"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const displays = JSON.parse(text).filter(m => root.screens["*"] || root.screens[m.name]);
+                    root.wallpaperDisplaysAsleep = displays.length > 0 && displays.every(m => m.dpmsStatus === false);
+                } catch (e) { root.wallpaperDisplaysAsleep = false; }
+            }
         }
     }
 
@@ -950,7 +1030,7 @@ Singleton {
         coverSent = false;
         if (running) {
             seenRunning = true;
-            Qt.callLater(evaluateRules);
+            Qt.callLater(() => evaluateRules(true));
         }
     }
 

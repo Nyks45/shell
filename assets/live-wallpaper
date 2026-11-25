@@ -81,6 +81,9 @@ stop() {
     if pid="$(own_pid)"; then
         event "stop: renderer $pid"
         kill "$pid" 2>/dev/null || true
+        # A paused renderer needs to run its termination handler before we
+        # can forget its PID and release the wallpaper's memory.
+        kill -CONT "$pid" 2>/dev/null || true
         for _ in $(seq 100); do kill -0 "$pid" 2>/dev/null || break; sleep 0.02; done
     elif [[ -z "${LIVE_WALLPAPER_OWN_ONLY:-}" ]] && pgrep -x linux-wallpaper > /dev/null; then
         event "stop: every renderer, no pid file ($(pgrep -x linux-wallpaper | tr '\n' ' '))"
@@ -213,16 +216,41 @@ quality = c.get("postProcessing") or "ultra"
 if quality not in ("off", "normal", "ultra"):
     quality = "ultra"
 args += ["--post-processing", quality]
+for key, flag in (("shadowQuality", "--shadows"), ("volumetricQuality", "--volumetrics")):
+    quality = c.get(key, "medium")
+    if quality in ("off", "low", "medium", "high", "ultra") and quality != "medium":
+        args += [flag, quality]
+if c.get("hdrOutput") is True:
+    args.append("--hdr-output")
+if c.get("reflections") is False:
+    args.append("--no-reflections")
+texture_resolution = c.get("textureResolution", "full")
+if texture_resolution in ("half", "auto"):
+    args += ["--texture-resolution", texture_resolution]
+if c.get("processPriority") == "belowNormal":
+    args.append("--below-normal-priority")
+if c.get("mediaIntegration") is False:
+    args.append("--no-media-integration")
+for player in c.get("ignoredMediaPlayers") or []:
+    if isinstance(player, str) and player and "\n" not in player and "\r" not in player:
+        args += ["--ignore-media-player", player]
+source = c.get("audioRecordingSource")
+if isinstance(source, str) and source and "\n" not in source and "\r" not in source:
+    args += ["--audio-recording-source", source]
 if c.get("silent", True):
     args.append("--silent")
 else:
     args += ["--volume", str(opt("volume", 50))]
-for key, flag in (("noAutomute", "--noautomute"), ("disableMouse", "--disable-mouse"), ("disableParallax", "--disable-parallax"), ("disableParticles", "--disable-particles")):
+rules = c.get("playbackRules") or {}
+app_rules = c.get("appRules") or []
+if opt("noAutomute") or "audio" in rules or any(rule.get("when") == "audio" for rule in app_rules):
+    args.append("--noautomute")
+for key, flag in (("disableMouse", "--disable-mouse"), ("disableParallax", "--disable-parallax"), ("disableParticles", "--disable-particles")):
     if opt(key):
         args.append(flag)
 if opt("audioProcessing") is False:
     args.append("--no-audio-processing")
-if c.get("pauseOnFullscreen") is False:
+if "fullscreen" in rules or app_rules or c.get("pauseOnFullscreen") is False:
     args.append("--no-fullscreen-pause")
 elif c.get("pauseOnlyActive"):
     args.append("--fullscreen-pause-only-active")
@@ -287,6 +315,17 @@ start() {
             while read -r mon; do args+=(--screen-root "$mon" --bg "$dir"); done < <(hyprctl monitors -j | python3 -c 'import json,sys; [print(m["name"]) for m in json.load(sys.stdin)]')
         fi
     fi
+    local help="" arg
+    for arg in "${args[@]}"; do
+        case "$arg" in
+            --shadows|--volumetrics|--hdr-output|--no-reflections|--texture-resolution|--below-normal-priority|--no-media-integration|--ignore-media-player|--audio-recording-source)
+                if [[ -z "$help" ]]; then
+                    help="$(linux-wallpaperengine --help 2>/dev/null)" || die "Cannot read the renderer's supported settings"
+                fi
+                [[ "$help" == *"$arg"* ]] || die "Update linux-wallpaperengine to use $arg"
+                ;;
+        esac
+    done
     stop
 
     # The renderer also saves one full-size frame once it has drawn a few (named per
