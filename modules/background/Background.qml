@@ -46,8 +46,8 @@ Variants {
             Image {
                 anchors.fill: parent
                 visible: opacity > 0 && status === Image.Ready
-                opacity: LiveStartFrame.showing ? 1 : 0
-                source: LiveStartFrame.frame && (LiveStartFrame.showing || opacity > 0) ? `file://${LiveStartFrame.frame}` : ""
+                opacity: LiveStartFrame.showing || LiveStartFrame.staticFallback ? 1 : 0
+                source: LiveStartFrame.frame && (LiveStartFrame.showing || LiveStartFrame.staticFallback || opacity > 0) ? `file://${LiveStartFrame.frame}` : ""
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: false
                 cache: false
@@ -69,7 +69,7 @@ Variants {
                 asynchronous: true
 
                 anchors.fill: parent
-                active: Config.background.wallpaperEnabled
+                active: Config.background.wallpaperEnabled || (LiveStartFrame.staticFallback && !LiveStartFrame.frame)
 
                 source: active ? Qt.resolvedUrl("Wallpaper.qml") : ""
             }

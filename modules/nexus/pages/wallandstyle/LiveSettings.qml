@@ -800,6 +800,24 @@ PageBase {
             }))
         }
 
+        SectionHeader {
+            text: Tr.tr("Startup and recovery")
+        }
+
+        ToggleRow {
+            text: Tr.tr("Start at login")
+            subtext: Tr.tr("Start the last selected wallpapers when you log in")
+            checked: LiveWallpaper.setting("startAtLogin", true)
+            onToggled: LiveWallpaper.setQuiet("startAtLogin", checked)
+        }
+
+        ToggleRow {
+            text: Tr.tr("Restart after a crash")
+            subtext: Tr.tr("Restart playback if the renderer exits unexpectedly")
+            checked: LiveWallpaper.setting("restartAfterCrash", true)
+            onToggled: LiveWallpaper.setQuiet("restartAfterCrash", checked)
+        }
+
         // The renderer: local Nyks45 fork build (linux-wallpaperengine-nyks-git)
         SectionHeader {
             text: Tr.tr("Renderer")

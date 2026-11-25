@@ -31,6 +31,7 @@ Singleton {
     property bool hasScript
     property bool hasEngine
     property bool running
+    readonly property bool automaticPlaybackActive: !waitingAfterCrash && (setting("startAtLogin", true) || seenRunning)
     readonly property string defaultAudioOutput: Audio.sink?.ready ? Audio.sink.name : ""
     property string previousAudioOutput
     // Paused (saved: the start script pauses again after restarts and logins)
@@ -600,7 +601,7 @@ Singleton {
 
     // "When logging in": the next one once per boot
     function loginPlaylists(): void {
-        if (playingPlaylists().some(name => (playlist(name)?.mode ?? "timer") === "login"))
+        if (setting("startAtLogin", true) && playingPlaylists().some(name => (playlist(name)?.mode ?? "timer") === "login"))
             bootProc.running = true;
     }
 
@@ -881,8 +882,11 @@ Singleton {
                 return;
             }
             again = false;
-            if (code === 0 && root.ruleAction !== "run")
-                root.evaluateRules(true);
+            if (code === 0) {
+                runningTimer.restart();
+                if (root.ruleAction !== "run")
+                    root.evaluateRules(true);
+            }
             if (root.checkPending) {
                 root.checkPending = false;
                 checkTimer.restart();
@@ -907,7 +911,7 @@ Singleton {
     }
 
     Timer {
-        running: root.playingPlaylists().length > 0
+        running: root.automaticPlaybackActive && root.playingPlaylists().length > 0
         repeat: true
         triggeredOnStart: true
         interval: 30000
@@ -923,7 +927,7 @@ Singleton {
 
     // The playback rules, checked every second while a live wallpaper is on and rules are active
     Timer {
-        running: Object.keys(root.screens).length > 0 && (root.hasActiveRules || root.ruleAction !== "run" || root.coverSupported)
+        running: root.automaticPlaybackActive && Object.keys(root.screens).length > 0 && (root.hasActiveRules || root.ruleAction !== "run" || root.coverSupported)
         repeat: true
         interval: 1000
         onTriggered: {
@@ -980,7 +984,7 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 const boot = text.trim();
-                if (!boot || boot === root.setting("playlistBoot", ""))
+                if (!root.setting("startAtLogin", true) || !boot || boot === root.setting("playlistBoot", ""))
                     return;
                 root.setQuiet("playlistBoot", boot);
                 for (const name of root.playingPlaylists())
@@ -1036,12 +1040,14 @@ Singleton {
     // crash, or something else killing it): noted in live-wallpaper/events.log and started
     // again. Only after it was seen running here, so a test session never starts one.
     property bool seenRunning
+    property bool waitingAfterCrash
     property int missing
 
     onRunningChanged: {
         // (a new renderer starts drawing in full: covered is sent again if it still is)
         coverSent = false;
         if (running) {
+            waitingAfterCrash = false;
             seenRunning = true;
             Qt.callLater(() => evaluateRules(true));
         }
@@ -1068,8 +1074,16 @@ Singleton {
             if (++root.missing < 2)
                 return;
             root.missing = 0;
-            Quickshell.execDetached(["sh", "-c", `d="\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper"; c=$(coredumpctl -q --no-pager --since=-2min list linux-wallpaperengine 2>/dev/null | tail -1); printf '%s gone without a stop%s: started again by the shell\\n' "$(date '+%F %T')" "\${c:+ (crashed: $c)}" >> "$d/events.log"`]);
-            restartTimer.restart();
+            const restart = root.setting("restartAfterCrash", true);
+            const action = restart ? "restart requested by the shell" : "automatic restart disabled";
+            Quickshell.execDetached(["sh", "-c", `d="\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper"; c=$(coredumpctl -q --no-pager --since=-2min list linux-wallpaperengine 2>/dev/null | tail -1); printf '%s gone without a stop%s: %s\\n' "$(date '+%F %T')" "\${c:+ (crashed: $c)}" "$1" >> "$d/events.log"`, "sh", action]);
+            root.running = false;
+            if (restart)
+                restartTimer.restart();
+            else {
+                root.waitingAfterCrash = true;
+                root.seenRunning = false;
+            }
         }
     }
 

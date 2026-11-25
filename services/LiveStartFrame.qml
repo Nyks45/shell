@@ -29,9 +29,11 @@ Singleton {
     property bool wasRunning
     property bool started
     property bool configured
+    property bool startupDisabled
 
     // Shown while the renderer loads
     readonly property bool showing: !!frame && !ready
+    readonly property bool staticFallback: startupDisabled && !!LiveWallpaper.current && !LiveWallpaper.running
 
     // Check if this session's renderer is already running (a shell restart) and
     // locate the saved frame on disk while launching the renderer immediately
@@ -47,6 +49,7 @@ Singleton {
             fi
             cfg="${root.configDir}/caelestia/live-wallpaper.json"
             has_live=0
+            auto_start=1
             if [ -f "$cfg" ]; then
                 flat=$(tr -d '[:space:]' < "$cfg" 2>/dev/null)
                 case "$flat" in
@@ -54,6 +57,9 @@ Singleton {
                     *'"screens":{"'*) has_live=1 ;;
                     *) echo "none"; exit 0 ;;
                 esac
+                if python3 -c 'import json,sys; sys.exit(json.load(open(sys.argv[1])).get("startAtLogin") is not False)' "$cfg" 2>/dev/null; then
+                    auto_start=0
+                fi
             fi
             frame=""
             if [ -s "$d/current-frame.png" ]; then
@@ -65,6 +71,10 @@ Singleton {
                         break
                     fi
                 done
+            fi
+            if [ "$auto_start" = 0 ]; then
+                echo "startup-disabled:$frame"
+                exit 0
             fi
             lw=$(command -v live-wallpaper || echo '${Quickshell.shellDir}/assets/live-wallpaper')
             if [ "$has_live" = 1 ] || [ -n "$frame" ]; then
@@ -88,6 +98,10 @@ Singleton {
                 } else if (out === "none" || !out) {
                     root.cachedFrame = "";
                     root.ready = true;
+                } else if (out.startsWith("startup-disabled:")) {
+                    root.cachedFrame = out.slice("startup-disabled:".length);
+                    root.ready = true;
+                    root.startupDisabled = true;
                 } else if (out === "configured") {
                     root.cachedFrame = "";
                     root.configured = true;
