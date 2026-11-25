@@ -26,6 +26,20 @@ PageBase {
     property var discoveredMediaPlayers: []
     readonly property var ignoredMediaPlayers: LiveWallpaper.setting("ignoredMediaPlayers", [])
     readonly property var mediaPlayers: [...new Set([...discoveredMediaPlayers, ...ignoredMediaPlayers])].sort()
+    readonly property var defaultGraphics: graphicsPreset(60, 0, "ultra", "medium", true)
+
+    function graphicsPreset(fps: int, samples: int, bloom: string, lighting: string, reflections: bool): var {
+        return {
+            fps: fps,
+            msaaSamples: samples,
+            postProcessing: bloom,
+            shadowQuality: lighting,
+            volumetricQuality: lighting,
+            reflections: reflections,
+            textureResolution: "full",
+            hdrOutput: false
+        };
+    }
 
     property Process recordingProbe: Process {
         running: true
@@ -119,6 +133,33 @@ PageBase {
         }
 
         SelectRow {
+            label: Tr.tr("Graphics preset")
+            menuItems: [
+                MenuItem { text: Tr.tr("Low"); value: root.graphicsPreset(10, 0, "off", "low", false) },
+                MenuItem { text: Tr.tr("Medium"); value: root.graphicsPreset(15, 0, "normal", "medium", true) },
+                MenuItem { text: Tr.tr("High"); value: root.graphicsPreset(25, 2, "normal", "high", true) },
+                MenuItem { text: Tr.tr("Ultra"); value: root.graphicsPreset(30, 2, "ultra", "ultra", true) }
+            ]
+            fallbackText: Tr.tr("Custom")
+            active: menuItems.find(i => Object.entries(i.value)
+                .every(([key, value]) => LiveWallpaper.setting(key, root.defaultGraphics[key]) === value)) ?? null
+            onSelected: item => LiveWallpaper.setGraphicsPreset(item.value)
+        }
+
+        SelectRow {
+            label: Tr.tr("Anti-aliasing")
+            subtext: Tr.tr("Smooth model edges. Higher sample counts use more video memory.")
+            menuItems: [
+                MenuItem { text: Tr.tr("Off"); value: 0 },
+                MenuItem { text: Tr.tr("2× MSAA"); value: 2 },
+                MenuItem { text: Tr.tr("4× MSAA"); value: 4 },
+                MenuItem { text: Tr.tr("8× MSAA"); value: 8 }
+            ]
+            active: menuItems.find(i => i.value === LiveWallpaper.setting("msaaSamples", 0)) ?? null
+            onSelected: item => LiveWallpaper.set("msaaSamples", item.value)
+        }
+
+        SelectRow {
             label: Tr.tr("Post-processing")
             subtext: Tr.tr("Bloom and lighting effects (Ultra enables HDR bloom)")
             menuItems: [
@@ -198,7 +239,7 @@ PageBase {
 
                 model: {
                     const maxRate = Math.max(60, ...Hypr.monitors.values.map(m => Math.round(m.lastIpcObject?.refreshRate ?? 60)));
-                    return [15, 24, 30, 60, 90, 120, 144, 165, 240, 360].filter(f => f <= maxRate);
+                    return [10, 15, 24, 25, 30, 60, 90, 120, 144, 165, 240, 360].filter(f => f <= maxRate);
                 }
 
                 MenuItem {

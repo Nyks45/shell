@@ -214,6 +214,9 @@ if hwdec in ("nvdec-copy", "no"):
     args += ["--hwdec", hwdec]
 if c.get("videoLoading") == "memory":
     args += ["--video-loading", "memory"]
+msaa_samples = c.get("msaaSamples")
+if type(msaa_samples) is int and msaa_samples in (2, 4, 8):
+    args += ["--msaa", str(msaa_samples)]
 quality = c.get("postProcessing") or "ultra"
 if quality not in ("off", "normal", "ultra"):
     quality = "ultra"
@@ -326,7 +329,7 @@ start() {
     local help="" arg
     for arg in "${args[@]}"; do
         case "$arg" in
-            --shadows|--volumetrics|--hdr-output|--no-reflections|--texture-resolution|--below-normal-priority|--no-media-integration|--ignore-media-player|--audio-recording-source|--audio-input-volume|--audio-input-threshold|--video-loading)
+            --shadows|--volumetrics|--hdr-output|--no-reflections|--texture-resolution|--below-normal-priority|--no-media-integration|--ignore-media-player|--audio-recording-source|--audio-input-volume|--audio-input-threshold|--video-loading|--msaa)
                 if [[ -z "$help" ]]; then
                     help="$(linux-wallpaperengine --help 2>/dev/null)" || die "Cannot read the renderer's supported settings"
                 fi

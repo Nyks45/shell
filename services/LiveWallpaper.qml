@@ -126,6 +126,12 @@ Singleton {
         });
     }
 
+    function setGraphicsPreset(settings: var): void {
+        patch(settings);
+        if (current)
+            restartTimer.restart();
+    }
+
     // Wallpapers the config refers to by a path that isn't theirs any more
     // (Steam's folders, from before the own library had a copy): point them
     // at where the scan found them. Quiet (no restart): the running renderer
