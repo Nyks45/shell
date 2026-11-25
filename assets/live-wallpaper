@@ -237,6 +237,12 @@ for player in c.get("ignoredMediaPlayers") or []:
 source = c.get("audioRecordingSource")
 if isinstance(source, str) and source and "\n" not in source and "\r" not in source:
     args += ["--audio-recording-source", source]
+input_volume = c.get("audioRecordingVolume")
+if type(input_volume) is int and 0 <= input_volume <= 200 and input_volume != 50:
+    args += ["--audio-input-volume", str(input_volume)]
+input_threshold = c.get("audioRecordingThreshold")
+if type(input_threshold) in (int, float) and 0 < input_threshold <= 10:
+    args += ["--audio-input-threshold", str(input_threshold)]
 if c.get("silent", True):
     args.append("--silent")
 else:
@@ -318,7 +324,7 @@ start() {
     local help="" arg
     for arg in "${args[@]}"; do
         case "$arg" in
-            --shadows|--volumetrics|--hdr-output|--no-reflections|--texture-resolution|--below-normal-priority|--no-media-integration|--ignore-media-player|--audio-recording-source)
+            --shadows|--volumetrics|--hdr-output|--no-reflections|--texture-resolution|--below-normal-priority|--no-media-integration|--ignore-media-player|--audio-recording-source|--audio-input-volume|--audio-input-threshold)
                 if [[ -z "$help" ]]; then
                     help="$(linux-wallpaperengine --help 2>/dev/null)" || die "Cannot read the renderer's supported settings"
                 fi

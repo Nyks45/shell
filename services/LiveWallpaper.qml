@@ -31,6 +31,8 @@ Singleton {
     property bool hasScript
     property bool hasEngine
     property bool running
+    readonly property string defaultAudioOutput: Audio.sink?.ready ? Audio.sink.name : ""
+    property string previousAudioOutput
     // Paused (saved: the start script pauses again after restarts and logins)
     readonly property bool paused: config.paused ?? false
     property string engineVersion
@@ -116,7 +118,7 @@ Singleton {
             restartTimer.restart();
     }
 
-    // UI-only choices (sorting, filters): no restart
+    // Save a setting without restarting playback.
     function setQuiet(key: string, value: var): void {
         patch({
             [key]: value
@@ -837,6 +839,15 @@ Singleton {
     // wallpaper's name and preview show without opening the page first
     Component.onCompleted: refresh()
 
+    onDefaultAudioOutputChanged: {
+        if (!defaultAudioOutput)
+            return;
+        const changed = previousAudioOutput && previousAudioOutput !== defaultAudioOutput;
+        previousAudioOutput = defaultAudioOutput;
+        if (changed && running && current && setting("reloadOnAudioOutputChange", true))
+            restartTimer.restart();
+    }
+
     // Changes come in bursts (sliders): restart the renderer once after them
     Timer {
         id: restartTimer
@@ -863,13 +874,15 @@ Singleton {
         property bool again
 
         command: ["sh", "-c", `s=$(command -v live-wallpaper || echo '${root.scriptBin}'); exec "$s" start`]
-        onExited: {
+        onExited: code => {
             if (again && root.ruleAction !== "stop") {
                 again = false;
                 running = true;
                 return;
             }
             again = false;
+            if (code === 0 && root.ruleAction !== "run")
+                root.evaluateRules(true);
             if (root.checkPending) {
                 root.checkPending = false;
                 checkTimer.restart();

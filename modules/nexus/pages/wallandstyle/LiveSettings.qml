@@ -285,6 +285,33 @@ PageBase {
         }
 
         ToggleRow {
+            text: Tr.tr("Reload when changing output device")
+            subtext: Tr.tr("Restart the wallpaper when the default audio output changes")
+            checked: LiveWallpaper.setting("reloadOnAudioOutputChange", true)
+            onToggled: LiveWallpaper.setQuiet("reloadOnAudioOutputChange", checked)
+        }
+
+        SliderRow {
+            icon: "mic"
+            label: Tr.tr("Recording volume")
+            subtext: Tr.tr("Adjust the response to audio. 50 is the original level")
+            enabled: LiveWallpaper.setting("audioProcessing", true)
+            valueLabel: String(LiveWallpaper.setting("audioRecordingVolume", 50))
+            value: LiveWallpaper.setting("audioRecordingVolume", 50) / 200
+            onMoved: v => LiveWallpaper.set("audioRecordingVolume", Math.round(v * 200))
+        }
+
+        SliderRow {
+            icon: "graphic_eq"
+            label: Tr.tr("Recording threshold")
+            subtext: Tr.tr("Ignore quiet input when reacting to audio")
+            enabled: LiveWallpaper.setting("audioProcessing", true)
+            valueLabel: Number(LiveWallpaper.setting("audioRecordingThreshold", 0)).toFixed(1)
+            value: LiveWallpaper.setting("audioRecordingThreshold", 0) / 10
+            onMoved: v => LiveWallpaper.set("audioRecordingThreshold", Math.round(v * 100) / 10)
+        }
+
+        ToggleRow {
             text: Tr.tr("Media integration")
             subtext: Tr.tr("Share track information and album artwork with wallpapers")
             checked: LiveWallpaper.setting("mediaIntegration", true)
