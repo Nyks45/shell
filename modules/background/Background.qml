@@ -104,6 +104,7 @@ Variants {
 
             asynchronous: true
             active: Config.background.desktopIcons
+            opacity: Config.background.desktopIconOpacity
 
             source: active ? Qt.resolvedUrl("DesktopIcons.qml") : ""
         }

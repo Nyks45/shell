@@ -137,7 +137,7 @@ ColumnLayout {
                 order.push(id);
         const items = [];
         for (const id of order)
-            if (id !== "tray" || SystemTray.items.values.length > 0)
+            if (id !== "tray" || SystemTray.items.values.length > 0 || LiveWallpaper.setting("showTrayIcon", false))
                 items.push({
                     id
                 });

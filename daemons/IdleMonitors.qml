@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.UPower
 import Caelestia.Config
@@ -53,6 +54,44 @@ Scope {
         }
 
         target: SessionManager
+    }
+
+    // Create the notifier with the saved timeout so it does not have to replace a live binding.
+    Variants {
+        model: root.enabled && LiveWallpaper.setting("screensaverEnabled", false) && !root.lock.lock.locked
+            ? [LiveWallpaper.setting("screensaverTimeout", 600)] : []
+
+        IdleMonitor {
+            required property real modelData
+
+            timeout: modelData
+            respectInhibitors: true
+            onIsIdleChanged: LiveWallpaper.screensaverActive = isIdle
+            Component.onDestruction: LiveWallpaper.screensaverActive = false
+        }
+    }
+
+    Process {
+        id: saverCommand
+
+        readonly property string wanted: LiveWallpaper.screensaverActive ? JSON.stringify([
+            Object.entries(LiveWallpaper.screensaverScreens).map(([output, assignment]) =>
+                [output, LiveWallpaper.wallpaperPath(assignment)]), LiveWallpaper.setting("screensaverSound", false)
+        ]) : ""
+        property string requested
+        environment: ({ LIVE_WALLPAPER_RULE_SELECTION: LiveWallpaper.ruleSelection ? JSON.stringify(LiveWallpaper.ruleSelection) : "" })
+
+        function reconcile(): void {
+            if (running || wanted === requested)
+                return;
+            requested = wanted;
+            command = [LiveWallpaper.scriptBin, wanted ? "screensaver-start" : "screensaver-stop"];
+            running = true;
+        }
+
+        onWantedChanged: reconcile()
+        onExited: reconcile()
+        Component.onCompleted: reconcile()
     }
 
     Variants {

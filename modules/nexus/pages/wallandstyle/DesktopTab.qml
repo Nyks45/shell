@@ -28,6 +28,15 @@ PageBase {
             onToggled: GlobalConfig.background.desktopIcons = checked
         }
 
+        SliderRow {
+            visible: Config.background.desktopIcons
+            icon: "opacity"
+            label: Tr.tr("Desktop icon opacity")
+            value: GlobalConfig.background.desktopIconOpacity
+            valueLabel: `${Math.round(value * 100)}%`
+            onMoved: v => GlobalConfig.background.desktopIconOpacity = v
+        }
+
         // Desktop widgets (see widgets/README.md): clock, calendar, weather... in glass shapes
         SectionHeader {
             text: Tr.tr("Desktop widgets")

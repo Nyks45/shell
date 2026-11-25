@@ -27,6 +27,10 @@ WE="$STEAM/steamapps/common/wallpaper_engine"
 WORKSHOP="$STEAM/steamapps/workshop/content/431960"
 DEFAULTS="$WE/projects/defaultprojects"
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper"
+if [[ "${1:-}" == screensaver-start || "${1:-}" == screensaver-stop ]]; then
+    export LIVE_WALLPAPER_SCREENSAVER=1 LIVE_WALLPAPER_OWN_ONLY=1
+fi
+[[ -z "${LIVE_WALLPAPER_SCREENSAVER:-}" ]] || STATE="$STATE/screensaver"
 CURRENT="$STATE/current"
 PIDFILE="$STATE/pid"
 GUI_STATE="$HOME/.config/Linux Wallpaper Engine/active-wallpapers.json"
@@ -63,9 +67,8 @@ event() {
 # Ours (by its pid file); without one, every renderer (exact process name, which
 # the kernel cuts to 15 characters; never a command-line match), unless
 # LIVE_WALLPAPER_OWN_ONLY is set (a test session must not touch the real one).
-own_pid() {
-    local pid
-    pid="$(cat "$PIDFILE" 2>/dev/null)" || return 1
+session_renderer() {
+    local pid="$1"
     [[ -n "$pid" ]] && [[ "$(cat /proc/"$pid"/comm 2>/dev/null)" == linux-wallpaper ]] || return 1
     # A renderer left from an earlier session (it outlives a logout: its Hyprland is gone, it draws
     # nowhere) isn't ours: this session starts its own
@@ -73,7 +76,22 @@ own_pid() {
         ! tr '\0' '\n' < /proc/"$pid"/environ 2>/dev/null | grep -qx "HYPRLAND_INSTANCE_SIGNATURE=$HYPRLAND_INSTANCE_SIGNATURE"; then
         return 1
     fi
-    echo "$pid"
+}
+
+own_pid() {
+    local pid
+    pid="$(cat "$PIDFILE" 2>/dev/null)" || return 1
+    session_renderer "$pid" && echo "$pid"
+}
+
+desktop_renderer_pids() {
+    local pid
+    while read -r pid; do
+        session_renderer "$pid" || continue
+        if ! tr '\0' '\n' < /proc/"$pid"/environ 2>/dev/null | grep -qx LIVE_WALLPAPER_SCREENSAVER=1; then
+            echo "$pid"
+        fi
+    done < <(pgrep -x linux-wallpaper || true)
 }
 
 stop() {
@@ -85,10 +103,15 @@ stop() {
         # can forget its PID and release the wallpaper's memory.
         kill -CONT "$pid" 2>/dev/null || true
         for _ in $(seq 100); do kill -0 "$pid" 2>/dev/null || break; sleep 0.02; done
-    elif [[ -z "${LIVE_WALLPAPER_OWN_ONLY:-}" ]] && pgrep -x linux-wallpaper > /dev/null; then
-        event "stop: every renderer, no pid file ($(pgrep -x linux-wallpaper | tr '\n' ' '))"
-        pkill -x linux-wallpaper 2>/dev/null || true
-        for _ in $(seq 100); do pgrep -x linux-wallpaper > /dev/null || break; sleep 0.02; done
+    elif [[ -z "${LIVE_WALLPAPER_OWN_ONLY:-}" ]]; then
+        local -a pids
+        mapfile -t pids < <(desktop_renderer_pids)
+        if (( ${#pids[@]} )); then
+            event "stop: renderers in this session without a pid file (${pids[*]})"
+            kill "${pids[@]}" 2>/dev/null || true
+            kill -CONT "${pids[@]}" 2>/dev/null || true
+            for _ in $(seq 100); do kill -0 "${pids[@]}" 2>/dev/null || break; sleep 0.02; done
+        fi
     fi
     rm -f "$PIDFILE" "$STATE/ready.bmp"
 }
@@ -97,7 +120,9 @@ stop() {
 signal() {
     local pid
     if pid="$(own_pid)"; then kill "-$1" "$pid" 2>/dev/null || true
-    elif [[ -z "${LIVE_WALLPAPER_OWN_ONLY:-}" ]]; then pkill "-$1" -x linux-wallpaper 2>/dev/null || true; fi
+    elif [[ -z "${LIVE_WALLPAPER_OWN_ONLY:-}" ]]; then
+        while read -r pid; do kill "-$1" "$pid" 2>/dev/null || true; done < <(desktop_renderer_pids)
+    fi
 }
 
 signal_coverage() {
@@ -147,24 +172,58 @@ EOF
 config_args() {
     [[ -f "$SETTINGS" ]] || return 0
     python3 - "$SETTINGS" <<'EOF'
-import json, os, subprocess, sys
+import json, os, re, shlex, subprocess, sys
 try:
     c = json.load(open(sys.argv[1], encoding="utf-8"))
 except Exception:
     sys.exit(0)
+saver = bool(os.environ.get("LIVE_WALLPAPER_SCREENSAVER"))
+if rule_selection := os.environ.get("LIVE_WALLPAPER_RULE_SELECTION"):
+    if not saver or not c.get("screensaverWallpaper"):
+        rule = json.loads(rule_selection)
+        c["screens"] = rule["screens"]
+        c["span"] = rule["span"]
+if saver and (target := c.get("screensaverWallpaper")):
+    if target.startswith("profile:"):
+        profile = next((p for p in c.get("profiles", []) if p["name"] == target[8:]), None)
+        if profile:
+            c["screens"] = profile["screens"]
+            c["span"] = profile["span"]
+    elif target.startswith("playlist:") or os.path.isfile(os.path.join(target, "project.json")):
+        c["screens"] = {"*": target}
+        c["span"] = False
 screens = {k: v for k, v in (c.get("screens") or {}).items() if v}
-if not screens:
-    sys.exit(0)
+mode = c.get("monitorIdentification", "connector")
+metadata = c.get("monitorIdentities") or {}
+monitors = []
+if mode != "connector" or ("*" in screens and not os.environ.get("LIVE_WALLPAPER_MONITORS")):
+    try:
+        monitors = json.loads(subprocess.run(["hyprctl", "monitors", "-j"], capture_output=True, text=True).stdout)
+    except (OSError, ValueError):
+        pass
+
+def identity(m):
+    if mode == "serial":
+        return (m.get("make", ""), m.get("model", ""), m["serial"]) if m.get("serial") else None
+    if mode == "layout":
+        return (m["x"], m["y"]) if m.get("x") is not None and m.get("y") is not None else None
+    return m.get("description") or None
+
+def resolve_display(name):
+    if mode == "connector" or name == "*" or not isinstance(metadata.get(name), dict):
+        return name
+    key = identity(metadata[name])
+    matches = [m["name"] for m in monitors if key and identity(m) == key]
+    return matches[0] if len(matches) == 1 else name
+
+screens = {resolve_display(k): v for k, v in sorted(screens.items(), key=lambda entry: resolve_display(entry[0]) == entry[0])}
 if "*" in screens:
     env_mons = [m for m in os.environ.get("LIVE_WALLPAPER_MONITORS", "").split(",") if m]
     if env_mons:
         mons = env_mons
     else:
-        try:
-            mons = [m["name"] for m in json.loads(subprocess.run(["hyprctl", "monitors", "-j"], capture_output=True, text=True).stdout)]
-        except Exception:
-            mons = []
-    screens = {m: screens["*"] for m in mons} or screens
+        mons = [m["name"] for m in monitors]
+    screens = {m: screens.get(m, screens["*"]) for m in mons} or screens
 overrides = c.get("overrides") or {}
 # Playlists are run by the settings app: a playlist's screen shows its
 # current wallpaper (playlistNow), like any other
@@ -210,7 +269,7 @@ else:
         args += ["--screen-root", screen, "--bg", path] + output_opts(path)
 args += ["--fps", str(c.get("fps") or 60)]
 hwdec = c.get("hwdec") or "auto"
-if hwdec in ("nvdec-copy", "no"):
+if hwdec in ("auto-safe", "nvdec", "nvdec-copy", "vaapi", "vaapi-copy", "vulkan", "vulkan-copy", "no"):
     args += ["--hwdec", hwdec]
 if c.get("videoLoading") == "memory":
     args += ["--video-loading", "memory"]
@@ -220,6 +279,21 @@ if type(msaa_samples) is int and msaa_samples in (2, 4, 8):
 log_level = c.get("logLevel")
 if log_level in ("none", "error", "verbose"):
     args += ["--log-level", log_level]
+if c.get("pauseOnLowVram") is True:
+    args.append("--pause-on-low-vram")
+if c.get("highPrecisionTimer") is True:
+    args.append("--high-precision-timer")
+if not saver and c.get("cefDevTools") is True:
+    port = c.get("cefDevToolsPort", 9222)
+    args += ["--cef-devtools-port", str(port if type(port) is int and 1024 <= port <= 65535 else 9222)]
+try:
+    cef_switches = shlex.split(c.get("cefSwitches", "") or "")
+except (TypeError, ValueError):
+    cef_switches = []
+for switch in cef_switches:
+    name = switch.partition("=")[0]
+    if re.fullmatch(r"--[a-z0-9-]+", name) and not name.startswith("--remote-debugging-") and name not in ("--type", "--wp-schemes") and "\n" not in switch and "\r" not in switch:
+        args += ["--cef-switch", switch[2:]]
 quality = c.get("postProcessing") or "ultra"
 if quality not in ("off", "normal", "ultra"):
     quality = "ultra"
@@ -245,18 +319,30 @@ for player in c.get("ignoredMediaPlayers") or []:
 source = c.get("audioRecordingSource")
 if isinstance(source, str) and source and "\n" not in source and "\r" not in source:
     args += ["--audio-recording-source", source]
+muted_outputs = c.get("mutedOutputs")
+if isinstance(muted_outputs, list):
+    muted_names = {resolve_display(name) for name in muted_outputs if isinstance(name, str)}
+    for output in screens:
+        if output in muted_names:
+            args += ["--mute-output", output]
 input_volume = c.get("audioRecordingVolume")
 if type(input_volume) is int and 0 <= input_volume <= 200 and input_volume != 50:
     args += ["--audio-input-volume", str(input_volume)]
 input_threshold = c.get("audioRecordingThreshold")
 if type(input_threshold) in (int, float) and 0 < input_threshold <= 10:
     args += ["--audio-input-threshold", str(input_threshold)]
-if c.get("silent", True):
+silent = not c.get("screensaverSound", False) if saver else c.get("silent", True)
+if silent:
     args.append("--silent")
 else:
     args += ["--volume", str(opt("volume", 50))]
 rules = c.get("playbackRules") or {}
 app_rules = c.get("appRules") or []
+if not saver and (any(action in ("pauseMonitor", "stopMonitor") for action in rules.values()) or any(
+    rule.get("action") in ("pauseMonitor", "stopMonitor") for rule in app_rules
+)):
+    state = os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
+    args += ["--output-playback-file", os.path.join(state, "live-wallpaper", "output-playback.json")]
 if opt("noAutomute") or "audio" in rules or any(rule.get("when") == "audio" for rule in app_rules):
     args.append("--noautomute")
 for key, flag in (("disableMouse", "--disable-mouse"), ("disableParallax", "--disable-parallax"), ("disableParticles", "--disable-particles")):
@@ -264,7 +350,7 @@ for key, flag in (("disableMouse", "--disable-mouse"), ("disableParallax", "--di
         args.append(flag)
 if opt("audioProcessing") is False:
     args.append("--no-audio-processing")
-if "fullscreen" in rules or app_rules or c.get("pauseOnFullscreen") is False:
+if saver or "fullscreen" in rules or app_rules or c.get("pauseOnFullscreen") is False:
     args.append("--no-fullscreen-pause")
 elif c.get("pauseOnlyActive"):
     args.append("--fullscreen-pause-only-active")
@@ -287,8 +373,12 @@ EOF
 start() {
     # The assets folder: the settings app's choice, else its own library's,
     # else Steam's Wallpaper Engine
-    local assets="" paused=0 dir="" gui=() cfg=()
+    local assets="" paused=0 dir="" gui=() cfg=() layer=background
     mapfile -t cfg < <(config_args)
+    if [[ -n "${LIVE_WALLPAPER_SCREENSAVER:-}" ]]; then
+        (( ${#cfg[@]} )) || return 0
+        layer=overlay
+    fi
     [[ -f "$SETTINGS" ]] || mapfile -t gui < <(gui_args)
     if (( ${#cfg[@]} )); then
         [[ "${cfg[1]}" != "-" ]] && assets="${cfg[1]}"
@@ -297,7 +387,7 @@ start() {
     [[ -d "$assets" ]] || assets="$LIB/assets"
     [[ -d "$assets" ]] || assets="$WE/assets"
     [[ -d "$assets" ]] || die "No Wallpaper Engine assets: get them in Settings > Wallpaper > Live"
-    local args=(--assets-dir "$assets" --layer background)
+    local args=(--assets-dir "$assets" --layer "$layer")
 
     if (( ${#cfg[@]} )); then
         # The settings app's choices (first lines: the wallpaper folder, the
@@ -329,11 +419,15 @@ start() {
             while read -r mon; do args+=(--screen-root "$mon" --bg "$dir"); done < <(hyprctl monitors -j | python3 -c 'import json,sys; [print(m["name"]) for m in json.load(sys.stdin)]')
         fi
     fi
+    local transition="${LIVE_WALLPAPER_TRANSITION_ID:-}"
+    if [[ -z "${LIVE_WALLPAPER_SCREENSAVER:-}" && "$transition" =~ ^[0-9]+$ ]]; then
+        args+=(--wallpaper-ready-file "$STATE/transition-ready-$transition")
+    fi
     local help="" arg arg_index log_path="$STATE/log"
     for arg_index in "${!args[@]}"; do
         arg="${args[arg_index]}"
         case "$arg" in
-            --shadows|--volumetrics|--hdr-output|--no-reflections|--texture-resolution|--below-normal-priority|--no-media-integration|--ignore-media-player|--audio-recording-source|--audio-input-volume|--audio-input-threshold|--video-loading|--msaa|--log-level)
+            --shadows|--volumetrics|--hdr-output|--no-reflections|--texture-resolution|--below-normal-priority|--no-media-integration|--ignore-media-player|--audio-recording-source|--audio-input-volume|--audio-input-threshold|--video-loading|--msaa|--log-level|--mute-output|--pause-on-low-vram|--high-precision-timer|--output-playback-file|--cef-devtools-port|--cef-switch|--wallpaper-ready-file)
                 if [[ -z "$help" ]]; then
                     help="$(linux-wallpaperengine --help 2>/dev/null)" || die "Cannot read the renderer's supported settings"
                 fi
@@ -345,23 +439,25 @@ start() {
         fi
     done
     stop
+    rm -f "$STATE/crash-hold.json"
+    if [[ -n "$transition" ]]; then
+        rm -f "$STATE"/transition-ready-*
+    fi
 
     # The renderer also saves one full-size frame once it has drawn a few (named per
     # wallpaper: the shell caches images by path).
     local frame="$STATE/frame-$(basename "$dir").png" f had_frame=0
-    [[ -s "$frame" ]] && had_frame=1
-    # Other wallpapers' frames go; this one stays until the renderer replaces
-    # it (the shell shows it while the renderer loads: LiveStartFrame)
-    for f in "$STATE"/frame-*.png; do [[ "$f" == "$frame" ]] || rm -f "$f"; done
-    [[ -n "$dir" ]] && ln -sf "$(basename "$frame")" "$STATE/current-frame.png"
-    rm -f "$STATE/ready.bmp"
-    if (( had_frame )); then
-        # Saved frame already exists on disk: write an uncompressed .bmp marker
-        # after Frame 1 so LiveStartFrame drops cleanly without waiting 5 frames
-        # and ~800ms of PNG compression or truncating the displayed PNG.
-        args+=(--screenshot "$STATE/ready.bmp" --screenshot-delay 1)
-    else
-        args+=(--screenshot "$frame")
+    if [[ -z "${LIVE_WALLPAPER_SCREENSAVER:-}" ]]; then
+        [[ -s "$frame" ]] && had_frame=1
+        # Retain this wallpaper's frame until the new renderer is ready.
+        for f in "$STATE"/frame-*.png; do [[ "$f" == "$frame" ]] || rm -f "$f"; done
+        [[ -n "$dir" ]] && ln -sf "$(basename "$frame")" "$STATE/current-frame.png"
+        if (( had_frame )) && [[ -z "$transition" ]]; then
+            args+=(--screenshot "$STATE/ready.bmp" --screenshot-delay 1)
+        else
+            had_frame=0
+            args+=(--screenshot "$frame")
+        fi
     fi
 
     # Not a process-group leader in the background, so setsid execs in place:
@@ -374,21 +470,7 @@ start() {
     echo $! > "$PIDFILE"
     disown
     event "start: renderer $(cat "$PIDFILE") ($(basename "${dir:-?}"))"
-
-    # The saved frame stays current (lock screen, Settings previews, scheme): the fast
-    # ready.bmp marker, once written, becomes the new frame-<id>.png, off the start path
-    # (python-pillow; without it the old frame stays)
-    if (( had_frame )); then
-        (
-            for _ in $(seq 100); do [[ -s "$STATE/ready.bmp" ]] && break; sleep 0.2; done
-            sleep 0.5 # written in full
-            [[ -s "$STATE/ready.bmp" ]] || exit 0
-            python3 -I -c 'import sys; from PIL import Image; Image.open(sys.argv[1]).convert("RGB").save(sys.argv[2], "PNG")' \
-                "$STATE/ready.bmp" "$frame.tmp" 2>/dev/null && mv -f "$frame.tmp" "$frame"
-            rm -f "$frame.tmp"
-        ) > /dev/null 2>&1 < /dev/null &
-        disown
-    fi
+    [[ -z "${LIVE_WALLPAPER_SCREENSAVER:-}" ]] || return 0
 
     # Paused in the settings (it survives restarts and logins): pause again
     # once the first frames are drawn (the lock screen's frame is saved)
@@ -402,6 +484,9 @@ start() {
     # dynamic scheme is used. The preview at once, the full-size frame once saved.
     command -v caelestia > /dev/null || return 0
     [[ -d "$dir" ]] || return 0
+    if [[ -f "$SETTINGS" ]] && python3 -c 'import json,sys; sys.exit(json.load(open(sys.argv[1])).get("wallpaperColors") is not False)' "$SETTINGS"; then
+        return 0
+    fi
     local cael_wall_state="${XDG_STATE_HOME:-$HOME/.local/state}/caelestia/wallpaper/path.txt"
     if (( had_frame )); then
         if [[ "$(cat "$cael_wall_state" 2>/dev/null)" == "$frame" ]]; then
@@ -471,6 +556,8 @@ case "${1:-}" in
     set) [[ -n "${2:-}" ]] || die "usage: live-wallpaper set ID|NAME|PATH"; set_wallpaper "$2" ;;
     start) start ;;
     stop) stop ;;
+    screensaver-start) start ;;
+    screensaver-stop) stop ;;
     pause) signal STOP ;;
     resume) signal CONT ;;
     cover) signal_coverage USR1 ;;

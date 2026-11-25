@@ -60,6 +60,9 @@ Singleton {
                 if python3 -c 'import json,sys; sys.exit(json.load(open(sys.argv[1])).get("startAtLogin") is not False)' "$cfg" 2>/dev/null; then
                     auto_start=0
                 fi
+                if [ -s "$d/crash-hold.json" ] && python3 -c 'import json,sys; c=json.load(open(sys.argv[1])); held=json.load(open(sys.argv[2])); sys.exit(not(c.get("protectAfterCrash") is True and held == c.get("screens")))' "$cfg" "$d/crash-hold.json" 2>/dev/null; then
+                    auto_start=0
+                fi
             fi
             frame=""
             if [ -s "$d/current-frame.png" ]; then

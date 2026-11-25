@@ -16,11 +16,12 @@ StyledRect {
 
     readonly property int padding: Tokens.padding.small
     readonly property int spacing: Config.bar.tray.background ? Tokens.spacing.medium : Tokens.spacing.extraSmall
+    readonly property bool showWallpaper: LiveWallpaper.setting("showTrayIcon", false)
 
     property bool expanded
     // A short rule above the tray's icons (small and single-coloured, status icons rather than
     // apps), setting them apart from the open apps over it
-    readonly property real lead: items.count > 0 ? divider.height + Tokens.spacing.small : 0
+    readonly property real lead: items.count > 0 || showWallpaper ? divider.height + Tokens.spacing.small : 0
 
     readonly property real nonAnimHeight: {
         if (!Config.bar.tray.compact)
@@ -93,6 +94,29 @@ StyledRect {
             TrayItem {}
         }
 
+        Loader {
+            active: root.showWallpaper
+
+            sourceComponent: MouseArea {
+                implicitWidth: Tokens.font.body.small.pointSize * 1.7
+                implicitHeight: implicitWidth
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onClicked: event => {
+                    if (event.button === Qt.RightButton && LiveWallpaper.running)
+                        LiveWallpaper.togglePause();
+                    else
+                        Quickshell.execDetached(["qs", "-c", "caelestia", "ipc", "call", "nexus", "open"]);
+                }
+
+                MaterialIcon {
+                    anchors.centerIn: parent
+                    text: LiveWallpaper.paused ? "pause_circle" : "wallpaper"
+                    color: Colours.palette.m3onSurfaceVariant
+                    fontStyle: Tokens.font.icon.small
+                }
+            }
+        }
+
         Behavior on opacity {
             Anim {
                 type: Anim.DefaultEffects
@@ -108,7 +132,7 @@ StyledRect {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
 
-        active: Config.bar.tray.compact && items.count > 0
+        active: Config.bar.tray.compact && (items.count > 0 || root.showWallpaper)
 
         sourceComponent: Item {
             implicitWidth: expandIconInner.implicitWidth

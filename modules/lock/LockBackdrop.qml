@@ -18,8 +18,10 @@ Item {
     property bool bootLock: false
 
     readonly property string videoPath: "/usr/share/sddm/themes/sddm-astronaut-theme/Backgrounds/frieren-pixel-sorcery.mp4"
-    readonly property bool hasVideo: CUtils.fileExists(videoPath)
-    readonly property bool useWallpaperMode: Config.lock.useWallpaper || bootLock
+    readonly property string liveFrame: visible && LiveWallpaper.setting("showLiveOnLock", false)
+        && CUtils.fileExists(LiveWallpaper.displayedFrame) ? LiveWallpaper.displayedFrame : ""
+    readonly property bool hasVideo: !liveFrame && CUtils.fileExists(videoPath)
+    readonly property bool useWallpaperMode: !!liveFrame || Config.lock.useWallpaper || bootLock
     readonly property real backdropFade: closing ? Math.max(0, 1 - Math.pow(Math.max(0, (closeT - 0.5) / 0.5), 2)) : 1
     readonly property real targetBlur: 0.28 + 0.57 * root.modeT
     readonly property real blurAmount: (bootLock ? targetBlur : Math.min(1, Math.pow(Math.max(0, openT), 0.45)) * targetBlur) * backdropFade
@@ -80,17 +82,17 @@ Item {
             Image {
                 anchors.fill: parent
                 visible: !root.hasVideo
-                source: !root.hasVideo && Wallpapers.current ? `file://${Wallpapers.current}` : ""
+                source: !root.hasVideo && (root.liveFrame || Wallpapers.current) ? `file://${root.liveFrame || Wallpapers.current}` : ""
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: false
-                cache: true
+                cache: !root.liveFrame
             }
 
             Visual {
                 id: animatedBg
 
                 anchors.fill: parent
-                source: root.hasVideo ? root.videoPath : Wallpapers.current
+                source: root.hasVideo ? root.videoPath : (root.liveFrame ? "" : Wallpapers.current)
                 playing: root.visible && !root.closing
                 animate: false
             }

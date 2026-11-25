@@ -585,6 +585,7 @@ PageBase {
         // A full-size frame (the renderer's), preferred when it exists
         property string frame
         property bool playing
+        readonly property string quality: LiveWallpaper.setting("browserQuality", "medium")
 
         radius: Tokens.rounding.medium
         color: Colours.tPalette.m3surfaceContainerHigh
@@ -597,7 +598,8 @@ PageBase {
             source: prev.still || prev.source ? `file://${prev.still || prev.source}` : ""
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
-            sourceSize.width: 360
+            sourceSize.width: prev.quality === "low" ? 200 : prev.quality === "high" ? 640 : 360
+            mipmap: prev.quality === "high"
         }
 
         Loader {
@@ -612,13 +614,14 @@ PageBase {
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 cache: false
-                sourceSize.width: 640
+                sourceSize.width: prev.quality === "low" ? 360 : prev.quality === "high" ? 960 : 640
+                mipmap: prev.quality === "high"
             }
         }
 
         Loader {
             anchors.fill: parent
-            active: prev.playing && prev.source.toLowerCase().endsWith(".gif")
+            active: LiveWallpaper.setting("browserEffects", true) && prev.playing && prev.source.toLowerCase().endsWith(".gif")
             asynchronous: true
 
             sourceComponent: AnimatedImage {

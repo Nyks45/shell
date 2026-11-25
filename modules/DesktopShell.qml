@@ -45,6 +45,7 @@ Scope {
     }
 
     Background {}
+    LiveWallpaperTransition {}
 
     // The desktop widgets (Settings > Wallpaper & style > Desktop), above the wallpaper and the desktop icons
     LazyLoader {

@@ -112,8 +112,13 @@ PageBase {
     function actionText(a: string): string {
         return ({
                 pause: Tr.tr("pause"),
+                pauseMonitor: Tr.tr("pause on the app’s display"),
                 mute: Tr.tr("mute"),
                 stop: Tr.tr("stop (free memory)"),
+                stopMonitor: Tr.tr("stop on the app’s display"),
+                loadWallpaper: Tr.tr("load wallpaper"),
+                loadPlaylist: Tr.tr("load playlist"),
+                loadProfile: Tr.tr("load display profile"),
                 run: Tr.tr("keep running")
             })[a] ?? a;
     }
@@ -263,6 +268,11 @@ PageBase {
                     text: Tr.tr("NVIDIA (NVDEC)")
                     value: "nvdec-copy"
                 },
+                MenuItem { text: Tr.tr("Automatic (safe)"); value: "auto-safe" },
+                MenuItem { text: Tr.tr("VA-API"); value: "vaapi" },
+                MenuItem { text: Tr.tr("VA-API (copy)"); value: "vaapi-copy" },
+                MenuItem { text: Tr.tr("Vulkan"); value: "vulkan" },
+                MenuItem { text: Tr.tr("Vulkan (copy)"); value: "vulkan-copy" },
                 MenuItem {
                     text: Tr.tr("Software (CPU)")
                     value: "no"
@@ -290,6 +300,13 @@ PageBase {
             onToggled: LiveWallpaper.set("disableParticles", !checked)
         }
 
+        ToggleRow {
+            text: Tr.tr("Pause when video memory is low")
+            subtext: Tr.tr("Pause playback below 64 MiB of free video memory on supported drivers")
+            checked: LiveWallpaper.setting("pauseOnLowVram", false)
+            onToggled: LiveWallpaper.set("pauseOnLowVram", checked)
+        }
+
         SectionHeader {
             text: Tr.tr("Sound & interaction")
         }
@@ -308,6 +325,24 @@ PageBase {
             valueLabel: `${LiveWallpaper.setting("volume", 50)}%`
             value: LiveWallpaper.setting("volume", 50) / 100
             onMoved: v => LiveWallpaper.set("volume", Math.round(v * 100))
+        }
+
+        Repeater {
+            model: root.monitors
+
+            ToggleRow {
+                required property string modelData
+                text: Tr.tr("Sound on %1").arg(modelData)
+                checked: !LiveWallpaper.mutedOutputs.includes(modelData)
+                onToggled: {
+                    const outputs = checked ? LiveWallpaper.mutedOutputs.filter(name => name !== modelData)
+                        : [...LiveWallpaper.mutedOutputs, modelData];
+                    if (LiveWallpaper.activeScreens[modelData] || LiveWallpaper.activeScreens["*"])
+                        LiveWallpaper.set("mutedOutputs", outputs);
+                    else
+                        LiveWallpaper.setQuiet("mutedOutputs", outputs);
+                }
+            }
         }
 
         ToggleRow {
@@ -421,6 +456,18 @@ PageBase {
             onToggled: LiveWallpaper.set("disableParallax", !checked)
         }
 
+        SelectRow {
+            label: Tr.tr("Identify displays by")
+            menuItems: [
+                MenuItem { text: Tr.tr("Connector"); value: "connector" },
+                MenuItem { text: Tr.tr("Monitor serial number"); value: "serial" },
+                MenuItem { text: Tr.tr("Monitor description"); value: "description" },
+                MenuItem { text: Tr.tr("Desktop layout"); value: "layout" }
+            ]
+            active: menuItems.find(i => i.value === LiveWallpaper.setting("monitorIdentification", "connector")) ?? null
+            onSelected: item => LiveWallpaper.set("monitorIdentification", item.value)
+        }
+
         // Wallpaper Engine's "Other application ..." playback rules
         SectionHeader {
             text: Tr.tr("When other apps are in use")
@@ -482,7 +529,7 @@ PageBase {
 
                 label: modelData.text
                 subtext: modelData.sub ?? ""
-                menuItems: [
+                readonly property list<MenuItem> allActions: [
                     MenuItem {
                         text: Tr.tr("Keep running")
                         value: "run"
@@ -498,8 +545,17 @@ PageBase {
                     MenuItem {
                         text: Tr.tr("Stop (free memory)")
                         value: "stop"
+                    },
+                    MenuItem {
+                        text: Tr.tr("Pause per display")
+                        value: "pauseMonitor"
+                    },
+                    MenuItem {
+                        text: Tr.tr("Stop per display")
+                        value: "stopMonitor"
                     }
                 ]
+                menuItems: Array.from(allActions).filter(item => !item.value.endsWith("Monitor") || !["audio", "battery"].includes(modelData.key))
                 active: menuItems.find(i => i.value === LiveWallpaper.playbackRules[modelData.key]) ?? null
                 onSelected: item => LiveWallpaper.setPlaybackRule(modelData.key, item.value)
             }
@@ -508,7 +564,7 @@ PageBase {
         InfoRow {
             icon: LiveWallpaper.ruleAction === "run" ? "play_circle" : LiveWallpaper.ruleAction === "mute" ? "volume_off" : LiveWallpaper.ruleAction === "pause" ? "pause_circle" : "stop_circle"
             label: Tr.tr("Now")
-            subtext: LiveWallpaper.ruleAction === "run" ? Tr.tr("No rule applies") : LiveWallpaper.ruleReason
+            subtext: LiveWallpaper.ruleReason || Tr.tr("No rule applies")
             value: ({
                     run: Tr.tr("Playing"),
                     mute: Tr.tr("Muted"),
@@ -518,6 +574,43 @@ PageBase {
         }
 
         // App rules: this app running / focused / maximized / fullscreen / playing -> action
+        SectionHeader {
+            text: Tr.tr("Display profiles")
+        }
+
+        TextFieldRow {
+            id: profileName
+
+            label: Tr.tr("Profile name")
+            subtext: Tr.tr("Save the current wallpapers and playlists for every display")
+        }
+
+        NavRow {
+            icon: "save"
+            text: Tr.tr("Save current display setup")
+            enabled: !!profileName.field.text.trim() && Object.keys(LiveWallpaper.screens).length > 0
+            onClicked: {
+                LiveWallpaper.saveProfile(profileName.field.text);
+                profileName.clear();
+            }
+        }
+
+        Repeater {
+            model: LiveWallpaper.profiles
+
+            NavRow {
+                required property var modelData
+
+                icon: "delete"
+                text: Tr.tr("Delete profile %1").arg(modelData.name)
+                onClicked: confirmDialog.ask({
+                    header: Tr.tr("Delete profile %1?").arg(modelData.name),
+                    confirmLabel: Tr.trCtx("Delete", "button"),
+                    onConfirm: () => LiveWallpaper.setQuiet("profiles", LiveWallpaper.profiles.filter(p => p.name !== modelData.name))
+                })
+            }
+        }
+
         SectionHeader {
             text: Tr.tr("App rules")
         }
@@ -581,7 +674,7 @@ PageBase {
 
                         StyledText {
                             Layout.fillWidth: true
-                            text: `${root.whenText(lwRuleRow.modelData.when)} → ${root.actionText(lwRuleRow.modelData.action)}`
+                            text: `${root.whenText(lwRuleRow.modelData.when)} → ${root.actionText(lwRuleRow.modelData.action)}${lwRuleRow.modelData.target ? " · " + (LiveWallpaper.wallpapers.find(w => w.path === lwRuleRow.modelData.target)?.title ?? lwRuleRow.modelData.target) : ""}`
                             color: Colours.palette.m3outline
                             font: Tokens.font.label.small
                             elide: Text.ElideRight
@@ -608,6 +701,7 @@ PageBase {
             property string selectedApp: ""
             property string selectedName: ""
             property string selectedIcon: ""
+            property string target: ""
 
             Layout.fillWidth: true
             implicitHeight: ruleCol.implicitHeight + Tokens.padding.medium * 2
@@ -701,7 +795,12 @@ PageBase {
                     RuleChoiceButton {
                         id: ruleAction
 
-                        options: [["pause", root.actionText("pause")], ["mute", root.actionText("mute")], ["stop", root.actionText("stop")], ["run", root.actionText("run")]]
+                        options: [["pause", root.actionText("pause")], ["mute", root.actionText("mute")],
+                            ["stop", root.actionText("stop")], ["run", root.actionText("run")],
+                            ["pauseMonitor", root.actionText("pauseMonitor")], ["stopMonitor", root.actionText("stopMonitor")],
+                            ["loadWallpaper", root.actionText("loadWallpaper")], ["loadPlaylist", root.actionText("loadPlaylist")],
+                            ["loadProfile", root.actionText("loadProfile")]]
+                        onValueChanged: newRuleCard.target = ""
                     }
 
                     Item {
@@ -711,16 +810,42 @@ PageBase {
                     TextButton {
                         text: Tr.tr("Add")
                         type: TextButton.Filled
-                        disabled: !newRuleCard.selectedApp
+                        disabled: !newRuleCard.selectedApp || (ruleAction.value.startsWith("load") && !newRuleCard.target)
                         onClicked: {
                             LiveWallpaper.setAppRules(LiveWallpaper.appRules.concat([{
                                     app: newRuleCard.selectedApp,
                                     when: ruleWhen.value,
-                                    action: ruleAction.value
+                                    action: ruleAction.value,
+                                    target: newRuleCard.target
                                 }]));
                             newRuleCard.selectedApp = "";
                             newRuleCard.selectedName = "";
                             newRuleCard.selectedIcon = "";
+                            newRuleCard.target = "";
+                        }
+                    }
+                }
+
+                SelectRow {
+                    visible: ruleAction.value.startsWith("load")
+                    label: Tr.tr("Load")
+                    fallbackText: Tr.tr("Choose…")
+                    menuItems: ruleTargets.instances
+                    active: menuItems.find(item => item.value === newRuleCard.target) ?? null
+                    onSelected: item => newRuleCard.target = item.value
+
+                    Variants {
+                        id: ruleTargets
+
+                        model: ruleAction.value === "loadWallpaper" ? LiveWallpaper.wallpapers.map(w => [w.title, w.path])
+                            : ruleAction.value === "loadPlaylist" ? LiveWallpaper.playlists.map(p => [p.name, p.name])
+                            : ruleAction.value === "loadProfile" ? LiveWallpaper.profiles.map(p => [p.name, p.name]) : []
+
+                        MenuItem {
+                            required property var modelData
+
+                            text: modelData[0]
+                            value: modelData[1]
                         }
                     }
                 }
@@ -828,7 +953,139 @@ PageBase {
         }
 
         SectionHeader {
-            text: Tr.tr("More")
+            text: Tr.tr("Desktop and screensaver")
+        }
+
+        ToggleRow {
+            text: Tr.tr("Switch desktop colors with the wallpaper")
+            subtext: Tr.tr("Update the dynamic color scheme from the selected wallpaper")
+            checked: LiveWallpaper.setting("wallpaperColors", true)
+            onToggled: LiveWallpaper.set("wallpaperColors", checked)
+        }
+
+        ToggleRow {
+            text: Tr.tr("Show wallpaper on the lock screen")
+            subtext: Tr.tr("Use the saved wallpaper frame when locking the session")
+            checked: LiveWallpaper.setting("showLiveOnLock", false)
+            onToggled: LiveWallpaper.setQuiet("showLiveOnLock", checked)
+        }
+
+        ToggleRow {
+            text: Tr.tr("Wallpaper screensaver")
+            subtext: Tr.tr("Show wallpaper above open windows while the session is idle")
+            checked: LiveWallpaper.setting("screensaverEnabled", false)
+            onToggled: LiveWallpaper.setQuiet("screensaverEnabled", checked)
+        }
+
+        StepperRow {
+            visible: LiveWallpaper.setting("screensaverEnabled", false)
+            label: Tr.tr("Start after (minutes)")
+            from: 1
+            to: 120
+            value: LiveWallpaper.setting("screensaverTimeout", 600) / 60
+            onMoved: v => LiveWallpaper.setQuiet("screensaverTimeout", v * 60)
+        }
+
+        SelectRow {
+            visible: LiveWallpaper.setting("screensaverEnabled", false)
+            label: Tr.tr("Screensaver wallpaper")
+            menuItems: saverChoices.instances
+            active: menuItems.find(item => item.value === LiveWallpaper.setting("screensaverWallpaper", "")) ?? null
+            onSelected: item => LiveWallpaper.setQuiet("screensaverWallpaper", item.value)
+
+            Variants {
+                id: saverChoices
+
+                model: [[Tr.tr("Same as desktop"), ""]].concat(
+                    LiveWallpaper.profiles.map(p => [Tr.tr("Profile · %1").arg(p.name), `profile:${p.name}`]),
+                    LiveWallpaper.playlists.map(p => [Tr.tr("Playlist · %1").arg(p.name), `playlist:${p.name}`]),
+                    LiveWallpaper.wallpapers.map(w => [w.title, w.path]))
+
+                MenuItem {
+                    required property var modelData
+
+                    text: modelData[0]
+                    value: modelData[1]
+                }
+            }
+        }
+
+        ToggleRow {
+            visible: LiveWallpaper.setting("screensaverEnabled", false)
+            text: Tr.tr("Play screensaver audio")
+            checked: LiveWallpaper.setting("screensaverSound", false)
+            onToggled: LiveWallpaper.setQuiet("screensaverSound", checked)
+        }
+
+        SectionHeader {
+            text: Tr.tr("Wallpaper browser")
+        }
+
+        SelectRow {
+            label: Tr.tr("Wallpaper switch transition")
+            menuItems: transitionChoices.instances
+            active: menuItems.find(item => item.value === LiveWallpaper.setting("browseTransition", "none")) ?? null
+            onSelected: item => LiveWallpaper.setQuiet("browseTransition", item.value)
+
+            Variants {
+                id: transitionChoices
+
+                model: LiveWallpaper.transitionTypes
+
+                MenuItem {
+                    required property var modelData
+
+                    text: modelData[1]
+                    value: modelData[0]
+                }
+            }
+        }
+
+        StepperRow {
+            visible: !["hold", "none"].includes(LiveWallpaper.setting("browseTransition", "none"))
+            label: Tr.tr("Transition time (ms)")
+            from: 0
+            to: 3000
+            stepSize: 50
+            value: LiveWallpaper.setting("transitionDuration", 350)
+            onMoved: v => LiveWallpaper.setQuiet("transitionDuration", v)
+        }
+
+        Repeater {
+            model: LiveWallpaper.setting("browseTransition", "none") === "random" ? LiveWallpaper.transitionTypes.slice(3) : []
+
+            ToggleRow {
+                required property var modelData
+                readonly property var pool: LiveWallpaper.setting("transitionPool", LiveWallpaper.transitionTypes.slice(3).map(t => t[0]))
+
+                text: modelData[1]
+                checked: pool.includes(modelData[0])
+                enabled: !checked || pool.length > 1
+                onToggled: LiveWallpaper.setQuiet("transitionPool", checked ? [...pool, modelData[0]] : pool.filter(id => id !== modelData[0]))
+            }
+        }
+
+        ToggleRow {
+            text: Tr.tr("Show live wallpaper in the tray")
+            checked: LiveWallpaper.setting("showTrayIcon", false)
+            onToggled: LiveWallpaper.setQuiet("showTrayIcon", checked)
+        }
+
+        ToggleRow {
+            text: Tr.tr("Animate wallpaper previews")
+            checked: LiveWallpaper.setting("browserEffects", true)
+            onToggled: LiveWallpaper.setQuiet("browserEffects", checked)
+        }
+
+        SelectRow {
+            label: Tr.tr("Wallpaper browser quality")
+            menuItems: [
+                MenuItem { text: Tr.tr("Low"); value: "low" },
+                MenuItem { text: Tr.tr("Medium"); value: "medium" },
+                MenuItem { text: Tr.tr("High"); value: "high" }
+            ]
+            active: menuItems.find(item => item.value === LiveWallpaper.setting("browserQuality", "medium")) ?? null
+            onSelected: item => LiveWallpaper.setQuiet("browserQuality", item.value)
         }
 
         NavRow {
@@ -860,6 +1117,13 @@ PageBase {
         }
 
         ToggleRow {
+            text: Tr.tr("Protect against crashes")
+            subtext: Tr.tr("Hold a failed wallpaper selection until you apply a wallpaper again")
+            checked: LiveWallpaper.setting("protectAfterCrash", false)
+            onToggled: LiveWallpaper.setQuiet("protectAfterCrash", checked)
+        }
+
+        ToggleRow {
             text: Tr.tr("Restart after system sleep")
             subtext: Tr.tr("Reload the running wallpaper when the system wakes up")
             checked: LiveWallpaper.setting("restartAfterSleep", false)
@@ -888,6 +1152,55 @@ PageBase {
             ]
             active: menuItems.find(i => i.value === LiveWallpaper.setting("logLevel", "default")) ?? null
             onSelected: item => LiveWallpaper.set("logLevel", item.value)
+        }
+
+        TextFieldRow {
+            label: Tr.tr("CEF command-line options")
+            placeholderText: "--enable-features=Example"
+            value: LiveWallpaper.setting("cefSwitches", "")
+            onEditingFinished: value => LiveWallpaper.set("cefSwitches", value)
+        }
+
+        ToggleRow {
+            text: Tr.tr("High precision frame timer")
+            subtext: Tr.tr("Use submillisecond deadlines for Wayland frame pacing")
+            checked: LiveWallpaper.setting("highPrecisionTimer", false)
+            onToggled: LiveWallpaper.set("highPrecisionTimer", checked)
+        }
+
+        ToggleRow {
+            text: Tr.tr("Web developer tools")
+            checked: LiveWallpaper.setting("cefDevTools", false)
+            onToggled: LiveWallpaper.set("cefDevTools", checked)
+        }
+
+        StepperRow {
+            visible: LiveWallpaper.setting("cefDevTools", false)
+            label: Tr.tr("Developer tools port")
+            from: 1024
+            to: 65535
+            value: LiveWallpaper.setting("cefDevToolsPort", 9222)
+            onMoved: v => LiveWallpaper.set("cefDevToolsPort", v)
+        }
+
+        NavRow {
+            icon: "code"
+            text: Tr.tr("Open web developer tools")
+            visible: LiveWallpaper.setting("cefDevTools", false)
+            enabled: LiveWallpaper.running && LiveWallpaper.hasWebOutput
+            onClicked: Quickshell.execDetached(["xdg-open", `http://127.0.0.1:${LiveWallpaper.setting("cefDevToolsPort", 9222)}`])
+        }
+
+        NavRow {
+            icon: "restart_alt"
+            text: Tr.tr("Reset wallpaper settings")
+            subtext: Tr.tr("Restore defaults for playback, rendering, and integration")
+            onClicked: confirmDialog.ask({
+                header: Tr.tr("Reset wallpaper settings?"),
+                body: Tr.tr("Saved wallpapers, display assignments, profiles, and playlists are kept."),
+                confirmLabel: Tr.tr("Reset"),
+                onConfirm: () => LiveWallpaper.resetSettings()
+            })
         }
 
         ConfirmDialog {

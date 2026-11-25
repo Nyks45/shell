@@ -71,13 +71,16 @@ endif()
 if("shell" IN_LIST ENABLE_MODULES)
     find_program(QSB_EXECUTABLE NAMES qsb PATHS /usr/lib/qt6/bin REQUIRED)
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/assets/shaders")
-    add_custom_command(
-        OUTPUT "${CMAKE_BINARY_DIR}/assets/shaders/liquid.frag.qsb"
-        COMMAND "${QSB_EXECUTABLE}" --glsl "100 es,120,150" --hlsl 50 --msl 12 -o "${CMAKE_BINARY_DIR}/assets/shaders/liquid.frag.qsb" "${CMAKE_SOURCE_DIR}/assets/shaders/liquid.frag"
-        DEPENDS "${CMAKE_SOURCE_DIR}/assets/shaders/liquid.frag"
-        COMMENT "Compiling liquid.frag shader"
-        VERBATIM
-    )
+    set(SHELL_QSB "")
+    foreach(shader liquid wallpaper-transition)
+        add_custom_command(
+            OUTPUT "${CMAKE_BINARY_DIR}/assets/shaders/${shader}.frag.qsb"
+            COMMAND "${QSB_EXECUTABLE}" --glsl "100 es,120,150" --hlsl 50 --msl 12 -o "${CMAKE_BINARY_DIR}/assets/shaders/${shader}.frag.qsb" "${CMAKE_SOURCE_DIR}/assets/shaders/${shader}.frag"
+            DEPENDS "${CMAKE_SOURCE_DIR}/assets/shaders/${shader}.frag"
+            VERBATIM
+        )
+        list(APPEND SHELL_QSB "${CMAKE_BINARY_DIR}/assets/shaders/${shader}.frag.qsb")
+    endforeach()
     # The desktop widgets' shaders (widgets/shaders), built here with a GLSL ES variant: the .qsb files they
     # ships have none, and Qt then warns that the pipeline's stages share no GLSL ES version
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/widgets/shaders")
@@ -92,13 +95,13 @@ if("shell" IN_LIST ENABLE_MODULES)
         )
         list(APPEND WIDGETS_QSB "${CMAKE_BINARY_DIR}/widgets/shaders/${shader}.frag.qsb")
     endforeach()
-    add_custom_target(shell_shaders ALL DEPENDS "${CMAKE_BINARY_DIR}/assets/shaders/liquid.frag.qsb" ${WIDGETS_QSB})
+    add_custom_target(shell_shaders ALL DEPENDS ${SHELL_QSB} ${WIDGETS_QSB})
 
     foreach(dir assets components daemons modules widgets services utils)
         install(DIRECTORY ${dir} DESTINATION "${INSTALL_QSCONFDIR}")
     endforeach()
 
-    install(FILES "${CMAKE_BINARY_DIR}/assets/shaders/liquid.frag.qsb" DESTINATION "${INSTALL_QSCONFDIR}/assets/shaders")
+    install(FILES ${SHELL_QSB} DESTINATION "${INSTALL_QSCONFDIR}/assets/shaders")
     install(FILES ${WIDGETS_QSB} DESTINATION "${INSTALL_QSCONFDIR}/widgets/shaders")
 
     install(PROGRAMS assets/wrap_term_launch.sh assets/live-wallpaper assets/caelestia-session assets/caelestia-paint assets/paint-paste.sh DESTINATION "${INSTALL_QSCONFDIR}/assets")

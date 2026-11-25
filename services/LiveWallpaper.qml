@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.UPower
+import Caelestia
 import Caelestia.Config
 import Caelestia.I18n
 import qs.utils
@@ -31,7 +32,7 @@ Singleton {
     property bool hasScript
     property bool hasEngine
     property bool running
-    readonly property bool automaticPlaybackActive: !waitingAfterCrash && (setting("startAtLogin", true) || seenRunning)
+    readonly property bool automaticPlaybackActive: !waitingAfterCrash && !crashProtectionActive && (setting("startAtLogin", true) || seenRunning)
     readonly property string defaultAudioOutput: Audio.sink?.ready ? Audio.sink.name : ""
     property string previousAudioOutput
     // Paused (saved: the start script pauses again after restarts and logins)
@@ -80,18 +81,83 @@ Singleton {
     function runScript(arg: string): void {
         Quickshell.execDetached(["sh", "-c", `s=$(command -v live-wallpaper || echo '${root.scriptBin}'); exec "$s" "$1"`, "sh", arg]);
     }
-    readonly property var screens: config.screens ?? {}
+    readonly property var screens: resolveScreens(config.screens ?? {})
+    readonly property var activeScreens: ruleSelection ? resolveScreens(ruleSelection.screens) : screens
+    readonly property var profiles: setting("profiles", [])
+    property var ruleSelection: null
+    property bool screensaverActive
+    readonly property var screensaverScreens: {
+        const target = setting("screensaverWallpaper", "");
+        if (target.startsWith("profile:")) {
+            const profile = profiles.find(p => p.name === target.slice(8));
+            return profile ? resolveScreens(profile.screens) : screens;
+        }
+        return target ? { "*": target } : activeScreens;
+    }
+
+    function resolveScreens(assigned: var): var {
+        const entries = Object.entries(assigned);
+        entries.sort(([left], [right]) => Number(resolveDisplay(left) === left) - Number(resolveDisplay(right) === right));
+        const resolved = {};
+        for (const [name, wallpaper] of entries)
+            resolved[resolveDisplay(name)] = wallpaper;
+        return resolved;
+    }
+
+    function saveProfile(name: string): void {
+        name = name.trim();
+        if (!name || !Object.keys(screens).length)
+            return;
+        setQuiet("profiles", profiles.filter(p => p.name !== name).concat([{
+                name, screens: config.screens, span: setting("span", false)
+            }]));
+    }
+    readonly property var mutedOutputs: {
+        const saved = setting("mutedOutputs", []);
+        return Array.isArray(saved) ? [...new Set(saved.map(name => resolveDisplay(name)))] : [];
+    }
+
+    function monitorIdentity(monitor: var): var {
+        return {
+            make: monitor?.make ?? "",
+            model: monitor?.model ?? "",
+            serial: monitor?.serial ?? "",
+            description: monitor?.description ?? "",
+            x: monitor?.x ?? null,
+            y: monitor?.y ?? null
+        };
+    }
+
+    function resolveDisplay(name: string): string {
+        const mode = setting("monitorIdentification", "connector");
+        const saved = setting("monitorIdentities", {})[name];
+        if (mode === "connector" || !saved || name === "*")
+            return name;
+        const same = mode === "serial" ? m => !!saved.serial && m.serial === saved.serial
+            && m.make === saved.make && m.model === saved.model
+            : mode === "layout" ? m => saved.x != null && saved.y != null && m.x === saved.x && m.y === saved.y
+            : m => !!saved.description && m.description === saved.description;
+        const matches = Hypr.monitors.values.filter(m => same(monitorIdentity(m.lastIpcObject)));
+        return matches.length === 1 ? matches[0].name : name;
+    }
     // The wallpaper on all screens (or the first screen's)
     readonly property string current: screens["*"] ?? Object.values(screens)[0] ?? ""
     // Full-size frame of the wallpaper shown, saved by the renderer at start
     // (for the lock screen): a sharp preview, where the Workshop one is small
-    readonly property string currentFrame: currentInfo ? `${Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state"}/live-wallpaper/frame-${currentInfo.path.split("/").pop()}.png` : ""
+    readonly property string currentFrame: currentInfo ? `${wallpaperStatePath}/frame-${currentInfo.path.split("/").pop()}.png` : ""
+    readonly property string displayedFrame: `${wallpaperStatePath}/current-frame.png`
     // The wallpaper shown (a playlist's current one too)
     readonly property var currentInfo: {
-        const p = current.startsWith("playlist:") ? playlistPath(current.slice(9)) : current;
+        const p = wallpaperPath(current);
         return wallpapers.find(w => w.path === p) ?? null;
     }
+    readonly property bool hasWebOutput: Object.values(activeScreens).some(assignment =>
+        wallpapers.some(w => w.path === wallpaperPath(assignment) && w.type === "web"))
     readonly property var playlists: config.playlists ?? []
+
+    function wallpaperPath(assignment: string): string {
+        return assignment.startsWith("playlist:") ? playlistPath(assignment.slice(9)) : assignment;
+    }
 
     function setting(key: string, fallback: var): var {
         return config[key] ?? fallback;
@@ -103,6 +169,11 @@ Singleton {
     }
 
     function patch(changes: var): void {
+        if (changes.screens || changes.mutedOutputs || changes.monitorIdentification) {
+            changes.monitorIdentities = Object.assign({}, config.monitorIdentities ?? {});
+            for (const monitor of Hypr.monitors.values)
+                changes.monitorIdentities[monitor.name] = monitorIdentity(monitor.lastIpcObject);
+        }
         save(Object.assign({}, config, changes));
     }
 
@@ -111,7 +182,7 @@ Singleton {
         patch({
             [key]: value
         });
-        if (key === "volume" && running && !setting("silent", true)) {
+        if (key === "volume" && running && !setting("silent", true) && mutedOutputs.length === 0) {
             if (setRendererVolume(Math.max(0, Math.min(1, Number(value) / 100))))
                 return;
         }
@@ -128,6 +199,19 @@ Singleton {
 
     function setGraphicsPreset(settings: var): void {
         patch(settings);
+        if (current)
+            restartTimer.restart();
+    }
+
+    function resetSettings(): void {
+        const preserved = ["screens", "overrides", "history", "compat", "playlists", "playlistNow", "playlistBoot",
+            "profiles", "assetsDir", "extraFolders", "favourites", "span", "monitorIdentities"];
+        const next = {};
+        for (const key of preserved)
+            if (config[key] !== undefined)
+                next[key] = config[key];
+        save(next);
+        GlobalConfig.background.desktopIconOpacity = 1;
         if (current)
             restartTimer.restart();
     }
@@ -170,13 +254,156 @@ Singleton {
         || playbackRules.battery !== "run" || playbackRules.displayAsleep !== "run" || appRules.length > 0
     property var audioRuleStreams: []
     property bool wallpaperDisplaysAsleep
+    property var sleepingOutputs: []
+    property string publishedOutputPlayback: ""
+    readonly property string wallpaperStatePath: `${Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state"}/live-wallpaper`
+    readonly property string outputPlaybackPath: `${wallpaperStatePath}/output-playback.json`
+    readonly property var transitionTypes: [
+        ["hold", Tr.tr("No animation (hold until ready)")],
+        ["none", Tr.tr("None")],
+        ["random", Tr.tr("Random")],
+        ["0", Tr.tr("Fade")],
+        ["18", Tr.tr("Fade to black")],
+        ["1", Tr.tr("Mosaic")],
+        ["2", Tr.tr("Diffuse")],
+        ["3", Tr.tr("Horizontal slide")],
+        ["4", Tr.tr("Vertical slide")],
+        ["5", Tr.tr("Horizontal fade")],
+        ["6", Tr.tr("Vertical fade")],
+        ["7", Tr.tr("Clouds")],
+        ["8", Tr.tr("Burnt paper")],
+        ["9", Tr.tr("Circular")],
+        ["10", Tr.tr("Zipper")],
+        ["11", Tr.tr("Door")],
+        ["12", Tr.tr("Lines")],
+        ["22", Tr.tr("Radial wipe")],
+        ["13", Tr.tr("Zoom")],
+        ["19", Tr.tr("Twister")],
+        ["14", Tr.tr("Drip")],
+        ["15", Tr.tr("Pixelate")],
+        ["16", Tr.tr("Bricks")],
+        ["17", Tr.tr("Paint")],
+        ["20", Tr.tr("Black hole")],
+        ["21", Tr.tr("CRT")],
+        ["23", Tr.tr("Glass shatter")],
+        ["24", Tr.tr("Bullets")],
+        ["25", Tr.tr("Ice")],
+        ["26", Tr.tr("Boilover")]
+    ]
+    property var presentedScreens: null
+    property var switchingWallpaper: null
+    property real transitionProgress
+
+    function selectedWallpapers(): var {
+        const selected = {};
+        for (const [name, assignment] of Object.entries(activeScreens))
+            selected[name] = wallpaperPath(assignment);
+        return selected;
+    }
+
+    function launchRenderer(): void {
+        const selected = selectedWallpapers();
+        const changed = presentedScreens && JSON.stringify(presentedScreens) !== JSON.stringify(selected);
+        const mode = setting("browseTransition", "none");
+        const photo = `${wallpaperStatePath}/current-frame.png`;
+        transitionAnimation.stop();
+        switchingWallpaper = null;
+        if (running && changed && mode !== "none" && Object.keys(selected).length && CUtils.fileExists(photo)) {
+            const old = presentedScreens;
+            const common = Hypr.monitors.values.filter(m => old["*"] || old[m.name]).sort((a, b) => a.name < b.name ? -1 : 1);
+            const geometry = common.map(m => m.lastIpcObject).filter(m => m && m.width && m.height);
+            const sizes = geometry.map(m => m.transform % 2 === 1 ? [m.height, m.width] : [m.width, m.height]);
+            const width = sizes.reduce((sum, size) => sum + size[0], 0);
+            const height = Math.max(...sizes.map(size => size[1]));
+            const outputs = {};
+            let x = 0;
+            for (let i = 0; i < geometry.length; ++i) {
+                const [w, h] = sizes[i];
+                const name = geometry[i].name;
+                if (selected["*"] || selected[name])
+                    outputs[name] = Qt.rect(x / width, 0, w / width, h / height);
+                x += w;
+            }
+            const effects = transitionTypes.slice(3).map(t => t[0]);
+            const allowed = setting("transitionPool", effects).filter(e => effects.includes(e));
+            const pool = allowed.length ? allowed : effects;
+            const effect = mode === "random" ? pool[Math.floor(Math.random() * pool.length)] : mode;
+            if (Object.keys(outputs).length) {
+                transitionProgress = 0;
+                switchingWallpaper = {
+                    id: String(Date.now()), photo, outputs,
+                    effect: effect === "hold" ? -1 : Number(effect),
+                    duration: effect === "hold" ? 0 : setting("transitionDuration", 350)
+                };
+                transitionLaunch.restart();
+                transitionTimeout.restart();
+            }
+        }
+        if (!switchingWallpaper)
+            startProc.running = true;
+        presentedScreens = selected;
+    }
+
+    FileView {
+        path: root.switchingWallpaper ? `${root.wallpaperStatePath}/transition-ready-${root.switchingWallpaper.id}` : ""
+        watchChanges: !!root.switchingWallpaper
+        printErrors: false
+        onFileChanged: reload()
+        onTextChanged: if (root.switchingWallpaper && text().trim() === "ready")
+            transitionAnimation.start()
+    }
+
+    Timer {
+        id: transitionLaunch
+
+        interval: 75
+        onTriggered: startProc.running = true
+    }
+
+    Timer {
+        id: transitionTimeout
+
+        interval: 12000
+        onTriggered: if (root.switchingWallpaper && !transitionAnimation.running)
+            transitionAnimation.start()
+    }
+
+    NumberAnimation {
+        id: transitionAnimation
+
+        target: root
+        property: "transitionProgress"
+        from: 0
+        to: 1
+        duration: root.switchingWallpaper?.duration ?? 0
+        onFinished: root.switchingWallpaper = null
+    }
+    readonly property bool crashProtectionActive: {
+        if (!setting("protectAfterCrash", false))
+            return false;
+        try {
+            const saved = JSON.parse(crashHold.text());
+            const selection = config.screens ?? {};
+            const keys = Object.keys(selection);
+            return keys.length > 0 && keys.length === Object.keys(saved).length
+                && keys.every(name => selection[name] === saved[name]);
+        } catch (e) {
+            return false;
+        }
+    }
     // What the rules do right now, and why (shown on the settings page)
     property string ruleAction: "run"
     property string ruleReason
 
+    function hasMonitorRules(rules: var, list: var): bool {
+        return [...Object.values(rules), ...list.map(rule => rule.action)]
+            .some(action => action === "pauseMonitor" || action === "stopMonitor");
+    }
+
     function setPlaybackRule(key: string, action: string): void {
         const rules = Object.assign({}, config.playbackRules ?? {}, { [key]: action });
-        if ((key === "fullscreen" && !shellFullscreenRule) || (key === "audio" && !shellAudioRule))
+        if ((key === "fullscreen" && !shellFullscreenRule) || (key === "audio" && !shellAudioRule)
+            || hasMonitorRules(rules, appRules) !== hasMonitorRules(playbackRules, appRules))
             set("playbackRules", rules);
         else
             setQuiet("playbackRules", rules);
@@ -185,10 +412,26 @@ Singleton {
     function setAppRules(list: var): void {
         const nextFullscreen = config.playbackRules?.fullscreen !== undefined || list.length > 0;
         const nextAudio = config.playbackRules?.audio !== undefined || list.some(r => r.when === "audio");
-        if (nextFullscreen !== shellFullscreenRule || nextAudio !== shellAudioRule)
+        if (nextFullscreen !== shellFullscreenRule || nextAudio !== shellAudioRule
+            || hasMonitorRules(playbackRules, list) !== hasMonitorRules(playbackRules, appRules))
             set("appRules", list);
         else
             setQuiet("appRules", list);
+    }
+
+    FileView {
+        id: outputPlayback
+        path: root.outputPlaybackPath
+        printErrors: false
+    }
+
+    FileView {
+        id: crashHold
+        path: `${root.wallpaperStatePath}/crash-hold.json`
+        blockLoading: true
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
     }
 
     // The frame cap applies to the whole renderer, so every wallpaper output must be covered.
@@ -196,7 +439,7 @@ Singleton {
     property bool coverSent
 
     function screenCovered(wins: var): bool {
-        const monitors = Hypr.monitors.values.filter(m => root.screens[m.name] || root.screens["*"]);
+        const monitors = Hypr.monitors.values.filter(m => activeScreens[m.name] || activeScreens["*"]);
         return monitors.length > 0 && monitors.every(m => {
             const workspace = m.activeWorkspace?.id;
             return workspace !== undefined && wins.some(t => {
@@ -229,20 +472,39 @@ Singleton {
         };
         const visibleWs = Hypr.monitors.values.map(m => m.activeWorkspace?.id);
         const wins = Hypr.toplevels.values.filter(t => t.lastIpcObject && !t.lastIpcObject.hidden && visibleWs.includes(t.workspace?.id));
-        const mon = Hypr.focusedMonitor;
+        const monitorNames = new Map(Hypr.monitors.values.map(m => [m.id, m.name]));
+        const outputs = {};
+        let outputReason = "";
+        const considerOutputs = (action, reason, names) => {
+            const local = action === "stopMonitor" ? "stop" : "pause";
+            for (const name of names) {
+                if (!name || !(activeScreens[name] || activeScreens["*"]))
+                    continue;
+                if ((rank[outputs[name]] ?? 0) < rank[local]) {
+                    outputs[name] = local;
+                    outputReason = reason;
+                }
+            }
+        };
         const isMax = t => {
             const o = t.lastIpcObject;
             if (o.fullscreen === 1)
                 return true;
             // Desktop mode's maximize: a floating window over the work area
             const sz = o.size ?? [0, 0];
+            const mon = Hypr.monitors.values.find(m => m.id === o.monitor);
             return !!mon && sz[0] >= mon.width / mon.scale * 0.95 && sz[1] >= mon.height / mon.scale * 0.85;
         };
         const playing = audioRuleStreams;
         const active = Hypr.activeToplevel;
         const focused = !!active && wins.includes(active);
         let best = "run", why = "";
-        const consider = (action, reason) => {
+        let selection = null, selectionReason = "";
+        const consider = (action, reason, names = []) => {
+            if (action === "pauseMonitor" || action === "stopMonitor") {
+                considerOutputs(action, reason, names);
+                return;
+            }
             if ((rank[action] ?? 0) > rank[best]) {
                 best = action;
                 why = reason;
@@ -263,28 +525,58 @@ Singleton {
                     overriddenWindows.add(window);
                 for (const stream of matchingStreams)
                     overriddenStreams.add(stream);
-                consider(r.action, Tr.tr("rule for %1").arg(r.app));
+                const reason = Tr.tr("rule for %1").arg(r.app);
+                if ((r.action ?? "").startsWith("load")) {
+                    if (!selection) {
+                        if (r.action === "loadProfile")
+                            selection = profiles.find(p => p.name === r.target) ?? null;
+                        else if (r.action === "loadPlaylist" && playlist(r.target)?.items.length)
+                            selection = { screens: { "*": `playlist:${r.target}` }, span: true };
+                        else if (r.action === "loadWallpaper" && r.target)
+                            selection = { screens: { "*": r.target }, span: true };
+                        if (selection)
+                            selectionReason = reason;
+                    }
+                } else {
+                    consider(r.action, reason,
+                        (r.when === "audio" ? shown : matchingWindows).map(window => monitorNames.get(window.lastIpcObject?.monitor)));
+                }
             }
         }
         if (focused && !overriddenWindows.has(active))
-            consider(playbackRules.focused, Tr.tr("an app is focused"));
-        if (wins.some(t => !overriddenWindows.has(t) && isMax(t)))
-            consider(playbackRules.maximized, Tr.tr("an app is maximized"));
-        if (shellFullscreenRule && wins.some(t => {
+            consider(playbackRules.focused, Tr.tr("an app is focused"), [monitorNames.get(active.lastIpcObject.monitor)]);
+        const maximized = wins.filter(t => !overriddenWindows.has(t) && isMax(t));
+        if (maximized.length)
+            consider(playbackRules.maximized, Tr.tr("an app is maximized"), maximized.map(t => monitorNames.get(t.lastIpcObject.monitor)));
+        const fullscreen = wins.filter(t => {
             const appId = String(t.lastIpcObject.class ?? "").toLowerCase();
             return t.lastIpcObject.fullscreen === 2 && !overriddenWindows.has(t)
                 && (!setting("pauseOnlyActive", false) || t === active)
                 && !setting("pauseIgnore", []).some(id => String(id).toLowerCase() === appId);
-        }))
-            consider(playbackRules.fullscreen, Tr.tr("an app is fullscreen"));
+        });
+        if (shellFullscreenRule && fullscreen.length)
+            consider(playbackRules.fullscreen, Tr.tr("an app is fullscreen"), fullscreen.map(t => monitorNames.get(t.lastIpcObject.monitor)));
         const playingApp = playing.find(p => !overriddenStreams.has(p));
         if (shellAudioRule && playingApp)
             consider(playbackRules.audio, Tr.tr("%1 is playing audio").arg(playingApp.name));
         if (UPower.onBattery)
             consider(playbackRules.battery, Tr.tr("running on battery"));
-        if (wallpaperDisplaysAsleep)
-            consider(playbackRules.displayAsleep, Tr.tr("wallpaper displays are asleep"));
-        ruleReason = why;
+        if (wallpaperDisplaysAsleep || (sleepingOutputs.length && playbackRules.displayAsleep.endsWith("Monitor")))
+            consider(playbackRules.displayAsleep, Tr.tr("wallpaper displays are asleep"), sleepingOutputs);
+        const outputState = JSON.stringify(outputs);
+        if ((hasMonitorRules(playbackRules, appRules) || publishedOutputPlayback) && outputState !== publishedOutputPlayback) {
+            publishedOutputPlayback = outputState;
+            outputPlayback.setText(outputState);
+        }
+        if (JSON.stringify(selection) !== JSON.stringify(ruleSelection)) {
+            const previousLists = playingPlaylists();
+            ruleSelection = selection;
+            for (const name of playingPlaylists())
+                if (!previousLists.includes(name))
+                    startPlaylist(name);
+            restartTimer.restart();
+        }
+        ruleReason = why || outputReason || selectionReason;
         // Covered: only while it draws (a pause or stop rule has it not drawing at all; a covered
         // sent then would be undone the moment it's shown again)
         if (running && !paused && (best === "run" || best === "mute"))
@@ -311,19 +603,32 @@ Singleton {
     // The renderer's sound (its PipeWire stream), muted or scaled live
     function muteRenderer(mute: bool): void {
         for (const st of Audio.streams) {
-            const props = st.properties ?? {};
-            const who = `${props["application.process.binary"] ?? ""} ${props["application.name"] ?? ""}`.toLowerCase();
-            if (who.includes("wallpaperengine") && st.audio)
+            if (isRendererStream(st) && st.audio)
                 st.audio.muted = mute;
         }
+    }
+
+    function isRendererStream(stream: var): bool {
+        const props = stream.properties ?? {};
+        const who = `${props["application.process.binary"] ?? ""} ${props["application.name"] ?? ""}`.toLowerCase();
+        const pid = rendererPid.text().trim();
+        return who.includes("wallpaperengine") && (pid && props["application.process.id"]
+            ? pid === String(props["application.process.id"]) : !screensaverActive);
+    }
+
+    FileView {
+        id: rendererPid
+
+        path: `${root.wallpaperStatePath}/pid`
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
     }
 
     function setRendererVolume(vol: real): bool {
         let updated = false;
         for (const st of Audio.streams) {
-            const props = st.properties ?? {};
-            const who = `${props["application.process.binary"] ?? ""} ${props["application.name"] ?? ""}`.toLowerCase();
-            if (who.includes("wallpaperengine") && st.audio) {
+            if (isRendererStream(st) && st.audio) {
                 st.audio.volume = vol;
                 updated = true;
             }
@@ -517,8 +822,12 @@ Singleton {
         return pl && pl.items.includes(now) ? now : (pl?.items[0] ?? "");
     }
 
+    function screenPlaylists(assignments: var): var {
+        return Object.values(assignments).filter(v => v.startsWith("playlist:")).map(v => v.slice(9));
+    }
+
     function playingPlaylists(): var {
-        return [...new Set(Object.values(screens).filter(v => v.startsWith("playlist:")).map(v => v.slice(9)))];
+        return [...new Set([...screenPlaylists(activeScreens), ...(screensaverActive ? screenPlaylists(screensaverScreens) : [])])];
     }
 
     // Show item `path` of playlist `name` (restarts the renderer if it's shown)
@@ -531,7 +840,7 @@ Singleton {
                 }
             })
         });
-        if (playingPlaylists().includes(name))
+        if (screenPlaylists(activeScreens).includes(name))
             restartTimer.restart();
     }
 
@@ -607,7 +916,8 @@ Singleton {
 
     // "When logging in": the next one once per boot
     function loginPlaylists(): void {
-        if (setting("startAtLogin", true) && playingPlaylists().some(name => (playlist(name)?.mode ?? "timer") === "login"))
+        if (!crashProtectionActive && setting("startAtLogin", true)
+            && playingPlaylists().some(name => (playlist(name)?.mode ?? "timer") === "login"))
             bootProc.running = true;
     }
 
@@ -879,10 +1189,10 @@ Singleton {
         onTriggered: {
             if (root.ruleAction === "stop")
                 return;
-            if (startProc.running)
+            if (startProc.running || transitionLaunch.running)
                 startProc.again = true;
             else
-                startProc.running = true;
+                root.launchRenderer();
         }
     }
 
@@ -896,11 +1206,15 @@ Singleton {
 
         property bool again
 
+        environment: ({
+            LIVE_WALLPAPER_RULE_SELECTION: root.ruleSelection ? JSON.stringify(root.ruleSelection) : "",
+            LIVE_WALLPAPER_TRANSITION_ID: root.switchingWallpaper?.id ?? ""
+        })
         command: ["sh", "-c", `s=$(command -v live-wallpaper || echo '${root.scriptBin}'); exec "$s" start`]
         onExited: code => {
             if (again && root.ruleAction !== "stop") {
                 again = false;
-                running = true;
+                root.launchRenderer();
                 return;
             }
             again = false;
@@ -909,6 +1223,8 @@ Singleton {
                 if (root.ruleAction !== "run")
                     root.evaluateRules(true);
             }
+            if (code !== 0 && root.switchingWallpaper)
+                transitionAnimation.start();
             if (root.checkPending) {
                 root.checkPending = false;
                 checkTimer.restart();
@@ -933,7 +1249,7 @@ Singleton {
     }
 
     Timer {
-        running: root.automaticPlaybackActive && root.playingPlaylists().length > 0
+        running: (root.automaticPlaybackActive || root.screensaverActive) && root.playingPlaylists().length > 0
         repeat: true
         triggeredOnStart: true
         interval: 30000
@@ -959,13 +1275,16 @@ Singleton {
                 root.audioRuleStreams = [];
             if (root.playbackRules.displayAsleep !== "run")
                 ruleDisplaysProc.running = true;
-            else
+            else {
                 root.wallpaperDisplaysAsleep = false;
+                root.sleepingOutputs = [];
+            }
             root.evaluateRules(false);
         }
         onRunningChanged: if (!running) {
             root.ruleAction = "run";
             root.ruleReason = "";
+            root.ruleSelection = null;
         }
     }
 
@@ -991,9 +1310,13 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
-                    const displays = JSON.parse(text).filter(m => root.screens["*"] || root.screens[m.name]);
-                    root.wallpaperDisplaysAsleep = displays.length > 0 && displays.every(m => m.dpmsStatus === false);
-                } catch (e) { root.wallpaperDisplaysAsleep = false; }
+                    const displays = JSON.parse(text).filter(m => root.activeScreens["*"] || root.activeScreens[m.name]);
+                    root.sleepingOutputs = displays.filter(m => m.dpmsStatus === false).map(m => m.name);
+                    root.wallpaperDisplaysAsleep = displays.length > 0 && root.sleepingOutputs.length === displays.length;
+                } catch (e) {
+                    root.wallpaperDisplaysAsleep = false;
+                    root.sleepingOutputs = [];
+                }
             }
         }
     }
@@ -1006,7 +1329,8 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 const boot = text.trim();
-                if (!root.setting("startAtLogin", true) || !boot || boot === root.setting("playlistBoot", ""))
+                if (root.crashProtectionActive || !root.setting("startAtLogin", true) || !boot
+                    || boot === root.setting("playlistBoot", ""))
                     return;
                 root.setQuiet("playlistBoot", boot);
                 for (const name of root.playingPlaylists())
@@ -1069,8 +1393,11 @@ Singleton {
         // (a new renderer starts drawing in full: covered is sent again if it still is)
         coverSent = false;
         if (running) {
+            publishedOutputPlayback = "";
             waitingAfterCrash = false;
             seenRunning = true;
+            if (!presentedScreens)
+                presentedScreens = selectedWallpapers();
             Qt.callLater(() => evaluateRules(true));
         }
     }
@@ -1086,18 +1413,28 @@ Singleton {
     Process {
         id: watchProc
 
-        command: ["sh", "-c", `p=$(cat "\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper/pid" 2>/dev/null); [ -n "$p" ] && [ "$(cat /proc/$p/comm 2>/dev/null)" = linux-wallpaper ] && { [ -z "$HYPRLAND_INSTANCE_SIGNATURE" ] || tr "\\0" "\\n" < /proc/$p/environ 2>/dev/null | grep -qx "HYPRLAND_INSTANCE_SIGNATURE=$HYPRLAND_INSTANCE_SIGNATURE"; }`]
+        command: ["sh", "-c", `p=$(cat "\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper/pid" 2>/dev/null); [ -n "$p" ] || exit 2; [ "$(cat /proc/$p/comm 2>/dev/null)" = linux-wallpaper ] && { [ -z "$HYPRLAND_INSTANCE_SIGNATURE" ] || tr "\\0" "\\n" < /proc/$p/environ 2>/dev/null | grep -qx "HYPRLAND_INSTANCE_SIGNATURE=$HYPRLAND_INSTANCE_SIGNATURE"; }`]
         onExited: code => {
             if (code === 0 || startProc.running || restartTimer.running || Object.keys(root.screens).length === 0 || root.ruleAction === "stop") {
                 root.missing = 0;
+                return;
+            }
+            if (code === 2) {
+                root.missing = 0;
+                root.running = false;
+                root.seenRunning = false;
                 return;
             }
             // Twice in a row (20 s): not a restart in progress
             if (++root.missing < 2)
                 return;
             root.missing = 0;
-            const restart = root.setting("restartAfterCrash", true);
-            const action = restart ? "restart requested by the shell" : "automatic restart disabled";
+            const protect = root.setting("protectAfterCrash", false);
+            if (protect)
+                crashHold.setText(JSON.stringify(root.config.screens ?? {}));
+            const restart = !protect && root.setting("restartAfterCrash", true);
+            const action = protect ? "crash protection held the wallpaper selection"
+                : restart ? "restart requested by the shell" : "automatic restart disabled";
             Quickshell.execDetached(["sh", "-c", `d="\${XDG_STATE_HOME:-$HOME/.local/state}/live-wallpaper"; c=$(coredumpctl -q --no-pager --since=-2min list linux-wallpaperengine 2>/dev/null | tail -1); printf '%s gone without a stop%s: %s\\n' "$(date '+%F %T')" "\${c:+ (crashed: $c)}" "$1" >> "$d/events.log"`, "sh", action]);
             root.running = false;
             if (restart)
