@@ -859,6 +859,13 @@ PageBase {
             onToggled: LiveWallpaper.setQuiet("restartAfterCrash", checked)
         }
 
+        ToggleRow {
+            text: Tr.tr("Restart after system sleep")
+            subtext: Tr.tr("Reload the running wallpaper when the system wakes up")
+            checked: LiveWallpaper.setting("restartAfterSleep", false)
+            onToggled: LiveWallpaper.setQuiet("restartAfterSleep", checked)
+        }
+
         // The renderer: local Nyks45 fork build (linux-wallpaperengine-nyks-git)
         SectionHeader {
             text: Tr.tr("Renderer")

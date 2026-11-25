@@ -855,6 +855,22 @@ Singleton {
             restartTimer.restart();
     }
 
+    Process {
+        id: sleepMonitor
+
+        running: root.running && !!root.current && root.setting("restartAfterSleep", false)
+        command: ["gdbus", "monitor", "--system", "--dest", "org.freedesktop.login1",
+            "--object-path", "/org/freedesktop/login1"]
+        stdout: SplitParser {
+            onRead: line => {
+                // logind sends true before sleeping and false after resuming.
+                if (sleepMonitor.running && root.ruleAction !== "stop"
+                    && line.trim() === "/org/freedesktop/login1: org.freedesktop.login1.Manager.PrepareForSleep (false,)")
+                    restartTimer.restart();
+            }
+        }
+    }
+
     // Changes come in bursts (sliders): restart the renderer once after them
     Timer {
         id: restartTimer
