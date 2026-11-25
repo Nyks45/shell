@@ -217,6 +217,9 @@ if c.get("videoLoading") == "memory":
 msaa_samples = c.get("msaaSamples")
 if type(msaa_samples) is int and msaa_samples in (2, 4, 8):
     args += ["--msaa", str(msaa_samples)]
+log_level = c.get("logLevel")
+if log_level in ("none", "error", "verbose"):
+    args += ["--log-level", log_level]
 quality = c.get("postProcessing") or "ultra"
 if quality not in ("off", "normal", "ultra"):
     quality = "ultra"
@@ -326,16 +329,20 @@ start() {
             while read -r mon; do args+=(--screen-root "$mon" --bg "$dir"); done < <(hyprctl monitors -j | python3 -c 'import json,sys; [print(m["name"]) for m in json.load(sys.stdin)]')
         fi
     fi
-    local help="" arg
-    for arg in "${args[@]}"; do
+    local help="" arg arg_index log_path="$STATE/log"
+    for arg_index in "${!args[@]}"; do
+        arg="${args[arg_index]}"
         case "$arg" in
-            --shadows|--volumetrics|--hdr-output|--no-reflections|--texture-resolution|--below-normal-priority|--no-media-integration|--ignore-media-player|--audio-recording-source|--audio-input-volume|--audio-input-threshold|--video-loading|--msaa)
+            --shadows|--volumetrics|--hdr-output|--no-reflections|--texture-resolution|--below-normal-priority|--no-media-integration|--ignore-media-player|--audio-recording-source|--audio-input-volume|--audio-input-threshold|--video-loading|--msaa|--log-level)
                 if [[ -z "$help" ]]; then
                     help="$(linux-wallpaperengine --help 2>/dev/null)" || die "Cannot read the renderer's supported settings"
                 fi
                 [[ "$help" == *"$arg"* ]] || die "Update linux-wallpaperengine to use $arg"
                 ;;
         esac
+        if [[ "$arg" == --log-level && "${args[arg_index + 1]:-}" == none ]]; then
+            log_path=/dev/null
+        fi
     done
     stop
 
@@ -362,7 +369,8 @@ start() {
     # The last runs' logs are kept (log.1 = the one before)
     for i in 2 1; do [[ -f "$STATE/log.$i" ]] && mv -f "$STATE/log.$i" "$STATE/log.$((i + 1))"; done
     [[ -f "$STATE/log" ]] && mv -f "$STATE/log" "$STATE/log.1"
-    setsid linux-wallpaperengine "${args[@]}" > "$STATE/log" 2>&1 < /dev/null &
+    [[ "$log_path" != /dev/null ]] || : > "$STATE/log"
+    setsid linux-wallpaperengine "${args[@]}" > "$log_path" 2>&1 < /dev/null &
     echo $! > "$PIDFILE"
     disown
     event "start: renderer $(cat "$PIDFILE") ($(basename "${dir:-?}"))"

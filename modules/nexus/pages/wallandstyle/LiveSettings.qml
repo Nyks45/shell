@@ -871,6 +871,18 @@ PageBase {
             value: LiveWallpaper.engineVersion || Tr.tr("Not installed")
         }
 
+        SelectRow {
+            label: Tr.tr("Log level")
+            menuItems: [
+                MenuItem { text: Tr.tr("Default"); value: "default" },
+                MenuItem { text: Tr.tr("None"); value: "none" },
+                MenuItem { text: Tr.tr("Errors only"); value: "error" },
+                MenuItem { text: Tr.tr("Verbose"); value: "verbose" }
+            ]
+            active: menuItems.find(i => i.value === LiveWallpaper.setting("logLevel", "default")) ?? null
+            onSelected: item => LiveWallpaper.set("logLevel", item.value)
+        }
+
         ConfirmDialog {
             id: confirmDialog
 
