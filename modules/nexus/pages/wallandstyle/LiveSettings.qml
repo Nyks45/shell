@@ -231,6 +231,17 @@ PageBase {
             onSelected: item => LiveWallpaper.set("hwdec", item.value)
         }
 
+        SelectRow {
+            label: Tr.tr("Video loading")
+            subtext: Tr.tr("In-memory keeps the active video file in RAM")
+            menuItems: [
+                MenuItem { text: Tr.tr("From disk"); value: "disk" },
+                MenuItem { text: Tr.tr("In-memory"); value: "memory" }
+            ]
+            active: menuItems.find(i => i.value === LiveWallpaper.setting("videoLoading", "disk")) ?? null
+            onSelected: item => LiveWallpaper.set("videoLoading", item.value)
+        }
+
         ToggleRow {
             text: Tr.tr("Particles")
             subtext: Tr.tr("Off saves GPU on busy wallpapers")
