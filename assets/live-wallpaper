@@ -84,6 +84,20 @@ own_pid() {
     session_renderer "$pid" && echo "$pid"
 }
 
+renderer_ready() {
+    local pid="$1" i
+    local -a command
+    mapfile -d '' -t command < "/proc/$pid/cmdline" || return 1
+    for i in "${!command[@]}"; do
+        if [[ "${command[i]}" == --screenshot ]]; then
+            [[ -s "${command[i + 1]:-}" ]]
+            return
+        fi
+    done
+    # A renderer started outside the launcher may have no saved-frame request.
+    (( ${#command[@]} > 0 ))
+}
+
 desktop_renderer_pids() {
     local pid
     while read -r pid; do
@@ -559,6 +573,8 @@ case "${1:-}" in
     screensaver-start) start ;;
     screensaver-stop) stop ;;
     pause) signal STOP ;;
+    ready) pid="$(own_pid)" && renderer_ready "$pid" ;;
+    pause-ready) pid="$(own_pid)" && renderer_ready "$pid" && kill -STOP "$pid" ;;
     resume) signal CONT ;;
     cover) signal_coverage USR1 ;;
     uncover) signal_coverage USR2 ;;

@@ -394,6 +394,7 @@ Singleton {
     // What the rules do right now, and why (shown on the settings page)
     property string ruleAction: "run"
     property string ruleReason
+    property bool rulePausePending
 
     function hasMonitorRules(rules: var, list: var): bool {
         return [...Object.values(rules), ...list.map(rule => rule.action)]
@@ -588,16 +589,43 @@ Singleton {
         // Undo the old action, then do the new one
         if (prev === "mute" && best !== "mute")
             muteRenderer(false);
-        if (prev === "pause" && best !== "pause" && !paused)
-            runScript("resume");
+        if (prev === "pause" && best !== "pause") {
+            rulePausePending = false;
+            if (!paused)
+                runScript("resume");
+        }
         if (prev === "stop" && best !== "stop")
             restartTimer.restart();
         if (best === "mute")
             muteRenderer(true);
         if (best === "pause" && !paused)
-            runScript("pause");
+            rulePausePending = true;
         if (best === "stop")
             runScript("stop");
+    }
+
+    // A launch command returns before its renderer can present anything.
+    // Wait for the current launch's saved frame before stopping that process.
+    Timer {
+        running: root.rulePausePending && !root.paused && !startProc.running && !transitionLaunch.running
+        repeat: true
+        triggeredOnStart: true
+        interval: 200
+        onTriggered: if (!ruleReadyProbe.running)
+            ruleReadyProbe.running = true
+    }
+
+    Process {
+        id: ruleReadyProbe
+
+        command: ["sh", "-c", `s=$(command -v live-wallpaper || echo '${root.scriptBin}'); exec "$s" ready`]
+        onExited: code => {
+            if (code !== 0 || !root.rulePausePending || root.ruleAction !== "pause"
+                || root.paused || startProc.running || transitionLaunch.running)
+                return;
+            root.rulePausePending = false;
+            root.runScript("pause-ready");
+        }
     }
 
     // The renderer's sound (its PipeWire stream), muted or scaled live
@@ -1284,6 +1312,7 @@ Singleton {
         onRunningChanged: if (!running) {
             root.ruleAction = "run";
             root.ruleReason = "";
+            root.rulePausePending = false;
             root.ruleSelection = null;
         }
     }
