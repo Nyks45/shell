@@ -16,6 +16,7 @@ Variants {
         readonly property rect crop: transition?.outputs[modelData.name] ?? Qt.rect(0, 0, 1, 1)
 
         screen: modelData
+        visible: LiveWallpaper.transitionPrepared
         color: "transparent"
         anchors {
             left: true
@@ -28,6 +29,14 @@ Variants {
         WlrLayershell.namespace: "live-wallpaper-transition"
         WlrLayershell.exclusionMode: ExclusionMode.Ignore
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+
+        Connections {
+            target: photo.Window.window
+            function onFrameSwapped(): void {
+                if (photo.status === Image.Ready)
+                    LiveWallpaper.transitionDrawn(window.modelData.name);
+            }
+        }
 
         Image {
             id: photo

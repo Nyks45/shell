@@ -293,6 +293,16 @@ Singleton {
     property var presentedScreens: null
     property var switchingWallpaper: null
     property real transitionProgress
+    property bool transitionPrepared
+    property var drawnTransitionOutputs: ({})
+
+    function transitionDrawn(output: string): void {
+        if (!switchingWallpaper || !transitionPrepared || drawnTransitionOutputs[output])
+            return;
+        drawnTransitionOutputs[output] = true;
+        if (Object.keys(switchingWallpaper.outputs).every(name => drawnTransitionOutputs[name]))
+            transitionAcknowledge.setText("drawn\n");
+    }
 
     function selectedWallpapers(): var {
         const selected = {};
@@ -308,6 +318,8 @@ Singleton {
         const photo = `${wallpaperStatePath}/current-frame.png`;
         transitionAnimation.stop();
         switchingWallpaper = null;
+        transitionPrepared = false;
+        drawnTransitionOutputs = {};
         if (running && changed && mode !== "none" && Object.keys(selected).length && CUtils.fileExists(photo)) {
             const old = presentedScreens;
             const common = Hypr.monitors.values.filter(m => old["*"] || old[m.name]).sort((a, b) => a.name < b.name ? -1 : 1);
@@ -335,13 +347,25 @@ Singleton {
                     effect: effect === "hold" ? -1 : Number(effect),
                     duration: effect === "hold" ? 0 : setting("transitionDuration", 350)
                 };
-                transitionLaunch.restart();
-                transitionTimeout.restart();
             }
         }
-        if (!switchingWallpaper)
-            startProc.running = true;
-        presentedScreens = selected;
+        startProc.selection = selected;
+        startProc.running = true;
+    }
+
+    FileView {
+        path: root.switchingWallpaper ? `${root.wallpaperStatePath}/transition-prepare-${root.switchingWallpaper.id}` : ""
+        watchChanges: !!root.switchingWallpaper
+        printErrors: false
+        onFileChanged: reload()
+        onTextChanged: if (root.switchingWallpaper && text().trim() === "prepared")
+            root.transitionPrepared = true
+    }
+
+    FileView {
+        id: transitionAcknowledge
+        path: root.switchingWallpaper ? `${root.wallpaperStatePath}/transition-drawn-${root.switchingWallpaper.id}` : ""
+        printErrors: false
     }
 
     FileView {
@@ -350,21 +374,6 @@ Singleton {
         printErrors: false
         onFileChanged: reload()
         onTextChanged: if (root.switchingWallpaper && text().trim() === "ready")
-            transitionAnimation.start()
-    }
-
-    Timer {
-        id: transitionLaunch
-
-        interval: 75
-        onTriggered: startProc.running = true
-    }
-
-    Timer {
-        id: transitionTimeout
-
-        interval: 12000
-        onTriggered: if (root.switchingWallpaper && !transitionAnimation.running)
             transitionAnimation.start()
     }
 
@@ -607,7 +616,7 @@ Singleton {
     // A launch command returns before its renderer can present anything.
     // Wait for the current launch's saved frame before stopping that process.
     Timer {
-        running: root.rulePausePending && !root.paused && !startProc.running && !transitionLaunch.running
+        running: root.rulePausePending && !root.paused && !startProc.running
         repeat: true
         triggeredOnStart: true
         interval: 200
@@ -621,7 +630,7 @@ Singleton {
         command: ["sh", "-c", `s=$(command -v live-wallpaper || echo '${root.scriptBin}'); exec "$s" ready`]
         onExited: code => {
             if (code !== 0 || !root.rulePausePending || root.ruleAction !== "pause"
-                || root.paused || startProc.running || transitionLaunch.running)
+                || root.paused || startProc.running)
                 return;
             root.rulePausePending = false;
             root.runScript("pause-ready");
@@ -1217,10 +1226,12 @@ Singleton {
         onTriggered: {
             if (root.ruleAction === "stop")
                 return;
-            if (startProc.running || transitionLaunch.running)
+            if (startProc.running) {
                 startProc.again = true;
-            else
+                root.runScript("cancel-handoff");
+            } else {
                 root.launchRenderer();
+            }
         }
     }
 
@@ -1233,6 +1244,7 @@ Singleton {
         id: startProc
 
         property bool again
+        property var selection
 
         environment: ({
             LIVE_WALLPAPER_RULE_SELECTION: root.ruleSelection ? JSON.stringify(root.ruleSelection) : "",
@@ -1240,6 +1252,10 @@ Singleton {
         })
         command: ["sh", "-c", `s=$(command -v live-wallpaper || echo '${root.scriptBin}'); exec "$s" start`]
         onExited: code => {
+            if (code === 0)
+                root.presentedScreens = selection;
+            else
+                root.switchingWallpaper = null;
             if (again && root.ruleAction !== "stop") {
                 again = false;
                 root.launchRenderer();
@@ -1251,11 +1267,12 @@ Singleton {
                 if (root.ruleAction !== "run")
                     root.evaluateRules(true);
             }
-            if (code !== 0 && root.switchingWallpaper)
-                transitionAnimation.start();
             if (root.checkPending) {
                 root.checkPending = false;
-                checkTimer.restart();
+                if (code === 0)
+                    checkTimer.restart();
+                else
+                    Quickshell.execDetached(["notify-send", "-a", "Live wallpaper", Tr.tr("Could not load the selected wallpaper")]);
             }
         }
     }

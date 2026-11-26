@@ -150,6 +150,117 @@ signal_coverage() {
     kill "-$1" "$pid" 2>/dev/null || true
 }
 
+rotate_renderer_log() {
+    local i
+    for i in 2 1; do [[ ! -f "$STATE/log.$i" ]] || mv -f "$STATE/log.$i" "$STATE/log.$((i + 1))"; done
+    [[ ! -f "$STATE/log" ]] || mv -f "$STATE/log" "$STATE/log.1"
+}
+
+prepare_transition() {
+    local id="$1" i
+    [[ "$id" =~ ^[0-9]+$ ]] || return 0
+    printf 'prepared\n' > "$STATE/transition-prepare-$id"
+    for _ in $(seq 15); do
+        [[ ! -f "$STATE/transition-drawn-$id" ]] || return 0
+        sleep .01
+    done
+}
+
+discard_handoff() {
+    local directory="$1" pid="$2"
+    kill -TERM "$pid" 2>/dev/null || true
+    kill -CONT "$pid" 2>/dev/null || true
+    for _ in $(seq 25); do
+        [[ -e "/proc/$pid/stat" ]] || break
+        sleep .02
+    done
+    if [[ -e "/proc/$pid/stat" ]]; then
+        kill -KILL "$pid" 2>/dev/null || true
+    fi
+    wait "$pid" 2>/dev/null || true
+    [[ ! -f "$directory/log" ]] || mv -f "$directory/log" "$STATE/log.handoff-failed"
+    rm -f "$STATE/handoff-pending" "$directory"/{prepared,prepared.tmp,show,shown,shown.tmp,active,cancel}
+    rmdir "$directory" 2>/dev/null || true
+}
+
+cancel_handoff() {
+    local directory
+    directory="$(cat "$STATE/handoff-pending" 2>/dev/null)" || return 0
+    if [[ "$directory" == "$STATE"/handoff.?????? && -d "$directory" && ! -e "$directory/shown" ]]; then
+        : > "$directory/cancel"
+    fi
+}
+
+start_handoff() {
+    local previous="$1" transition="$2" log_path="$3" launch_lock="$4"
+    local candidate_dir candidate marker tries
+    shift 4
+    candidate_dir=$(mktemp -d "$STATE/handoff.XXXXXX") || return 1
+    local candidate_log="$candidate_dir/log"
+    [[ "$log_path" != /dev/null ]] || candidate_log=/dev/null
+    setsid linux-wallpaperengine "$@" --prepare-handoff "$candidate_dir" > "$candidate_log" 2>&1 < /dev/null {launch_lock}>&- &
+    candidate=$!
+    printf '%s\n' "$candidate_dir" > "$STATE/handoff-pending"
+    trap 'discard_handoff "$candidate_dir" "$candidate"; exit 130' INT TERM
+    for marker in prepared shown; do
+        for ((tries=0; tries<750; ++tries)); do
+            [[ "$(cat "$PIDFILE" 2>/dev/null)" == "$previous" && -e "/proc/$candidate/stat" && ! -e "$candidate_dir/cancel" ]] || break
+            [[ ! -f "$candidate_dir/$marker" ]] || break
+            sleep .02
+        done
+        if [[ ! -f "$candidate_dir/$marker" || -e "$candidate_dir/cancel" || "$(cat "$PIDFILE" 2>/dev/null)" != "$previous" ]]; then
+            discard_handoff "$candidate_dir" "$candidate"
+            trap - INT TERM
+            event "handoff failed before $marker: renderer $candidate"
+            return 1
+        fi
+        if [[ "$marker" == prepared ]]; then
+            prepare_transition "$transition"
+            : > "$candidate_dir/show"
+        fi
+    done
+
+    # Publish the new PID before retiring the old layer. Pause and volume
+    # requests can now address the new renderer.
+    printf '%s\n' "$candidate" > "$candidate_dir/pid"
+    mv -f "$candidate_dir/pid" "$PIDFILE"
+    disown "$candidate"
+    trap - INT TERM
+    rm -f "$STATE/handoff-pending"
+    if session_renderer "$previous"; then
+        kill -TERM "$previous" 2>/dev/null || true
+        kill -CONT "$previous" 2>/dev/null || true
+    fi
+    rotate_renderer_log
+    if [[ "$candidate_log" == /dev/null ]]; then
+        : > "$STATE/log"
+    else
+        mv -f "$candidate_log" "$STATE/log"
+    fi
+    if [[ "$transition" =~ ^[0-9]+$ ]]; then
+        printf 'ready\n' > "$STATE/transition-ready-$transition"
+    fi
+    event "handoff: renderer $previous -> $candidate"
+    for _ in $(seq 40); do
+        session_renderer "$previous" || break
+        sleep .02
+    done
+    if session_renderer "$previous"; then
+        event "handed-off renderer $previous did not exit after SIGTERM"
+        kill -KILL "$previous" 2>/dev/null || true
+    fi
+    rm -f "$STATE/ready.bmp"
+    : > "$candidate_dir/active"
+    for _ in $(seq 20); do
+        [[ -e "$candidate_dir/active" ]] || break
+        sleep .01
+    done
+    if [[ ! -e "$candidate_dir/active" ]]; then
+        rm -f "$candidate_dir"/{prepared,show,shown}
+        rmdir "$candidate_dir" 2>/dev/null || true
+    fi
+}
+
 # Renderer arguments for what the GUI applied last, one per line; nothing if it
 # has no single wallpaper active (none yet, or a playlist).
 gui_args() {
@@ -387,7 +498,9 @@ EOF
 start() {
     # The assets folder: the settings app's choice, else its own library's,
     # else Steam's Wallpaper Engine
-    local assets="" paused=0 dir="" gui=() cfg=() layer=background
+    local assets="" paused=0 dir="" gui=() cfg=() layer=background launch_lock
+    exec {launch_lock}>"$STATE/launch.lock"
+    flock -x "$launch_lock"
     mapfile -t cfg < <(config_args)
     if [[ -n "${LIVE_WALLPAPER_SCREENSAVER:-}" ]]; then
         (( ${#cfg[@]} )) || return 0
@@ -434,8 +547,8 @@ start() {
         fi
     fi
     local transition="${LIVE_WALLPAPER_TRANSITION_ID:-}"
-    if [[ -z "${LIVE_WALLPAPER_SCREENSAVER:-}" && "$transition" =~ ^[0-9]+$ ]]; then
-        args+=(--wallpaper-ready-file "$STATE/transition-ready-$transition")
+    if [[ "$transition" =~ ^[0-9]+$ ]]; then
+        rm -f "$STATE"/transition-ready-*
     fi
     local help="" arg arg_index log_path="$STATE/log"
     for arg_index in "${!args[@]}"; do
@@ -452,20 +565,11 @@ start() {
             log_path=/dev/null
         fi
     done
-    stop
-    rm -f "$STATE/crash-hold.json"
-    if [[ -n "$transition" ]]; then
-        rm -f "$STATE"/transition-ready-*
-    fi
-
     # The renderer also saves one full-size frame once it has drawn a few (named per
     # wallpaper: the shell caches images by path).
     local frame="$STATE/frame-$(basename "$dir").png" f had_frame=0
     if [[ -z "${LIVE_WALLPAPER_SCREENSAVER:-}" ]]; then
         [[ -s "$frame" ]] && had_frame=1
-        # Retain this wallpaper's frame until the new renderer is ready.
-        for f in "$STATE"/frame-*.png; do [[ "$f" == "$frame" ]] || rm -f "$f"; done
-        [[ -n "$dir" ]] && ln -sf "$(basename "$frame")" "$STATE/current-frame.png"
         if (( had_frame )) && [[ -z "$transition" ]]; then
             args+=(--screenshot "$STATE/ready.bmp" --screenshot-delay 1)
         else
@@ -474,15 +578,43 @@ start() {
         fi
     fi
 
-    # Not a process-group leader in the background, so setsid execs in place:
-    # $! is the renderer itself.
-    # The last runs' logs are kept (log.1 = the one before)
-    for i in 2 1; do [[ -f "$STATE/log.$i" ]] && mv -f "$STATE/log.$i" "$STATE/log.$((i + 1))"; done
-    [[ -f "$STATE/log" ]] && mv -f "$STATE/log" "$STATE/log.1"
-    [[ "$log_path" != /dev/null ]] || : > "$STATE/log"
-    setsid linux-wallpaperengine "${args[@]}" > "$log_path" 2>&1 < /dev/null &
-    echo $! > "$PIDFILE"
-    disown
+    local previous="" staged=0 debug_port=""
+    for arg_index in "${!args[@]}"; do
+        if [[ "${args[arg_index]}" == --cef-devtools-port ]]; then
+            debug_port="${args[arg_index + 1]}"
+        fi
+    done
+    if [[ -z "${LIVE_WALLPAPER_SCREENSAVER:-}" && -n "${WAYLAND_DISPLAY:-}" && "${XDG_SESSION_TYPE:-wayland}" == wayland ]] &&
+        previous="$(own_pid)"; then
+        [[ -n "$help" ]] || help="$(linux-wallpaperengine --help 2>/dev/null)" || true
+        # Chromium keeps the same developer port for the life of the process.
+        if [[ "$help" == *--prepare-handoff* ]] &&
+            { [[ -z "$debug_port" ]] || ! tr '\0' '\n' < "/proc/$previous/cmdline" | grep -Fxq "$debug_port"; }; then
+            start_handoff "$previous" "$transition" "$log_path" "$launch_lock" "${args[@]}" || return 1
+            staged=1
+        fi
+    fi
+    if (( ! staged )); then
+        if [[ "$transition" =~ ^[0-9]+$ ]]; then
+            prepare_transition "$transition"
+            args+=(--wallpaper-ready-file "$STATE/transition-ready-$transition")
+        fi
+        stop
+        rotate_renderer_log
+        [[ "$log_path" != /dev/null ]] || : > "$STATE/log"
+        setsid linux-wallpaperengine "${args[@]}" > "$log_path" 2>&1 < /dev/null {launch_lock}>&- &
+        printf '%s\n' "$!" > "$PIDFILE"
+        disown
+    fi
+    rm -f "$STATE/crash-hold.json"
+    if [[ "$transition" =~ ^[0-9]+$ ]]; then
+        rm -f "$STATE/transition-prepare-$transition" "$STATE/transition-drawn-$transition"
+    fi
+    if [[ -z "${LIVE_WALLPAPER_SCREENSAVER:-}" ]]; then
+        for f in "$STATE"/frame-*.png; do [[ "$f" == "$frame" ]] || rm -f "$f"; done
+        [[ -n "$dir" ]] && ln -sf "$(basename "$frame")" "$STATE/current-frame.png"
+    fi
+    exec {launch_lock}>&-
     event "start: renderer $(cat "$PIDFILE") ($(basename "${dir:-?}"))"
     [[ -z "${LIVE_WALLPAPER_SCREENSAVER:-}" ]] || return 0
 
@@ -575,6 +707,7 @@ case "${1:-}" in
     pause) signal STOP ;;
     ready) pid="$(own_pid)" && renderer_ready "$pid" ;;
     pause-ready) pid="$(own_pid)" && renderer_ready "$pid" && kill -STOP "$pid" ;;
+    cancel-handoff) cancel_handoff ;;
     resume) signal CONT ;;
     cover) signal_coverage USR1 ;;
     uncover) signal_coverage USR2 ;;
