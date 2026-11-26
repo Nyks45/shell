@@ -24,8 +24,9 @@ StyledListView {
 
     flickableDirection: Flickable.VerticalFlick
     orientation: ListView.Vertical
+    clip: GraphicsInfo.api === GraphicsInfo.Software
 
-    layer.enabled: true
+    layer.enabled: GraphicsInfo.api !== GraphicsInfo.Software
     layer.effect: Mask {
         maskSource: mask
 

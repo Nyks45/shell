@@ -1077,6 +1077,13 @@ PageBase {
             onToggled: LiveWallpaper.setQuiet("browserEffects", checked)
         }
 
+        ToggleRow {
+            text: Tr.tr("Hardware acceleration for Settings")
+            subtext: Tr.tr("Applies when you reopen the Settings window")
+            checked: LiveWallpaper.setting("browserHardwareAcceleration", true)
+            onToggled: LiveWallpaper.setQuiet("browserHardwareAcceleration", checked)
+        }
+
         SelectRow {
             label: Tr.tr("Wallpaper browser quality")
             menuItems: [

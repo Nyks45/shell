@@ -34,7 +34,7 @@ Item {
         if (!_active) {
             _active = true;
             LiveWallpaper.settingsOpened();
-            if (nState.isWindow) {
+            if (nState.isWindow && !WindowFactory.softwareProcess) {
                 Polkit.addHost(root);
                 BluetoothAgent.addHost(root);
             }
@@ -48,8 +48,10 @@ Item {
         if (_active) {
             _active = false;
             LiveWallpaper.settingsClosed();
-            Polkit.removeHost(root);
-            BluetoothAgent.removeHost(root);
+            if (!WindowFactory.softwareProcess) {
+                Polkit.removeHost(root);
+                BluetoothAgent.removeHost(root);
+            }
         }
     }
 
@@ -103,6 +105,7 @@ Item {
     BlobInvertedRect {
         anchors.fill: parent
         group: blobGroup
+        visible: !WindowFactory.softwareProcess
         opacity: root.blobColour.a
         radius: Tokens.rounding.large
 
@@ -110,6 +113,20 @@ Item {
         borderRight: Tokens.padding.medium
         borderTop: Tokens.padding.medium
         borderBottom: Tokens.padding.medium
+    }
+
+    Rectangle {
+        visible: WindowFactory.softwareProcess
+        anchors.fill: parent
+        color: Colours.palette.m3surface
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: navPane.x + navPane.width + navPane.anchors.margins
+            color: Colours.palette.m3surfaceContainerLow
+        }
     }
 
     // The drawer's pop-out button. A window has none: its title bar (hyprflow)
@@ -189,7 +206,7 @@ Item {
     Item {
         id: polkitHost
 
-        readonly property bool shown: Polkit.active && Polkit.decided && Polkit.host === root
+        readonly property bool shown: !WindowFactory.softwareProcess && Polkit.active && Polkit.decided && Polkit.host === root
 
         anchors.fill: parent
         z: 10

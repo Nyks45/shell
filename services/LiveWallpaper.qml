@@ -32,7 +32,8 @@ Singleton {
     property bool hasScript
     property bool hasEngine
     property bool running
-    readonly property bool automaticPlaybackActive: !waitingAfterCrash && !crashProtectionActive && (setting("startAtLogin", true) || seenRunning)
+    readonly property bool ownsPlayback: Quickshell.env("CAELESTIA_NEXUS_SOFTWARE") !== "1"
+    readonly property bool automaticPlaybackActive: ownsPlayback && !waitingAfterCrash && !crashProtectionActive && (setting("startAtLogin", true) || seenRunning)
     readonly property string defaultAudioOutput: Audio.sink?.ready ? Audio.sink.name : ""
     property string previousAudioOutput
     // Paused (saved: the start script pauses again after restarts and logins)
@@ -660,6 +661,8 @@ Singleton {
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
+        onTextChanged: if (!root.ownsPlayback)
+            runningTimer.restart()
     }
 
     function setRendererVolume(vol: real): bool {
@@ -1198,14 +1201,14 @@ Singleton {
             return;
         const changed = previousAudioOutput && previousAudioOutput !== defaultAudioOutput;
         previousAudioOutput = defaultAudioOutput;
-        if (changed && running && current && setting("reloadOnAudioOutputChange", true))
+        if (ownsPlayback && changed && running && current && setting("reloadOnAudioOutputChange", true))
             restartTimer.restart();
     }
 
     Process {
         id: sleepMonitor
 
-        running: root.running && !!root.current && root.setting("restartAfterSleep", false)
+        running: root.ownsPlayback && root.running && !!root.current && root.setting("restartAfterSleep", false)
         command: ["gdbus", "monitor", "--system", "--dest", "org.freedesktop.login1",
             "--object-path", "/org/freedesktop/login1"]
         stdout: SplitParser {
@@ -1224,6 +1227,12 @@ Singleton {
 
         interval: 150
         onTriggered: {
+            if (!root.ownsPlayback) {
+                Quickshell.execDetached(["qs", "-p", Quickshell.shellPath("shell.qml"), "ipc", "call",
+                    "wallpaperPlayback", "applySavedSettings", root.checkPending ? "1" : "0"]);
+                root.checkPending = false;
+                return;
+            }
             if (root.ruleAction === "stop")
                 return;
             if (startProc.running) {
@@ -1438,7 +1447,7 @@ Singleton {
     onRunningChanged: {
         // (a new renderer starts drawing in full: covered is sent again if it still is)
         coverSent = false;
-        if (running) {
+        if (ownsPlayback && running) {
             publishedOutputPlayback = "";
             waitingAfterCrash = false;
             seenRunning = true;
@@ -1449,7 +1458,7 @@ Singleton {
     }
 
     Timer {
-        running: root.seenRunning && Object.keys(root.screens).length > 0 && root.ruleAction !== "stop"
+        running: root.ownsPlayback && root.seenRunning && Object.keys(root.screens).length > 0 && root.ruleAction !== "stop"
         repeat: true
         interval: 10000
         onTriggered: if (!watchProc.running)
@@ -1744,12 +1753,26 @@ Singleton {
         }
     }
 
+    property bool applySavedSettingsPending
+
+    IpcHandler {
+        target: "wallpaperPlayback"
+        function applySavedSettings(check: string): void {
+            if (root.ownsPlayback) {
+                root.checkPending = root.checkPending || check === "1";
+                root.applySavedSettingsPending = true;
+                file.reload();
+            }
+        }
+    }
+
     FileView {
         id: file
 
         path: root.configPath
         printErrors: false
         watchChanges: true
+        blockWrites: !root.ownsPlayback
         onFileChanged: reload()
         onLoaded: {
             try {
@@ -1758,15 +1781,19 @@ Singleton {
                 root.config = {};
             }
             // Once per shell start: "when logging in" playlists
-            if (!root.loginChecked) {
+            if (root.ownsPlayback && !root.loginChecked) {
                 root.loginChecked = true;
                 root.loginPlaylists();
+            }
+            if (root.applySavedSettingsPending) {
+                root.applySavedSettingsPending = false;
+                restartTimer.restart();
             }
         }
         // None yet: take over what the Linux Wallpaper Engine GUI had (its
         // wallpapers per screen, settings, per-wallpaper overrides, grades)
         onLoadFailed: err => {
-            if (err === FileViewError.FileNotFound)
+            if (root.ownsPlayback && err === FileViewError.FileNotFound)
                 importProc.running = true;
         }
     }

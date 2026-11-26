@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Caelestia.Config
 import Caelestia.I18n
 import qs.components
@@ -13,6 +14,76 @@ Singleton {
 
     property var activeWindow: null
     property var cachedWindow: null
+    readonly property bool softwareProcess: Quickshell.env("CAELESTIA_NEXUS_SOFTWARE") === "1"
+    readonly property string softwareConfig: Quickshell.shellPath("nexus-software.qml")
+    property string softwareEntry
+    property string softwareState: "{}"
+
+    readonly property string windowState: {
+        if (softwareWindow.running)
+            return softwareState;
+        const state = activeWindow?.visible ? activeWindow.nexusItem.nState : null;
+        if (!state)
+            return "{}";
+        return JSON.stringify({
+            page: state.currentPageIdx,
+            path: Array.from(state.subPageIdxStack),
+            historyIdx: state.historyIdx,
+            history: state.history,
+            canGoBack: state.canGoBack,
+            canGoForward: state.canGoForward,
+            searchOpen: state.searchOpen
+        });
+    }
+
+    function openSoftware(entry: var): void {
+        if (activeWindow)
+            activeWindow.visible = false;
+        const encoded = JSON.stringify(entry ?? null);
+        if (softwareWindow.running)
+            Quickshell.execDetached(["qs", "-p", softwareConfig, "ipc", "call", "nexusSoftware", "open", encoded]);
+        else {
+            softwareEntry = encoded;
+            softwareWindow.running = true;
+        }
+    }
+
+    function navigate(action: string, index: int): void {
+        if (softwareWindow.running) {
+            Quickshell.execDetached(["qs", "-p", softwareConfig, "ipc", "call", "nexusSoftware", "navigate", action, String(index)]);
+            return;
+        }
+        const state = activeWindow?.nexusItem.nState;
+        if (!state)
+            return;
+        switch (action) {
+        case "back": state.back(); break;
+        case "forward": state.forward(); break;
+        case "up": state.up(); break;
+        case "openSub": state.openSubPage(index); break;
+        case "closeSub": state.closeSubPage(); break;
+        }
+    }
+
+    Process {
+        id: softwareWindow
+
+        command: ["qs", "-n", "-p", root.softwareConfig]
+        environment: ({
+            QT_QUICK_BACKEND: "software",
+            CAELESTIA_NEXUS_SOFTWARE: "1",
+            CAELESTIA_NEXUS_ENTRY: root.softwareEntry
+        })
+        stdout: SplitParser {
+            onRead: line => {
+                const prefix = "NEXUS_WINDOW_STATE ";
+                const index = line.indexOf(prefix);
+                if (index >= 0)
+                    root.softwareState = line.slice(index + prefix.length);
+            }
+        }
+        onExited: root.softwareState = "{}"
+    }
 
     function focusExisting(): void {
         if (!activeWindow)
@@ -31,6 +102,12 @@ Singleton {
     }
 
     function create(parent: Item, props: var): void {
+        if (!softwareProcess && !LiveWallpaper.setting("browserHardwareAcceleration", true)) {
+            openSoftware(props?.startEntry);
+            return;
+        }
+        if (softwareWindow.running)
+            softwareWindow.running = false;
         if (activeWindow && activeWindow.visible) {
             if (props?.startEntry)
                 activeWindow.nexusItem.nState.goTo(props.startEntry);

@@ -27,7 +27,7 @@ Item {
         id: tintedWrap
 
         anchors.fill: parent
-        layer.enabled: root.needsTint
+        layer.enabled: root.needsTint && GraphicsInfo.api !== GraphicsInfo.Software
         layer.effect: Colouriser {
             sourceColor: analyser.dominantColour
             colorizationColor: root.colour

@@ -11,7 +11,7 @@ IconImage {
 
     asynchronous: true
 
-    layer.enabled: true
+    layer.enabled: GraphicsInfo.api !== GraphicsInfo.Software
     layer.effect: Colouriser {
         sourceColor: analyser.dominantColour
         colorizationColor: root.colour

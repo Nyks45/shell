@@ -124,6 +124,6 @@ if("shell" IN_LIST ENABLE_MODULES)
     file(WRITE "${CMAKE_BINARY_DIR}/qml/shell.qml" "${SHELL_QML}")
     install(FILES "${CMAKE_BINARY_DIR}/qml/shell.qml" DESTINATION "${INSTALL_QSCONFDIR}")
 
-    install(FILES paint.qml DESTINATION "${INSTALL_QSCONFDIR}")
+    install(FILES paint.qml nexus-software.qml DESTINATION "${INSTALL_QSCONFDIR}")
     install(FILES LICENSE DESTINATION "${INSTALL_QSCONFDIR}")
 endif()

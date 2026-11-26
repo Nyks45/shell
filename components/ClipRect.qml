@@ -11,6 +11,15 @@ Item {
     property real bottomLeftRadius: radius
     property color color: "transparent"
     default property alias contentData: contentItem.data
+    readonly property bool useMask: GraphicsInfo.api !== GraphicsInfo.Software
+
+    clip: !useMask
+
+    Rectangle {
+        anchors.fill: parent
+        visible: !root.useMask
+        color: root.color
+    }
 
     Item {
         id: contentItem
@@ -21,12 +30,13 @@ Item {
     ShaderEffectSource {
         id: source
 
-        hideSource: true
-        sourceItem: contentItem
+        hideSource: root.useMask
+        sourceItem: root.useMask ? contentItem : null
     }
 
     RoundedMask {
         anchors.fill: parent
+        visible: root.useMask
         source: source
         topLeftRadius: root.topLeftRadius
         topRightRadius: root.topRightRadius

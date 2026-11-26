@@ -25,7 +25,7 @@ StyledFlickable {
     flickableDirection: Flickable.VerticalFlick
     clip: true
 
-    layer.enabled: true
+    layer.enabled: GraphicsInfo.api !== GraphicsInfo.Software
     layer.effect: Mask {
         maskSource: mask
 

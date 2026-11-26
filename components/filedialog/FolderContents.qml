@@ -25,7 +25,7 @@ Item {
         anchors.fill: parent
         color: Colours.tPalette.m3surfaceContainer
 
-        layer.enabled: true
+        layer.enabled: GraphicsInfo.api !== GraphicsInfo.Software
         layer.effect: Mask {
             maskSource: mask
             maskInverted: true
