@@ -53,6 +53,10 @@ Variants {
             property real progress: LiveWallpaper.transitionProgress
             property int effect: window.transition?.effect ?? -1
             property vector4d crop: Qt.vector4d(window.crop.x, window.crop.y, window.crop.width, window.crop.height)
+            property real aspectRatio: width / Math.max(1, height)
+            readonly property real outputScale: (QsWindow.window as QsWindow)?.devicePixelRatio ?? 1
+            property real displayWidth: Math.max(1, width * outputScale)
+            property real displayHeight: Math.max(1, height * outputScale)
             fragmentShader: Quickshell.shellPath("assets/shaders/wallpaper-transition.frag.qsb")
         }
     }
