@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Caelestia
 import Caelestia.I18n
 import qs.utils
 
@@ -291,12 +292,58 @@ Singleton {
         }
     }
 
+    // spec.runtimes: install the usual runtimes (Visual C++, DirectX) into a Windows game's
+    // prefix right after adding it (game-add says the new game's key: "KEY steam:123")
     function add(spec: var, done: var): void {
-        Admin.exec([helper, "game-add"], Tr.tr("Add %1").arg(spec.title), ok => {
+        Admin.exec([helper, "game-add"], Tr.tr("Add %1").arg(spec.title), (ok, out) => {
             root.load();
+            const key = (/^KEY (\S+)$/m.exec(out ?? "") ?? [])[1];
+            if (ok && key && spec.runtimes !== false && /\.(exe|msi|bat|lnk)$/i.test(spec.exe))
+                root.installRuntimes(key, spec.title);
             if (typeof done === "function")
                 done(ok);
         }, JSON.stringify(spec));
+    }
+
+    // The usual runtimes of the Windows games added by hand (Steam shortcuts, Faugus, Lutris,
+    // Heroic; Steam installs them for its own games): { key: { title, prefixExists, missing,
+    // runtimes: [{ id, name, installed }], canInstall } } (caelestia-gaming runtimes)
+    property var runtimes: ({})
+    property bool runtimesLoaded
+
+    function loadRuntimes(): void {
+        rtProc.running = true;
+    }
+
+    function runtimesWhat(title: string): string {
+        return Tr.tr("Install game runtimes for %1").arg(title);
+    }
+
+    function installRuntimes(key: string, title: string): void {
+        if (Admin.jobs.some(j => j.what === runtimesWhat(title)))
+            return;
+        Admin.exec([helper, "runtimes-install", key], runtimesWhat(title), ok => {
+            root.loadRuntimes();
+            if (ok)
+                Toaster.toast(Tr.tr("Game runtimes installed"), title, "deployed_code");
+        });
+    }
+
+    Process {
+        id: rtProc
+
+        command: [root.helper, "runtimes"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const m = {};
+                    for (const g of JSON.parse(text).games ?? [])
+                        m[g.key] = g;
+                    root.runtimes = m;
+                    root.runtimesLoaded = true;
+                } catch (e) {}
+            }
+        }
     }
 
     function remove(key: string, title: string): void {

@@ -1691,6 +1691,7 @@ def c_game_add(args):
         games.append(g)
         faugus_save(games)
         print(f"Added {title} to Faugus", flush=True)
+        print(f"KEY faugus:{gid}", flush=True)
     elif launcher == "steam":
         if running("steam"):
             sys.exit("close Steam first (it rewrites its settings when it quits)")
@@ -1722,6 +1723,7 @@ def c_game_add(args):
             m.append([str(appid), [["name", name], ["config", ""], ["priority", "250"]]])
             vdf_write(p, t)
         print(f"Added {title} to Steam", flush=True)
+        print(f"KEY steam:{appid}", flush=True)
     elif launcher == "lutris":
         yaml = lutris_yaml()
         db = os.path.join(LUTRIS_DATA, "pga.db")
@@ -1738,17 +1740,282 @@ def c_game_add(args):
             cfg["game"]["args"] = gargs
         lutris_write(os.path.join(LUTRIS_DATA, "games", configpath + ".yml"), cfg)
         con = sqlite3.connect(db, timeout=5)
-        con.execute("INSERT INTO games (name, sortname, slug, installer_slug, parent_slug, platform, runner, executable, "
+        cur = con.execute("INSERT INTO games (name, sortname, slug, installer_slug, parent_slug, platform, runner, executable, "
                     "directory, updated, lastplayed, installed, installed_at, year, configpath, has_custom_banner, "
                     "has_custom_icon, has_custom_coverart_big, playtime, service, service_id) "
                     "VALUES (?, '', ?, '', '', ?, ?, '', ?, ?, 0, 1, ?, NULL, ?, 0, 0, 0, 0, '', '')",
                     (title, slug, "Windows" if windows else "Linux", "wine" if windows else "linux",
                      prefix if windows else os.path.dirname(exe), time.strftime("%Y-%m-%d %H:%M:%S"), now, configpath))
         con.commit()
+        new_id = cur.lastrowid
         con.close()
         print(f"Added {title} to Lutris", flush=True)
+        print(f"KEY lutris:{new_id}", flush=True)
     else:
         sys.exit("games can be added to Steam, Faugus or Lutris")
+
+
+# Game runtimes --------------------------------------------------------------------
+#
+# What nearly every Windows game expects in its Wine/Proton prefix: Microsoft's Visual C++
+# runtimes (2005 to 2015-2022) and the DirectX (June 2010) helper libraries. Steam installs
+# them for its own games (Steamworks Common Redistributables); games added by hand (Steam
+# shortcuts, Faugus, Lutris, Heroic) start without them. A Proton prefix has Wine's own
+# versions of these files (and Proton marks VC++ as installed in the registry), so what a
+# prefix really has is read from the files: Microsoft's carry no Wine marker.
+# Not installed: xinput and XAudio2 (Proton's own handle controllers and sound better),
+# .NET and PhysX (large, and only some games need them).
+
+RUNTIMES = [
+    {"id": "vc2005", "name": "Visual C++ 2005", "verbs": ["vcrun2005"], "files": ["winsxs/x86_microsoft.vc80.crt_*/msvcr80.dll"]},
+    {"id": "vc2008", "name": "Visual C++ 2008", "verbs": ["vcrun2008"], "files": ["winsxs/x86_microsoft.vc90.crt_*/msvcr90.dll"]},
+    {"id": "vc2010", "name": "Visual C++ 2010", "verbs": ["vcrun2010"], "files": ["msvcr100.dll", "msvcp100.dll"]},
+    {"id": "vc2012", "name": "Visual C++ 2012", "verbs": ["vcrun2012"], "files": ["msvcr110.dll", "msvcp110.dll"]},
+    {"id": "vc2013", "name": "Visual C++ 2013", "verbs": ["vcrun2013"], "files": ["msvcr120.dll", "msvcp120.dll"]},
+    {"id": "vc2015", "name": "Visual C++ 2015–2022", "verbs": ["vcrun2022"], "files": ["msvcp140.dll", "vcruntime140.dll"]},
+    {"id": "directx", "name": "DirectX (June 2010)", "verbs": ["d3dx9", "d3dx10_43", "d3dx11_43", "d3dcompiler_47"],
+     "files": ["d3dx9_43.dll", "d3dx10_43.dll", "d3dx11_43.dll", "d3dcompiler_47.dll"]},
+]
+
+
+def is_microsoft_dll(path):
+    """A real (Microsoft) DLL: present and without Wine's builtin/placeholder marker."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(4096)
+    except OSError:
+        return False
+    return len(head) > 64 and b"Wine builtin DLL" not in head and b"Wine placeholder DLL" not in head
+
+
+def runtimes_in(pfx):
+    """{runtime id: installed} for a wine prefix (the folder holding drive_c)."""
+    win = os.path.join(pfx, "drive_c/windows")
+    # The 32-bit folder: most games (and every old one) are 32-bit
+    lib32 = os.path.join(win, "syswow64") if os.path.isdir(os.path.join(win, "syswow64")) else os.path.join(win, "system32")
+    out = {}
+    for r in RUNTIMES:
+        ok = True
+        for f in r["files"]:
+            if f.startswith("winsxs/"):
+                ok = ok and any(is_microsoft_dll(p) for p in glob.glob(os.path.join(win, f)))
+            else:
+                ok = ok and is_microsoft_dll(os.path.join(lib32, f))
+        out[r["id"]] = ok
+    return out
+
+
+def tool_dirs():
+    """{name: folder} of every Proton/Wine build a game may name (internal and folder names)."""
+    found = {}
+    for base in (TARGETS["steam"], SYSTEM_STEAM, TARGETS["heroic"]):
+        for d in sorted(glob.glob(os.path.join(base, "*"))):
+            if os.path.isdir(d):
+                found.setdefault(vdf_name(d), d)
+                found.setdefault(os.path.basename(d), d)
+    for lib in steam_libraries():
+        for d in glob.glob(os.path.join(lib, "steamapps/common/Proton*")):
+            off = steam_official(os.path.basename(d).replace(" - ", " "))
+            if off:
+                found.setdefault(off, d)
+            found.setdefault(os.path.basename(d), d)
+    for d in glob.glob(os.path.join(TARGETS["lutris"], "*")):
+        found.setdefault(os.path.basename(d), d)
+    return found
+
+
+def wine_of(tool):
+    """The wine program inside a Proton or Wine build folder."""
+    for rel in ("files/bin/wine", "dist/bin/wine", "bin/wine"):
+        p = os.path.join(tool, rel)
+        if os.path.isfile(p):
+            return p
+    return ""
+
+
+def is_proton(tool):
+    return bool(tool) and os.path.isfile(os.path.join(tool, "proton"))
+
+
+def newest(*patterns):
+    hits = sorted(h for p in patterns for h in glob.glob(p) if os.path.isdir(h))
+    return hits[-1] if hits else ""
+
+
+def game_prefix(game):
+    """Where a Windows game's prefix is and what runs it: {pfx, compat, layout, tool, wine}.
+    layout: "steam" (compat/pfx, Steam and Heroic's Proton), "umu" (the prefix itself, with
+    pfx -> . for Proton: Faugus, Lutris) or "wine" (a plain WINEPREFIX). None for Linux games."""
+    tools = tool_dirs()
+    launcher, gid = game["launcher"], game["id"]
+    if launcher == "steam":
+        if game.get("proton") is None and game.get("shortcut"):
+            return None  # a Linux program
+        default, per_game = steam_default()
+        name = per_game.get(gid) or game.get("proton") or default or "proton_experimental"
+        tool = tools.get(name) or tools.get("proton_experimental") or newest(os.path.join(TARGETS["steam"], "GE-Proton*"))
+        lib = STEAM_ROOT
+        if not game.get("shortcut"):
+            m = re.match(r"(.*)/steamapps/common/", game.get("path", "") + "/")
+            lib = m.group(1) if m else STEAM_ROOT
+        compat = os.path.join(lib, "steamapps/compatdata", gid)
+        return {"pfx": os.path.join(compat, "pfx"), "compat": compat, "layout": "steam", "tool": tool}
+    if launcher == "faugus":
+        g = next((g for g in faugus_load() if isinstance(g, dict) and g.get("gameid") == gid), None)
+        if not g or g.get("runner") == "Linux-Native" or not WINDOWS_EXE.search(g.get("path", "")):
+            return None
+        cfg = {}
+        try:
+            cfg = json.load(open(FAUGUS_CONFIG))
+        except (OSError, ValueError):
+            pass
+        runner = g.get("runner") or cfg.get("default-runner") or ""
+        tool = (newest(os.path.join(SYSTEM_STEAM, "proton-cachyos*")) if runner == "Proton-CachyOS (System)" else tools.get(runner)) \
+            or newest(os.path.join(TARGETS["steam"], "GE-Proton*"), os.path.join(HOME, ".local/share/umu/compatibilitytools/*"))
+        pfx = os.path.expanduser(g.get("prefix") or "")
+        return {"pfx": pfx, "compat": pfx, "layout": "umu", "tool": tool} if pfx else None
+    if launcher == "lutris":
+        if game.get("runner") != "wine":
+            return None
+        yaml = lutris_yaml()
+        cfg, default = {}, ""
+        try:
+            con = sqlite3.connect(f"file:{os.path.join(LUTRIS_DATA, 'pga.db')}?mode=ro", uri=True, timeout=2)
+            row = con.execute("SELECT configpath FROM games WHERE id = ?", (int(gid),)).fetchone()
+            con.close()
+            if row and row[0]:
+                cfg = yaml.safe_load(open(lutris_config_path(row[0]))) or {}
+        except (sqlite3.Error, OSError, ValueError, TypeError):
+            pass
+        try:
+            default = ((yaml.safe_load(open(os.path.join(HOME, ".config/lutris/runners/wine.yml"))) or {}).get("wine") or {}).get("version", "")
+        except (OSError, AttributeError, ValueError):
+            pass
+        pfx = os.path.expanduser(str((cfg.get("game") or {}).get("prefix") or ""))
+        if not pfx:
+            return None
+        version = (cfg.get("wine") or {}).get("version") or default
+        tool = tools.get(version) or ""
+        # Lutris runs Proton (and its default) through umu: the prefix itself, pfx -> .
+        if not tool or is_proton(tool):
+            tool = tool or newest(os.path.join(TARGETS["steam"], "GE-Proton*"), os.path.join(HOME, ".local/share/umu/compatibilitytools/*"))
+            return {"pfx": pfx, "compat": pfx, "layout": "umu", "tool": tool}
+        return {"pfx": pfx, "compat": pfx, "layout": "wine", "tool": tool}
+    if launcher == "heroic":
+        base = heroic_dir()
+        try:
+            cfg = json.load(open(os.path.join(base, "GamesConfig", f"{gid}.json"))).get(gid, {})
+        except (OSError, ValueError, AttributeError, TypeError):
+            return None
+        wv, prefix = cfg.get("wineVersion") or {}, os.path.expanduser(cfg.get("winePrefix") or "")
+        if not prefix or not wv.get("bin"):
+            return None
+        if wv.get("type") == "proton":
+            return {"pfx": os.path.join(prefix, "pfx"), "compat": prefix, "layout": "steam", "tool": os.path.dirname(wv["bin"])}
+        return {"pfx": prefix, "compat": prefix, "layout": "wine", "tool": os.path.dirname(os.path.dirname(wv["bin"]))}
+    return None
+
+
+def added_games():
+    """The Windows games added by hand (Steam shortcuts, Faugus, Lutris, Heroic): Steam's own
+    games get their runtimes from Steam."""
+    games = []
+    for fn in (steam_games, faugus_games, lutris_games, heroic_games):
+        try:
+            games += [g for g in fn()[0] if g["launcher"] != "steam" or g.get("shortcut")]
+        except Exception:  # one launcher's broken files mustn't hide the others
+            continue
+    return games
+
+
+def runtimes_status(game):
+    p = game_prefix(game)
+    if p is None:
+        return None
+    exists = os.path.isdir(os.path.join(p["pfx"], "drive_c"))
+    have = runtimes_in(p["pfx"]) if exists else {r["id"]: False for r in RUNTIMES}
+    return {"key": game["key"], "title": game["title"], "launcher": game["launcher"], "prefix": p["pfx"],
+            "prefixExists": exists, "tool": os.path.basename(p["tool"] or ""), "canInstall": bool(wine_of(p["tool"] or "")),
+            "runtimes": [{"id": r["id"], "name": r["name"], "installed": have[r["id"]]} for r in RUNTIMES],
+            "missing": [r["name"] for r in RUNTIMES if not have[r["id"]]]}
+
+
+def c_runtimes(args):
+    """runtimes [KEY]: what each added Windows game's prefix has of the usual runtimes."""
+    games = added_games()
+    if args:
+        games = [g for g in games if g["key"] == args[0]]
+    out({"runtimes": [{"id": r["id"], "name": r["name"]} for r in RUNTIMES],
+         "games": [s for s in (runtimes_status(g) for g in games) if s]})
+
+
+def prefix_in_use(p):
+    """A process of the game (or its launcher's wine) running in this prefix."""
+    targets = {os.path.realpath(p["pfx"]), os.path.realpath(p["compat"])}
+    for d in glob.glob("/proc/[0-9]*"):
+        try:
+            env = open(os.path.join(d, "environ"), "rb").read().split(b"\0")
+        except OSError:
+            continue
+        for e in env:
+            k, _, v = e.partition(b"=")
+            if k in (b"WINEPREFIX", b"STEAM_COMPAT_DATA_PATH") and os.path.realpath(v.decode(errors="replace")) in targets:
+                return True
+    return False
+
+
+def c_runtimes_install(args):
+    """runtimes-install KEY: the usual runtimes into a game's prefix (made first when the
+    game hasn't been started yet), only the missing ones."""
+    if len(args) != 1:
+        sys.exit("runtimes-install KEY")
+    game = next((g for g in added_games() if g["key"] == args[0]), None)
+    if not game:
+        sys.exit("that game isn't one added by hand")
+    p = game_prefix(game)
+    if p is None:
+        sys.exit(f"{game['title']} isn't a Windows game: nothing to install")
+    wine = wine_of(p["tool"] or "")
+    if not wine:
+        sys.exit("its Proton/Wine version wasn't found (install it, or pick another in the game's settings)")
+    if not shutil.which("winetricks"):
+        sys.exit("winetricks isn't installed")
+    if prefix_in_use(p):
+        sys.exit(f"{game['title']} (or something in its prefix) is running: close it first")
+    files = os.path.dirname(os.path.dirname(wine))
+    env = dict(os.environ, WINEDEBUG="-all", WINEPREFIX=p["pfx"], WINE=wine,
+               WINESERVER=os.path.join(os.path.dirname(wine), "wineserver"),
+               WINEDLLPATH=f"{files}/lib/wine:{files}/lib64/wine", PATH=f"{os.path.dirname(wine)}:{os.environ.get('PATH', '')}")
+    if not os.path.isdir(os.path.join(p["pfx"], "drive_c")):
+        print(f"Making {game['title']}'s prefix ({os.path.basename(p['tool'])})", flush=True)
+        if is_proton(p["tool"]):
+            os.makedirs(p["compat"], exist_ok=True)
+            if p["layout"] == "umu" and not os.path.lexists(os.path.join(p["compat"], "pfx")):
+                os.symlink(".", os.path.join(p["compat"], "pfx"))  # as umu-run does
+            penv = dict(os.environ, WINEDEBUG="-all", STEAM_COMPAT_DATA_PATH=p["compat"], STEAM_COMPAT_CLIENT_INSTALL_PATH=STEAM_ROOT)
+            r = subprocess.run([os.path.join(p["tool"], "proton"), "run", "wineboot", "-u"], env=penv,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=600)
+        else:
+            r = subprocess.run([wine, "wineboot", "-u"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=600)
+        if r.returncode != 0 or not os.path.isdir(os.path.join(p["pfx"], "drive_c")):
+            sys.exit("the prefix couldn't be made")
+    have = runtimes_in(p["pfx"])
+    todo = [r for r in RUNTIMES if not have[r["id"]]]
+    if not todo:
+        print(f"{game['title']} has all of them already", flush=True)
+        return
+    failed = []
+    for i, r in enumerate(todo, 1):
+        print(f"Installing {r['name']} ({i} of {len(todo)})", flush=True)
+        res = subprocess.run(["winetricks", "-q", *r["verbs"]], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=1800)
+        if res.returncode != 0 or not runtimes_in(p["pfx"])[r["id"]]:
+            last = [l for l in res.stdout.splitlines() if l.strip()][-1:] or [""]
+            print(f"{r['name']} failed: {last[0][:160]}", flush=True)
+            failed.append(r["name"])
+    subprocess.run([env["WINESERVER"], "-w"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
+    if failed:
+        sys.exit("not installed: " + ", ".join(failed))
+    print(f"{game['title']}: all installed", flush=True)
 
 
 def c_game_remove(args):
@@ -2256,7 +2523,8 @@ COMMANDS = {"game-log": c_game_log, "game-logs-collect": c_game_logs_collect, "g
             "mfg": c_mfg, "mfg-fetch": c_mfg_fetch, "mfg-set": c_mfg_set, "mfg-mode": c_mfg_mode,
             "install": c_install, "remove": c_remove, "set-default": c_set_default, "mangohud": c_mangohud,
             "mangohud-set": c_mangohud_set, "scx": c_scx, "library": c_library,
-            "library-stamp": c_library_stamp, "game-set": c_game_set, "game-add": c_game_add, "game-remove": c_game_remove}
+            "library-stamp": c_library_stamp, "game-set": c_game_set, "game-add": c_game_add, "game-remove": c_game_remove,
+            "runtimes": c_runtimes, "runtimes-install": c_runtimes_install}
 
 
 def main(argv):

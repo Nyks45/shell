@@ -28,6 +28,11 @@ PageBase {
     property string addExe
     property string addLauncher: "faugus"
     property string addProton
+    // Install the usual runtimes (Visual C++, DirectX) into a new Windows game's prefix
+    property bool addRuntimes: true
+    // The added games' runtimes, by name (Games.runtimes)
+    readonly property var runtimeRows: Object.values(Games.runtimes).sort((a, b) => a.title.localeCompare(b.title))
+    readonly property var missingRows: runtimeRows.filter(r => r.missing.length > 0 && r.canInstall)
 
     function ownCount(g: var): int {
         return Object.keys(g.env ?? {}).length + (g.mangohud ? 1 : 0) + (g.perf ? 1 : 0);
@@ -58,13 +63,25 @@ PageBase {
 
     title: Tr.tr("Library")
 
-    Component.onCompleted: Games.load()
+    Component.onCompleted: {
+        Games.load();
+        Games.loadRuntimes();
+    }
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         width: root.cappedWidth
         spacing: Tokens.spacing.extraSmall / 2
+
+        // A game added or removed: its runtimes read again
+        Connections {
+            function onStampChanged(): void {
+                Games.loadRuntimes();
+            }
+
+            target: Games
+        }
 
         // A launcher installing or adding a game shows it here (checked while shown)
         Timer {
@@ -244,6 +261,49 @@ PageBase {
             }
         }
 
+        // The usual runtimes of the Windows games added by hand: Steam installs them for its
+        // own games (its "Steamworks Common Redistributables"); these start without them
+        SectionHeader {
+            visible: root.runtimeRows.length > 0
+            icon: "deployed_code"
+            text: Tr.tr("Game runtimes")
+            subtext: Tr.tr("Visual C++ (2005 to 2022) and DirectX (June 2010), what most Windows games expect. Steam installs them for its own games; games added by hand start without them.")
+        }
+
+        Repeater {
+            model: root.runtimeRows
+
+            RequirementRow {
+                id: rtRow
+
+                required property var modelData
+                readonly property string what: Games.runtimesWhat(modelData.title)
+                readonly property bool busy: Admin.jobs.some(j => j.what === what)
+                // The helper's last line while installing ("Installing Visual C++ 2010 (3 of 7)")
+                readonly property string progress: (Admin.outputOf(what).trim().split("\n").pop() ?? "").slice(0, 120)
+
+                Layout.fillWidth: true
+                neutral: true
+                icon: modelData.missing.length === 0 ? "check_circle" : "deployed_code"
+                text: modelData.title
+                subtext: busy ? (progress || Tr.tr("Installing…")) : modelData.missing.length === 0 ? Tr.tr("All installed") : !modelData.canInstall ? Tr.tr("Its Proton/Wine version isn't installed: pick one in the game's settings") : (modelData.prefixExists ? Tr.tr("Missing: %1") : Tr.tr("Not started yet · missing: %1")).arg(modelData.missing.join(", "))
+                actionText: !busy && modelData.missing.length > 0 && modelData.canInstall ? Tr.tr("Install") : ""
+                onAction: Games.installRuntimes(modelData.key, modelData.title)
+            }
+        }
+
+        RowButton {
+            Layout.fillWidth: true
+            visible: root.missingRows.length > 1
+            icon: "download"
+            text: Tr.tr("Install for all (%1 games)").arg(root.missingRows.length)
+            subtext: Tr.tr("One after another; the first downloads the installers (about 250 MB), the rest reuse them")
+            onClicked: {
+                for (const r of root.missingRows)
+                    Games.installRuntimes(r.key, r.title);
+            }
+        }
+
         // Adding a Windows game (Faugus or Lutris)
         SectionHeader {
             text: Tr.tr("Add a game")
@@ -259,6 +319,7 @@ PageBase {
                 root.addTitle = "";
                 root.addExe = "";
                 root.addProton = "";
+                root.addRuntimes = true;
                 root.adding = true;
             }
         }
@@ -353,6 +414,15 @@ PageBase {
             }
         }
 
+        ToggleRow {
+            Layout.topMargin: Tokens.spacing.small
+            visible: root.adding && (!root.addExe || /\.(exe|msi|bat|lnk)$/i.test(root.addExe))
+            text: Tr.tr("Install the usual runtimes")
+            subtext: Tr.tr("Visual C++ and DirectX into its prefix, right after adding it (a few minutes)")
+            checked: root.addRuntimes
+            onToggled: root.addRuntimes = checked
+        }
+
         StyledText {
             Layout.fillWidth: true
             Layout.leftMargin: Tokens.padding.small
@@ -388,7 +458,8 @@ PageBase {
                     launcher: root.addLauncher,
                     title: root.addTitle.trim(),
                     exe: root.addExe,
-                    proton: root.addProton
+                    proton: root.addProton,
+                    runtimes: root.addRuntimes
                 }, ok => {
                     if (ok)
                         root.adding = false;

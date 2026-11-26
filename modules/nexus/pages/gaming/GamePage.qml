@@ -172,7 +172,10 @@ PageBase {
     title: game?.title ?? Tr.tr("Game")
     isSubPage: true
 
-    Component.onCompleted: Games.check()
+    Component.onCompleted: {
+        Games.check();
+        Games.loadRuntimes();
+    }
 
     ColumnLayout {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -369,6 +372,24 @@ PageBase {
                     })
                 }
             }
+        }
+
+        // The usual runtimes (Visual C++, DirectX) of a game added by hand (Steam installs them
+        // for its own games): what its prefix has, and installing the missing ones
+        RequirementRow {
+            readonly property var rt: root.game ? Games.runtimes[root.game.key] ?? null : null
+            readonly property string what: Games.runtimesWhat(root.game?.title ?? "")
+            readonly property bool busy: Admin.jobs.some(j => j.what === what)
+            readonly property string progress: (Admin.outputOf(what).trim().split("\n").pop() ?? "").slice(0, 120)
+
+            Layout.fillWidth: true
+            visible: !!rt
+            neutral: true
+            icon: rt?.missing.length === 0 ? "check_circle" : "deployed_code"
+            text: Tr.tr("Game runtimes")
+            subtext: !rt ? "" : busy ? (progress || Tr.tr("Installing…")) : rt.missing.length === 0 ? Tr.tr("Visual C++ 2005–2022 and DirectX (June 2010): all installed") : !rt.canInstall ? Tr.tr("Its Proton/Wine version isn't installed") : Tr.tr("Missing: %1").arg(rt.missing.join(", "))
+            actionText: rt && !busy && rt.missing.length > 0 && rt.canInstall ? Tr.tr("Install") : ""
+            onAction: Games.installRuntimes(root.game.key, root.game.title)
         }
 
         // Overlay and performance

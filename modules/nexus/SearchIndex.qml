@@ -2038,6 +2038,17 @@ QtObject {
             "keywords": ""
         },
         {
+            "label": "Desktop icon opacity",
+            "ctx": "",
+            "sub": "",
+            "section": "Desktop",
+            "tab": "desktop",
+            "page": 9,
+            "path": [],
+            "trail": [],
+            "keywords": ""
+        },
+        {
             "label": "Desktop widgets",
             "ctx": "",
             "sub": "Clock, calendar, weather, battery, now playing, lyrics, pictures, notes and system info in Material shapes on the desktop",
@@ -2392,7 +2403,7 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Add a wallpaper folder",
+            "label": "Live wallpaper settings",
             "ctx": "",
             "sub": "",
             "section": "",
@@ -2407,7 +2418,7 @@ QtObject {
             "keywords": ""
         },
         {
-            "label": "Quality",
+            "label": "Post-processing",
             "ctx": "",
             "sub": "Bloom and lighting effects (Ultra enables HDR bloom)",
             "section": "Performance",
@@ -2418,7 +2429,71 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Add a wallpaper folder"
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "HDR display output",
+            "ctx": "",
+            "sub": "Present Ultra HDR scenes in HDR on supported Wayland outputs",
+            "section": "Performance",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Reflections",
+            "ctx": "",
+            "sub": "",
+            "section": "Performance",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Shadows",
+            "ctx": "",
+            "sub": "",
+            "section": "Performance",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Volumetric lighting",
+            "ctx": "",
+            "sub": "",
+            "section": "Performance",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
             ],
             "keywords": ""
         },
@@ -2434,14 +2509,14 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Add a wallpaper folder"
+                "Live wallpaper settings"
             ],
             "keywords": "fps live wallpaper"
         },
         {
-            "label": "Video decoding",
+            "label": "Process priority",
             "ctx": "",
-            "sub": "Hardware decoding saves CPU on video wallpapers",
+            "sub": "",
             "section": "Performance",
             "page": 9,
             "path": [
@@ -2450,7 +2525,7 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Add a wallpaper folder"
+                "Live wallpaper settings"
             ],
             "keywords": ""
         },
@@ -2466,7 +2541,23 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Add a wallpaper folder"
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Pause when video memory is low",
+            "ctx": "",
+            "sub": "Pause playback below 64 MiB of free video memory on supported drivers",
+            "section": "Performance",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
             ],
             "keywords": ""
         },
@@ -2482,7 +2573,7 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Add a wallpaper folder"
+                "Live wallpaper settings"
             ],
             "keywords": ""
         },
@@ -2498,14 +2589,14 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Add a wallpaper folder"
+                "Live wallpaper settings"
             ],
             "keywords": ""
         },
         {
-            "label": "Mute when any app plays audio (PipeWire)",
+            "label": "Video loading",
             "ctx": "",
-            "sub": "Built-in renderer auto-mute for any sound stream",
+            "sub": "In-memory keeps the active video file in RAM",
             "section": "Sound & interaction",
             "page": 9,
             "path": [
@@ -2514,7 +2605,7 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Add a wallpaper folder"
+                "Live wallpaper settings"
             ],
             "keywords": ""
         },
@@ -2530,7 +2621,87 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Add a wallpaper folder"
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Audio recording device",
+            "ctx": "",
+            "sub": "",
+            "section": "Sound & interaction",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Reload when changing output device",
+            "ctx": "",
+            "sub": "Restart the wallpaper when the default audio output changes",
+            "section": "Sound & interaction",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Recording volume",
+            "ctx": "",
+            "sub": "Adjust the response to audio. 50 is the original level",
+            "section": "Sound & interaction",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Recording threshold",
+            "ctx": "",
+            "sub": "Ignore quiet input when reacting to audio",
+            "section": "Sound & interaction",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Media integration",
+            "ctx": "",
+            "sub": "Share track information and album artwork with wallpapers",
+            "section": "Sound & interaction",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
             ],
             "keywords": ""
         },
@@ -2546,7 +2717,7 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Add a wallpaper folder"
+                "Live wallpaper settings"
             ],
             "keywords": ""
         },
@@ -2562,7 +2733,7 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Add a wallpaper folder"
+                "Live wallpaper settings"
             ],
             "keywords": ""
         },
@@ -2578,14 +2749,14 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Add a wallpaper folder"
+                "Live wallpaper settings"
             ],
             "keywords": ""
         },
         {
-            "label": "Pause behind fullscreen apps",
+            "label": "Fullscreen rule only for focused apps",
             "ctx": "",
-            "sub": "Games and videos get the GPU to themselves",
+            "sub": "",
             "section": "When other apps are in use",
             "page": 9,
             "path": [
@@ -2594,7 +2765,23 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Add a wallpaper folder"
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Identify displays by",
+            "ctx": "",
+            "sub": "",
+            "section": "When other apps are in use",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
             ],
             "keywords": ""
         },
@@ -2610,7 +2797,71 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Add a wallpaper folder"
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Profile name",
+            "ctx": "",
+            "sub": "Save the current wallpapers and playlists for every display",
+            "section": "Display profiles",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Save current display setup",
+            "ctx": "",
+            "sub": "",
+            "section": "Display profiles",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Video decoding",
+            "ctx": "",
+            "sub": "Hardware decoding saves CPU on video wallpapers",
+            "section": "Display profiles",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Texture resolution",
+            "ctx": "",
+            "sub": "",
+            "section": "App rules",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
             ],
             "keywords": ""
         },
@@ -2626,7 +2877,23 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Add a wallpaper folder"
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Anti-aliasing",
+            "ctx": "",
+            "sub": "Smooth model edges. Higher sample counts use more video memory.",
+            "section": "Folders",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
             ],
             "keywords": ""
         },
@@ -2642,15 +2909,15 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Add a wallpaper folder"
+                "Live wallpaper settings"
             ],
             "keywords": ""
         },
         {
-            "label": "Keyboard shortcuts",
+            "label": "Graphics preset",
             "ctx": "",
-            "sub": "Set keys to pause, stop or pick a random live wallpaper",
-            "section": "More",
+            "sub": "",
+            "section": "Folders",
             "page": 9,
             "path": [
                 4,
@@ -2658,7 +2925,263 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Add a wallpaper folder"
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Switch desktop colors with the wallpaper",
+            "ctx": "",
+            "sub": "Update the dynamic color scheme from the selected wallpaper",
+            "section": "Desktop and screensaver",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Show wallpaper on the lock screen",
+            "ctx": "",
+            "sub": "Use the saved wallpaper frame when locking the session",
+            "section": "Desktop and screensaver",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Wallpaper screensaver",
+            "ctx": "",
+            "sub": "Show wallpaper above open windows while the session is idle",
+            "section": "Desktop and screensaver",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Start after (minutes)",
+            "ctx": "",
+            "sub": "",
+            "section": "Desktop and screensaver",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Screensaver wallpaper",
+            "ctx": "",
+            "sub": "",
+            "section": "Desktop and screensaver",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Play screensaver audio",
+            "ctx": "",
+            "sub": "",
+            "section": "Desktop and screensaver",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Wallpaper switch transition",
+            "ctx": "",
+            "sub": "",
+            "section": "Wallpaper browser",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Transition time (ms)",
+            "ctx": "",
+            "sub": "",
+            "section": "Wallpaper browser",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Show live wallpaper in the tray",
+            "ctx": "",
+            "sub": "",
+            "section": "Wallpaper browser",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Animate wallpaper previews",
+            "ctx": "",
+            "sub": "",
+            "section": "Wallpaper browser",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Hardware acceleration for Settings",
+            "ctx": "",
+            "sub": "Applies when you reopen the Settings window",
+            "section": "Wallpaper browser",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Keyboard shortcuts",
+            "ctx": "",
+            "sub": "Set keys to pause, stop or pick a random live wallpaper",
+            "section": "Wallpaper browser",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Start at login",
+            "ctx": "",
+            "sub": "Start the last selected wallpapers when you log in",
+            "section": "Startup and recovery",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Restart after a crash",
+            "ctx": "",
+            "sub": "Restart playback if the renderer exits unexpectedly",
+            "section": "Startup and recovery",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Protect against crashes",
+            "ctx": "",
+            "sub": "Hold a failed wallpaper selection until you apply a wallpaper again",
+            "section": "Startup and recovery",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Restart after system sleep",
+            "ctx": "",
+            "sub": "Reload the running wallpaper when the system wakes up",
+            "section": "Startup and recovery",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
             ],
             "keywords": ""
         },
@@ -2674,7 +3197,135 @@ QtObject {
             ],
             "trail": [
                 "Live wallpapers",
-                "Add a wallpaper folder"
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "CEF command-line options",
+            "ctx": "",
+            "sub": "",
+            "section": "Renderer",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "High precision frame timer",
+            "ctx": "",
+            "sub": "Use submillisecond deadlines for Wayland frame pacing",
+            "section": "Renderer",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Web developer tools",
+            "ctx": "",
+            "sub": "",
+            "section": "Renderer",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Developer tools port",
+            "ctx": "",
+            "sub": "",
+            "section": "Renderer",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Open web developer tools",
+            "ctx": "",
+            "sub": "",
+            "section": "Renderer",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Reset wallpaper settings",
+            "ctx": "",
+            "sub": "Restore defaults for playback, rendering, and integration",
+            "section": "Renderer",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Log level",
+            "ctx": "",
+            "sub": "",
+            "section": "Renderer",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
+            ],
+            "keywords": ""
+        },
+        {
+            "label": "Wallpaper browser quality",
+            "ctx": "",
+            "sub": "",
+            "section": "Renderer",
+            "page": 9,
+            "path": [
+                4,
+                8
+            ],
+            "trail": [
+                "Live wallpapers",
+                "Live wallpaper settings"
             ],
             "keywords": ""
         },
