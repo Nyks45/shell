@@ -346,6 +346,7 @@ Singleton {
                 switchingWallpaper = {
                     id: String(Date.now()), photo, outputs,
                     effect: effect === "hold" ? -1 : Number(effect),
+                    seed: Qt.vector3d(Math.random(), Math.random(), Math.random()),
                     duration: effect === "hold" ? 0 : setting("transitionDuration", 350)
                 };
             }

@@ -72,14 +72,14 @@ if("shell" IN_LIST ENABLE_MODULES)
     find_program(QSB_EXECUTABLE NAMES qsb PATHS /usr/lib/qt6/bin REQUIRED)
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/assets/shaders")
     set(SHELL_QSB "")
-    foreach(shader liquid wallpaper-transition)
+    foreach(shader liquid.frag wallpaper-transition.frag wallpaper-pieces.vert wallpaper-pieces.frag)
         add_custom_command(
-            OUTPUT "${CMAKE_BINARY_DIR}/assets/shaders/${shader}.frag.qsb"
-            COMMAND "${QSB_EXECUTABLE}" --glsl "100 es,120,150" --hlsl 50 --msl 12 -o "${CMAKE_BINARY_DIR}/assets/shaders/${shader}.frag.qsb" "${CMAKE_SOURCE_DIR}/assets/shaders/${shader}.frag"
-            DEPENDS "${CMAKE_SOURCE_DIR}/assets/shaders/${shader}.frag"
+            OUTPUT "${CMAKE_BINARY_DIR}/assets/shaders/${shader}.qsb"
+            COMMAND "${QSB_EXECUTABLE}" --glsl "100 es,120,150" --hlsl 50 --msl 12 -o "${CMAKE_BINARY_DIR}/assets/shaders/${shader}.qsb" "${CMAKE_SOURCE_DIR}/assets/shaders/${shader}"
+            DEPENDS "${CMAKE_SOURCE_DIR}/assets/shaders/${shader}"
             VERBATIM
         )
-        list(APPEND SHELL_QSB "${CMAKE_BINARY_DIR}/assets/shaders/${shader}.frag.qsb")
+        list(APPEND SHELL_QSB "${CMAKE_BINARY_DIR}/assets/shaders/${shader}.qsb")
     endforeach()
     # The desktop widgets' shaders (widgets/shaders), built here with a GLSL ES variant: the .qsb files they
     # ships have none, and Qt then warns that the pipeline's stages share no GLSL ES version
