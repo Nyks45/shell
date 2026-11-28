@@ -345,8 +345,12 @@ void Processes::tick() {
                 if (part.endsWith(".service") || part.endsWith(".scope"))
                     p.unit = QString::fromUtf8(part);
             QByteArray cmd = readFile(base + u"/cmdline"_s);
-            cmd.replace('\0', ' ');
-            p.command = QString::fromUtf8(cmd.trimmed());
+            // Arguments are NUL-separated; an argument can hold newlines or other control
+            // characters (bash -c / node -e scripts): show it as one line
+            for (char& c : cmd)
+                if (static_cast<unsigned char>(c) < 0x20 || c == 0x7f)
+                    c = ' ';
+            p.command = QString::fromUtf8(cmd).simplified();
             // comm is cut at 15 characters: the executable's name is the full one
             // (for scripts the program is an argument: python3 /usr/lib/x/caelestia-devices)
             if (p.name.size() >= 15 && !p.command.isEmpty()) {

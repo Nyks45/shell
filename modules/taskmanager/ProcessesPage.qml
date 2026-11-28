@@ -718,6 +718,7 @@ Item {
                                 width: parent.width
                                 visible: text !== ""
                                 elide: Text.ElideRight
+                                maximumLineCount: 1
                                 text: rowItem.info.subtitle ?? ""
                                 font: Tokens.font.label.small
                                 color: Colours.palette.m3onSurfaceVariant
@@ -763,6 +764,7 @@ Item {
                 StyledText {
                     Layout.fillWidth: true
                     elide: Text.ElideRight
+                    maximumLineCount: 1
                     font: Tokens.font.body.small
                     color: Colours.palette.m3onSurfaceVariant
                     text: {
@@ -1315,6 +1317,7 @@ Item {
             anchors.rightMargin: Tokens.padding.small
             horizontalAlignment: parent.alignLeft ? Text.AlignLeft : Text.AlignRight
             elide: Text.ElideRight
+            maximumLineCount: 1
             font: Tokens.font.body.small
             color: parent.dim ? Colours.palette.m3onSurfaceVariant : Colours.palette.m3onSurface
         }
